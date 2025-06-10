@@ -1,0 +1,4 @@
+lapse_risk,lapse_risk_change,lapsed_ever,lapse_last_day,lapse_last_week,lapse_last_month
+"high","increasing","yes","yes","no","no"
+"low","decreasing","no","no","no","no"
+"stable","stable","yes","no","no","no"

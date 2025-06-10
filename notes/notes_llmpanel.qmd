@@ -1,0 +1,41 @@
+# Meeting with Colin on 2025-06-10
+
+Need to
+
+- Review general system prompt and move toward finalizing
+- Fine tune user prompts for each of the tones
+- Consider user prompt for formality of tone
+- Make decision on temperature
+
+
+
+# From lab meeting on 2025-06-03
+
+- Messages will be grouped by context (e.g., high and increasing lapse probability).   This will allow us to have a stem where we acknowledge the context and then ask participants to rate each message in that context.  "Imagine this is for a person who is… (high risk, increasing, etc).  Not yet sure how to handle important feature as part of context
+
+- For each message, they will respond to two questions: I liked it, I find it helpful. These are from the message questionnaire for optimize. Response scale 7pt Likert; Agree strongly to Disagree Strongly.
+
+- We want large pool of messages within each tone with participants getting different example messages.   May need to finesse this in Qualtrics
+
+- Tone preference survey will include short description of each tone category and maybe a short example (without context info?)
+
+Tones to be included (see doc from Lyn's notes in notes folder)
+1.     Legitimization of Distress
+2.     Caring / Supportive
+3.     Self Efficacy
+4.     Acknowledgement of Feelings
+5.     Value Affirmation
+6.     Norms
+7.     We will consider a 7th tone category - "Just the facts"  for example some veterans do not want any excess wording for encouragement.  How to handle this category if the person in the optimize project isnt getting any feedback?
+
+- Note that we decided to DROP the response efficacy tone category suggested by Lyn.
+
+- We also considered several orthogonal manipulations that could be crossed with tone category
+
+  - We are still considering formality of the tone (i.e., Peer vs. Authority) 
+
+  - We will NOT manipulate autonomy but instead put some statements about this into the system prompt. We want to avoid “should” and “must” language and emphasize that they know themselves best and it is their decision and that they have option of how to use the app.   We felt that positive statements about autonomy (You know best. You are the final authority on what to do) might get repetitive if included in all messages in this condition.)
+
+- We will NOT manipulate positive tone but instead work to have the system prompt use mild to moderate positive tone consistent with that increasing engagement.
+ 
+- We will NOT manipulate temperature but instead pick one based on our EDA
