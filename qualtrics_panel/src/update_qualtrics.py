@@ -60,7 +60,7 @@ class SurveyHandler:
 
         # Load categories and messages from CSV files
         try:
-            categories_df = pd.read_csv('../input/message_categories.csv', quotechar='"')
+            categories_df = pd.read_csv('../input/user_prompt/message_categories.csv', quotechar='"')
             categories_df.columns = categories_df.columns.str.strip()
         except Exception as e:
             print(f"Error loading categories file: {e}")

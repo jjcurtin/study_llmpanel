@@ -21,7 +21,7 @@ def get_credentials():
 
 # static method to load message categories and prompts from a CSV file
 @staticmethod
-def load_message_categories(file_path='../input/message_categories.csv'):
+def load_message_categories(file_path='../input/user_prompt/message_categories.csv'):
     try:
         df = pd.read_csv(file_path)
         return list(df['message_category']), list(df['prompt'])
@@ -31,7 +31,7 @@ def load_message_categories(file_path='../input/message_categories.csv'):
 
 # static method to load user contexts from a CSV file
 @staticmethod
-def load_user_contexts(file_path='../input/user_contexts.csv'):
+def load_user_contexts(file_path='../input/user_prompt/user_contexts.csv'):
     try:
         return pd.read_csv(file_path)
     except Exception as e:
