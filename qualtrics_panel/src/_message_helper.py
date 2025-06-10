@@ -55,9 +55,8 @@ def load_existing_messages(file_path='../output/all_generated_messages.csv'):
             current_messages = pd.read_csv(file_path)
         else:
             current_messages = pd.DataFrame(columns = [
-                'user_index', 'lapse_risk', 'lapse_risk_change', 'lapsed_ever',
-                'lapse_last_day', 'lapse_last_week', 'lapse_last_month',
-                'message_category', 'generated_message', 'temperature', 'formality'
+                'user_index', 'lapse_risk', 'lapse_risk_change',
+                'message_category', 'temperature', 'formality','generated_message'
             ])
         return current_messages
     except Exception as e:
