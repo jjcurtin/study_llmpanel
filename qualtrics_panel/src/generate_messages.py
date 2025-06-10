@@ -7,7 +7,7 @@ import requests
 import pandas as pd
 import csv
 
-from _message_helper import get_credentials, load_message_categories, load_user_contexts, load_existing_messages
+from _message_helper import get_credentials, load_message_categories, load_user_contexts, load_existing_messages, load_formality_prompts
 
 class MessageGenerator:
 
@@ -58,6 +58,23 @@ class MessageGenerator:
                 print("No valid user contexts selected. Exiting...")
                 exit(1)
 
+        # load formality prompts
+        self.formality_labels, self.formality_prompts = load_formality_prompts()
+        print("\nAvailable formality levels:")
+        for i, label in enumerate(self.formality_labels):
+            print(f"{i + 1}: {label}")
+        self.formalities_to_generate = []
+        selected_formalities = input("Enter the numbers of the formality levels you want to generate messages for, separated by commas (default is all): ")
+        if selected_formalities.strip() == '':
+            self.formalities_to_generate = self.formality_labels
+        else:
+            selected_indices = [int(x.strip()) - 1 for x in selected_formalities.split(',') if x.strip().isdigit()]
+            self.formalities_to_generate = [self.formality_labels[i] for i in selected_indices if 0 <= i < len(self.formality_labels)]
+            if not self.formalities_to_generate:
+                print("No valid formality levels selected. Exiting...")
+                exit(1)
+        self.formality_to_prompt = dict(zip(self.formality_labels, self.formality_prompts))
+
         # number of messages to generate
         num_messages = input("Enter the number of messages to generate for each category per user context (default is 1): ")
         num_messages = int(num_messages) if num_messages.isdigit() else 1
@@ -91,32 +108,30 @@ class MessageGenerator:
             output_file = "../output/all_generated_messages.csv"
         self.output_file = output_file
 
-        print_to_terminal = input("Would you like to print the generated messages to the terminal? (y/n): ")
-        if print_to_terminal.lower() == 'y':
+        print_to_terminal = input("Would you like to print the generated messages to the terminal? (ENTER for yes, n for no): ")
+        if print_to_terminal.lower() == '':
             self.print_to_terminal = True
-        else:
+        elif print_to_terminal.lower() == 'n':
             self.print_to_terminal = False
+        else:
+            print("Invalid choice, defaulting to printing messages to terminal.")
+            self.print_to_terminal = True
 
-        print_prompt = input("Would you like to print the system and user prompts to the terminal? (y/n): ")
-        if print_prompt.lower() == 'y':
+        print_prompt = input("Would you like to print the system and user prompts to the terminal? (ENTER for yes, n for no): ")
+        if print_prompt.lower() == '':
             self.print_prompt = True
-        else:
+        elif print_prompt.lower() == 'n':
             self.print_prompt = False
-
-        # add additional orthogonal variables here, such as formality, etc.
-        # you will need to modify the user prompt creation process accordingly
-        choice = input("Input 1 for formal messages, default is informal: ")
-        if choice == '1':
-            self.formality = True
         else:
-            self.formality = False
+            print("Invalid choice, defaulting to printing prompts to terminal.")
+            self.print_prompt = True
 
         # adding in additional information to the user prompt
-        choice = input("Would you like to add additional information to the user prompt? (y/n): ")
-        if choice.lower() == 'y':
-            self.additional_info = input("Please enter the additional information to include in the user prompt: ")
-        else:
+        additional_info = input("Add any additional information here (hit ENTER to skip): ")
+        if additional_info.strip() == '':
             self.additional_info = None
+        else:
+            self.additional_info = f"{additional_info.strip()}"
 
         os.system('cls' if os.name == 'nt' else 'clear')
         print("Starting message generation process...")
@@ -142,13 +157,16 @@ class MessageGenerator:
                 f"{message_restrictions}\n"
             )
             if self.print_prompt:
-                print(f"System prompt:\n{self.system_prompt}")
+                print("\n" + "=" * 50)
+                print("SYSTEM PROMPT")
+                print("=" * 50 + "\n")
+                print(f"{self.system_prompt}")
         except Exception as e:
             print(f"Error loading system prompt files: {e}\nPlease ensure the files exist and are formatted correctly.")
             exit(1)
 
     # create the user prompt based on the message category and user context
-    def create_user_prompt(self, message_category, message_description, user_context):
+    def create_user_prompt(self, message_category, message_description, user_context, formality_prompt = None):
         # use this instead if you want to include all user context fields in the prompt
         # user_context_str = '\n'.join([f"{k}: {str(v).strip()}" for k, v in user_context.items()])
         user_context_str = f"This user has a lapse risk that is {user_context.get('lapse_risk', 'N/A')} and {user_context.get('lapse_risk_change', 'N/A')}."
@@ -157,8 +175,8 @@ class MessageGenerator:
             f"{user_context_str}\n"
             f"Message category: {message_category}\n"
             f"Message prompt: {message_description}\n"
-            "Please tailor the message to the user's situation."
-            f"{"\nPlease use a formal tone when addressing the user." if self.formality else ""}\n"
+            "Please tailor the message to the user's situation.\n"
+            f"{formality_prompt if formality_prompt else ''}\n"
             f"{self.additional_info if self.additional_info else ''}\n"
         )
         if self.print_prompt:
@@ -225,36 +243,50 @@ class MessageGenerator:
         all_output_rows = []
         self.create_system_prompt()
 
-        # for each message category...
-        for message_category in self.tones_to_generate:
-            print(f"Generating messages for category: {message_category}")
-            message_description = self.category_to_description[message_category]
-            
-            # for each user...
-            for user_index, user_row in user_contexts_df.iterrows():
-                if user_index not in self.users_to_generate:
-                    continue
+        # for each formality level...
+        for formality in self.formalities_to_generate:
+            print("\n" + "=" * 50)
+            print(f"FORMALITY LEVEL: {formality.upper()}")
+            print("=" * 50 + "\n")
+            print(f"Generating messages for formality level: {formality}")
+            formality_prompt = self.formality_to_prompt[formality]
+            if formality_prompt == '':
+                formality_prompt = None
 
-                # create user prompt based on the user context and message category
-                user_context = {k: str(v).strip() for k, v in user_row.items()}
-                user_prompt = self.create_user_prompt(message_category, message_description, user_context)
+            # for each message category...
+            for message_category in self.tones_to_generate:
+                print("\n" + "-" * 50)
+                print(f"MESSAGE CATEGORY: {message_category.upper()}")
+                print("-" * 50 + "\n")
+                print(f"Generating messages for category: {message_category}")
+                message_description = self.category_to_description[message_category]
+                
+                # for each user...
+                for user_index, user_row in user_contexts_df.iterrows():
+                    if user_index not in self.users_to_generate:
+                        continue
 
-                # Generate messages using the Azure API and store them in the output list
-                messages = self.generate_messages(user_prompt)
-                print(f"Generated messages for user {user_index + 1} in category {message_category}")
-                for msg in messages:
-                    all_output_rows.append({
-                        'user_index': user_index + 1,
-                        'lapse_risk': user_context.get('lapse_risk', ''),
-                        'lapse_risk_change': user_context.get('lapse_risk_change', ''),
-                        'lapsed_ever': user_context.get('lapsed_ever', ''),
-                        'lapse_last_day': user_context.get('lapse_last_day', ''),
-                        'lapse_last_week': user_context.get('lapse_last_week', ''),
-                        'lapse_last_month': user_context.get('lapse_last_month', ''),
-                        'message_category': message_category,
-                        'generated_message': msg,
-                        'temperature': self.temperature
-                    })
+                    # create user prompt based on the user context and message category
+                    user_context = {k: str(v).strip() for k, v in user_row.items()}
+                    user_prompt = self.create_user_prompt(message_category, message_description, user_context, formality_prompt)
+
+                    # Generate messages using the Azure API and store them in the output list
+                    messages = self.generate_messages(user_prompt)
+                    print(f"Generated messages for user {user_index + 1} in category {message_category}")
+                    for msg in messages:
+                        all_output_rows.append({
+                            'user_index': user_index + 1,
+                            'lapse_risk': user_context.get('lapse_risk', ''),
+                            'lapse_risk_change': user_context.get('lapse_risk_change', ''),
+                            'lapsed_ever': user_context.get('lapsed_ever', ''),
+                            'lapse_last_day': user_context.get('lapse_last_day', ''),
+                            'lapse_last_week': user_context.get('lapse_last_week', ''),
+                            'lapse_last_month': user_context.get('lapse_last_month', ''),
+                            'message_category': message_category,
+                            'generated_message': msg,
+                            'temperature': self.temperature,
+                            'formality': formality,
+                        })
 
         # If the output file already exists, ask if the user would like to append to it or overwrite it
         all_output_flat = pd.DataFrame(all_output_rows)
