@@ -133,9 +133,6 @@ class MessageGenerator:
         else:
             self.additional_info = f"{additional_info.strip()}"
 
-        os.system('cls' if os.name == 'nt' else 'clear')
-        print("Starting message generation process...")
-
         self.run()
 
     # create the system prompt
@@ -234,6 +231,9 @@ class MessageGenerator:
     # main method to run the message generation process
     def run(self):
 
+        os.system('cls' if os.name == 'nt' else 'clear')
+        print("Starting message generation process...")
+
         # Load API credentials, message categories, and user contexts
         self.api_key, self.endpoint = get_credentials()
         user_contexts_df = load_user_contexts()
@@ -278,14 +278,10 @@ class MessageGenerator:
                             'user_index': user_index + 1,
                             'lapse_risk': user_context.get('lapse_risk', ''),
                             'lapse_risk_change': user_context.get('lapse_risk_change', ''),
-                            'lapsed_ever': user_context.get('lapsed_ever', ''),
-                            'lapse_last_day': user_context.get('lapse_last_day', ''),
-                            'lapse_last_week': user_context.get('lapse_last_week', ''),
-                            'lapse_last_month': user_context.get('lapse_last_month', ''),
-                            'message_category': message_category,
-                            'generated_message': msg,
                             'temperature': self.temperature,
                             'formality': formality,
+                            'message_category': message_category,
+                            'generated_message': msg,
                         })
 
         # If the output file already exists, ask if the user would like to append to it or overwrite it
