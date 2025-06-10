@@ -1,3 +1,12 @@
+.Rproj.user/
+.Rhistory
+.RData
+.Ruserdata
+proj_optimize.Rproj
+.DS_Store
+_publish.yml
+.DS_Store
+azure.api
 *.api
 all_generated_messages.csv
 TODO

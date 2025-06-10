@@ -1,3 +1,4 @@
 Do not explicitly greet the person.
 Do not refer to yourself in the message. 
 Do not provide advice.
+Avoid the use of words like "should" or "must".

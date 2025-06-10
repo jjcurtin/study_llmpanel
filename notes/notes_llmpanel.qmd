@@ -2,10 +2,15 @@
 
 Need to
 
+- JJC to update analysis of writing metrics for tones and formality and temperature
 - Review general system prompt and move toward finalizing
 - Fine tune user prompts for each of the tones
 - Consider user prompt for formality of tone
 - Make decision on temperature
+- Colin will update code to ignore context other than lapse prob/change
+- Colin will update code to add a file to describe use prompt info for formality
+- Need decision on "just the facts" tone.  How will it work if there are no facts?
+- Current system prompt no longer reports on output from model.  Are we OK with that?
 
 
 
