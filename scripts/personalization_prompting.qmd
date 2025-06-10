@@ -1,0 +1,318 @@
+---
+title: "Personalizaiton Prompt Exploration"
+format: 
+  html: 
+    embed-resources: true
+    toc: true 
+    toc-depth: 4
+    include-in-header:
+      text: |
+        <style>
+        pre, code {
+          white-space: pre-wrap !important;
+          word-wrap: break-word !important;
+          overflow-wrap: break-word !important;
+          max-width: 100% !important;
+        }
+        
+        .output-string {
+          font-family: 'Monaco', 'Consolas', monospace;
+          background-color: #f5f5f5;
+          border-left: 3px solid #31BAE9;
+          padding: 10px;
+          margin: 10px 0;
+          border-radius: 4px;
+          overflow-x: visible !important;
+          white-space: pre-wrap !important;
+        }
+        
+        .output-string pre {
+          margin-bottom: 15px;
+          padding-bottom: 15px;
+          border-bottom: 1px dotted #ddd;
+        }
+        
+        .output-string pre:last-child {
+          border-bottom: none;
+          margin-bottom: 0;
+          padding-bottom: 0;
+        }
+        </style>
+editor_options: 
+  chunk_output_type: console
+---
+
+## Introduction
+
+This document is for testing for comparisons in how `flight_support.R` deals with variations in support strategies with various risk profiles.
+
+```{r Setup}
+#| message: false
+#| warning: false
+
+options(conflicts.policy = "depends.ok")
+
+library(tidytext)
+library(dplyr, exclude = "group_rows")
+library(tidyr)
+library(ggplot2)
+library(stringr)
+library(patchwork)
+
+source(here::here("scripts/llm/flight_support.R"))
+
+sys_prompt <-
+"You are a chatbot in an automated recovery support app for people with alcohol use disorder. You are writing a daily message from the app that will provide the person with information from a machine learning model about how they are doing in their recovery today. The message should be 3 to 4 sentences long and written for someone with an 8th grade reading level. Do not explicitly greet the person, and do not refer to yourself in the message. Do not provide advice."
+```
+
+## Working Definitions
+
+### Support Strategies
+
+We will be working with 4 different conditions of support strategies (see `van_swol_1.docx` in `methods/messages/van_swol)` for more clarification about valences):
+
+> Legitimization of Distress
+>
+> Caring/Supportive
+>
+> Encouraging
+>
+> Acknowledgment of Feelings
+
+### Risk Profiles
+
+#### Crossing with our support strategies will be 4 theoretical risk profiles:
+
+> Low and Decreasing
+>
+> Low and Increasing
+>
+> High and Decreasing
+>
+> High and Increasing
+
+### Prompts
+
+```{r}
+create_user_prompt <- function(risk_level, risk_direction, strategy_type) {
+  risk_status <- 
+    if(risk_level == "high" && risk_direction == "inc") {
+    "high and increasing"
+      
+  } else if(risk_level == "high" && risk_direction == "dec") {
+    "high but decreasing"
+    
+  } else if(risk_level == "low" && risk_direction == "inc") {
+    "low but increasing"
+    
+  } else {
+    "low and decreasing"
+  }
+  
+  strategy_text <- switch(strategy_type,
+    "leg" = "legitimize their distress by acknowledging their feelings as reasonable, validating that their experience is difficult, and assuring them it's okay to express these struggles.",
+    
+    "car" = "express caring through showing acceptance, demonstrating concern for their situation, communicating availability for support, and conveying partnership in their recovery journey.",
+    
+    "enc" = "are encouraging by focusing on their capabilities, emphasizing feasibility of recommended strategies, highlighting available resources, and reinforcing their ability to navigate their recovery journey.",
+    
+    "ack" = "acknowledge their feelings by showing interest in their emotional experience, offering thoughtful hypotheses about their feelings without using 'should' language, and reflecting their emotional responses in a way that encourages continued reflection."
+  )
+  
+  glue::glue("Write a message to tell this person that they are at {risk_status} risk for drinking today. This person prefers messages that {strategy_text}")
+}
+```
+
+```{r}
+combinations <- expand.grid(
+  risk_level = c("low", "high"),
+  risk_direction = c("dec", "inc"),
+  strategy = c("leg", "car", "enc", "ack"),
+  stringsAsFactors = FALSE
+)
+
+combinations$prompt <- apply(combinations, 1, function(row) {
+  create_user_prompt(row["risk_level"], row["risk_direction"], row["strategy"])
+})
+
+combinations$messages <- vector("list", nrow(combinations))
+
+for (i in 1:nrow(combinations)) {
+  tryCatch({
+    combinations$messages[[i]] <- pilot_message(
+      base_prompt = combinations$prompt[i],
+      system_prompt = sys_prompt,
+      connections = 3,
+      temperature = 0.7
+    )
+  }, error = function(e) {
+    message(paste("Error processing row", i, ":", e$message))
+    combinations$messages[[i]] <- rep(NA, 3)
+  })
+}
+
+support_messages <- setNames(
+  combinations$messages,
+  paste(combinations$strategy, combinations$risk_level, combinations$risk_direction, sep = "_")
+)
+```
+
+### Legitimization of Distress
+
+This communication approach focuses on validating the individual's emotional experience by explicitly recognizing their feelings as normal and appropriate. Key elements include acknowledging feelings as reasonable responses to their situation, validating the genuine difficulty of their experience, and assuring them that expressing these struggles is acceptable and expected in the recovery process. This approach helps reduce shame and isolation by normalizing emotional responses to recovery challenges.
+
+#### Low and Decreasing
+
+```{r}
+#| class: output-string
+support_messages$leg_low_dec[1]
+support_messages$leg_low_dec[2]
+support_messages$leg_low_dec[3]
+```
+
+#### Low and Increasing
+
+```{r}
+#| class: output-string
+support_messages$leg_low_inc[1]
+support_messages$leg_low_inc[2]
+support_messages$leg_low_inc[3]
+```
+
+#### High and Decreasing
+
+```{r}
+#| class: output-string
+support_messages$leg_high_dec[1]
+support_messages$leg_high_dec[2]
+support_messages$leg_high_dec[3]
+```
+
+#### High and Increasing
+
+```{r}
+#| class: output-string
+support_messages$leg_high_inc[1]
+support_messages$leg_high_inc[2]
+support_messages$leg_high_inc[3]
+```
+
+### Caring / Supportive
+
+This communication approach emphasizes establishing connection and demonstrating genuine concern. Key elements include expressing acceptance without judgment, showing specific concern for the individual's current situation, clearly communicating availability and willingness to provide support, and conveying partnership in their recovery journey. This approach creates psychological safety while avoiding claims of complete understanding of their unique experience.
+
+#### Low and Decreasing
+
+```{r}
+#| class: output-string
+support_messages$car_low_dec[1]
+support_messages$car_low_dec[2]
+support_messages$car_low_dec[3]
+```
+
+#### Low and Increasing
+
+```{r}
+#| class: output-string
+support_messages$car_low_inc[1]
+support_messages$car_low_inc[2]
+support_messages$car_low_inc[3]
+```
+
+#### High and Decreasing
+
+```{r}
+#| class: output-string
+support_messages$car_high_dec[1]
+support_messages$car_high_dec[2]
+support_messages$car_high_dec[3]
+```
+
+#### High and Increasing
+
+```{r}
+#| class: output-string
+support_messages$car_high_inc[1]
+support_messages$car_high_inc[2]
+support_messages$car_high_inc[3]
+```
+
+### Encouraging
+
+This communication approach highlights the individual's capabilities and accessible resources. Key elements include focusing on the person's existing strengths and abilities, emphasizing the feasibility of recommended coping strategies, identifying specific available resources, and reinforcing their capacity to navigate their recovery journey effectively. This approach builds self-efficacy by making recovery actions feel attainable rather than overwhelming.
+
+#### Low and Decreasing
+
+```{r}
+#| class: output-string
+support_messages$enc_low_dec[1]
+support_messages$enc_low_dec[2]
+support_messages$enc_low_dec[3]
+```
+
+#### Low and Increasing
+
+```{r}
+#| class: output-string
+support_messages$enc_low_inc[1]
+support_messages$enc_low_inc[2]
+support_messages$enc_low_inc[3]
+```
+
+#### High and Decreasing
+
+```{r}
+#| class: output-string
+support_messages$enc_high_dec[1]
+support_messages$enc_high_dec[2]
+support_messages$enc_high_dec[3]
+```
+
+#### High and Increasing
+
+```{r}
+#| class: output-string
+support_messages$enc_high_inc[1]
+support_messages$enc_high_inc[2]
+support_messages$enc_high_inc[3]
+```
+
+### Acknowledgement of Feelings
+
+This communication approach centers on demonstrating attentive listening and encouraging emotional exploration. Key elements include showing genuine interest in the individual's emotional experience, offering thoughtful hypotheses about their feelings without prescriptive language, reflecting their emotional responses accurately, and encouraging continued reflection in a non-interrogative manner. This approach facilitates emotional processing through validation and guided self-exploration.
+
+#### Low and Decreasing
+
+```{r}
+#| class: output-string
+support_messages$ack_low_dec[1]
+support_messages$ack_low_dec[2]
+support_messages$ack_low_dec[3]
+```
+
+#### Low and Increasing
+
+```{r}
+#| class: output-string
+support_messages$ack_low_inc[1]
+support_messages$ack_low_inc[2]
+support_messages$ack_low_inc[3]
+```
+
+#### High and Decreasing
+
+```{r}
+#| class: output-string
+support_messages$ack_high_dec[1]
+support_messages$ack_high_dec[2]
+support_messages$ack_high_dec[3]
+```
+
+#### High and Increasing
+
+```{r}
+#| class: output-string
+support_messages$ack_high_inc[1]
+support_messages$ack_high_inc[2]
+support_messages$ack_high_inc[3]
+```

@@ -1,0 +1,107 @@
+[
+    {
+        "user_index": 1,
+        "category": "Legitimizing",
+        "question_id": "QID1362"
+    },
+    {
+        "user_index": 1,
+        "category": "Norms",
+        "question_id": "QID1363"
+    },
+    {
+        "user_index": 1,
+        "category": "Supportive",
+        "question_id": "QID1364"
+    },
+    {
+        "user_index": 1,
+        "category": "Value Affirmation",
+        "question_id": "QID1365"
+    },
+    {
+        "user_index": 1,
+        "category": "Response Efficacy",
+        "question_id": "QID1366"
+    },
+    {
+        "user_index": 1,
+        "category": "Acknowledging",
+        "question_id": "QID1367"
+    },
+    {
+        "user_index": 1,
+        "category": "Self Efficacy",
+        "question_id": "QID1368"
+    },
+    {
+        "user_index": 2,
+        "category": "Value Affirmation",
+        "question_id": "QID1369"
+    },
+    {
+        "user_index": 2,
+        "category": "Acknowledging",
+        "question_id": "QID1370"
+    },
+    {
+        "user_index": 2,
+        "category": "Norms",
+        "question_id": "QID1371"
+    },
+    {
+        "user_index": 2,
+        "category": "Self Efficacy",
+        "question_id": "QID1372"
+    },
+    {
+        "user_index": 2,
+        "category": "Response Efficacy",
+        "question_id": "QID1373"
+    },
+    {
+        "user_index": 2,
+        "category": "Supportive",
+        "question_id": "QID1374"
+    },
+    {
+        "user_index": 2,
+        "category": "Legitimizing",
+        "question_id": "QID1375"
+    },
+    {
+        "user_index": 3,
+        "category": "Self Efficacy",
+        "question_id": "QID1376"
+    },
+    {
+        "user_index": 3,
+        "category": "Supportive",
+        "question_id": "QID1377"
+    },
+    {
+        "user_index": 3,
+        "category": "Acknowledging",
+        "question_id": "QID1378"
+    },
+    {
+        "user_index": 3,
+        "category": "Legitimizing",
+        "question_id": "QID1379"
+    },
+    {
+        "user_index": 3,
+        "category": "Value Affirmation",
+        "question_id": "QID1380"
+    },
+    {
+        "user_index": 3,
+        "category": "Response Efficacy",
+        "question_id": "QID1381"
+    },
+    {
+        "user_index": 3,
+        "category": "Norms",
+        "question_id": "QID1382"
+    }
+]

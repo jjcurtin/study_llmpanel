@@ -1,0 +1,308 @@
+---
+title: "Readability analysis of messages with strategy/temperature variations"
+format:
+  html:
+    embed-resources: true
+---
+
+
+Setup
+```{r}
+#turn off warnings to make an easier-to-read html
+options(warn=-1)
+
+library(tidyverse)
+
+# install.packages("quanteda")
+# install.packages("quanteda.textstats")
+# install.packages("quanteda.textplots")
+library(quanteda)
+library(quanteda.textstats)
+library(quanteda.textplots)
+
+devtools::source_url("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
+
+path_optimize <- "Z:/studydata/optimize/administration/readability"
+```
+
+Import document from Chris
+```{r}
+
+messages <- read_csv(file.path(path_optimize, "messages_temperature_prompting.csv"))
+
+```
+
+### Add linguistic analysis variables
+
+I reviewed some of the recommended packages [here](https://naturallanguageprocessing.com/programming-r-nlp-packages-functions/) and went with `quanteda`, which provided a lot of different metrics all in one package.
+
+I then selected metrics which were the most self-explanatory in terms of interpreting their reasoning AND the output of their equations; the ones I selected all output a US grade level. I wanted a few different measures so we could compare them. Thanks to [this site](https://readabilityformulas.com/) for simple explanations of the available metrics.
+
+General textual complexity metrics:
+
+* meanSentenceLength
+* meanWordSyllables
+
+Readabilty metrics that give a US grade level output for readability:
+
+* SMOG: Simple Measure of Gobbledygook, based on the number of 3+ syllable words (used by CDC to produce healthcare info)
+* ARI: Automated Readability Index, based on sentence & word length 
+* Flesch.Kincaid: measured by total words, sentences, and syllables
+* Dale.Chall: based on "difficult" words (i.e., words missing from their 3000-word corpus of "familiar" words). 
+* msg_mean: mean of the above 4
+
+
+```{r}
+readability <- messages |>
+  rowwise() |>
+  mutate(readability = textstat_readability(message_text, c("meanSentenceLength", "meanWordSyllables", "SMOG", "ARI", "Flesch.Kincaid", "Dale.Chall.old"))) |>
+  unnest_wider(readability) |>
+  select(-document) |>
+  rowwise() |> 
+  mutate(msg_mean = mean(SMOG, ARI, Flesch.Kincaid, Dale.Chall.old)) |>
+  ungroup() #groups were causing an issue with skim()
+```
+
+### Basic descriptives
+
+```{r}
+
+#create a summary df which only has the IVs & DVs, to make skimming easier
+summary_readability <- readability |>
+  select(strategy, temperature, meanSentenceLength:msg_mean) |>
+  mutate(strategy = as.factor(strategy),
+         temperature = as.factor(temperature))
+
+summary_readability |>
+skimr::skim()
+
+summary_readability |>
+  group_by(strategy) |>
+  skimr::skim()
+
+summary_readability |>
+  group_by(temperature) |>
+  skimr::skim()
+
+summary_readability |>
+  group_by(strategy, temperature) |>
+  skimr::skim()
+
+```
+
+
+### Basic subgroup plots 
+
+**By strategy for each measure of readability**
+
+```{r}
+readability |> distinct(strategy)
+
+
+readability |> 
+  ggplot(aes(x = meanSentenceLength, fill = strategy)) +
+  geom_histogram(bins = 20)
+
+readability |> 
+  ggplot(aes(x = meanWordSyllables, fill = strategy)) +
+  geom_histogram(bins = 20)
+
+readability |> 
+  ggplot(aes(x = SMOG, fill = strategy)) +
+  geom_histogram(binwidth = 1) + 
+  scale_x_continuous(limits=c(4, 14))
+
+readability |> 
+  ggplot(aes(x = ARI, fill = strategy)) +
+  geom_histogram(bins = 20) + 
+  scale_x_continuous(limits=c(4, 14))
+
+readability |> 
+  ggplot(aes(x = Flesch.Kincaid, fill = strategy)) +
+  geom_histogram(bins = 20) + 
+  scale_x_continuous(limits=c(4, 14))
+
+#This one seems different - ack is shifted simpler by this method, whereasa all others show it higher grade level
+readability |> 
+  ggplot(aes(x = Dale.Chall.old, fill = strategy)) +
+  geom_histogram(bins = 20) + 
+  scale_x_continuous(limits=c(4, 14))
+
+readability |> 
+  ggplot(aes(x = msg_mean, fill = strategy)) +
+  geom_histogram(bins = 20) + 
+  scale_x_continuous(limits=c(4, 14))
+
+#Dale.Chall looks different. Check how it correlates with Flesch.Kincaid?
+readability |> 
+  # filter(strategy == "ack") |>
+  ggplot2::ggplot(aes(x = Flesch.Kincaid, y = Dale.Chall.old, color = strategy, shape = strategy)) +
+  geom_point() + 
+  scale_x_continuous()
+```
+
+* Strategy does seem to alter readability by all measures
+* Dale.Chall gives different patterns between strategy groups. In this method, "acknowledgement" strategy results in lower grade scores than by the other methods. I think that might be because we're repeatedly using multi-syllable words (which cause higher grade scores by other metrics) but which are on the Familar list for this measure (e.g., "difficult", "powerful") and are therefore not penalized by this metric.
+
+
+**By temperature for each measure of readability**
+
+```{r}
+readability |> distinct(temperature)
+
+
+readability |> 
+  ggplot(aes(x = meanSentenceLength, fill = temperature)) +
+  geom_histogram(bins = 20)
+
+readability |> 
+  ggplot(aes(x = meanWordSyllables, fill = temperature)) +
+  geom_histogram(bins = 20)
+
+readability |> 
+  ggplot(aes(x = SMOG, fill = temperature)) +
+  geom_histogram(bins = 20) + 
+  scale_x_continuous(limits=c(4, 14))
+
+readability |> 
+  ggplot(aes(x = ARI, fill = temperature)) +
+  geom_histogram(bins = 20) + 
+  scale_x_continuous(limits=c(4, 14))
+
+readability |> 
+  ggplot(aes(x = Flesch.Kincaid, fill = temperature)) +
+  geom_histogram(bins = 20) + 
+  scale_x_continuous(limits=c(4, 14))
+
+readability |> 
+  ggplot(aes(x = Dale.Chall.old, fill = temperature)) +
+  geom_histogram(bins = 20) + 
+  scale_x_continuous(limits=c(4, 14))
+
+readability |> 
+  ggplot(aes(x = msg_mean, fill = temperature)) +
+  geom_histogram(bins = 20) + 
+  scale_x_continuous(limits=c(4, 14))
+
+#In which temp is Dale.Chall best corrolated with Flesch.Kincaid?
+readability |> 
+  ggplot2::ggplot(aes(x = Flesch.Kincaid, y = Dale.Chall.old, color = temperature, shape = temperature)) +
+  geom_point()
+```
+
+* Temp does NOT seem to make too much difference, all the plots are pretty well stacked, and there don't seem to be group patterns in corrolation between the 2 most different measures
+
+
+### Basic LMs for each readability measure
+* with interaction permitted between the manipulated vars
+
+```{r}
+#Verify the levels
+contrasts(summary_readability$strategy)
+contrasts(summary_readability$temperature)
+
+#Intercept will be strategy = acknowledgement, at temp = 0. The estimate will be the grade level for that pairing. For other coefficients it will be the DIFFERENCE in grade level.
+
+m1 <- lm(meanSentenceLength ~ strategy * temperature, summary_readability)
+
+summary(m1)  
+
+m2 <- lm(meanWordSyllables ~ strategy * temperature, summary_readability)
+
+summary(m2)  
+
+m3 <- lm(SMOG ~ strategy * temperature, summary_readability)
+
+summary(m3)  
+
+m4 <- lm(ARI ~ strategy * temperature, summary_readability)
+
+summary(m4)  
+
+m5 <- lm(Flesch.Kincaid ~ strategy * temperature, summary_readability)
+
+summary(m5) 
+
+m6 <- lm(Dale.Chall.old ~ strategy * temperature, summary_readability)
+
+summary(m6) 
+
+m7 <- lm(msg_mean ~ strategy * temperature, summary_readability)
+
+summary(m7)  
+
+# Colin Line plots
+metrics <- c("meanSentenceLength", "meanWordSyllables", "SMOG", "ARI", "Flesch.Kincaid", "Dale.Chall.old", "msg_mean")
+
+for (metric in metrics) {
+  summary_df <- readability %>%
+    group_by(strategy, temperature) %>%
+    summarise(mean_value = mean(.data[[metric]], na.rm = TRUE), .groups = "drop")
+  
+  p <- ggplot(summary_df, aes(x = temperature, y = mean_value, color = strategy, group = strategy)) +
+    geom_line() +
+    geom_point() +
+    labs(
+      title = paste("Mean", metric, "by Strategy and Temperature"),
+      x = "Temperature",
+      y = paste("Mean", metric)
+    ) +
+    theme_minimal()
+  
+  print(p)
+}
+
+# install.packages("stringdist")
+library(stringdist)
+
+# Compute Damerau-Levenshtein distance and normalized distance
+readability <- readability %>%
+  group_by(strategy, temperature) %>%
+  mutate(
+    first_message = first(message_text),
+    damerau_levenshtein = stringdist(message_text, first_message, method = "dl"),
+    max_length = pmax(nchar(message_text), nchar(first_message)),
+    damerau_levenshtein_norm = ifelse(max_length > 0, damerau_levenshtein / max_length, NA)
+  ) %>%
+  ungroup()
+
+# Summarize mean distances
+summary_dl <- readability %>%
+  group_by(strategy, temperature) %>%
+  summarise(
+    mean_dl = mean(damerau_levenshtein, na.rm = TRUE),
+    mean_dl_norm = mean(damerau_levenshtein_norm, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# Plot raw mean distance
+ggplot(summary_dl, aes(x = temperature, y = mean_dl, color = strategy, group = strategy)) +
+  geom_line() +
+  geom_point() +
+  labs(
+    title = "Mean Damerau–Levenshtein Distance by Strategy and Temperature",
+    x = "Temperature",
+    y = "Mean Damerau–Levenshtein Distance"
+  ) +
+  theme_minimal()
+
+# Plot normalized mean distance
+ggplot(summary_dl, aes(x = temperature, y = mean_dl_norm, color = strategy, group = strategy)) +
+  geom_line() +
+  geom_point() +
+  labs(
+    title = "Normalized Mean Damerau–Levenshtein Distance by Strategy and Temperature",
+    x = "Temperature",
+    y = "Normalized Mean Damerau–Levenshtein Distance"
+  ) +
+  theme_minimal()
+
+
+#turn warnings back on
+options(warn=0)
+```
+
+* For all readability measures, the acknowledgement strategy seems to increase the reading grade level
+* Temperature of .75 seems to trend towards an increase in reading grade level in at least the legitimization and encouragement strategies
+
+```

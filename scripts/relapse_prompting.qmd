@@ -1,0 +1,349 @@
+---
+title: "Lapse Pattern Exploration"
+format: 
+  html: 
+    embed-resources: true
+    toc: true 
+    toc-depth: 4
+    include-in-header:
+      text: |
+        <style>
+        pre, code {
+          white-space: pre-wrap !important;
+          word-wrap: break-word !important;
+          overflow-wrap: break-word !important;
+          max-width: 100% !important;
+        }
+        
+        .output-string {
+          font-family: 'Monaco', 'Consolas', monospace;
+          background-color: #f5f5f5;
+          border-left: 3px solid #31BAE9;
+          padding: 10px;
+          margin: 10px 0;
+          border-radius: 4px;
+          overflow-x: visible !important;
+          white-space: pre-wrap !important;
+        }
+        
+        .output-string pre {
+          margin-bottom: 15px;
+          padding-bottom: 15px;
+          border-bottom: 1px dotted #ddd;
+        }
+        
+        .output-string pre:last-child {
+          border-bottom: none;
+          margin-bottom: 0;
+          padding-bottom: 0;
+        }
+        </style>
+editor_options: 
+  chunk_output_type: console
+---
+
+## Introduction
+
+This document is for testing for comparisons in how `flight_support.R` deals with variations in support strategies with various risk profiles.
+
+```{r Setup}
+#| message: false
+#| warning: false
+
+options(conflicts.policy = "depends.ok")
+
+library(tidytext)
+library(dplyr, exclude = "group_rows")
+library(tidyr)
+library(ggplot2)
+library(stringr)
+library(patchwork)
+
+source(here::here("scripts/llm/scripts/flight_support.R"))
+
+sys_prompt <-
+"You are a chatbot in an automated recovery support app for people with alcohol use disorder. You are writing a daily message from the app that will provide the person with information from a machine learning model about how they are doing in their recovery today. The message should be 3 to 4 sentences long and written for someone with an 8th grade reading level. Do not explicitly greet the person, and do not refer to yourself in the message. Do not provide advice. Never mention or reference specific drinking events, lapses, slips, or relapses in your messages. Focus only on providing support without referencing past behaviors."
+
+# ADDED APPENDING TO SYSTEM PROMPT TO EXPLICITLY NOT MENTION LAPSES
+```
+
+## Framework
+
+### Lapse Frequency Patterns
+
+We'll test five variations of recent lapse patterns:
+
+```{r}
+lapse_patterns <- list(
+  "none" = "this person had no lapses in the past two weeks",
+  "minimal" = "this person had a single lapse in the past two weeks",
+  "occasional" = "this person experienced occasional lapses in the past two weeks",
+  "multiple" = "this person had multiple lapses in the past two weeks",
+  "frequent" = "this person lapsed quite frequently in the past two weeks"
+)
+```
+
+### Risk Profiles
+
+#### Crossing with our support strategies will be 4 theoretical risk profiles:
+
+> Low and Decreasing
+>
+> Low and Increasing
+>
+> High and Decreasing
+>
+> High and Increasing
+
+### Prompts
+
+```{r}
+create_user_prompt <- function(risk_level, risk_direction, lapse_pattern) {
+  risk_status <- 
+    if(risk_level == "high" && risk_direction == "inc") {
+      "high and increasing"
+    } else if(risk_level == "high" && risk_direction == "dec") {
+      "high but decreasing"
+    } else if(risk_level == "low" && risk_direction == "inc") {
+      "low but increasing"
+    } else {
+      "low and decreasing"
+    }
+  
+  lapse_context <- lapse_patterns[[lapse_pattern]]
+  
+  strategy_text <- "legitimize their distress by acknowledging their feelings as reasonable, validating that their experience is difficult, and assuring them it's okay to express these struggles."
+  
+  prompt <- glue::glue("Write a message to tell this person that they are at {risk_status} risk for drinking today. This person prefers messages that {strategy_text} Use the following information as context, but do not directly use it in the message: {lapse_context}.")
+  
+  return(prompt)
+}
+
+test_prompt <- create_user_prompt("high", "inc", "frequent")
+cat("Test:", test_prompt)
+```
+
+```{r}
+combinations <- expand.grid(
+  risk_level = c("low", "high"),
+  risk_direction = c("dec", "inc"),
+  lapse_pattern = names(lapse_patterns),
+  stringsAsFactors = FALSE
+)
+
+combinations$prompt <- apply(combinations, 1, function(row) {
+  create_user_prompt(row["risk_level"], row["risk_direction"], row["lapse_pattern"])
+})
+
+combinations$messages <- vector("list", nrow(combinations))
+
+for (i in 1:nrow(combinations)) {
+  tryCatch({
+    combinations$messages[[i]] <- pilot_message(
+      base_prompt = combinations$prompt[i],
+      system_prompt = sys_prompt,
+      connections = 3,
+      temperature = 0.7
+    )
+  }, error = function(e) {
+    message(paste("Error processing row", i, ":", e$message))
+    combinations$messages[[i]] <- rep(NA, 3)
+  })
+}
+
+support_messages <- setNames(
+  combinations$messages,
+  paste(combinations$risk_level, combinations$risk_direction, combinations$lapse_pattern, sep = "_")
+)
+```
+
+### Results By Risk Profile and Lapse Pattern
+
+#### Low and Decreasing
+
+##### None
+
+```{r}
+#| class: output-string
+support_messages$low_dec_none[1]
+support_messages$low_dec_none[2]
+support_messages$low_dec_none[3]
+```
+
+##### Minimal
+
+```{r}
+#| class: output-string
+support_messages$low_dec_minimal[1]
+support_messages$low_dec_minimal[2]
+support_messages$low_dec_minimal[3]
+```
+
+##### Occasional
+
+```{r}
+#| class: output-string
+support_messages$low_dec_occasional[1]
+support_messages$low_dec_occasional[2]
+support_messages$low_dec_occasional[3]
+```
+
+##### Multiple
+
+```{r}
+#| class: output-string
+support_messages$low_dec_multiple[1]
+support_messages$low_dec_multiple[2]
+support_messages$low_dec_multiple[3]
+```
+
+##### Frequent
+
+```{r}
+#| class: output-string
+support_messages$low_dec_frequent[1]
+support_messages$low_dec_frequent[2]
+support_messages$low_dec_frequent[3]
+```
+
+
+#### Low and Increasing
+
+##### None
+
+```{r}
+#| class: output-string
+support_messages$low_inc_none[1]
+support_messages$low_inc_none[2]
+support_messages$low_inc_none[3]
+```
+
+##### Minimal
+
+```{r}
+#| class: output-string
+support_messages$low_inc_minimal[1]
+support_messages$low_inc_minimal[2]
+support_messages$low_inc_minimal[3]
+```
+
+##### Occasional
+
+```{r}
+#| class: output-string
+support_messages$low_inc_occasional[1]
+support_messages$low_inc_occasional[2]
+support_messages$low_inc_occasional[3]
+```
+
+##### Multiple
+
+```{r}
+#| class: output-string
+support_messages$low_inc_multiple[1]
+support_messages$low_inc_multiple[2]
+support_messages$low_inc_multiple[3]
+```
+
+##### Frequent
+
+```{r}
+#| class: output-string
+support_messages$low_inc_frequent[1]
+support_messages$low_inc_frequent[2]
+support_messages$low_inc_frequent[3]
+```
+
+#### High and Decreasing
+
+##### None
+
+```{r}
+#| class: output-string
+support_messages$high_dec_none[1]
+support_messages$high_dec_none[2]
+support_messages$high_dec_none[3]
+```
+
+##### Minimal
+
+```{r}
+#| class: output-string
+support_messages$high_dec_minimal[1]
+support_messages$high_dec_minimal[2]
+support_messages$high_dec_minimal[3]
+```
+
+##### Occasional
+
+```{r}
+#| class: output-string
+support_messages$high_dec_occasional[1]
+support_messages$high_dec_occasional[2]
+support_messages$high_dec_occasional[3]
+```
+
+##### Multiple
+
+```{r}
+#| class: output-string
+support_messages$high_dec_multiple[1]
+support_messages$high_dec_multiple[2]
+support_messages$high_dec_multiple[3]
+```
+
+##### Frequent
+
+```{r}
+#| class: output-string
+support_messages$high_dec_frequent[1]
+support_messages$high_dec_frequent[2]
+support_messages$high_dec_frequent[3]
+```
+
+#### High and Increasing
+
+##### None
+
+```{r}
+#| class: output-string
+support_messages$high_inc_none[1]
+support_messages$high_inc_none[2]
+support_messages$high_inc_none[3]
+```
+
+##### Minimal
+
+```{r}
+#| class: output-string
+support_messages$high_inc_minimal[1]
+support_messages$high_inc_minimal[2]
+support_messages$high_inc_minimal[3]
+```
+
+##### Occasional
+
+```{r}
+#| class: output-string
+support_messages$high_inc_occasional[1]
+support_messages$high_inc_occasional[2]
+support_messages$high_inc_occasional[3]
+```
+
+##### Multiple
+
+```{r}
+#| class: output-string
+support_messages$high_inc_multiple[1]
+support_messages$high_inc_multiple[2]
+support_messages$high_inc_multiple[3]
+```
+
+##### Frequent
+
+```{r}
+#| class: output-string
+support_messages$high_inc_frequent[1]
+support_messages$high_inc_frequent[2]
+support_messages$high_inc_frequent[3]
+```

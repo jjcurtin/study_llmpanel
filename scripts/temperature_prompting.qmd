@@ -1,0 +1,897 @@
+---
+title: "Temperature Parameter Exploration"
+format: 
+  html: 
+    embed-resources: true
+    toc: true 
+    toc-depth: 4
+    include-in-header:
+      text: |
+        <style>
+        pre, code {
+          white-space: pre-wrap !important;
+          word-wrap: break-word !important;
+          overflow-wrap: break-word !important;
+          max-width: 100% !important;
+        }
+        
+        .output-string {
+          font-family: 'Monaco', 'Consolas', monospace;
+          background-color: #f5f5f5;
+          border-left: 3px solid #31BAE9;
+          padding: 10px;
+          margin: 10px 0;
+          border-radius: 4px;
+          overflow-x: visible !important;
+          white-space: pre-wrap !important;
+        }
+        
+        .output-string pre {
+          margin-bottom: 15px;
+          padding-bottom: 15px;
+          border-bottom: 1px dotted #ddd;
+        }
+        
+        .output-string pre:last-child {
+          border-bottom: none;
+          margin-bottom: 0;
+          padding-bottom: 0;
+        }
+        </style>
+editor_options: 
+  chunk_output_type: console
+---
+
+## Introduction
+
+This document is for testing for comparisons in how `flight_support.R` deals with variations in support strategies with various risk profiles.
+
+```{r Setup}
+#| message: false
+#| warning: false
+
+options(conflicts.policy = "depends.ok")
+
+library(tidytext)
+library(dplyr, exclude = "group_rows")
+library(tidyr)
+library(ggplot2)
+library(stringr)
+library(patchwork)
+
+source(here::here("scripts/llm/flight_support.R"))
+
+sys_prompt <-
+"You are a chatbot in an automated recovery support app for people with alcohol use disorder. You are writing a daily message from the app that will provide the person with information from a machine learning model about how they are doing in their recovery today. The message should be 3 to 4 sentences long and written for someone with an 8th grade reading level. Do not explicitly greet the person, and do not refer to yourself in the message. Do not provide advice."
+```
+
+## Working Definitions
+
+### Support Strategies
+
+We will be working with 4 different conditions of support strategies (see `van_swol_1.docx` in `methods/messages/van_swol)` for more clarification about valences):
+
+> Legitimization of Distress
+>
+> Caring/Supportive
+>
+> Encouraging
+>
+> Acknowledgment of Feelings
+
+### Risk Profiles
+
+#### Crossing with our support strategies will be 4 theoretical risk profiles:
+
+> Low and Decreasing
+>
+> Low and Increasing
+>
+> High and Decreasing
+>
+> High and Increasing
+
+### Prompts
+
+```{r}
+create_user_prompt <- function(risk_level, risk_direction, strategy_type) {
+  risk_status <- 
+    if(risk_level == "high" && risk_direction == "inc") {
+    "high and increasing"
+      
+  } else if(risk_level == "high" && risk_direction == "dec") {
+    "high but decreasing"
+    
+  } else if(risk_level == "low" && risk_direction == "inc") {
+    "low but increasing"
+    
+  } else {
+    "low and decreasing"
+  }
+  
+  strategy_text <- switch(strategy_type,
+    "leg" = "legitimize their distress by acknowledging their feelings as reasonable, validating that their experience is difficult, and assuring them it's okay to express these struggles.",
+    
+    "car" = "express caring through showing acceptance, demonstrating concern for their situation, communicating availability for support, and conveying partnership in their recovery journey.",
+    
+    "enc" = "are encouraging by focusing on their capabilities, emphasizing feasibility of recommended strategies, highlighting available resources, and reinforcing their ability to navigate their recovery journey.",
+    
+    "ack" = "acknowledge their feelings by showing interest in their emotional experience, offering thoughtful hypotheses about their feelings without using 'should' language, and reflecting their emotional responses in a way that encourages continued reflection."
+  )
+  
+  glue::glue("Write a message to tell this person that they are at {risk_status} risk for drinking today. This person prefers messages that {strategy_text}")
+}
+```
+
+```{r}
+# Temperature 0.0
+combinations_temp0 <- expand.grid(
+  risk_level = c("low", "high"),
+  risk_direction = c("dec", "inc"),
+  strategy = c("leg", "car", "enc", "ack"),
+  stringsAsFactors = FALSE
+)
+
+combinations_temp0$prompt <- apply(combinations_temp0, 1, function(row) {
+  create_user_prompt(row["risk_level"], row["risk_direction"], row["strategy"])
+})
+
+combinations_temp0$messages <- vector("list", nrow(combinations_temp0))
+
+for (i in 1:nrow(combinations_temp0)) {
+  tryCatch({
+    combinations_temp0$messages[[i]] <- pilot_message(
+      base_prompt = combinations_temp0$prompt[i],
+      system_prompt = sys_prompt,
+      connections = 3,
+      temperature = 0.0
+    )
+  }, error = function(e) {
+    message(paste("Error processing row", i, "at temp 0:", e$message))
+    combinations_temp0$messages[[i]] <- rep(NA, 3)
+  })
+}
+
+support_messages_temp0 <- setNames(
+  combinations_temp0$messages,
+  paste(combinations_temp0$strategy, combinations_temp0$risk_level, 
+        combinations_temp0$risk_direction, "temp0", sep = "_")
+)
+```
+
+```{r}
+# Temperature 0.25
+combinations_temp025 <- expand.grid(
+  risk_level = c("low", "high"),
+  risk_direction = c("dec", "inc"),
+  strategy = c("leg", "car", "enc", "ack"),
+  stringsAsFactors = FALSE
+)
+
+combinations_temp025$prompt <- apply(combinations_temp025, 1, function(row) {
+  create_user_prompt(row["risk_level"], row["risk_direction"], row["strategy"])
+})
+
+combinations_temp025$messages <- vector("list", nrow(combinations_temp025))
+
+for (i in 1:nrow(combinations_temp025)) {
+  tryCatch({
+    combinations_temp025$messages[[i]] <- pilot_message(
+      base_prompt = combinations_temp025$prompt[i],
+      system_prompt = sys_prompt,
+      connections = 3,
+      temperature = 0.25
+    )
+  }, error = function(e) {
+    message(paste("Error processing row", i, "at temp 0.25:", e$message))
+    combinations_temp025$messages[[i]] <- rep(NA, 3)
+  })
+}
+
+support_messages_temp025 <- setNames(
+  combinations_temp025$messages,
+  paste(combinations_temp025$strategy, combinations_temp025$risk_level, 
+        combinations_temp025$risk_direction, "temp025", sep = "_")
+)
+```
+
+```{r}
+# Temperature 0.5
+combinations_temp05 <- expand.grid(
+  risk_level = c("low", "high"),
+  risk_direction = c("dec", "inc"),
+  strategy = c("leg", "car", "enc", "ack"),
+  stringsAsFactors = FALSE
+)
+
+combinations_temp05$prompt <- apply(combinations_temp05, 1, function(row) {
+  create_user_prompt(row["risk_level"], row["risk_direction"], row["strategy"])
+})
+
+combinations_temp05$messages <- vector("list", nrow(combinations_temp05))
+
+for (i in 1:nrow(combinations_temp05)) {
+  tryCatch({
+    combinations_temp05$messages[[i]] <- pilot_message(
+      base_prompt = combinations_temp05$prompt[i],
+      system_prompt = sys_prompt,
+      connections = 3,
+      temperature = 0.5
+    )
+  }, error = function(e) {
+    message(paste("Error processing row", i, "at temp 0.5:", e$message))
+    combinations_temp05$messages[[i]] <- rep(NA, 3)
+  })
+}
+
+support_messages_temp05 <- setNames(
+  combinations_temp05$messages,
+  paste(combinations_temp05$strategy, combinations_temp05$risk_level, 
+        combinations_temp05$risk_direction, "temp05", sep = "_")
+)
+```
+
+```{r}
+# Temperature 0.75 
+combinations_temp075 <- expand.grid(
+  risk_level = c("low", "high"),
+  risk_direction = c("dec", "inc"),
+  strategy = c("leg", "car", "enc", "ack"),
+  stringsAsFactors = FALSE
+)
+
+combinations_temp075$prompt <- apply(combinations_temp075, 1, function(row) {
+  create_user_prompt(row["risk_level"], row["risk_direction"], row["strategy"])
+})
+
+combinations_temp075$messages <- vector("list", nrow(combinations_temp075))
+
+for (i in 1:nrow(combinations_temp075)) {
+  tryCatch({
+    combinations_temp075$messages[[i]] <- pilot_message(
+      base_prompt = combinations_temp075$prompt[i],
+      system_prompt = sys_prompt,
+      connections = 3,
+      temperature = 0.75
+    )
+  }, error = function(e) {
+    message(paste("Error processing row", i, "at temp 0.75:", e$message))
+    combinations_temp075$messages[[i]] <- rep(NA, 3)
+  })
+}
+
+support_messages_temp075 <- setNames(
+  combinations_temp075$messages,
+  paste(combinations_temp075$strategy, combinations_temp075$risk_level, 
+        combinations_temp075$risk_direction, "temp075", sep = "_")
+)
+```
+
+```{r}
+support_messages <- c(support_messages_temp0, support_messages_temp025, 
+                     support_messages_temp05, support_messages_temp075)
+```
+
+### Legitimization of Distress
+
+This communication approach focuses on validating the individual's emotional experience by explicitly recognizing their feelings as normal and appropriate. Key elements include acknowledging feelings as reasonable responses to their situation, validating the genuine difficulty of their experience, and assuring them that expressing these struggles is acceptable and expected in the recovery process. This approach helps reduce shame and isolation by normalizing emotional responses to recovery challenges.
+
+#### Low and Decreasing
+
+##### Temperature 0
+
+```{r}
+#| class: output-string
+support_messages$leg_low_dec_temp0[1]
+support_messages$leg_low_dec_temp0[2]
+support_messages$leg_low_dec_temp0[3]
+```
+
+##### Temperature 0.25
+
+```{r}
+#| class: output-string
+support_messages$leg_low_dec_temp025[1]
+support_messages$leg_low_dec_temp025[2]
+support_messages$leg_low_dec_temp025[3]
+```
+
+##### Temperature 0.5
+
+```{r}
+#| class: output-string
+support_messages$leg_low_dec_temp05[1]
+support_messages$leg_low_dec_temp05[2]
+support_messages$leg_low_dec_temp05[3]
+```
+
+##### Temperature 0.75
+
+```{r}
+#| class: output-string
+support_messages$leg_low_dec_temp075[1]
+support_messages$leg_low_dec_temp075[2]
+support_messages$leg_low_dec_temp075[3]
+```
+
+#### Low and Increasing
+
+##### Temperature 0
+
+```{r}
+#| class: output-string
+support_messages$leg_low_inc_temp0[1]
+support_messages$leg_low_inc_temp0[2]
+support_messages$leg_low_inc_temp0[3]
+```
+
+##### Temperature 0.25
+
+```{r}
+#| class: output-string
+support_messages$leg_low_inc_temp025[1]
+support_messages$leg_low_inc_temp025[2]
+support_messages$leg_low_inc_temp025[3]
+```
+
+##### Temperature 0.5
+
+```{r}
+#| class: output-string
+support_messages$leg_low_inc_temp05[1]
+support_messages$leg_low_inc_temp05[2]
+support_messages$leg_low_inc_temp05[3]
+```
+
+##### Temperature 0.75
+
+```{r}
+#| class: output-string
+support_messages$leg_low_inc_temp075[1]
+support_messages$leg_low_inc_temp075[2]
+support_messages$leg_low_inc_temp075[3]
+```
+
+#### High and Decreasing
+
+##### Temperature 0
+
+```{r}
+#| class: output-string
+support_messages$leg_high_dec_temp0[1]
+support_messages$leg_high_dec_temp0[2]
+support_messages$leg_high_dec_temp0[3]
+```
+
+##### Temperature 0.25
+
+```{r}
+#| class: output-string
+support_messages$leg_high_dec_temp025[1]
+support_messages$leg_high_dec_temp025[2]
+support_messages$leg_high_dec_temp025[3]
+```
+
+##### Temperature 0.5
+
+```{r}
+#| class: output-string
+support_messages$leg_high_dec_temp05[1]
+support_messages$leg_high_dec_temp05[2]
+support_messages$leg_high_dec_temp05[3]
+```
+
+##### Temperature 0.75
+
+```{r}
+#| class: output-string
+support_messages$leg_high_dec_temp075[1]
+support_messages$leg_high_dec_temp075[2]
+support_messages$leg_high_dec_temp075[3]
+```
+
+#### High and Increasing
+
+##### Temperature 0
+
+```{r}
+#| class: output-string
+support_messages$leg_high_inc_temp0[1]
+support_messages$leg_high_inc_temp0[2]
+support_messages$leg_high_inc_temp0[3]
+```
+
+##### Temperature 0.25
+
+```{r}
+#| class: output-string
+support_messages$leg_high_inc_temp025[1]
+support_messages$leg_high_inc_temp025[2]
+support_messages$leg_high_inc_temp025[3]
+```
+
+##### Temperature 0.5
+
+```{r}
+#| class: output-string
+support_messages$leg_high_inc_temp05[1]
+support_messages$leg_high_inc_temp05[2]
+support_messages$leg_high_inc_temp05[3]
+```
+
+##### Temperature 0.75
+
+```{r}
+#| class: output-string
+support_messages$leg_high_inc_temp075[1]
+support_messages$leg_high_inc_temp075[2]
+support_messages$leg_high_inc_temp075[3]
+```
+
+### Caring / Supportive
+
+This communication approach emphasizes establishing connection and demonstrating genuine concern. Key elements include expressing acceptance without judgment, showing specific concern for the individual's current situation, clearly communicating availability and willingness to provide support, and conveying partnership in their recovery journey. This approach creates psychological safety while avoiding claims of complete understanding of their unique experience.
+
+#### Low and Decreasing
+
+##### Temperature 0
+
+```{r}
+#| class: output-string
+support_messages$car_low_dec_temp0[1]
+support_messages$car_low_dec_temp0[2]
+support_messages$car_low_dec_temp0[3]
+```
+
+##### Temperature 0.25
+
+```{r}
+#| class: output-string
+support_messages$car_low_dec_temp025[1]
+support_messages$car_low_dec_temp025[2]
+support_messages$car_low_dec_temp025[3]
+```
+
+##### Temperature 0.5
+
+```{r}
+#| class: output-string
+support_messages$car_low_dec_temp05[1]
+support_messages$car_low_dec_temp05[2]
+support_messages$car_low_dec_temp05[3]
+```
+
+##### Temperature 0.75
+
+```{r}
+#| class: output-string
+support_messages$car_low_dec_temp075[1]
+support_messages$car_low_dec_temp075[2]
+support_messages$car_low_dec_temp075[3]
+```
+
+#### Low and Increasing
+
+##### Temperature 0
+
+```{r}
+#| class: output-string
+support_messages$car_low_inc_temp0[1]
+support_messages$car_low_inc_temp0[2]
+support_messages$car_low_inc_temp0[3]
+```
+
+##### Temperature 0.25
+
+```{r}
+#| class: output-string
+support_messages$car_low_inc_temp025[1]
+support_messages$car_low_inc_temp025[2]
+support_messages$car_low_inc_temp025[3]
+```
+
+##### Temperature 0.5
+
+```{r}
+#| class: output-string
+support_messages$car_low_inc_temp05[1]
+support_messages$car_low_inc_temp05[2]
+support_messages$car_low_inc_temp05[3]
+```
+
+##### Temperature 0.75
+
+```{r}
+#| class: output-string
+support_messages$car_low_inc_temp075[1]
+support_messages$car_low_inc_temp075[2]
+support_messages$car_low_inc_temp075[3]
+```
+
+#### High and Decreasing
+
+##### Temperature 0
+
+```{r}
+#| class: output-string
+support_messages$car_high_dec_temp0[1]
+support_messages$car_high_dec_temp0[2]
+support_messages$car_high_dec_temp0[3]
+```
+
+##### Temperature 0.25
+
+```{r}
+#| class: output-string
+support_messages$car_high_dec_temp025[1]
+support_messages$car_high_dec_temp025[2]
+support_messages$car_high_dec_temp025[3]
+```
+
+##### Temperature 0.5
+
+```{r}
+#| class: output-string
+support_messages$car_high_dec_temp05[1]
+support_messages$car_high_dec_temp05[2]
+support_messages$car_high_dec_temp05[3]
+```
+
+##### Temperature 0.75
+
+```{r}
+#| class: output-string
+support_messages$car_high_dec_temp075[1]
+support_messages$car_high_dec_temp075[2]
+support_messages$car_high_dec_temp075[3]
+```
+
+#### High and Increasing
+
+##### Temperature 0
+
+```{r}
+#| class: output-string
+support_messages$car_high_inc_temp0[1]
+support_messages$car_high_inc_temp0[2]
+support_messages$car_high_inc_temp0[3]
+```
+
+##### Temperature 0.25
+
+```{r}
+#| class: output-string
+support_messages$car_high_inc_temp025[1]
+support_messages$car_high_inc_temp025[2]
+support_messages$car_high_inc_temp025[3]
+```
+
+##### Temperature 0.5
+
+```{r}
+#| class: output-string
+support_messages$car_high_inc_temp05[1]
+support_messages$car_high_inc_temp05[2]
+support_messages$car_high_inc_temp05[3]
+```
+
+##### Temperature 0.75
+
+```{r}
+#| class: output-string
+support_messages$car_high_inc_temp075[1]
+support_messages$car_high_inc_temp075[2]
+support_messages$car_high_inc_temp075[3]
+```
+
+### Encouraging
+
+This communication approach highlights the individual's capabilities and accessible resources. Key elements include focusing on the person's existing strengths and abilities, emphasizing the feasibility of recommended coping strategies, identifying specific available resources, and reinforcing their capacity to navigate their recovery journey effectively. This approach builds self-efficacy by making recovery actions feel attainable rather than overwhelming.
+
+#### Low and Decreasing
+
+##### Temperature 0
+
+```{r}
+#| class: output-string
+support_messages$enc_low_dec_temp0[1]
+support_messages$enc_low_dec_temp0[2]
+support_messages$enc_low_dec_temp0[3]
+```
+
+##### Temperature 0.25
+
+```{r}
+#| class: output-string
+support_messages$enc_low_dec_temp025[1]
+support_messages$enc_low_dec_temp025[2]
+support_messages$enc_low_dec_temp025[3]
+```
+
+##### Temperature 0.5
+
+```{r}
+#| class: output-string
+support_messages$enc_low_dec_temp05[1]
+support_messages$enc_low_dec_temp05[2]
+support_messages$enc_low_dec_temp05[3]
+```
+
+##### Temperature 0.75
+
+```{r}
+#| class: output-string
+support_messages$enc_low_dec_temp075[1]
+support_messages$enc_low_dec_temp075[2]
+support_messages$enc_low_dec_temp075[3]
+```
+
+#### Low and Increasing
+
+##### Temperature 0
+
+```{r}
+#| class: output-string
+support_messages$enc_low_inc_temp0[1]
+support_messages$enc_low_inc_temp0[2]
+support_messages$enc_low_inc_temp0[3]
+```
+
+##### Temperature 0.25
+
+```{r}
+#| class: output-string
+support_messages$enc_low_inc_temp025[1]
+support_messages$enc_low_inc_temp025[2]
+support_messages$enc_low_inc_temp025[3]
+```
+
+##### Temperature 0.5
+
+```{r}
+#| class: output-string
+support_messages$enc_low_inc_temp05[1]
+support_messages$enc_low_inc_temp05[2]
+support_messages$enc_low_inc_temp05[3]
+```
+
+##### Temperature 0.75
+
+```{r}
+#| class: output-string
+support_messages$enc_low_inc_temp075[1]
+support_messages$enc_low_inc_temp075[2]
+support_messages$enc_low_inc_temp075[3]
+```
+
+#### High and Decreasing
+
+##### Temperature 0
+
+```{r}
+#| class: output-string
+support_messages$enc_high_dec_temp0[1]
+support_messages$enc_high_dec_temp0[2]
+support_messages$enc_high_dec_temp0[3]
+```
+
+##### Temperature 0.25
+
+```{r}
+#| class: output-string
+support_messages$enc_high_dec_temp025[1]
+support_messages$enc_high_dec_temp025[2]
+support_messages$enc_high_dec_temp025[3]
+```
+
+##### Temperature 0.5
+
+```{r}
+#| class: output-string
+support_messages$enc_high_dec_temp05[1]
+support_messages$enc_high_dec_temp05[2]
+support_messages$enc_high_dec_temp05[3]
+```
+
+##### Temperature 0.75
+
+```{r}
+#| class: output-string
+support_messages$enc_high_dec_temp075[1]
+support_messages$enc_high_dec_temp075[2]
+support_messages$enc_high_dec_temp075[3]
+```
+
+#### High and Increasing
+
+##### Temperature 0
+
+```{r}
+#| class: output-string
+support_messages$enc_high_inc_temp0[1]
+support_messages$enc_high_inc_temp0[2]
+support_messages$enc_high_inc_temp0[3]
+```
+
+##### Temperature 0.25
+
+```{r}
+#| class: output-string
+support_messages$enc_high_inc_temp025[1]
+support_messages$enc_high_inc_temp025[2]
+support_messages$enc_high_inc_temp025[3]
+```
+
+##### Temperature 0.5
+
+```{r}
+#| class: output-string
+support_messages$enc_high_inc_temp05[1]
+support_messages$enc_high_inc_temp05[2]
+support_messages$enc_high_inc_temp05[3]
+```
+
+##### Temperature 0.75
+
+```{r}
+#| class: output-string
+support_messages$enc_high_inc_temp075[1]
+support_messages$enc_high_inc_temp075[2]
+support_messages$enc_high_inc_temp075[3]
+```
+
+### Acknowledgement of Feelings
+
+This communication approach centers on demonstrating attentive listening and encouraging emotional exploration. Key elements include showing genuine interest in the individual's emotional experience, offering thoughtful hypotheses about their feelings without prescriptive language, reflecting their emotional responses accurately, and encouraging continued reflection in a non-interrogative manner. This approach facilitates emotional processing through validation and guided self-exploration.
+
+#### Low and Decreasing
+
+##### Temperature 0
+
+```{r}
+#| class: output-string
+support_messages$ack_low_dec_temp0[1]
+support_messages$ack_low_dec_temp0[2]
+support_messages$ack_low_dec_temp0[3]
+```
+
+##### Temperature 0.25
+
+```{r}
+#| class: output-string
+support_messages$ack_low_dec_temp025[1]
+support_messages$ack_low_dec_temp025[2]
+support_messages$ack_low_dec_temp025[3]
+```
+
+##### Temperature 0.5
+
+```{r}
+#| class: output-string
+support_messages$ack_low_dec_temp05[1]
+support_messages$ack_low_dec_temp05[2]
+support_messages$ack_low_dec_temp05[3]
+```
+
+##### Temperature 0.75
+
+```{r}
+#| class: output-string
+support_messages$ack_low_dec_temp075[1]
+support_messages$ack_low_dec_temp075[2]
+support_messages$ack_low_dec_temp075[3]
+```
+
+#### Low and Increasing
+
+##### Temperature 0
+
+```{r}
+#| class: output-string
+support_messages$ack_low_inc_temp0[1]
+support_messages$ack_low_inc_temp0[2]
+support_messages$ack_low_inc_temp0[3]
+```
+
+##### Temperature 0.25
+
+```{r}
+#| class: output-string
+support_messages$ack_low_inc_temp025[1]
+support_messages$ack_low_inc_temp025[2]
+support_messages$ack_low_inc_temp025[3]
+```
+
+##### Temperature 0.5
+
+```{r}
+#| class: output-string
+support_messages$ack_low_inc_temp05[1]
+support_messages$ack_low_inc_temp05[2]
+support_messages$ack_low_inc_temp05[3]
+```
+
+##### Temperature 0.75
+
+```{r}
+#| class: output-string
+support_messages$ack_low_inc_temp075[1]
+support_messages$ack_low_inc_temp075[2]
+support_messages$ack_low_inc_temp075[3]
+```
+
+#### High and Decreasing
+
+##### Temperature 0
+
+```{r}
+#| class: output-string
+support_messages$ack_high_dec_temp0[1]
+support_messages$ack_high_dec_temp0[2]
+support_messages$ack_high_dec_temp0[3]
+```
+
+##### Temperature 0.25
+
+```{r}
+#| class: output-string
+support_messages$ack_high_dec_temp025[1]
+support_messages$ack_high_dec_temp025[2]
+support_messages$ack_high_dec_temp025[3]
+```
+
+##### Temperature 0.5
+
+```{r}
+#| class: output-string
+support_messages$ack_high_dec_temp05[1]
+support_messages$ack_high_dec_temp05[2]
+support_messages$ack_high_dec_temp05[3]
+```
+
+##### Temperature 0.75
+
+```{r}
+#| class: output-string
+support_messages$ack_high_dec_temp075[1]
+support_messages$ack_high_dec_temp075[2]
+support_messages$ack_high_dec_temp075[3]
+```
+
+#### High and Increasing
+
+##### Temperature 0
+
+```{r}
+#| class: output-string
+support_messages$ack_high_inc_temp0[1]
+support_messages$ack_high_inc_temp0[2]
+support_messages$ack_high_inc_temp0[3]
+```
+
+##### Temperature 0.25
+
+```{r}
+#| class: output-string
+support_messages$ack_high_inc_temp025[1]
+support_messages$ack_high_inc_temp025[2]
+support_messages$ack_high_inc_temp025[3]
+```
+
+##### Temperature 0.5
+
+```{r}
+#| class: output-string
+support_messages$ack_high_inc_temp05[1]
+support_messages$ack_high_inc_temp05[2]
+support_messages$ack_high_inc_temp05[3]
+```
+
+##### Temperature 0.75
+
+```{r}
+#| class: output-string
+support_messages$ack_high_inc_temp075[1]
+support_messages$ack_high_inc_temp075[2]
+support_messages$ack_high_inc_temp075[3]
+```

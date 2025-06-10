@@ -1,0 +1,56 @@
+import os
+import pandas as pd
+
+# static method to get API credentials from a file or user input
+@staticmethod
+def get_credentials():
+    try:
+        if os.path.exists('../azure.api'):
+            api = pd.read_csv('../azure.api')
+            api_key = api.loc[0, 'key']
+            endpoint = api.loc[0, 'endpoint']
+        else:
+            api_key = input('API key: ')
+            endpoint = input('Endpoint: ')
+            pd.DataFrame({'key': [api_key], 'endpoint': [endpoint]}).to_csv('../azure.api', index=False)
+            print('Credentials saved to azure.api')
+        return api_key, endpoint
+    except Exception as e:
+        print(f"Error reading API credentials: {e}\nPlease ensure the file is formatted correctly if it exists.\nOtherwise, please delete the file and re-run the script to enter credentials manually.")
+        exit(1)
+
+# static method to load message categories and prompts from a CSV file
+@staticmethod
+def load_message_categories(file_path='../input/message_categories.csv'):
+    try:
+        df = pd.read_csv(file_path)
+        return list(df['message_category']), list(df['prompt'])
+    except Exception as e:
+        print(f"Error loading message categories: {e}\nPlease ensure the file exists and is formatted correctly.")
+        exit(1)
+
+# static method to load user contexts from a CSV file
+@staticmethod
+def load_user_contexts(file_path='../input/user_contexts.csv'):
+    try:
+        return pd.read_csv(file_path)
+    except Exception as e:
+        print(f"Error loading user contexts: {e}\nPlease ensure the file exists and is formatted correctly.")
+        exit(1)
+
+# static method to load user messages from a CSV file
+@staticmethod
+def load_existing_messages(file_path='../output/all_generated_messages.csv'):
+    try:
+        if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
+            current_messages = pd.read_csv(file_path)
+        else:
+            current_messages = pd.DataFrame(columns = [
+                'user_index', 'lapse_risk', 'lapse_risk_change', 'lapsed_ever',
+                'lapse_last_day', 'lapse_last_week', 'lapse_last_month',
+                'message_category', 'generated_message', 'temperature'
+            ])
+        return current_messages
+    except Exception as e:
+        print(f"Error loading existing messages: {e}\nPlease ensure the file exists and is formatted correctly.")
+        exit(1)
