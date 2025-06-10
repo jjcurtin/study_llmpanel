@@ -272,15 +272,16 @@ class MessageGenerator:
 if __name__ == "__main__":
 
     # generate messages using the MessageGenerator class
-    MessageGenerator()
+    message_gen = MessageGenerator()
 
     # Ask the user if they want to run the Qualtrics upload script after generating messages
-    choice = input("Messages generated.\nWould you like to run the Qualtrics upload script? (y/n): ")
-    if choice.lower() == 'y':
-        try:
-            from update_qualtrics import SurveyHandler
-            SurveyHandler()
-        except Exception as e:
-            print(f"Error running Qualtrics upload script: {e}\nPlease ensure the update_qualtrics.py script is available and properly configured.")
-    else:
-        print("Skipping Qualtrics upload.")
+    if message_gen.output_file == "../output/production_messages.csv":
+        choice = input("Messages generated.\nWould you like to run the Qualtrics upload script? (y/n): ")
+        if choice.lower() == 'y':
+            try:
+                from update_qualtrics import SurveyHandler
+                SurveyHandler()
+            except Exception as e:
+                print(f"Error running Qualtrics upload script: {e}\nPlease ensure the update_qualtrics.py script is available and properly configured.")
+        else:
+            print("Skipping Qualtrics upload.")
