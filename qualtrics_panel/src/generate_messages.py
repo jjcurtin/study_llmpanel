@@ -147,10 +147,11 @@ class MessageGenerator:
             print(f"Error loading system prompt files: {e}\nPlease ensure the files exist and are formatted correctly.")
             exit(1)
 
-    # create the user prompt
+    # create the user prompt based on the message category and user context
     def create_user_prompt(self, message_category, message_description, user_context):
-        # create the user prompt based on the user context (lapse history) and message tone category 
-        user_context_str = '\n'.join([f"{k}: {str(v).strip()}" for k, v in user_context.items()])
+        # use this instead if you want to include all user context fields in the prompt
+        # user_context_str = '\n'.join([f"{k}: {str(v).strip()}" for k, v in user_context.items()])
+        user_context_str = f"This user has a lapse risk that is {user_context.get('lapse_risk', 'N/A')} and {user_context.get('lapse_risk_change', 'N/A')}."
         user_prompt = (
             "Generate a message for a user based on the following context:\n"
             f"{user_context_str}\n"
