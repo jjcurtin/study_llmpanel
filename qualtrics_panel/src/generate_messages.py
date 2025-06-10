@@ -189,7 +189,7 @@ class MessageGenerator:
             f"{self.additional_info if self.additional_info else ''}\n"
         )
         if self.print_prompt:
-            print(f"User prompt:\n{user_prompt}")
+            print(f"{user_prompt}")
         return user_prompt
     
     def azure_api_call(self, user_prompt):
@@ -272,7 +272,6 @@ class MessageGenerator:
             print("\n" + "=" * 50)
             print(f"FORMALITY LEVEL: {formality.upper()}")
             print("=" * 50 + "\n")
-            print(f"Generating messages for formality level: {formality}")
             formality_prompt = self.formality_to_prompt[formality]
             if formality == "neutral":
                 formality_prompt = None
@@ -282,7 +281,6 @@ class MessageGenerator:
                 print("\n" + "-" * 50)
                 print(f"MESSAGE CATEGORY: {message_category.upper()}")
                 print("-" * 50 + "\n")
-                print(f"Generating messages for category: {message_category}")
                 message_description = self.category_to_description[message_category]
                 
                 # for each user...
@@ -296,7 +294,7 @@ class MessageGenerator:
 
                     # Generate messages using the Azure API and store them in the output list
                     messages = self.generate_messages(user_prompt)
-                    print(f"Generated messages for user {user_index + 1} in category {message_category}")
+                    print(f"[Generated messages for user {user_index + 1} in category {message_category}]")
                     for msg in messages:
                         self.all_output_rows.append({
                             'user_index': user_index + 1,
