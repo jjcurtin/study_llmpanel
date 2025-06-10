@@ -22,9 +22,9 @@ class MessageGenerator:
             print("Please run this script from the 'src' folder.")
             exit(1)
 
+        # decide which tones to generate messages for
         self.tones_to_generate = []
         tones, descriptions = load_message_categories()
-        # Build a mapping from category to description
         self.category_to_description = dict(zip(tones, descriptions))
         print("\nAvailable message categories:")
         for i, tone in enumerate(tones):
@@ -39,6 +39,7 @@ class MessageGenerator:
                 print("No valid message categories selected. Exiting...")
                 exit(1)
 
+        # decide which user contexts to generate messages for
         self.users_to_generate = []
         user_contexts_df = load_user_contexts()
         if user_contexts_df.empty:
@@ -58,7 +59,7 @@ class MessageGenerator:
                 print("No valid user contexts selected. Exiting...")
                 exit(1)
 
-        # load formality prompts
+        # decide which formality levels to generate messages for
         self.formality_labels, self.formality_prompts = load_formality_prompts()
         print("\nAvailable formality levels:")
         for i, label in enumerate(self.formality_labels):
@@ -108,6 +109,7 @@ class MessageGenerator:
             output_file = "../output/all_generated_messages.csv"
         self.output_file = output_file
 
+        # printing options
         print_to_terminal = input("Would you like to print the generated messages to the terminal? (ENTER for yes, n for no): ")
         if print_to_terminal.lower() == '':
             self.print_to_terminal = True
@@ -116,7 +118,6 @@ class MessageGenerator:
         else:
             print("Invalid choice, defaulting to printing messages to terminal.")
             self.print_to_terminal = True
-
         print_prompt = input("Would you like to print the system and user prompts to the terminal? (ENTER for yes, n for no): ")
         if print_prompt.lower() == '':
             self.print_prompt = True
@@ -133,11 +134,11 @@ class MessageGenerator:
         else:
             self.additional_info = f"{additional_info.strip()}"
 
+        # run the message generation process
         self.run()
 
-    # create the system prompt
+    # load system prompt components from files and construct the system prompt
     def create_system_prompt(self):
-        # load system prompt components from files and construct the system prompt
         try:
             with open('../input/system_prompt/1_role.txt', 'r', encoding='utf-8') as f:
                 system_role = f.read()
@@ -164,8 +165,6 @@ class MessageGenerator:
 
     # create the user prompt based on the message category and user context
     def create_user_prompt(self, message_category, message_description, user_context, formality_prompt = None):
-        # use this instead if you want to include all user context fields in the prompt
-        # user_context_str = '\n'.join([f"{k}: {str(v).strip()}" for k, v in user_context.items()])
         user_context_str = f"This user has a lapse risk that is {user_context.get('lapse_risk', 'N/A')} and {user_context.get('lapse_risk_change', 'N/A')}."
         user_prompt = (
             "Generate a message for a user based on the following context:\n"
@@ -180,7 +179,6 @@ class MessageGenerator:
             print(f"User prompt:\n{user_prompt}")
         return user_prompt
     
-    # make the call to the Azure API
     def azure_api_call(self, user_prompt):
         try:
             if not hasattr(self, 'system_prompt'):
@@ -228,6 +226,22 @@ class MessageGenerator:
                 outputs.append(f"Error: {e}")
         return outputs
     
+    def save_messages(self, all_output_rows):
+        all_output_flat = pd.DataFrame(all_output_rows)
+        current_messages = load_existing_messages(self.output_file)
+
+        # If the output file already exists, ask if the user would like to append to it or overwrite it
+        if not current_messages.empty:
+            choice = input("Output file already exists. Do you want to append to it (y) or overwrite it (n)?: ")
+            if choice.lower() == 'y':
+                all_output_flat = pd.concat([current_messages, all_output_flat], ignore_index=True)
+            else:
+                print("Not appending to existing file. Overwriting with new messages.")
+        
+        # Save the generated messages to the output file
+        all_output_flat.to_csv(self.output_file, index = False, quoting = csv.QUOTE_ALL)
+        print(f"Generated messages saved to {self.output_file}")
+    
     # main method to run the message generation process
     def run(self):
 
@@ -237,7 +251,6 @@ class MessageGenerator:
         # Load API credentials, message categories, and user contexts
         self.api_key, self.endpoint = get_credentials()
         user_contexts_df = load_user_contexts()
-        current_messages = load_existing_messages(self.output_file)
 
         # Generate messages for each category and user context
         all_output_rows = []
@@ -284,18 +297,7 @@ class MessageGenerator:
                             'generated_message': msg,
                         })
 
-        # If the output file already exists, ask if the user would like to append to it or overwrite it
-        all_output_flat = pd.DataFrame(all_output_rows)
-        if not current_messages.empty:
-            choice = input("Output file already exists. Do you want to append to it (y) or overwrite it (n)?: ")
-            if choice.lower() == 'y':
-                all_output_flat = pd.concat([current_messages, all_output_flat], ignore_index=True)
-            else:
-                print("Not appending to existing file. Overwriting with new messages.")
-        
-        # Save the generated messages to the output file
-        all_output_flat.to_csv(self.output_file, index = False, quoting = csv.QUOTE_ALL)
-        print(f"Generated messages saved to {self.output_file}")
+        self.save_messages(all_output_rows)
 
 # This is the entry point for the script, which initializes the MessageGenerator and runs the message generation process
 if __name__ == "__main__":
