@@ -128,7 +128,7 @@ class SurveyHandler:
                 print(f"Error: No message block ID found for user index {row['user_index']}.")
                 continue
             desc_id = self.question_handler.add_individual_message_question(message, category, message_block_id)
-            question_message_ids.append({"user_index": row['user_index'], "category": category, "question_id": desc_id})
+            question_message_ids.append({"user_index": row['user_index'], "category": category, "question_id": desc_id, "formality": row['formality']})
             print(f"Added message question for user index {row['user_index']} in category {category} with question ID {desc_id}")
         print(f"Added {len(question_message_ids)} message questions.")
         
