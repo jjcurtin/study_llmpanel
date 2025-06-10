@@ -136,10 +136,10 @@ class MessageGenerator:
             with open('../input/system_prompt/4_restrictions.txt', 'r', encoding='utf-8') as f:
                 message_restrictions = f.read()
             self.system_prompt = (
-                f"{system_role}\n\n"
-                f"{message_purpose}\n\n"
-                f"{message_format}\n\n"
-                f"{message_restrictions}\n\n"
+                f"{system_role}\n"
+                f"{message_purpose}\n"
+                f"{message_format}\n"
+                f"{message_restrictions}\n"
             )
             if self.print_prompt:
                 print(f"System prompt:\n{self.system_prompt}")
