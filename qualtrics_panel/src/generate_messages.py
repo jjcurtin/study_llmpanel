@@ -109,6 +109,19 @@ class MessageGenerator:
             output_file = "../output/all_generated_messages.csv"
         self.output_file = output_file
 
+        current_messages = load_existing_messages(self.output_file)
+        if not current_messages.empty:
+            choice = input("Output file already exists. Do you want to append to it (ENTER or a) or overwrite it (o)?: ")
+            if choice.lower() == 'o':
+                print("Existing messages will be overwritten.")
+                self.write_mode = 'w'
+            else:
+                print("New messages will be appended to existing messages.")
+                self.write_mode = 'a'
+        else:
+            print("No existing messages found. New messages will be written to the file.")
+            self.write_mode = 'w'
+
         # printing options
         print_to_terminal = input("Would you like to print the generated messages to the terminal? (ENTER for yes, n for no): ")
         if print_to_terminal.lower() == '':
@@ -226,22 +239,20 @@ class MessageGenerator:
                 outputs.append(f"Error: {e}")
         return outputs
     
-    def save_messages(self, all_output_rows):
-        all_output_flat = pd.DataFrame(all_output_rows)
+    def save_messages(self):
+        all_output_flat = pd.DataFrame(self.all_output_rows)
         current_messages = load_existing_messages(self.output_file)
 
         # If the output file already exists, ask if the user would like to append to it or overwrite it
         if not current_messages.empty:
-            choice = input("Output file already exists. Do you want to append to it (y) or overwrite it (n)?: ")
-            if choice.lower() == 'y':
+            if self.write_mode == 'a':
+                print("Appending to existing file.")
                 all_output_flat = pd.concat([current_messages, all_output_flat], ignore_index=True)
             else:
-                print("Not appending to existing file. Overwriting with new messages.")
-        
-        # Save the generated messages to the output file
+                print("Overwriting existing file.")
         all_output_flat.to_csv(self.output_file, index = False, quoting = csv.QUOTE_ALL)
         print(f"Generated messages saved to {self.output_file}")
-    
+        
     # main method to run the message generation process
     def run(self):
 
@@ -253,7 +264,7 @@ class MessageGenerator:
         user_contexts_df = load_user_contexts()
 
         # Generate messages for each category and user context
-        all_output_rows = []
+        self.all_output_rows = []
         self.create_system_prompt()
 
         # for each formality level...
@@ -287,7 +298,7 @@ class MessageGenerator:
                     messages = self.generate_messages(user_prompt)
                     print(f"Generated messages for user {user_index + 1} in category {message_category}")
                     for msg in messages:
-                        all_output_rows.append({
+                        self.all_output_rows.append({
                             'user_index': user_index + 1,
                             'lapse_risk': user_context.get('lapse_risk', ''),
                             'lapse_risk_change': user_context.get('lapse_risk_change', ''),
@@ -297,7 +308,7 @@ class MessageGenerator:
                             'generated_message': msg,
                         })
 
-        self.save_messages(all_output_rows)
+        self.save_messages()
 
 # This is the entry point for the script, which initializes the MessageGenerator and runs the message generation process
 if __name__ == "__main__":
