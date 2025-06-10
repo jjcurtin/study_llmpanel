@@ -250,7 +250,7 @@ class MessageGenerator:
             print("=" * 50 + "\n")
             print(f"Generating messages for formality level: {formality}")
             formality_prompt = self.formality_to_prompt[formality]
-            if formality_prompt == '':
+            if formality == "neutral":
                 formality_prompt = None
 
             # for each message category...
