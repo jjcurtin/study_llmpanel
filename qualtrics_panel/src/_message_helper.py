@@ -38,6 +38,15 @@ def load_user_contexts(file_path='../input/user_prompt/user_contexts.csv'):
         print(f"Error loading user contexts: {e}\nPlease ensure the file exists and is formatted correctly.")
         exit(1)
 
+@staticmethod
+def load_formality_prompts(file_path='../input/user_prompt/formality_prompts.csv'):
+    try:
+        df = pd.read_csv(file_path)
+        return list(df['label']), list(df['prompt'])
+    except Exception as e:
+        print(f"Error loading formality prompts: {e}\nPlease ensure the file exists and is formatted correctly.")
+        exit(1)
+
 # static method to load user messages from a CSV file
 @staticmethod
 def load_existing_messages(file_path='../output/all_generated_messages.csv'):
