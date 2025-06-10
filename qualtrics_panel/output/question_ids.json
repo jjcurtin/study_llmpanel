@@ -2,91 +2,217 @@
     {
         "user_index": 1,
         "category": "Legitimizing",
-        "question_id": "QID1392"
-    },
-    {
-        "user_index": 1,
-        "category": "Norms",
-        "question_id": "QID1393"
-    },
-    {
-        "user_index": 1,
-        "category": "Supportive",
-        "question_id": "QID1394"
-    },
-    {
-        "user_index": 1,
-        "category": "Self Efficacy",
-        "question_id": "QID1395"
-    },
-    {
-        "user_index": 1,
-        "category": "Acknowledging",
-        "question_id": "QID1396"
+        "question_id": "QID1418",
+        "formality": "neutral"
     },
     {
         "user_index": 1,
         "category": "Value Affirmation",
-        "question_id": "QID1397"
+        "question_id": "QID1419",
+        "formality": "formal"
+    },
+    {
+        "user_index": 1,
+        "category": "Acknowledging",
+        "question_id": "QID1420",
+        "formality": "formal"
+    },
+    {
+        "user_index": 1,
+        "category": "Norms",
+        "question_id": "QID1421",
+        "formality": "informal"
+    },
+    {
+        "user_index": 1,
+        "category": "Self Efficacy",
+        "question_id": "QID1422",
+        "formality": "formal"
+    },
+    {
+        "user_index": 1,
+        "category": "Supportive",
+        "question_id": "QID1423",
+        "formality": "informal"
+    },
+    {
+        "user_index": 1,
+        "category": "Supportive",
+        "question_id": "QID1424",
+        "formality": "formal"
+    },
+    {
+        "user_index": 1,
+        "category": "Legitimizing",
+        "question_id": "QID1425",
+        "formality": "formal"
+    },
+    {
+        "user_index": 1,
+        "category": "Legitimizing",
+        "question_id": "QID1426",
+        "formality": "informal"
+    },
+    {
+        "user_index": 1,
+        "category": "Norms",
+        "question_id": "QID1427",
+        "formality": "neutral"
+    },
+    {
+        "user_index": 1,
+        "category": "Self Efficacy",
+        "question_id": "QID1428",
+        "formality": "informal"
+    },
+    {
+        "user_index": 1,
+        "category": "Value Affirmation",
+        "question_id": "QID1429",
+        "formality": "neutral"
+    },
+    {
+        "user_index": 1,
+        "category": "Acknowledging",
+        "question_id": "QID1430",
+        "formality": "informal"
+    },
+    {
+        "user_index": 1,
+        "category": "Acknowledging",
+        "question_id": "QID1431",
+        "formality": "neutral"
+    },
+    {
+        "user_index": 1,
+        "category": "Self Efficacy",
+        "question_id": "QID1432",
+        "formality": "neutral"
+    },
+    {
+        "user_index": 1,
+        "category": "Value Affirmation",
+        "question_id": "QID1433",
+        "formality": "informal"
+    },
+    {
+        "user_index": 1,
+        "category": "Supportive",
+        "question_id": "QID1434",
+        "formality": "neutral"
+    },
+    {
+        "user_index": 1,
+        "category": "Norms",
+        "question_id": "QID1435",
+        "formality": "formal"
+    },
+    {
+        "user_index": 2,
+        "category": "Supportive",
+        "question_id": "QID1436",
+        "formality": "informal"
+    },
+    {
+        "user_index": 2,
+        "category": "Acknowledging",
+        "question_id": "QID1437",
+        "formality": "informal"
     },
     {
         "user_index": 2,
         "category": "Legitimizing",
-        "question_id": "QID1398"
+        "question_id": "QID1438",
+        "formality": "informal"
     },
     {
         "user_index": 2,
-        "category": "Supportive",
-        "question_id": "QID1399"
+        "category": "Value Affirmation",
+        "question_id": "QID1439",
+        "formality": "informal"
     },
     {
         "user_index": 2,
         "category": "Self Efficacy",
-        "question_id": "QID1400"
+        "question_id": "QID1440",
+        "formality": "informal"
     },
     {
         "user_index": 2,
-        "category": "Norms",
-        "question_id": "QID1401"
+        "category": "Self Efficacy",
+        "question_id": "QID1441",
+        "formality": "formal"
+    },
+    {
+        "user_index": 2,
+        "category": "Value Affirmation",
+        "question_id": "QID1442",
+        "formality": "formal"
     },
     {
         "user_index": 2,
         "category": "Acknowledging",
-        "question_id": "QID1402"
+        "question_id": "QID1443",
+        "formality": "formal"
     },
     {
         "user_index": 2,
-        "category": "Value Affirmation",
-        "question_id": "QID1403"
-    },
-    {
-        "user_index": 3,
-        "category": "Value Affirmation",
-        "question_id": "QID1404"
-    },
-    {
-        "user_index": 3,
-        "category": "Self Efficacy",
-        "question_id": "QID1405"
-    },
-    {
-        "user_index": 3,
         "category": "Supportive",
-        "question_id": "QID1406"
+        "question_id": "QID1444",
+        "formality": "formal"
     },
     {
-        "user_index": 3,
+        "user_index": 2,
         "category": "Legitimizing",
-        "question_id": "QID1407"
+        "question_id": "QID1445",
+        "formality": "formal"
     },
     {
-        "user_index": 3,
-        "category": "Acknowledging",
-        "question_id": "QID1408"
-    },
-    {
-        "user_index": 3,
+        "user_index": 2,
         "category": "Norms",
-        "question_id": "QID1409"
+        "question_id": "QID1446",
+        "formality": "neutral"
+    },
+    {
+        "user_index": 2,
+        "category": "Value Affirmation",
+        "question_id": "QID1447",
+        "formality": "neutral"
+    },
+    {
+        "user_index": 2,
+        "category": "Acknowledging",
+        "question_id": "QID1448",
+        "formality": "neutral"
+    },
+    {
+        "user_index": 2,
+        "category": "Self Efficacy",
+        "question_id": "QID1449",
+        "formality": "neutral"
+    },
+    {
+        "user_index": 2,
+        "category": "Supportive",
+        "question_id": "QID1450",
+        "formality": "neutral"
+    },
+    {
+        "user_index": 2,
+        "category": "Legitimizing",
+        "question_id": "QID1451",
+        "formality": "neutral"
+    },
+    {
+        "user_index": 2,
+        "category": "Norms",
+        "question_id": "QID1452",
+        "formality": "formal"
+    },
+    {
+        "user_index": 2,
+        "category": "Norms",
+        "question_id": "QID1453",
+        "formality": "informal"
     }
 ]
