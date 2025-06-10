@@ -7,3 +7,7 @@ proj_optimize.Rproj
 _publish.yml
 .DS_Store
 azure.api
+*.api
+all_generated_messages.csv
+TODO
+*.pyc
