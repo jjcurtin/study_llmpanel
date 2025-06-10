@@ -2,6 +2,7 @@
 
 Need to
 
+- Update analysis of writing metrics for tones and formality and temperature
 - Review general system prompt and move toward finalizing
 - Fine tune user prompts for each of the tones
 - Consider user prompt for formality of tone
