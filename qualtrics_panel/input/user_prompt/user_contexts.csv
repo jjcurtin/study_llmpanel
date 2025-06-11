@@ -1,0 +1,10 @@
+lapse_risk,lapse_risk_change
+"high","increasing"
+"high","stable"
+"high","decreasing"
+"medium","increasing"
+"medium","stable"
+"medium","decreasing"
+"low","increasing"
+"low","stable"
+"low","decreasing"
