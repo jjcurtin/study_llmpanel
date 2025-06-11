@@ -1,4 +1,5 @@
-# Meeting with Colin on 2025-06-10
+# 2025-06-10
+Meeting with Colin
 
 Need to
 
@@ -14,7 +15,8 @@ Need to
 
 
 
-# From lab meeting on 2025-06-03
+# 2025-06-03
+Lab meeting
 
 - Messages will be grouped by context (e.g., high and increasing lapse probability).   This will allow us to have a stem where we acknowledge the context and then ask participants to rate each message in that context.  "Imagine this is for a person who is… (high risk, increasing, etc).  Not yet sure how to handle important feature as part of context
 
