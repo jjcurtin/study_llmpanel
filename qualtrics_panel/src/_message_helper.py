@@ -21,7 +21,7 @@ def get_credentials():
 
 # static method to load message categories and prompts from a CSV file
 @staticmethod
-def load_message_categories(file_path='../input/message_categories.csv'):
+def load_message_categories(file_path='../input/user_prompt/message_categories.csv'):
     try:
         df = pd.read_csv(file_path)
         return list(df['message_category']), list(df['prompt'])
@@ -31,11 +31,20 @@ def load_message_categories(file_path='../input/message_categories.csv'):
 
 # static method to load user contexts from a CSV file
 @staticmethod
-def load_user_contexts(file_path='../input/user_contexts.csv'):
+def load_user_contexts(file_path='../input/user_prompt/user_contexts.csv'):
     try:
         return pd.read_csv(file_path)
     except Exception as e:
         print(f"Error loading user contexts: {e}\nPlease ensure the file exists and is formatted correctly.")
+        exit(1)
+
+@staticmethod
+def load_formality_prompts(file_path='../input/user_prompt/formality_prompts.csv'):
+    try:
+        df = pd.read_csv(file_path)
+        return list(df['label']), list(df['prompt'])
+    except Exception as e:
+        print(f"Error loading formality prompts: {e}\nPlease ensure the file exists and is formatted correctly.")
         exit(1)
 
 # static method to load user messages from a CSV file
@@ -46,9 +55,8 @@ def load_existing_messages(file_path='../output/all_generated_messages.csv'):
             current_messages = pd.read_csv(file_path)
         else:
             current_messages = pd.DataFrame(columns = [
-                'user_index', 'lapse_risk', 'lapse_risk_change', 'lapsed_ever',
-                'lapse_last_day', 'lapse_last_week', 'lapse_last_month',
-                'message_category', 'generated_message', 'temperature'
+                'user_index', 'lapse_risk', 'lapse_risk_change',
+                'message_category', 'temperature', 'formality','generated_message'
             ])
         return current_messages
     except Exception as e:
