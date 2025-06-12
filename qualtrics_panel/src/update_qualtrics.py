@@ -7,6 +7,7 @@
 # author: Colin Maggard
 
 import pandas as pd
+import os
 import json
 import requests
 
@@ -15,6 +16,11 @@ from _question_handler import QuestionHandler
 
 class SurveyHandler:
     def __init__(self):
+
+        if not os.getcwd().endswith('src'):
+            print("Please run this script from the 'src' folder.")
+            exit(1)
+
         choice = input(f"Update category ratings? (y/n): ")
         if choice.lower() == 'y':
             self.update_category = True
