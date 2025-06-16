@@ -304,57 +304,75 @@ class MessageGenerator:
         self.all_output_rows = []
         self.create_system_prompt()
 
-        # for each temperature value...
-        for temp in self.temperature_values:
-            self.temperature = temp
-            print("\n" + "#" * 50)
-            print(f"TEMPERATURE: {self.temperature}")
-            print("#" * 50 + "\n")
+        try:
+            # for each temperature value...
+            for temp in self.temperature_values:
+                self.temperature = temp
+                print("\n" + "#" * 50)
+                print(f"TEMPERATURE: {self.temperature}")
+                print("#" * 50 + "\n")
 
-            # for each formality level...
-            for formality in self.formalities_to_generate:
-                print("\n" + "=" * 50)
-                print(f"FORMALITY LEVEL: {formality.upper()}")
-                print("=" * 50 + "\n")
-                formality_prompt = self.formality_to_prompt[formality]
-                if formality == "neutral":
-                    formality_prompt = None
+                # for each formality level...
+                for formality in self.formalities_to_generate:
+                    print("\n" + "=" * 50)
+                    print(f"FORMALITY LEVEL: {formality.upper()}")
+                    print("=" * 50 + "\n")
+                    formality_prompt = self.formality_to_prompt[formality]
+                    if formality == "neutral":
+                        formality_prompt = None
 
-                # for each message category...
-                for message_category in self.tones_to_generate:
-                    print("\n" + "-" * 50)
-                    print(f"MESSAGE CATEGORY: {message_category.upper()}")
-                    print("-" * 50 + "\n")
-                    message_description = self.category_to_description[message_category]
-                    
-                    # for each user...
-                    for user_index, user_row in user_contexts_df.iterrows():
-                        if user_index not in self.users_to_generate:
-                            continue
+                    # for each message category...
+                    for message_category in self.tones_to_generate:
+                        print("\n" + "-" * 50)
+                        print(f"MESSAGE CATEGORY: {message_category.upper()}")
+                        print("-" * 50 + "\n")
+                        message_description = self.category_to_description[message_category]
+                        
+                        # for each user...
+                        for user_index, user_row in user_contexts_df.iterrows():
+                            if user_index not in self.users_to_generate:
+                                continue
 
-                        # create user prompt based on the user context and message category
-                        user_context = {k: str(v).strip() for k, v in user_row.items()}
-                        user_prompt = self.create_user_prompt(message_category, message_description, user_context, formality_prompt)
+                            # create user prompt based on the user context and message category
+                            user_context = {k: str(v).strip() for k, v in user_row.items()}
+                            user_prompt = self.create_user_prompt(message_category, message_description, user_context, formality_prompt)
 
-                        # Generate messages using the Azure API and store them in the output list
-                        try:
-                            messages = self.generate_messages(user_prompt)
-                        except Exception as e:
-                            print(f"Error generating messages for user {user_index + 1} in category {message_category}: {e}")
-                            continue
-                        print(f"[Generated messages for user {user_index + 1} in category {message_category}]")
-                        for msg in messages:
-                            self.all_output_rows.append({
-                                'user_index': user_index + 1,
-                                'lapse_risk': user_context.get('lapse_risk', ''),
-                                'lapse_risk_change': user_context.get('lapse_risk_change', ''),
-                                'temperature': self.temperature,
-                                'formality': formality,
-                                'message_category': message_category,
-                                'generated_message': msg,
-                            })
+                            # Generate messages using the Azure API and store them in the output list
+                            try:
+                                messages = self.generate_messages(user_prompt)
+                            except Exception as e:
+                                print(f"Error generating messages for user {user_index + 1} in category {message_category}: {e}")
+                                continue
+                            print(f"[Generated messages for user {user_index + 1} in category {message_category}]")
+                            for msg in messages:
+                                self.all_output_rows.append({
+                                    'user_index': user_index + 1,
+                                    'lapse_risk': user_context.get('lapse_risk', ''),
+                                    'lapse_risk_change': user_context.get('lapse_risk_change', ''),
+                                    'temperature': self.temperature,
+                                    'formality': formality,
+                                    'message_category': message_category,
+                                    'generated_message': msg,
+                                })
 
-        self.save_messages()
+            self.save_messages()
+        except KeyboardInterrupt:
+            print("\nMessage generation process interrupted by user.")
+            if self.all_output_rows:
+                while True:
+                    save_choice = input("Would you like to save the messages generated so far? (y/n): ")
+                    if save_choice.lower() == 'y':
+                        print("Saving generated messages...")
+                        self.save_messages()
+                        break
+                    elif save_choice.lower() == 'n':
+                        print("Generated messages will not be saved.")
+                        break
+                    else:
+                        print("Invalid choice. Please enter 'y' or 'n'.")
+                        continue
+            else:
+                print("No messages were generated.")
 
 # This is the entry point for the script, which initializes the MessageGenerator and runs the message generation process
 if __name__ == "__main__":
