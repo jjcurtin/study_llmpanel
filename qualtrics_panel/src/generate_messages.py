@@ -17,6 +17,8 @@ class MessageGenerator:
     # initialization method to set up the number of messages, temperature, and output file path and call the run method
     def __init__(self):
 
+        self.test_mode = True  # Set to True to enable test mode with mock responses to save API costs
+
         try:
             clear()
             print("GPT Message Generation Interface with Qualtrics Upload")
@@ -120,13 +122,26 @@ class MessageGenerator:
             f"Message prompt: {message_description}\n"
             "Please tailor the message to the user's situation.\n"
             f"{formality_prompt if formality_prompt else ''}\n"
-            f"{self.additional_info if self.additional_info else ''}\n"
+            f"{self.additional_info if self.additional_info else ''}"
         )
         if self.print_prompt:
+            print("User Prompt")
+            print("-" * 50)
             print(f"{user_prompt}")
         return user_prompt
     
     def azure_api_call(self, user_prompt):
+        if self.test_mode:
+            return {
+                "choices": [
+                    {
+                        "message": {
+                            "content": f"Test message"
+                        }
+                    }
+                ]
+            }
+
         try:
             if not hasattr(self, 'system_prompt'):
                 self.create_system_prompt()
@@ -156,12 +171,17 @@ class MessageGenerator:
     # generate messages based on the prompt and system message
     def generate_messages(self, user_prompt):
         outputs = []
+        if self.print_to_terminal:
+            print("Generated Messages")
+            print("-" * 50)
         for i in range(self.num_messages):
             try:
                 response = self.azure_api_call(user_prompt)
                 if response and 'choices' in response and len(response['choices']) > 0:
                     content = response['choices'][0]['message']['content']
                     content = content.replace('\n', ' ').strip()
+                    if "—" in content:
+                        self.em_dashes += 1
                     if self.print_to_terminal:
                         print(f"{content}\n")
                     outputs.append(content)
@@ -183,7 +203,10 @@ class MessageGenerator:
             else:
                 print("Overwriting existing file.")
         all_output_flat.to_csv(self.output_file, index = False, quoting = csv.QUOTE_ALL)
-        print(f"Generated messages saved to {self.output_file}")
+        num_messages_generated = len(self.all_output_rows)
+        print(f"\n{num_messages_generated} messages generated and saved to {self.output_file}.")
+        if self.test_mode:
+            print(f"Note: {self.em_dashes} messages out of {num_messages_generated} contained em dashes (—).")
         
     # main method to run the message generation process
     def run(self):
@@ -199,24 +222,27 @@ class MessageGenerator:
             # for each temperature value...
             for temp in self.temperature_values:
                 self.temperature = temp
-                print("\n" + "#" * 50)
-                print(f"TEMPERATURE: {self.temperature}")
-                print("#" * 50 + "\n")
+                if self.print_to_terminal or self.print_prompt:
+                    print("#" * 50)
+                    print(f"TEMPERATURE: {self.temperature}")
+                    print("#" * 50 + "\n")
 
                 # for each formality level...
                 for formality in self.formalities_to_generate:
-                    print("\n" + "=" * 50)
-                    print(f"FORMALITY LEVEL: {formality.upper()}")
-                    print("=" * 50 + "\n")
+                    if self.print_to_terminal or self.print_prompt:
+                        print("=" * 50)
+                        print(f"FORMALITY LEVEL: {formality.upper()}")
+                        print("=" * 50 + "\n")
                     formality_prompt = self.formality_to_prompt[formality]
                     if formality == "neutral":
                         formality_prompt = None
 
                     # for each message category...
                     for message_category in self.tones_to_generate:
-                        print("\n" + "-" * 50)
-                        print(f"MESSAGE CATEGORY: {message_category.upper()}")
-                        print("-" * 50 + "\n")
+                        if self.print_to_terminal or self.print_prompt:
+                            print("-" * 50)
+                            print(f"MESSAGE CATEGORY: {message_category.upper()}")
+                            print("-" * 50 + "\n")
                         message_description = self.category_to_description[message_category]
                         
                         # for each user...
@@ -234,7 +260,7 @@ class MessageGenerator:
                             except Exception as e:
                                 print(f"Error generating messages for user {user_index + 1} in category {message_category}: {e}")
                                 continue
-                            print(f"[Generated messages for user {user_index + 1} in category {message_category}]")
+                            print(f"[Generated {self.num_messages} {formality} messages for user {user_index + 1} in category {message_category} at temperature {self.temperature}]\n")
                             for msg in messages:
                                 self.all_output_rows.append({
                                     'user_index': user_index + 1,
