@@ -59,6 +59,21 @@ class MessageGenerator:
             # adding in additional information to the user prompt
             self.additional_info = set_additional_info()
 
+            # recent message feedback mode: best method of reducing repetition
+            clear()
+            while True:
+                self.recent_mode = input("Would you like to feed the most recent message back into the prompt to reduce repetition? (y/n): ")
+                if self.recent_mode.lower() == 'y':
+                    self.recent_mode = True
+                    break
+                elif self.recent_mode.lower() == 'n':
+                    self.recent_mode = False
+                    break
+                else:
+                    clear()
+                    print("Invalid choice. Please enter 'y' or 'n'.")
+                    continue
+
             # print current settings
             clear()
             print("Current settings:\n")
@@ -71,6 +86,10 @@ class MessageGenerator:
             print(f"Print generated messages to terminal: {self.print_to_terminal}")
             print(f"Print prompts to terminal: {self.print_prompt}")
             print(f"Additional information: {self.additional_info if self.additional_info else 'None'}")
+            print(f"Recent message feedback mode: {'Enabled' if self.recent_mode else 'Disabled'}")
+
+            input("\nPress ENTER to start generating messages, Ctrl-C to stop.")
+            self.run()
         except KeyboardInterrupt:
             # quick stop/restart; during setup you can press Ctrl-C and exit or restart; this is in case of entry mistakes 
             try:
@@ -80,12 +99,8 @@ class MessageGenerator:
                 exit(0)
             except KeyboardInterrupt:
                 exit(0)
-        try:
-            # run the message generation process
-            input("\nPress ENTER to start generating messages, Ctrl-C to stop.")
-            self.run()
         except Exception as e:
-            print(f"Unexpected error: {e}\n")
+            print(f"Unexpected error during initialization: {e}\nPlease check your input and try again.")
             exit(1)
 
     # load system prompt components from files and construct the system prompt
@@ -130,6 +145,8 @@ class MessageGenerator:
             print("User Prompt")
             print("-" * 50)
             print(f"{user_prompt}")
+            if self.recent_mode:
+                print("\nRecent message feedback mode is enabled.")
         return user_prompt
     
     # this function makes the actual API call to Azure OpenAI
@@ -182,9 +199,14 @@ class MessageGenerator:
             print("-" * 50)
 
         # make an api call for each message to be generated
+        most_recent_message = None
+        recent_prompt = ""
+
         for i in range(self.num_messages):
             try:
-                response = self.azure_api_call(user_prompt)
+                if most_recent_message is not None:
+                    recent_prompt = f"\nThe most recent message generated was: {most_recent_message}\nPlease avoid being repetitive."
+                response = self.azure_api_call(user_prompt + recent_prompt if self.recent_mode and most_recent_message else user_prompt)
                 if response and 'choices' in response and len(response['choices']) > 0:
                     content = response['choices'][0]['message']['content']
                     content = content.replace('\n', ' ').strip()
@@ -193,6 +215,7 @@ class MessageGenerator:
                     if self.print_to_terminal:
                         print(f"{content}\n")
                     outputs.append(content)
+                    most_recent_message = content
                 else:
                     outputs.append(f"Error: No response received (request {i + 1})")
             except Exception as e:
