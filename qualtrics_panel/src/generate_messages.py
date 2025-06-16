@@ -214,8 +214,7 @@ class MessageGenerator:
         all_output_flat.to_csv(self.output_file, index = False, quoting = csv.QUOTE_ALL)
         num_messages_generated = len(self.all_output_rows)
         print(f"\n{num_messages_generated} messages generated and saved to {self.output_file}.")
-        if self.test_mode:
-            print(f"Note: {self.em_dashes} messages out of {num_messages_generated} contained em dashes (—).")
+        print(f"Note: {self.em_dashes} messages out of {num_messages_generated} contained em dashes (—).")
         
     # main method to run the message generation process
     # essentially a series of nested loops to generate messages for each combination of parameters
