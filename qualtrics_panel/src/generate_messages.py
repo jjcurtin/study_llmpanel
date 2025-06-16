@@ -9,7 +9,9 @@ import numpy as np
 import csv
 
 from _message_helper import get_credentials, load_user_contexts, load_existing_messages
-from _config_menu import select_message_categories, select_user_contexts, select_formality_levels, select_num_messages, select_temperature
+from _config_menu import select_message_categories, select_user_contexts, select_formality_levels
+from _config_menu import select_num_messages, select_temperature, select_output_file
+from _config_menu import set_write_mode, set_printing_options, set_additional_info
 
 class MessageGenerator:
 
@@ -40,74 +42,16 @@ class MessageGenerator:
         self.temperature_values = select_temperature()
         
         # output file path choice
-        os.system('cls' if os.name == 'nt' else 'clear')
-        while True:
-            output_file_choice = input("Which output path would you like? 1 for default 2 for production (what is uploaded to qualtrics): ")
-            if output_file_choice == '1' or output_file_choice == '':
-                output_file = "../output/all_generated_messages.csv"
-            elif output_file_choice == '2':
-                output_file = "../output/production_messages.csv"
-            else:
-                os.system('cls' if os.name == 'nt' else 'clear')
-                print("Invalid choice, please try again.")
-                continue
-            self.output_file = output_file
-            break
+        self.output_file = select_output_file()
 
-        current_messages = load_existing_messages(self.output_file)
-        if not current_messages.empty:
-            os.system('cls' if os.name == 'nt' else 'clear')
-            while True:
-                choice = input("Output file already exists. Do you want to append to it (ENTER or a) or overwrite it (o)?: ")
-                if choice.lower() == 'o':
-                    print("Existing messages will be overwritten.")
-                    self.write_mode = 'w'
-                elif choice.lower() == 'a' or choice == '':
-                    print("New messages will be appended to existing messages.")
-                    self.write_mode = 'a'
-                else:
-                    os.system('cls' if os.name == 'nt' else 'clear')
-                    print("Invalid choice, please try again.")
-                    continue
-                break
-        else:
-            print("No existing messages found. New messages will be written to the file.")
-            self.write_mode = 'w'
+        # set write mode
+        self.write_mode = set_write_mode(self.output_file)
 
         # printing options
-        os.system('cls' if os.name == 'nt' else 'clear')
-        while True:
-            print_to_terminal = input("Would you like to print the generated messages to the terminal? (ENTER for yes, n for no): ")
-            if print_to_terminal.lower() == '':
-                self.print_to_terminal = True
-            elif print_to_terminal.lower() == 'n':
-                self.print_to_terminal = False
-            else:
-                os.system('cls' if os.name == 'nt' else 'clear')
-                print("Invalid choice, please try again.")
-                continue
-            break
-
-        os.system('cls' if os.name == 'nt' else 'clear')
-        while True:
-            print_prompt = input("Would you like to print the system and user prompts to the terminal? (ENTER for yes, n for no): ")
-            if print_prompt.lower() == '':
-                self.print_prompt = True
-            elif print_prompt.lower() == 'n':
-                self.print_prompt = False
-            else:
-                os.system('cls' if os.name == 'nt' else 'clear')
-                print("Invalid choice, please try again.")
-                continue
-            break
+        self.print_to_terminal, self.print_prompt = set_printing_options()
 
         # adding in additional information to the user prompt
-        os.system('cls' if os.name == 'nt' else 'clear')
-        additional_info = input("Add any additional information here (hit ENTER to skip): ")
-        if additional_info.strip() == '':
-            self.additional_info = None
-        else:
-            self.additional_info = f"{additional_info.strip()}"
+        self.additional_info = set_additional_info()
 
         # print current settings
         os.system('cls' if os.name == 'nt' else 'clear')

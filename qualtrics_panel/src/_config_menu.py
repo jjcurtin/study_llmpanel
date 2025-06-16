@@ -1,5 +1,5 @@
 import os, numpy as np
-from _message_helper import load_message_categories, load_user_contexts, load_formality_prompts
+from _message_helper import load_message_categories, load_user_contexts, load_formality_prompts, load_existing_messages
 
 @staticmethod
 def select_message_categories():
@@ -179,3 +179,80 @@ def select_temperature():
             temperature_values = [temperature]
             break
     return temperature_values
+
+@staticmethod
+def select_output_file():
+    os.system('cls' if os.name == 'nt' else 'clear')
+    while True:
+        output_file_choice = input("Which output path would you like? 1 for default 2 for production (what is uploaded to qualtrics): ")
+        if output_file_choice == '1' or output_file_choice == '':
+            output_file = "../output/all_generated_messages.csv"
+        elif output_file_choice == '2':
+            output_file = "../output/production_messages.csv"
+        else:
+            os.system('cls' if os.name == 'nt' else 'clear')
+            print("Invalid choice, please try again.")
+            continue
+        break
+    return output_file
+
+@staticmethod
+def set_write_mode(output_file):
+    current_messages = load_existing_messages(output_file)
+    if not current_messages.empty:
+        os.system('cls' if os.name == 'nt' else 'clear')
+        while True:
+            choice = input("Output file already exists. Do you want to append to it (ENTER or a) or overwrite it (o)?: ")
+            if choice.lower() == 'o':
+                print("Existing messages will be overwritten.")
+                write_mode = 'w'
+            elif choice.lower() == 'a' or choice == '':
+                print("New messages will be appended to existing messages.")
+                write_mode = 'a'
+            else:
+                os.system('cls' if os.name == 'nt' else 'clear')
+                print("Invalid choice, please try again.")
+                continue
+            break
+    else:
+        print("No existing messages found. New messages will be written to the file.")
+        write_mode = 'w'
+    return write_mode
+
+@staticmethod
+def set_printing_options():
+    os.system('cls' if os.name == 'nt' else 'clear')
+    while True:
+        print_to_terminal = input("Would you like to print the generated messages to the terminal? (ENTER for yes, n for no): ")
+        if print_to_terminal.lower() == '':
+            print_to_terminal = True
+        elif print_to_terminal.lower() == 'n':
+            print_to_terminal = False
+        else:
+            os.system('cls' if os.name == 'nt' else 'clear')
+            print("Invalid choice, please try again.")
+            continue
+        break
+
+    os.system('cls' if os.name == 'nt' else 'clear')
+    while True:
+        print_prompt = input("Would you like to print the system and user prompts to the terminal? (ENTER for yes, n for no): ")
+        if print_prompt.lower() == '':
+            print_prompt = True
+        elif print_prompt.lower() == 'n':
+            print_prompt = False
+        else:
+            os.system('cls' if os.name == 'nt' else 'clear')
+            print("Invalid choice, please try again.")
+            continue
+        break
+
+    return print_to_terminal, print_prompt
+
+@staticmethod
+def set_additional_info():
+    os.system('cls' if os.name == 'nt' else 'clear')
+    additional_info = input("Add any additional information here (hit ENTER to skip): ").strip()
+    if additional_info == '':
+        additional_info = None
+    return additional_info
