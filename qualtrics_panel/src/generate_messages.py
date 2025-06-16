@@ -11,7 +11,7 @@ import csv
 from _message_helper import get_credentials, load_user_contexts, load_existing_messages
 from _config_menu import select_message_categories, select_user_contexts, select_formality_levels
 from _config_menu import select_num_messages, select_temperature, select_output_file
-from _config_menu import set_write_mode, set_printing_options, set_additional_info
+from _config_menu import set_printing_options, set_additional_info
 
 class MessageGenerator:
 
@@ -42,10 +42,7 @@ class MessageGenerator:
         self.temperature_values = select_temperature()
         
         # output file path choice
-        self.output_file = select_output_file()
-
-        # set write mode
-        self.write_mode = set_write_mode(self.output_file)
+        self.output_file, self.write_mode = select_output_file()
 
         # printing options
         self.print_to_terminal, self.print_prompt = set_printing_options()

@@ -194,10 +194,7 @@ def select_output_file():
             print("Invalid choice, please try again.")
             continue
         break
-    return output_file
 
-@staticmethod
-def set_write_mode(output_file):
     current_messages = load_existing_messages(output_file)
     if not current_messages.empty:
         os.system('cls' if os.name == 'nt' else 'clear')
@@ -217,7 +214,7 @@ def set_write_mode(output_file):
     else:
         print("No existing messages found. New messages will be written to the file.")
         write_mode = 'w'
-    return write_mode
+    return output_file, write_mode
 
 @staticmethod
 def set_printing_options():
