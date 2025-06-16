@@ -255,10 +255,8 @@ class MessageGenerator:
             return response.json()
         except requests.RequestException as e:
             print(f"Error making API call: {e}\nPlease check your API key and endpoint.")
-            exit(1)
         except Exception as e:
             print(f"Unexpected error during API call: {e}\nPlease check your input and try again.")
-            exit(1)
     
     # generate messages based on the prompt and system message
     def generate_messages(self, user_prompt):
