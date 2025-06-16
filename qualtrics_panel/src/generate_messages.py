@@ -19,7 +19,7 @@ class MessageGenerator:
     # initialization method to set up all of the script parameters and then call the message generation process
     def __init__(self):
 
-        self.test_mode = True  # Set to True to enable test mode with mock responses to save API costs
+        self.test_mode = False  # Set to True to enable test mode with mock responses to save API costs
 
         try:
             clear()
