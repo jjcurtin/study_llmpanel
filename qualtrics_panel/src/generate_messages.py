@@ -17,61 +17,69 @@ class MessageGenerator:
     # initialization method to set up the number of messages, temperature, and output file path and call the run method
     def __init__(self):
 
-        clear()
-        print("GPT Message Generation Interface with Qualtrics Upload")
+        try:
+            clear()
+            print("GPT Message Generation Interface with Qualtrics Upload")
 
-        # if end of path not in src folder, ask the user to run the script from the src folder
-        if not os.getcwd().endswith('src'):
-            print("Please run this script from the 'src' folder.")
-            exit(1)
+            self.em_dashes = 0
 
-        # Load API credentials, message categories, and user contexts
-        self.api_key, self.endpoint = get_credentials()
+            # if end of path not in src folder, ask the user to run the script from the src folder
+            if not os.getcwd().endswith('src'):
+                print("Please run this script from the 'src' folder.")
+                exit(1)
 
-        # decide which tones to generate messages for
-        self.tones_to_generate, self.category_to_description = select_message_categories()
+            # Load API credentials, message categories, and user contexts
+            self.api_key, self.endpoint = get_credentials()
 
-        # decide which user contexts to generate messages for
-        self.users_to_generate, self.user_contexts_df = select_user_contexts()
+            # decide which tones to generate messages for
+            self.tones_to_generate, self.category_to_description = select_message_categories()
 
-        # decide which formality levels to generate messages for
-        self.formalities_to_generate, self.formality_to_prompt = select_formality_levels()
+            # decide which user contexts to generate messages for
+            self.users_to_generate, self.user_contexts_df = select_user_contexts()
 
-        # number of messages to generate
-        self.num_messages = select_num_messages()
-        
-        # temperature for message generation, basically a creativity parameter
-        self.temperature_values = select_temperature()
-        
-        # output file path choice
-        self.output_file, self.write_mode = select_output_file()
+            # decide which formality levels to generate messages for
+            self.formalities_to_generate, self.formality_to_prompt = select_formality_levels()
 
-        # printing options
-        self.print_to_terminal, self.print_prompt = set_printing_options()
+            # number of messages to generate
+            self.num_messages = select_num_messages()
+            
+            # temperature for message generation, basically a creativity parameter
+            self.temperature_values = select_temperature()
+            
+            # output file path choice
+            self.output_file, self.write_mode = select_output_file()
 
-        # adding in additional information to the user prompt
-        self.additional_info = set_additional_info()
+            # printing options
+            self.print_to_terminal, self.print_prompt = set_printing_options()
 
-        # print current settings
-        clear()
-        print("Current settings:\n")
-        print(f"Message categories: {', '.join(self.tones_to_generate)}")
-        print(f"User contexts: {', '.join([str(i + 1) for i in self.users_to_generate])}")
-        print(f"Formality levels: {', '.join(self.formalities_to_generate)}")
-        print(f"Number of messages per category per user context: {self.num_messages}")
-        print(f"Temperature values: {', '.join([str(t) for t in self.temperature_values])}")
-        print(f"Output file: {self.output_file}")
-        print(f"Print generated messages to terminal: {self.print_to_terminal}")
-        print(f"Print prompts to terminal: {self.print_prompt}")
-        print(f"Additional information: {self.additional_info if self.additional_info else 'None'}")
+            # adding in additional information to the user prompt
+            self.additional_info = set_additional_info()
+
+            # print current settings
+            clear()
+            print("Current settings:\n")
+            print(f"Message categories: {', '.join(self.tones_to_generate)}")
+            print(f"User contexts: {', '.join([str(i + 1) for i in self.users_to_generate])}")
+            print(f"Formality levels: {', '.join(self.formalities_to_generate)}")
+            print(f"Number of messages per category per user context: {self.num_messages}")
+            print(f"Temperature values: {', '.join([str(t) for t in self.temperature_values])}")
+            print(f"Output file: {self.output_file}")
+            print(f"Print generated messages to terminal: {self.print_to_terminal}")
+            print(f"Print prompts to terminal: {self.print_prompt}")
+            print(f"Additional information: {self.additional_info if self.additional_info else 'None'}")
+        except KeyboardInterrupt:
+            try:
+                choice = input("\nProcess interrupted by user. ENTER to restart, Ctrl+C again to exit.")
+                if choice == '':
+                    self.__init__()
+                exit(0)
+            except KeyboardInterrupt:
+                exit(0)
         try:
             input("\nPress ENTER to start generating messages, Ctrl-C to stop.")
 
             # run the message generation process
             self.run()
-        except KeyboardInterrupt:
-            print("\nMessage generation process interrupted by user.")
-            exit(0)
         except Exception as e:
             print(f"Unexpected error: {e}\n")
             exit(1)
