@@ -1,0 +1,14 @@
+GPT does not listen if I ask it to not include the em dash.
+
+If I move all prompting into the system prompt and only leave context/tone in the user prompt
+the messages are nearly identical for every category.
+Therefore I left user prompt as: 
+user_prompt = (
+    "Generate a message for a user based on the following context:\n"
+    f"This user has a lapse risk that is {user_context.get('lapse_risk', 'N/A')} and {user_context.get('lapse_risk_change', 'N/A')}.\n"
+    f"Message category: {message_category}\n"
+    f"Message prompt: {message_description}\n"
+    "Please tailor the message to the user's situation.\n"
+    f"{formality_prompt if formality_prompt else ''}\n"
+    f"{self.additional_info if self.additional_info else ''}\n"
+)
