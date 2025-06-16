@@ -25,6 +25,9 @@ class MessageGenerator:
             print("Please run this script from the 'src' folder.")
             exit(1)
 
+        # Load API credentials, message categories, and user contexts
+        self.api_key, self.endpoint = get_credentials()
+
         # decide which tones to generate messages for
         self.tones_to_generate, self.category_to_description = select_message_categories()
 
@@ -180,10 +183,6 @@ class MessageGenerator:
         os.system('cls' if os.name == 'nt' else 'clear')
         print("Starting message generation process...")
 
-        # Load API credentials, message categories, and user contexts
-        self.api_key, self.endpoint = get_credentials()
-        user_contexts_df = load_user_contexts()
-
         # Generate messages for each category and user context
         self.all_output_rows = []
         self.create_system_prompt()
@@ -213,7 +212,7 @@ class MessageGenerator:
                         message_description = self.category_to_description[message_category]
                         
                         # for each user...
-                        for user_index, user_row in user_contexts_df.iterrows():
+                        for user_index, user_row in self.user_contexts_df.iterrows():
                             if user_index not in self.users_to_generate:
                                 continue
 
@@ -239,6 +238,8 @@ class MessageGenerator:
                                     'generated_message': msg,
                                 })
 
+            # save messages once complete
+            print("Message generation process complete.")
             self.save_messages()
         except KeyboardInterrupt:
             print("\nMessage generation process interrupted by user.")
@@ -248,16 +249,16 @@ class MessageGenerator:
                     if save_choice.lower() == 'y':
                         print("Saving generated messages...")
                         self.save_messages()
-                        break
+                        exit(0)
                     elif save_choice.lower() == 'n':
                         print("Generated messages will not be saved.")
-                        break
+                        exit(0)
                     else:
                         print("Invalid choice. Please enter 'y' or 'n'.")
                         continue
             else:
                 print("No messages were generated.")
-
+        
 # This is the entry point for the script, which initializes the MessageGenerator and runs the message generation process
 if __name__ == "__main__":
 
