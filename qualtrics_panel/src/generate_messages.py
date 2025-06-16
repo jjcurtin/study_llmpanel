@@ -5,7 +5,6 @@
 import os
 import requests
 import pandas as pd
-import numpy as np
 import csv
 
 from _message_helper import get_credentials, load_user_contexts, load_existing_messages
@@ -64,12 +63,15 @@ class MessageGenerator:
         print(f"Additional information: {self.additional_info if self.additional_info else 'None'}")
         try:
             input("\nPress ENTER to start generating messages, Ctrl-C to stop.")
+
+            # run the message generation process
+            self.run()
         except KeyboardInterrupt:
             print("\nMessage generation process interrupted by user.")
             exit(0)
-
-        # run the message generation process
-        self.run()
+        except Exception as e:
+            print(f"Unexpected error: {e}\n")
+            exit(1)
 
     # load system prompt components from files and construct the system prompt
     def create_system_prompt(self):
