@@ -10,14 +10,14 @@ import csv
 from _message_helper import get_credentials, load_existing_messages
 from _config_menu import select_message_categories, select_user_contexts, select_formality_levels
 from _config_menu import select_num_messages, select_temperature, select_output_file
-from _config_menu import set_printing_options, set_additional_info
+from _config_menu import set_printing_options, set_additional_info, clear
 
 class MessageGenerator:
 
     # initialization method to set up the number of messages, temperature, and output file path and call the run method
     def __init__(self):
 
-        os.system('cls' if os.name == 'nt' else 'clear')
+        clear()
         print("GPT Message Generation Interface with Qualtrics Upload")
 
         # if end of path not in src folder, ask the user to run the script from the src folder
@@ -53,7 +53,7 @@ class MessageGenerator:
         self.additional_info = set_additional_info()
 
         # print current settings
-        os.system('cls' if os.name == 'nt' else 'clear')
+        clear()
         print("Current settings:\n")
         print(f"Message categories: {', '.join(self.tones_to_generate)}")
         print(f"User contexts: {', '.join([str(i + 1) for i in self.users_to_generate])}")
@@ -180,7 +180,7 @@ class MessageGenerator:
     # main method to run the message generation process
     def run(self):
 
-        os.system('cls' if os.name == 'nt' else 'clear')
+        clear()
         print("Starting message generation process...")
 
         # Generate messages for each category and user context
