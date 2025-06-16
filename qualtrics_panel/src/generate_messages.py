@@ -5,6 +5,7 @@
 import os
 import requests
 import pandas as pd
+import numpy as np
 import csv
 
 from _message_helper import get_credentials, load_message_categories, load_user_contexts, load_existing_messages, load_formality_prompts
@@ -88,15 +89,53 @@ class MessageGenerator:
         self.num_messages = num_messages
         
         # temperature for message generation, basically a creativity parameter
-        temperature = input("Enter the temperature for message generation (default is 0, maximum is 1): ")
-        temperature = float(temperature) if temperature else 0.0
-        if temperature < 0:
-            print("Temperature must be at least 0. Setting to default value of 0.")
-            temperature = 0.0
-        elif temperature > 1:
-            print("Temperature is too high. Setting to maximum of 1.")
-            temperature = 1.0
-        self.temperature = temperature
+        while True:
+            temperature = input("Enter the temperature for message generation (default is 0, maximum is 1, \"cross\" for cross over interval): ")
+            if temperature.lower() == 'cross':
+                self.temperature = 'cross'
+                while True:
+                    min_temp = input("Enter the minimum temperature for the cross over interval (default is 0): ")
+                    min_temp = float(min_temp) if min_temp else 0.0
+                    if min_temp < 0:
+                        print("Minimum temperature must be at least 0. Try again.")
+                        continue
+                    elif min_temp > 2:
+                        print("Minimum temperature is too high. Try again.")
+                        continue
+                    max_temp = input("Enter the maximum temperature for the cross over interval (default is 1): ")
+                    max_temp = float(max_temp) if max_temp else 1.0
+                    if max_temp < 0:
+                        print("Maximum temperature must be at least 0. Try again.")
+                        continue
+                    elif max_temp > 2:
+                        print("Maximum temperature is too high. Try again.")
+                        continue
+                    elif max_temp <= min_temp:
+                        print("Maximum temperature must be greater than minimum temperature. Try again.")
+                        continue
+                    resolution = input("Enter the difference between temperature values in the cross over interval (default is 0.25): ")
+                    resolution = float(resolution) if resolution else 0.25
+                    if resolution <= 0:
+                        print("Resolution must be greater than 0. Try again.")
+                        continue
+                    elif resolution > max_temp - min_temp:
+                        print("Resolution is too high. Try again.")
+                        continue
+                    self.temperature_values = [round(x, 2) for x in list(np.arange(min_temp, max_temp + resolution, resolution))]
+                    print(f"Temperature values for cross over interval: {self.temperature_values}")
+                    break
+                break
+            else:
+                temperature = float(temperature) if temperature else 0.0
+                if temperature < 0:
+                    print("Temperature must be at least 0. Try again.")
+                    continue
+                elif temperature > 1:
+                    print("Temperature is too high. Try again.")
+                    continue
+                self.temperature = temperature
+                self.temperature_values = [self.temperature]
+                break
         
         # output file path choice
         output_file_choice = input("Which output path would you like? 1 for default 2 for production (what is uploaded to qualtrics): ")
@@ -267,44 +306,55 @@ class MessageGenerator:
         self.all_output_rows = []
         self.create_system_prompt()
 
-        # for each formality level...
-        for formality in self.formalities_to_generate:
-            print("\n" + "=" * 50)
-            print(f"FORMALITY LEVEL: {formality.upper()}")
-            print("=" * 50 + "\n")
-            formality_prompt = self.formality_to_prompt[formality]
-            if formality == "neutral":
-                formality_prompt = None
+        # for each temperature value...
+        for temp in self.temperature_values:
+            self.temperature = temp
+            print("\n" + "#" * 50)
+            print(f"TEMPERATURE: {self.temperature}")
+            print("#" * 50 + "\n")
 
-            # for each message category...
-            for message_category in self.tones_to_generate:
-                print("\n" + "-" * 50)
-                print(f"MESSAGE CATEGORY: {message_category.upper()}")
-                print("-" * 50 + "\n")
-                message_description = self.category_to_description[message_category]
-                
-                # for each user...
-                for user_index, user_row in user_contexts_df.iterrows():
-                    if user_index not in self.users_to_generate:
-                        continue
+            # for each formality level...
+            for formality in self.formalities_to_generate:
+                print("\n" + "=" * 50)
+                print(f"FORMALITY LEVEL: {formality.upper()}")
+                print("=" * 50 + "\n")
+                formality_prompt = self.formality_to_prompt[formality]
+                if formality == "neutral":
+                    formality_prompt = None
 
-                    # create user prompt based on the user context and message category
-                    user_context = {k: str(v).strip() for k, v in user_row.items()}
-                    user_prompt = self.create_user_prompt(message_category, message_description, user_context, formality_prompt)
+                # for each message category...
+                for message_category in self.tones_to_generate:
+                    print("\n" + "-" * 50)
+                    print(f"MESSAGE CATEGORY: {message_category.upper()}")
+                    print("-" * 50 + "\n")
+                    message_description = self.category_to_description[message_category]
+                    
+                    # for each user...
+                    for user_index, user_row in user_contexts_df.iterrows():
+                        if user_index not in self.users_to_generate:
+                            continue
 
-                    # Generate messages using the Azure API and store them in the output list
-                    messages = self.generate_messages(user_prompt)
-                    print(f"[Generated messages for user {user_index + 1} in category {message_category}]")
-                    for msg in messages:
-                        self.all_output_rows.append({
-                            'user_index': user_index + 1,
-                            'lapse_risk': user_context.get('lapse_risk', ''),
-                            'lapse_risk_change': user_context.get('lapse_risk_change', ''),
-                            'temperature': self.temperature,
-                            'formality': formality,
-                            'message_category': message_category,
-                            'generated_message': msg,
-                        })
+                        # create user prompt based on the user context and message category
+                        user_context = {k: str(v).strip() for k, v in user_row.items()}
+                        user_prompt = self.create_user_prompt(message_category, message_description, user_context, formality_prompt)
+
+                        # Generate messages using the Azure API and store them in the output list
+                        try:
+                            messages = self.generate_messages(user_prompt)
+                        except Exception as e:
+                            print(f"Error generating messages for user {user_index + 1} in category {message_category}: {e}")
+                            continue
+                        print(f"[Generated messages for user {user_index + 1} in category {message_category}]")
+                        for msg in messages:
+                            self.all_output_rows.append({
+                                'user_index': user_index + 1,
+                                'lapse_risk': user_context.get('lapse_risk', ''),
+                                'lapse_risk_change': user_context.get('lapse_risk_change', ''),
+                                'temperature': self.temperature,
+                                'formality': formality,
+                                'message_category': message_category,
+                                'generated_message': msg,
+                            })
 
         self.save_messages()
 
