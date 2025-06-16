@@ -7,7 +7,7 @@ import requests
 import pandas as pd
 import csv
 
-from _message_helper import get_credentials, load_user_contexts, load_existing_messages
+from _message_helper import get_credentials, load_existing_messages
 from _config_menu import select_message_categories, select_user_contexts, select_formality_levels
 from _config_menu import select_num_messages, select_temperature, select_output_file
 from _config_menu import set_printing_options, set_additional_info
