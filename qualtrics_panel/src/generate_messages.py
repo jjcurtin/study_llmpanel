@@ -1,20 +1,22 @@
 # qualtrics_message_generate.py
-# This script generates messages for an arbitrary number of message categories
-# and user contexts using the Azure OpenAI API. Use the update_qualtrics.py script to upload the generated messages to Qualtrics.
+# This script uses the Azure OpenAI API to generate messages based on user contexts, message categories, and formality levels.
+# Tunable parameters include # of messages and temperature.
 
 import os
 import requests
 import pandas as pd
 import csv
 
+# these functions are defined in separate files for modularity and help break up the code
 from _message_helper import get_credentials, load_existing_messages
 from _config_menu import select_message_categories, select_user_contexts, select_formality_levels
 from _config_menu import select_num_messages, select_temperature, select_output_file
 from _config_menu import set_printing_options, set_additional_info, clear
 
+# main class that is instantiated at run time (near the end of the script)
 class MessageGenerator:
 
-    # initialization method to set up the number of messages, temperature, and output file path and call the run method
+    # initialization method to set up all of the script parameters and then call the message generation process
     def __init__(self):
 
         self.test_mode = True  # Set to True to enable test mode with mock responses to save API costs
@@ -70,6 +72,7 @@ class MessageGenerator:
             print(f"Print prompts to terminal: {self.print_prompt}")
             print(f"Additional information: {self.additional_info if self.additional_info else 'None'}")
         except KeyboardInterrupt:
+            # quick stop/restart; during setup you can press Ctrl-C and exit or restart; this is in case of entry mistakes 
             try:
                 choice = input("\nProcess interrupted by user. ENTER to restart, Ctrl+C again to exit.")
                 if choice == '':
@@ -78,9 +81,8 @@ class MessageGenerator:
             except KeyboardInterrupt:
                 exit(0)
         try:
-            input("\nPress ENTER to start generating messages, Ctrl-C to stop.")
-
             # run the message generation process
+            input("\nPress ENTER to start generating messages, Ctrl-C to stop.")
             self.run()
         except Exception as e:
             print(f"Unexpected error: {e}\n")
@@ -130,7 +132,10 @@ class MessageGenerator:
             print(f"{user_prompt}")
         return user_prompt
     
+    # this function makes the actual API call to Azure OpenAI
     def azure_api_call(self, user_prompt):
+
+        # return a mock response in test mode to save API costs
         if self.test_mode:
             return {
                 "choices": [
@@ -142,6 +147,7 @@ class MessageGenerator:
                 ]
             }
 
+        # otherwise make the API call
         try:
             if not hasattr(self, 'system_prompt'):
                 self.create_system_prompt()
@@ -168,12 +174,14 @@ class MessageGenerator:
         except Exception as e:
             print(f"Unexpected error during API call: {e}\nPlease check your input and try again.")
     
-    # generate messages based on the prompt and system message
+    # generate n messages based on the prompt and system message
     def generate_messages(self, user_prompt):
         outputs = []
         if self.print_to_terminal:
             print("Generated Messages")
             print("-" * 50)
+
+        # make an api call for each message to be generated
         for i in range(self.num_messages):
             try:
                 response = self.azure_api_call(user_prompt)
@@ -191,6 +199,7 @@ class MessageGenerator:
                 outputs.append(f"Error: {e}")
         return outputs
     
+    # save the generated messages to a CSV file
     def save_messages(self):
         all_output_flat = pd.DataFrame(self.all_output_rows)
         current_messages = load_existing_messages(self.output_file)
@@ -209,6 +218,7 @@ class MessageGenerator:
             print(f"Note: {self.em_dashes} messages out of {num_messages_generated} contained em dashes (—).")
         
     # main method to run the message generation process
+    # essentially a series of nested loops to generate messages for each combination of parameters
     def run(self):
 
         clear()
@@ -254,7 +264,7 @@ class MessageGenerator:
                             user_context = {k: str(v).strip() for k, v in user_row.items()}
                             user_prompt = self.create_user_prompt(message_category, message_description, user_context, formality_prompt)
 
-                            # Generate messages using the Azure API and store them in the output list
+                            # Generate n messages using the Azure API
                             try:
                                 messages = self.generate_messages(user_prompt)
                             except Exception as e:
@@ -262,6 +272,7 @@ class MessageGenerator:
                                 continue
                             print(f"[Generated {self.num_messages} {formality} messages for user {user_index + 1} in category {message_category} at temperature {self.temperature}]\n")
                             for msg in messages:
+                                # add the generated message to the output list
                                 self.all_output_rows.append({
                                     'user_index': user_index + 1,
                                     'lapse_risk': user_context.get('lapse_risk', ''),
@@ -276,6 +287,7 @@ class MessageGenerator:
             print("Message generation process complete.")
             self.save_messages()
         except KeyboardInterrupt:
+            # quick stop during the message generation process with save option
             print("\nMessage generation process interrupted by user.")
             if self.all_output_rows:
                 while True:
