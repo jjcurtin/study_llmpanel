@@ -27,18 +27,22 @@ class MessageGenerator:
         self.tones_to_generate = []
         tones, descriptions = load_message_categories()
         self.category_to_description = dict(zip(tones, descriptions))
-        print("\nAvailable message categories:")
-        for i, tone in enumerate(tones):
-            print(f"{i + 1}: {tone}")
-        selected_tones = input("Enter the numbers of the message categories you want to generate messages for, separated by commas (default is all): ")
-        if selected_tones.strip() == '':
-            self.tones_to_generate = tones
-        else:
-            selected_indices = [int(x.strip()) - 1 for x in selected_tones.split(',') if x.strip().isdigit()]
-            self.tones_to_generate = [tones[i] for i in selected_indices if 0 <= i < len(tones)]
-            if not self.tones_to_generate:
-                print("No valid message categories selected. Exiting...")
-                exit(1)
+        os.system('cls' if os.name == 'nt' else 'clear')
+        while True:
+            print("Available message categories:")
+            for i, tone in enumerate(tones):
+                print(f"{i + 1}: {tone}")
+            selected_tones = input("Enter the numbers of the message categories you want to generate messages for, separated by commas (default is all): ")
+            if selected_tones.strip() == '':
+                self.tones_to_generate = tones
+            else:
+                selected_indices = [int(x.strip()) - 1 for x in selected_tones.split(',') if x.strip().isdigit()]
+                self.tones_to_generate = [tones[i] for i in selected_indices if 0 <= i < len(tones)]
+                if not self.tones_to_generate:
+                    os.system('cls' if os.name == 'nt' else 'clear')
+                    print("No valid message categories selected. Please try again.")
+                    continue
+            break
 
         # decide which user contexts to generate messages for
         self.users_to_generate = []
@@ -46,49 +50,68 @@ class MessageGenerator:
         if user_contexts_df.empty:
             print("No user contexts available. Please ensure the user_contexts.csv file is populated.")
             exit(1)
-        print("\nAvailable user contexts:")
-        for user_index, user_row in user_contexts_df.iterrows():
-            user_context = {k: str(v).strip() for k, v in user_row.items()}
-            print(f"{user_index + 1}: {user_context.get('lapse_risk', 'N/A')} - {user_context.get('lapse_risk_change', 'N/A')}")
-        selected_users = input("Enter the numbers of the user contexts you want to generate messages for, separated by commas (default is all): ")
-        if selected_users.strip() == '':
-            self.users_to_generate = list(user_contexts_df.index)
-        else:
-            selected_indices = [int(x.strip()) - 1 for x in selected_users.split(',') if x.strip().isdigit()]
-            self.users_to_generate = [i for i in selected_indices if 0 <= i < len(user_contexts_df)]
-            if not self.users_to_generate:
-                print("No valid user contexts selected. Exiting...")
-                exit(1)
+        os.system('cls' if os.name == 'nt' else 'clear')
+        while True:
+            print("Available user contexts:")
+            for user_index, user_row in user_contexts_df.iterrows():
+                user_context = {k: str(v).strip() for k, v in user_row.items()}
+                print(f"{user_index + 1}: {user_context.get('lapse_risk', 'N/A')} - {user_context.get('lapse_risk_change', 'N/A')}")
+            selected_users = input("Enter the numbers of the user contexts you want to generate messages for, separated by commas (default is all): ")
+            if selected_users.strip() == '':
+                self.users_to_generate = list(user_contexts_df.index)
+            else:
+                selected_indices = [int(x.strip()) - 1 for x in selected_users.split(',') if x.strip().isdigit()]
+                self.users_to_generate = [i for i in selected_indices if 0 <= i < len(user_contexts_df)]
+                if not self.users_to_generate:
+                    os.system('cls' if os.name == 'nt' else 'clear')
+                    print("No valid user contexts selected. Please try again.")
+                    continue
+            break
 
         # decide which formality levels to generate messages for
         self.formality_labels, self.formality_prompts = load_formality_prompts()
-        print("\nAvailable formality levels:")
-        for i, label in enumerate(self.formality_labels):
-            print(f"{i + 1}: {label}")
-        self.formalities_to_generate = []
-        selected_formalities = input("Enter the numbers of the formality levels you want to generate messages for, separated by commas (default is all): ")
-        if selected_formalities.strip() == '':
-            self.formalities_to_generate = self.formality_labels
-        else:
-            selected_indices = [int(x.strip()) - 1 for x in selected_formalities.split(',') if x.strip().isdigit()]
-            self.formalities_to_generate = [self.formality_labels[i] for i in selected_indices if 0 <= i < len(self.formality_labels)]
-            if not self.formalities_to_generate:
-                print("No valid formality levels selected. Exiting...")
-                exit(1)
-        self.formality_to_prompt = dict(zip(self.formality_labels, self.formality_prompts))
+        os.system('cls' if os.name == 'nt' else 'clear')
+        while True:
+            print("Available formality levels:")
+            for i, label in enumerate(self.formality_labels):
+                print(f"{i + 1}: {label}")
+            self.formalities_to_generate = []
+            selected_formalities = input("Enter the numbers of the formality levels you want to generate messages for, separated by commas (default is all): ")
+            if selected_formalities.strip() == '':
+                self.formalities_to_generate = self.formality_labels
+            else:
+                selected_indices = [int(x.strip()) - 1 for x in selected_formalities.split(',') if x.strip().isdigit()]
+                self.formalities_to_generate = [self.formality_labels[i] for i in selected_indices if 0 <= i < len(self.formality_labels)]
+                if not self.formalities_to_generate:
+                    os.system('cls' if os.name == 'nt' else 'clear')
+                    print("No valid formality levels selected. Please try again.")
+                    continue
+            self.formality_to_prompt = dict(zip(self.formality_labels, self.formality_prompts))
+            break
 
         # number of messages to generate
-        num_messages = input("Enter the number of messages to generate for each category per user context (default is 1): ")
-        num_messages = int(num_messages) if num_messages.isdigit() else 1
-        if num_messages < 1:
-            print("Number of messages must be at least 1. Setting to default value of 1.")
-            num_messages = 1
-        elif num_messages > 10:
-            print("Number of messages is too high. Setting to maximum of 10.")
-            num_messages = 10
-        self.num_messages = num_messages
+        os.system('cls' if os.name == 'nt' else 'clear')
+        while True:
+            num_messages = input("Enter the number of messages to generate for each category per user context (default is 1): ")
+            
+            if num_messages.strip() == '':
+                num_messages = 1
+            elif not num_messages.isdigit():
+                os.system('cls' if os.name == 'nt' else 'clear')
+                print("Invalid input. Please enter a positive integer.")
+                continue
+            num_messages = int(num_messages)
+            if num_messages < 1:
+                os.system('cls' if os.name == 'nt' else 'clear')
+                print("Number of messages must be at least 1. Please try again.")
+                continue
+            elif num_messages > 10:
+                print("WARNING: Generating more than 10 messages per user.")
+            self.num_messages = num_messages
+            break
         
         # temperature for message generation, basically a creativity parameter
+        os.system('cls' if os.name == 'nt' else 'clear')
         while True:
             temperature = input("Enter the temperature for message generation (default is 0, maximum is 1, \"cross\" for cross over interval): ")
             if temperature.lower() == 'cross':
@@ -97,28 +120,35 @@ class MessageGenerator:
                     min_temp = input("Enter the minimum temperature for the cross over interval (default is 0): ")
                     min_temp = float(min_temp) if min_temp else 0.0
                     if min_temp < 0:
+                        os.system('cls' if os.name == 'nt' else 'clear')
                         print("Minimum temperature must be at least 0. Try again.")
                         continue
                     elif min_temp > 2:
+                        os.system('cls' if os.name == 'nt' else 'clear')
                         print("Minimum temperature is too high. Try again.")
                         continue
                     max_temp = input("Enter the maximum temperature for the cross over interval (default is 1): ")
                     max_temp = float(max_temp) if max_temp else 1.0
                     if max_temp < 0:
+                        os.system('cls' if os.name == 'nt' else 'clear')
                         print("Maximum temperature must be at least 0. Try again.")
                         continue
                     elif max_temp > 2:
+                        os.system('cls' if os.name == 'nt' else 'clear')
                         print("Maximum temperature is too high. Try again.")
                         continue
                     elif max_temp <= min_temp:
+                        os.system('cls' if os.name == 'nt' else 'clear')
                         print("Maximum temperature must be greater than minimum temperature. Try again.")
                         continue
                     resolution = input("Enter the difference between temperature values in the cross over interval (default is 0.25): ")
                     resolution = float(resolution) if resolution else 0.25
                     if resolution <= 0:
+                        os.system('cls' if os.name == 'nt' else 'clear')
                         print("Resolution must be greater than 0. Try again.")
                         continue
                     elif resolution > max_temp - min_temp:
+                        os.system('cls' if os.name == 'nt' else 'clear')
                         print("Resolution is too high. Try again.")
                         continue
                     self.temperature_values = [round(x, 2) for x in list(np.arange(min_temp, max_temp + resolution, resolution))]
@@ -128,9 +158,11 @@ class MessageGenerator:
             else:
                 temperature = float(temperature) if temperature else 0.0
                 if temperature < 0:
+                    os.system('cls' if os.name == 'nt' else 'clear')
                     print("Temperature must be at least 0. Try again.")
                     continue
                 elif temperature > 1:
+                    os.system('cls' if os.name == 'nt' else 'clear')
                     print("Temperature is too high. Try again.")
                     continue
                 self.temperature = temperature
@@ -138,53 +170,92 @@ class MessageGenerator:
                 break
         
         # output file path choice
-        output_file_choice = input("Which output path would you like? 1 for default 2 for production (what is uploaded to qualtrics): ")
-        if output_file_choice == '1' or output_file_choice == '':
-            output_file = "../output/all_generated_messages.csv"
-        elif output_file_choice == '2':
-            output_file = "../output/production_messages.csv"
-        else:
-            print("Invalid choice, using default output path.")
-            output_file = "../output/all_generated_messages.csv"
-        self.output_file = output_file
+        os.system('cls' if os.name == 'nt' else 'clear')
+        while True:
+            output_file_choice = input("Which output path would you like? 1 for default 2 for production (what is uploaded to qualtrics): ")
+            if output_file_choice == '1' or output_file_choice == '':
+                output_file = "../output/all_generated_messages.csv"
+            elif output_file_choice == '2':
+                output_file = "../output/production_messages.csv"
+            else:
+                os.system('cls' if os.name == 'nt' else 'clear')
+                print("Invalid choice, please try again.")
+                continue
+            self.output_file = output_file
+            break
 
         current_messages = load_existing_messages(self.output_file)
         if not current_messages.empty:
-            choice = input("Output file already exists. Do you want to append to it (ENTER or a) or overwrite it (o)?: ")
-            if choice.lower() == 'o':
-                print("Existing messages will be overwritten.")
-                self.write_mode = 'w'
-            else:
-                print("New messages will be appended to existing messages.")
-                self.write_mode = 'a'
+            os.system('cls' if os.name == 'nt' else 'clear')
+            while True:
+                choice = input("Output file already exists. Do you want to append to it (ENTER or a) or overwrite it (o)?: ")
+                if choice.lower() == 'o':
+                    print("Existing messages will be overwritten.")
+                    self.write_mode = 'w'
+                elif choice.lower() == 'a' or choice == '':
+                    print("New messages will be appended to existing messages.")
+                    self.write_mode = 'a'
+                else:
+                    os.system('cls' if os.name == 'nt' else 'clear')
+                    print("Invalid choice, please try again.")
+                    continue
+                break
         else:
             print("No existing messages found. New messages will be written to the file.")
             self.write_mode = 'w'
 
         # printing options
-        print_to_terminal = input("Would you like to print the generated messages to the terminal? (ENTER for yes, n for no): ")
-        if print_to_terminal.lower() == '':
-            self.print_to_terminal = True
-        elif print_to_terminal.lower() == 'n':
-            self.print_to_terminal = False
-        else:
-            print("Invalid choice, defaulting to printing messages to terminal.")
-            self.print_to_terminal = True
-        print_prompt = input("Would you like to print the system and user prompts to the terminal? (ENTER for yes, n for no): ")
-        if print_prompt.lower() == '':
-            self.print_prompt = True
-        elif print_prompt.lower() == 'n':
-            self.print_prompt = False
-        else:
-            print("Invalid choice, defaulting to printing prompts to terminal.")
-            self.print_prompt = True
+        os.system('cls' if os.name == 'nt' else 'clear')
+        while True:
+            print_to_terminal = input("Would you like to print the generated messages to the terminal? (ENTER for yes, n for no): ")
+            if print_to_terminal.lower() == '':
+                self.print_to_terminal = True
+            elif print_to_terminal.lower() == 'n':
+                self.print_to_terminal = False
+            else:
+                os.system('cls' if os.name == 'nt' else 'clear')
+                print("Invalid choice, please try again.")
+                continue
+            break
+
+        os.system('cls' if os.name == 'nt' else 'clear')
+        while True:
+            print_prompt = input("Would you like to print the system and user prompts to the terminal? (ENTER for yes, n for no): ")
+            if print_prompt.lower() == '':
+                self.print_prompt = True
+            elif print_prompt.lower() == 'n':
+                self.print_prompt = False
+            else:
+                os.system('cls' if os.name == 'nt' else 'clear')
+                print("Invalid choice, please try again.")
+                continue
+            break
 
         # adding in additional information to the user prompt
+        os.system('cls' if os.name == 'nt' else 'clear')
         additional_info = input("Add any additional information here (hit ENTER to skip): ")
         if additional_info.strip() == '':
             self.additional_info = None
         else:
             self.additional_info = f"{additional_info.strip()}"
+
+        # print current settings
+        os.system('cls' if os.name == 'nt' else 'clear')
+        print("Current settings:\n")
+        print(f"Message categories: {', '.join(self.tones_to_generate)}")
+        print(f"User contexts: {', '.join([str(i + 1) for i in self.users_to_generate])}")
+        print(f"Formality levels: {', '.join(self.formalities_to_generate)}")
+        print(f"Number of messages per category per user context: {self.num_messages}")
+        print(f"Temperature values: {', '.join([str(t) for t in self.temperature_values])}")
+        print(f"Output file: {self.output_file}")
+        print(f"Print generated messages to terminal: {self.print_to_terminal}")
+        print(f"Print prompts to terminal: {self.print_prompt}")
+        print(f"Additional information: {self.additional_info if self.additional_info else 'None'}")
+        try:
+            input("\nPress ENTER to start generating messages, Ctrl-C to stop.")
+        except KeyboardInterrupt:
+            print("\nMessage generation process interrupted by user.")
+            exit(0)
 
         # run the message generation process
         self.run()
