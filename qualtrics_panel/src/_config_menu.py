@@ -15,7 +15,7 @@ def select_message_categories():
         print("Available message categories:")
         for i, tone in enumerate(tones):
             print(f"{i + 1}: {tone}")
-        selected_tones = input("Enter the numbers of the message categories you want to generate messages for, separated by commas (default is all): ")
+        selected_tones = input("Enter the numbers of the message categories you want to generate messages for, separated by commas (ENTER is all): ")
         if selected_tones.strip() == '':
             tones_to_generate = tones
         else:
@@ -51,7 +51,7 @@ def select_user_contexts():
         for user_index, user_row in user_contexts_df.iterrows():
             user_context = {k: str(v).strip() for k, v in user_row.items()}
             print(f"{user_index + 1}: {user_context.get('lapse_risk', 'N/A')} - {user_context.get('lapse_risk_change', 'N/A')}")
-        selected_users = input("Enter the numbers of the user contexts you want to generate messages for, separated by commas (default is all): ")
+        selected_users = input("Enter the numbers of the user contexts you want to generate messages for, separated by commas (ENTER is all): ")
         if selected_users.strip() == '':
             users_to_generate = list(user_contexts_df.index)
         else:
@@ -83,7 +83,7 @@ def select_formality_levels():
         for i, label in enumerate(formality_labels):
             print(f"{i + 1}: {label}")
         formalities_to_generate = []
-        selected_formalities = input("Enter the numbers of the formality levels you want to generate messages for, separated by commas (default is all): ")
+        selected_formalities = input("Enter the numbers of the formality levels you want to generate messages for, separated by commas (ENTER is all): ")
         if selected_formalities.strip() == '':
             formalities_to_generate = formality_labels
         else:
@@ -110,7 +110,7 @@ def select_formality_levels():
 def select_num_messages():
     clear()
     while True:
-        num_messages = input("Enter the number of messages to generate for each category per user context (default is 1): ")
+        num_messages = input("Enter the number of messages to generate for each category per user context (ENTER is 1): ")
         if num_messages.strip() == '':
             num_messages = 1
         elif not num_messages.isdigit():
@@ -131,7 +131,7 @@ def select_num_messages():
 def select_temperature():
     clear()
     while True:
-        temperature = input("Enter the temperature for message generation (default is 0, maximum is 1, \"cross\" for cross over interval): ")
+        temperature = input("Enter the temperature for message generation (ENTER is 0, maximum is 1, \"cross\" for cross over interval): ")
         if temperature.lower() == 'cross':
             while True:
                 min_temp = input("Enter the minimum temperature for the cross over interval (default is 0): ")
@@ -144,7 +144,7 @@ def select_temperature():
                     clear()
                     print("Minimum temperature is too high. Try again.")
                     continue
-                max_temp = input("Enter the maximum temperature for the cross over interval (default is 1): ")
+                max_temp = input("Enter the maximum temperature for the cross over interval (ENTER is 1): ")
                 max_temp = float(max_temp) if max_temp else 1.0
                 if max_temp < 0:
                     clear()
@@ -158,7 +158,7 @@ def select_temperature():
                     clear()
                     print("Maximum temperature must be greater than minimum temperature. Try again.")
                     continue
-                resolution = input("Enter the difference between temperature values in the cross over interval (default is 0.25): ")
+                resolution = input("Enter the difference between temperature values in the cross over interval (ENTER is 0.25): ")
                 resolution = float(resolution) if resolution else 0.25
                 if resolution <= 0:
                     clear()
@@ -190,7 +190,7 @@ def select_temperature():
 def select_output_file():
     clear()
     while True:
-        output_file_choice = input("Which output path would you like? 1 for default 2 for production (what is uploaded to qualtrics): ")
+        output_file_choice = input("Which output path would you like? ENTER/1 for default 2 for production (what is uploaded to qualtrics): ")
         if output_file_choice == '1' or output_file_choice == '':
             output_file = "../output/all_generated_messages.csv"
         elif output_file_choice == '2':
