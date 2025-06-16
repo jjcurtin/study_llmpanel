@@ -12,3 +12,7 @@ user_prompt = (
     f"{formality_prompt if formality_prompt else ''}\n"
     f"{self.additional_info if self.additional_info else ''}\n"
 )
+
+By far the best method of reducing repetition across messages with identical contexts is including the previous message 
+in the prompt. Temperature is decent but does not always change the message on independent calls whereas
+including the most recent prompt always does.
