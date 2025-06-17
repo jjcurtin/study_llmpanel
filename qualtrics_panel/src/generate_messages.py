@@ -49,6 +49,16 @@ class MessageGenerator:
             print(f"Additional information: {self.additional_info if self.additional_info else 'None'}")
             print(f"Recent message feedback mode: {'Enabled' if self.recent_mode else 'Disabled'}")
 
+            # calculate total number of messages to be generated
+            self.total_messages_to_generate = (
+                len(self.tones_to_generate) *
+                len(self.users_to_generate) *
+                len(self.formalities_to_generate) *
+                self.num_messages *
+                len(self.temperature_values)
+            )
+            print(f"\nTotal number of messages to be generated: {self.total_messages_to_generate}")
+
             input("\nPress ENTER to start generating messages, Ctrl-C to stop: ")
             self.run()
         except KeyboardInterrupt:
@@ -207,6 +217,7 @@ class MessageGenerator:
                         print(f"{content}\n")
                     outputs.append(content)
                     most_recent_message = content
+                    self.messages_generated += 1
                 else:
                     outputs.append(f"Error: No response received (request {i + 1})")
             except Exception as e:
@@ -226,9 +237,8 @@ class MessageGenerator:
             else:
                 print("Overwriting existing file.")
         all_output_flat.to_csv(self.output_file, index = False, quoting = csv.QUOTE_ALL)
-        num_messages_generated = len(self.all_output_rows)
-        print(f"\n{num_messages_generated} messages generated and saved to {self.output_file}.")
-        print(f"Note: {self.em_dashes} messages out of {num_messages_generated} contained em dashes (—).")
+        print(f"\n{self.messages_generated} messages generated and saved to {self.output_file}.")
+        print(f"Note: {self.em_dashes} messages out of {self.messages_generated} contained em dashes (—).")
         
     # main method to run the message generation process
     # essentially a series of nested loops to generate messages for each combination of parameters
@@ -239,6 +249,7 @@ class MessageGenerator:
 
         # Generate messages for each category and user context
         self.all_output_rows = []
+        self.messages_generated = 0
         self.create_system_prompt()
 
         try:
@@ -297,7 +308,7 @@ class MessageGenerator:
                                 })
 
             # save messages once complete
-            print("Message generation process complete.")
+            print(f"Message generation process complete. {self.messages_generated} messages generated.")
             self.save_messages()
         except KeyboardInterrupt:
             # quick stop during the message generation process with save option
@@ -306,11 +317,11 @@ class MessageGenerator:
                 while True:
                     save_choice = input("Would you like to save the messages generated so far? (ENTER or y/n): ")
                     if save_choice.lower() == 'y' or save_choice == '':
-                        print("Saving generated messages...")
+                        print(f"Saving {self.messages_generated} messages to {self.output_file}...")
                         self.save_messages()
                         exit(0)
                     elif save_choice.lower() == 'n':
-                        print("Generated messages will not be saved.")
+                        print(f"Generated messages will not be saved. {self.messages_generated} messages have been discarded.")
                         exit(0)
                     else:
                         print("Invalid choice. Please enter 'y' or 'n'.")
