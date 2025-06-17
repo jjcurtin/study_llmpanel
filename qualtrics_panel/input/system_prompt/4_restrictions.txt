@@ -3,3 +3,4 @@ Do not refer to yourself in the message.
 Do not provide advice.
 Avoid the use of words like "should" or "must".
 Please avoid using em dashes in your responses. Use commas or parentheses instead.
+Do not ask questions and do not use exclamation points.
