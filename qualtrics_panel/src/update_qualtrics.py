@@ -146,7 +146,9 @@ class SurveyHandler:
             category = row['message_category']
             description = row['description']
             example = row['example']
-            desc_id = self.question_handler.add_category_question(category, description, example, category_block_id)
+            question_text = f'<strong>{category}</strong><br><br>{description}<br><br>Example: {example}'
+            questions = ["I would like to receive messages from this tone category."]
+            desc_id = self.question_handler.add_likert_scale_question(question_text, category_block_id, questions)
             question_category_ids.append(desc_id)
         print(f"Added {len(question_category_ids)} category questions.")
 
@@ -156,7 +158,13 @@ class SurveyHandler:
         for _, row in formality_df.iterrows():
             label = row['label']
             prompt = row['prompt']
-            desc_id = self.question_handler.add_formality_question(label, prompt, formality_block_id)
+
+            if label == "neutral":
+                prompt = "Address this user in a manner that is neither explicitly formal nor informal."
+            question_text = f'<strong>{label}</strong><br><br>{prompt}'
+            questions = ["I would like to receive messages from this formality category."]
+            
+            desc_id = self.question_handler.add_likert_scale_question(question_text, formality_block_id, questions)
             question_formality_ids.append(desc_id)
         print(f"Added {len(question_formality_ids)} formality questions.")
 
