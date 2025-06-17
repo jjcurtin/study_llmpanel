@@ -14,7 +14,11 @@ Colin TODO:
 - Update tone category to only have one Likert scale question (not the helpful one)
 - Add formality survey in addition to tone preference survey
 - Look into Assistant mode for previous messages
+- Look into max tokens
 - Generate Qualtrics survey with sample 72 questions for John/Rachel's approval
+
+Additional Questions:
+- Which user contexts do we choose?
 
 John TODO:
 - Ask Susan about multiple surveys in Qualtrics
