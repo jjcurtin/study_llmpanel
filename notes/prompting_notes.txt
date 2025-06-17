@@ -1,8 +1,0 @@
-GPT does not listen if I ask it to not include the em dash.
-
-By far the best method of reducing repetition across messages with identical contexts is including the previous message 
-in the prompt. However, the second, third, etc. messages generated tend to be similar to one another as well.
-Seems to be mostly deterministic if the temperature parameter is set to zero
-
-Temperature is decent for increasing varation but does not always change the message on independent calls whereas
-including the most recent prompt always does. 
