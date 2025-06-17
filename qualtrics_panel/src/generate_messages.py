@@ -11,7 +11,7 @@ import csv
 from _message_helper import get_credentials, load_existing_messages
 from _config_menu import select_message_categories, select_user_contexts, select_formality_levels
 from _config_menu import select_num_messages, select_temperature, select_output_file
-from _config_menu import set_printing_options, set_additional_info, clear
+from _config_menu import set_printing_options, set_additional_info, set_recent_feedback_mode, clear
 
 # main class that is instantiated at run time (near the end of the script)
 class MessageGenerator:
@@ -32,47 +32,8 @@ class MessageGenerator:
                 print("Please run this script from the 'src' folder.")
                 exit(1)
 
-            # Load API credentials, message categories, and user contexts
-            self.api_key, self.endpoint = get_credentials()
-
-            # decide which tones to generate messages for
-            self.tones_to_generate, self.category_to_description = select_message_categories()
-
-            # decide which user contexts to generate messages for
-            self.users_to_generate, self.user_contexts_df = select_user_contexts()
-
-            # decide which formality levels to generate messages for
-            self.formalities_to_generate, self.formality_to_prompt = select_formality_levels()
-
-            # number of messages to generate
-            self.num_messages = select_num_messages()
-            
-            # temperature for message generation, basically a creativity parameter
-            self.temperature_values = select_temperature()
-            
-            # output file path choice
-            self.output_file, self.write_mode = select_output_file()
-
-            # printing options
-            self.print_to_terminal, self.print_prompt = set_printing_options()
-
-            # adding in additional information to the user prompt
-            self.additional_info = set_additional_info()
-
-            # recent message feedback mode: best method of reducing repetition
-            clear()
-            while True:
-                self.recent_mode = input("Would you like to feed the most recent message back into the prompt to reduce repetition? (y/n): ")
-                if self.recent_mode.lower() == 'y':
-                    self.recent_mode = True
-                    break
-                elif self.recent_mode.lower() == 'n':
-                    self.recent_mode = False
-                    break
-                else:
-                    clear()
-                    print("Invalid choice. Please enter 'y' or 'n'.")
-                    continue
+            # initialize all parameters and configuration variables
+            self.initialize_settings()            
 
             # print current settings
             clear()
@@ -88,7 +49,7 @@ class MessageGenerator:
             print(f"Additional information: {self.additional_info if self.additional_info else 'None'}")
             print(f"Recent message feedback mode: {'Enabled' if self.recent_mode else 'Disabled'}")
 
-            input("\nPress ENTER to start generating messages, Ctrl-C to stop.")
+            input("\nPress ENTER to start generating messages, Ctrl-C to stop: ")
             self.run()
         except KeyboardInterrupt:
             # quick stop/restart; during setup you can press Ctrl-C and exit or restart; this is in case of entry mistakes 
@@ -102,6 +63,37 @@ class MessageGenerator:
         except Exception as e:
             print(f"Unexpected error during initialization: {e}\nPlease check your input and try again.")
             exit(1)
+
+    def initialize_settings(self):
+        # Load API credentials, message categories, and user contexts
+        self.api_key, self.endpoint = get_credentials()
+
+        # decide which tones to generate messages for
+        self.tones_to_generate, self.category_to_description = select_message_categories()
+
+        # decide which user contexts to generate messages for
+        self.users_to_generate, self.user_contexts_df = select_user_contexts()
+
+        # decide which formality levels to generate messages for
+        self.formalities_to_generate, self.formality_to_prompt = select_formality_levels()
+
+        # number of messages to generate
+        self.num_messages = select_num_messages()
+        
+        # temperature for message generation, basically a creativity parameter
+        self.temperature_values = select_temperature()
+        
+        # output file path choice
+        self.output_file, self.write_mode = select_output_file()
+
+        # printing options
+        self.print_to_terminal, self.print_prompt = set_printing_options()
+
+        # adding in additional information to the user prompt
+        self.additional_info = set_additional_info()
+
+        # recent message feedback mode: best method of reducing repetition
+        self.recent_mode = set_recent_feedback_mode()
 
     # load system prompt components from files and construct the system prompt
     def create_system_prompt(self):
@@ -145,8 +137,6 @@ class MessageGenerator:
             print("User Prompt")
             print("-" * 50)
             print(f"{user_prompt}")
-            if self.recent_mode:
-                print("\nRecent message feedback mode is enabled.")
         return user_prompt
     
     # this function makes the actual API call to Azure OpenAI
@@ -195,7 +185,8 @@ class MessageGenerator:
     def generate_messages(self, user_prompt):
         outputs = []
         if self.print_to_terminal:
-            print("Generated Messages")
+            recent_message = " (recent feedback mode enabled)" if self.recent_mode else ""
+            print("Generated Messages" + recent_message)
             print("-" * 50)
 
         # make an api call for each message to be generated
