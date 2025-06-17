@@ -26,8 +26,7 @@ class QuestionHandler:
                         "QuestionDescriptionOption": "UseText"
                     },
                     "Choices": {
-                        "1": {"Display": "I would like to receive messages from this tone category."},
-                        "2": {"Display": "I would find messages from this tone category to be helpful."}
+                        "1": {"Display": "I would like to receive messages from this tone category."}
                     },
                     "Answers": {
                         "1": {"Display": "Strongly Disagree"},
