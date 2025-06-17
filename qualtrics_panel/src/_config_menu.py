@@ -264,8 +264,8 @@ def set_additional_info():
 def set_recent_feedback_mode():
     clear()
     while True:
-        recent_mode = input("Would you like to feed the most recent message back into the prompt to reduce repetition? (ENTER for yes/n for no): ")
-        if recent_mode.lower() == '':
+        recent_mode = input("Would you like to feed the most recent message back into the prompt to reduce repetition? (ENTER or y for yes/n for no): ")
+        if recent_mode.lower() == '' or recent_mode.lower() == 'y':
             return True
         elif recent_mode.lower() == 'n':
             return False

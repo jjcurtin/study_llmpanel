@@ -304,8 +304,8 @@ class MessageGenerator:
             print("\nMessage generation process interrupted by user.")
             if self.all_output_rows:
                 while True:
-                    save_choice = input("Would you like to save the messages generated so far? (y/n): ")
-                    if save_choice.lower() == 'y':
+                    save_choice = input("Would you like to save the messages generated so far? (ENTER or y/n): ")
+                    if save_choice.lower() == 'y' or save_choice == '':
                         print("Saving generated messages...")
                         self.save_messages()
                         exit(0)
