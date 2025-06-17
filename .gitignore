@@ -6,8 +6,9 @@ proj_optimize.Rproj
 .DS_Store
 _publish.yml
 .DS_Store
-azure.api
-*.api
+
+# qualtrics panel study files
 all_generated_messages.csv
 TODO
+*.api
 *.pyc
