@@ -131,10 +131,10 @@ def select_num_messages():
 def select_temperature():
     clear()
     while True:
-        temperature = input("Enter the temperature for message generation (ENTER is 0, maximum is 1, \"cross\" for cross over interval): ")
+        temperature = input("Enter the temperature for message generation (ENTER is 0.7, max is 1.0, \"cross\" for cross over interval): ")
         if temperature.lower() == 'cross':
             while True:
-                min_temp = input("Enter the minimum temperature for the cross over interval (default is 0): ")
+                min_temp = input("Enter the minimum temperature for the cross over interval (default is 0.0): ")
                 min_temp = float(min_temp) if min_temp else 0.0
                 if min_temp < 0:
                     clear()
@@ -144,7 +144,7 @@ def select_temperature():
                     clear()
                     print("Minimum temperature is too high. Try again.")
                     continue
-                max_temp = input("Enter the maximum temperature for the cross over interval (ENTER is 1): ")
+                max_temp = input("Enter the maximum temperature for the cross over interval (ENTER is 1.0): ")
                 max_temp = float(max_temp) if max_temp else 1.0
                 if max_temp < 0:
                     clear()
@@ -173,7 +173,7 @@ def select_temperature():
                 break
             break
         else:
-            temperature = float(temperature) if temperature else 0.0
+            temperature = float(temperature) if temperature else 0.7
             if temperature < 0:
                 clear()
                 print("Temperature must be at least 0. Try again.")
@@ -225,11 +225,11 @@ def select_output_file():
 def set_printing_options():
     clear()
     while True:
-        print_to_terminal = input("Would you like to print the generated messages to the terminal? (ENTER for yes, n for no): ")
+        print_to_terminal = input("Would you like to print the generated messages to the terminal? (ENTER for no, y for yes): ")
         if print_to_terminal.lower() == '':
-            print_to_terminal = True
-        elif print_to_terminal.lower() == 'n':
             print_to_terminal = False
+        elif print_to_terminal.lower() == 'y':
+            print_to_terminal = True
         else:
             clear()
             print("Invalid choice, please try again.")
@@ -238,11 +238,11 @@ def set_printing_options():
 
     clear()
     while True:
-        print_prompt = input("Would you like to print the system and user prompts to the terminal? (ENTER for yes, n for no): ")
+        print_prompt = input("Would you like to print the system and user prompts to the terminal? (ENTER for no, yes for yes): ")
         if print_prompt.lower() == '':
-            print_prompt = True
-        elif print_prompt.lower() == 'n':
             print_prompt = False
+        elif print_prompt.lower() == 'y':
+            print_prompt = True
         else:
             clear()
             print("Invalid choice, please try again.")
