@@ -50,6 +50,8 @@ class BlockHandler:
                 # print(f"Context Messages Block ID: {block_id}")
             elif (block_description.startswith("Trash")):
                 pass # Skip trash blocks
+            elif (block_description == "category_instructions" or block_description == "formality_instructions"):
+                pass # Skip instructions blocks
             else:
                 other_block_ids.append(block_id)
                 #print(f"Other Block ID found: {block_id}")
