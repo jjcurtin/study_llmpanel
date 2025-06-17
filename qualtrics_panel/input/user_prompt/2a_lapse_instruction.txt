@@ -1,0 +1,1 @@
+This message must inform the user of their lapse risk and lapse risk change (e.g. "your lapse risk is ____ and ____").

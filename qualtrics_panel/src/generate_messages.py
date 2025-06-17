@@ -134,14 +134,31 @@ class MessageGenerator:
     # create the user prompt based on the message category and user context
     def create_user_prompt(self, message_category, message_description, user_context, formality_prompt = None):
         user_context_str = f"This user has a lapse risk that is {user_context.get('lapse_risk', 'N/A')} and {user_context.get('lapse_risk_change', 'N/A')}."
+        
+        # change later when we have more user context fields like feature and recommendation
+        lapse_risk_provided = True if 'lapse_risk' in user_context and user_context['lapse_risk'] else False
+        lapse_risk_provided = lapse_risk_provided if 'lapse_risk_change' in user_context and user_context['lapse_risk_change'] else False
+
+        try:
+            with open('../input/user_prompt/1_request.txt', 'r', encoding='utf-8') as f:
+                user_request = f.read()
+            with open('../input/user_prompt/2a_lapse_instruction.txt', 'r', encoding='utf-8') as f:
+                lapse_instruction = f.read()
+            with open('../input/user_prompt/3_closing_remark.txt', 'r', encoding='utf-8') as f:
+                closing_remark = f.read()
+        except Exception as e:
+            print(f"Error loading user prompt files: {e}\nPlease ensure the files exist and are formatted correctly.")
+            exit(1)
+        
         user_prompt = (
-            "Generate a message for a user based on the following context:\n"
+            f"{user_request}\n"
             f"{user_context_str}\n"
+            f"{lapse_instruction + "\n" if lapse_risk_provided else ""}"
             f"Message category: {message_category}\n"
             f"Message prompt: {message_description}\n"
-            "Please tailor the message to the user's situation.\n"
-            f"{formality_prompt if formality_prompt else ''}\n"
-            f"{self.additional_info if self.additional_info else ''}"
+            f"{formality_prompt + "\n" if formality_prompt else ''}"
+            f"{self.additional_info + "\n" if self.additional_info else ''}"
+            f"{closing_remark}\n"
         )
         if self.print_prompt:
             print("User Prompt")
