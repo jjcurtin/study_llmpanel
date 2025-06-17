@@ -39,7 +39,7 @@ class MessageGenerator:
             clear()
             print("Current settings:\n")
             print(f"Message categories: {', '.join(self.tones_to_generate)}")
-            print(f"User contexts: {', '.join([str(i + 1) for i in self.users_to_generate])}")
+            print(f"User contexts: {', '.join([str(i + 1) for i in self.users_to_generate]) if not self.example_condition else 'Example Condition; No User Context'}")
             print(f"Formality levels: {', '.join(self.formalities_to_generate)}")
             print(f"Number of messages per category per user context: {self.num_messages}")
             print(f"Temperature values: {', '.join([str(t) for t in self.temperature_values])}")
@@ -82,7 +82,7 @@ class MessageGenerator:
         self.tones_to_generate, self.category_to_description = select_message_categories()
 
         # decide which user contexts to generate messages for
-        self.users_to_generate, self.user_contexts_df = select_user_contexts()
+        self.users_to_generate, self.user_contexts_df, self.example_condition = select_user_contexts()
 
         # decide which formality levels to generate messages for
         self.formalities_to_generate, self.formality_to_prompt = select_formality_levels()
@@ -133,12 +133,11 @@ class MessageGenerator:
 
     # create the user prompt based on the message category and user context
     def create_user_prompt(self, message_category, message_description, user_context, formality_prompt = None):
-        user_context_str = f"This user has a lapse risk that is {user_context.get('lapse_risk', 'N/A')} and {user_context.get('lapse_risk_change', 'N/A')}."
+        if not self.example_condition:
+            user_context_str = f"This user has a lapse risk that is {user_context.get('lapse_risk', 'N/A')} and {user_context.get('lapse_risk_change', 'N/A')}."
+        else:
+            user_context_str = None
         
-        # change later when we have more user context fields like feature and recommendation
-        lapse_risk_provided = True if 'lapse_risk' in user_context and user_context['lapse_risk'] else False
-        lapse_risk_provided = lapse_risk_provided if 'lapse_risk_change' in user_context and user_context['lapse_risk_change'] else False
-
         try:
             with open('../input/user_prompt/1_request.txt', 'r', encoding='utf-8') as f:
                 user_request = f.read()
@@ -152,8 +151,8 @@ class MessageGenerator:
         
         user_prompt = (
             f"{user_request}\n"
-            f"{user_context_str}\n"
-            f"{lapse_instruction + "\n" if lapse_risk_provided else ""}"
+            f"{user_context_str + "\n" if not self.example_condition else ""}"
+            f"{lapse_instruction + "\n" if not self.example_condition else ""}"
             f"Message category: {message_category}\n"
             f"Message prompt: {message_description}\n"
             f"{formality_prompt + "\n" if formality_prompt else ''}"
@@ -309,27 +308,50 @@ class MessageGenerator:
                         message_description = self.category_to_description[message_category]
                         
                         # for each user...
-                        for user_index, user_row in self.user_contexts_df.iterrows():
-                            if user_index not in self.users_to_generate:
-                                continue
+                        if not self.example_condition:
+                            for user_index, user_row in self.user_contexts_df.iterrows():
+                                if user_index not in self.users_to_generate:
+                                    continue
 
-                            # create user prompt based on the user context and message category
-                            user_context = {k: str(v).strip() for k, v in user_row.items()}
+                                # create user prompt based on the user context and message category
+                                user_context = {k: str(v).strip() for k, v in user_row.items()}
+                                user_prompt = self.create_user_prompt(message_category, message_description, user_context, formality_prompt)
+
+                                # Generate n messages using the Azure API
+                                try:
+                                    messages = self.generate_messages(user_prompt)
+                                except Exception as e:
+                                    print(f"Error generating messages for user {user_index + 1} in category {message_category}: {e}")
+                                    continue
+                                print(f"[Generated {self.num_messages} {formality} messages for user {user_index + 1} in category {message_category} at temperature {self.temperature}]\n")
+                                for msg in messages:
+                                    # add the generated message to the output list
+                                    self.all_output_rows.append({
+                                        'user_index': user_index + 1,
+                                        'lapse_risk': user_context.get('lapse_risk', ''),
+                                        'lapse_risk_change': user_context.get('lapse_risk_change', ''),
+                                        'temperature': self.temperature,
+                                        'formality': formality,
+                                        'message_category': message_category,
+                                        'generated_message': msg,
+                                    })
+                        else:
+                            user_context = None
                             user_prompt = self.create_user_prompt(message_category, message_description, user_context, formality_prompt)
 
-                            # Generate n messages using the Azure API
+                            # Generate n messages using the Azure API for the example condition
                             try:
                                 messages = self.generate_messages(user_prompt)
                             except Exception as e:
-                                print(f"Error generating messages for user {user_index + 1} in category {message_category}: {e}")
+                                print(f"Error generating messages for example condition in category {message_category}: {e}")
                                 continue
-                            print(f"[Generated {self.num_messages} {formality} messages for user {user_index + 1} in category {message_category} at temperature {self.temperature}]\n")
+                            print(f"[Generated {self.num_messages} {formality} messages for example condition in category {message_category} at temperature {self.temperature}]\n")
                             for msg in messages:
                                 # add the generated message to the output list
                                 self.all_output_rows.append({
-                                    'user_index': user_index + 1,
-                                    'lapse_risk': user_context.get('lapse_risk', ''),
-                                    'lapse_risk_change': user_context.get('lapse_risk_change', ''),
+                                    'user_index': 'Example Condition',
+                                    'lapse_risk': 'NONE',
+                                    'lapse_risk_change': 'NONE',
                                     'temperature': self.temperature,
                                     'formality': formality,
                                     'message_category': message_category,

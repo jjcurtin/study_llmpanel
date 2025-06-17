@@ -51,9 +51,11 @@ def select_user_contexts():
         for user_index, user_row in user_contexts_df.iterrows():
             user_context = {k: str(v).strip() for k, v in user_row.items()}
             print(f"{user_index + 1}: {user_context.get('lapse_risk', 'N/A')} - {user_context.get('lapse_risk_change', 'N/A')}")
-        selected_users = input("Enter the numbers of the user contexts you want to generate messages for, separated by commas (ENTER is all): ")
+        selected_users = input("Enter the numbers of the user contexts you want to generate messages for, separated by commas (ENTER is all, only 0 is no lapse data/example): ")
         if selected_users.strip() == '':
             users_to_generate = list(user_contexts_df.index)
+        elif selected_users.strip() == '0':
+            return [0], user_contexts_df, True
         else:
             selected_indices = [int(x.strip()) - 1 for x in selected_users.split(',') if x.strip().isdigit()]
             selected_indices = list(set(selected_indices))
@@ -71,7 +73,7 @@ def select_user_contexts():
                 print("No valid user contexts selected. Please try again.")
                 continue
         break
-    return users_to_generate, user_contexts_df
+    return users_to_generate, user_contexts_df, False
 
 @staticmethod
 def select_formality_levels():
@@ -238,7 +240,7 @@ def set_printing_options():
 
     clear()
     while True:
-        print_prompt = input("Would you like to print the system and user prompts to the terminal? (ENTER for no, yes for yes): ")
+        print_prompt = input("Would you like to print the system and user prompts to the terminal? (ENTER for no, y for yes): ")
         if print_prompt.lower() == '':
             print_prompt = False
         elif print_prompt.lower() == 'y':
