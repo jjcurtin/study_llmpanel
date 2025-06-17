@@ -17,35 +17,59 @@ from _question_handler import QuestionHandler
 class SurveyHandler:
     def __init__(self):
 
-        if not os.getcwd().endswith('src'):
-            print("Please run this script from the 'src' folder.")
-            exit(1)
+        try:
+            if not os.getcwd().endswith('src'):
+                print("Please run this script from the 'src' folder.")
+                exit(1)
 
-        choice = input(f"Update category ratings? (y/n): ")
-        if choice.lower() == 'y':
-            self.update_category = True
-        else:
-            self.update_category = False
-        choice = input(f"Update formality ratings? (y/n): ")
-        if choice.lower() == 'y':
-            self.update_formality = True
-        else:
-            self.update_formality = False
-        choice = input(f"Update message ratings? (y/n): ")
-        if choice.lower() == 'y':
-            self.update_message = True
-        else:
-            self.update_message = False
+            while True:
+                choice = input(f"Update category ratings? (y/n): ")
+                if choice.lower() == 'y':
+                    self.update_category = True
+                elif choice.lower() == 'n':
+                    self.update_category = False
+                else:
+                    print("Invalid choice. Please enter 'y' or 'n'.")
+                    continue
+                break
 
-        print(f"Update category: {self.update_category}")
-        print(f"Update formality: {self.update_formality}")
-        print(f"Update message: {self.update_message}")
+            while True:
+                choice = input(f"Update formality ratings? (y/n): ")
+                if choice.lower() == 'y':
+                    self.update_formality = True
+                elif choice.lower() == 'n':
+                    self.update_formality = False
+                else:
+                    print("Invalid choice. Please enter 'y' or 'n'.")
+                    continue
+                break
 
-        if not self.update_category and not self.update_message and not self.update_formality:
-            print("No updates selected. Exiting.")
+            while True:
+                choice = input(f"Update message ratings? (y/n): ")
+                if choice.lower() == 'y':
+                    self.update_message = True
+                elif choice.lower() == 'n':
+                    self.update_message = False
+                else:
+                    print("Invalid choice. Please enter 'y' or 'n'.")
+                    continue
+                break
+
+            print(f"Update category: {self.update_category}")
+            print(f"Update formality: {self.update_formality}")
+            print(f"Update message: {self.update_message}")
+
+            if not self.update_category and not self.update_message and not self.update_formality:
+                print("No updates selected. Exiting.")
+                exit(0)
+            else:
+                self.run()
+        except KeyboardInterrupt:
+            print("\nProcess interrupted by user. Exiting.")
             exit(0)
-        else:
-            self.run()
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+            exit(1)
 
     def run(self):
         # Load API configuration from file
