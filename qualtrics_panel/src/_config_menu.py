@@ -203,7 +203,6 @@ def select_output_file():
 
     current_messages = load_existing_messages(output_file)
     if not current_messages.empty:
-        clear()
         while True:
             choice = input("Output file already exists. Do you want to append to it (ENTER or a) or overwrite it (o)?: ")
             if choice.lower() == 'o':
