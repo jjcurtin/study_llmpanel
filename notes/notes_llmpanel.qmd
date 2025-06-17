@@ -7,9 +7,6 @@ Decisions Made:
 - Panel study will only use four user contexts but all other variables will be fully crossed to create 72 messages.
 
 Colin TODO:
-- Add examples of each message category without user context
-- Look into Assistant mode for previous messages
-- Look into max tokens
 - Generate Qualtrics survey with sample 72 questions for John/Rachel's approval
 
 - Update system prompt and user prompts to remove redundant and/or unnecessary information (should/must etc.)   DONE
@@ -18,6 +15,7 @@ Colin TODO:
 - Remove all em dashes from every source                                                                        DONE
 - Update tone category to only have one Likert scale question (not the helpful one)                             DONE
 - Add formality survey in addition to tone preference survey                                                    DONE
+- Add examples of each message category without user context                                                    DONE
 
 Additional Questions:
 - Which user contexts do we choose?
