@@ -12,8 +12,9 @@ class BlockHandler:
         self.question_handler = question_handler
 
     def get_block_ids(self):
-        demographic_block_id = ""
-        category_block_id = ""
+        demographic_block_id = None
+        category_block_id = None
+        formality_block_id = None
         context_block_ids = []
         other_block_ids = []
 
@@ -38,6 +39,9 @@ class BlockHandler:
             elif (block_description == "category"):
                 category_block_id = block_id
                 #print(f"Category Block ID: {block_id}")
+            elif (block_description == "formality"):
+                formality_block_id = block_id
+                #print(f"Formality Block ID: {block_id}")
             elif (block_description.startswith("context_description_")):
                 context_block_ids.append(block_id)
                 # print(f"Context Description Block ID: {block_id}")
@@ -49,15 +53,21 @@ class BlockHandler:
             else:
                 other_block_ids.append(block_id)
                 #print(f"Other Block ID found: {block_id}")
-        if (not demographic_block_id or not category_block_id):
-            print("Error: Could not find all required block IDs.")
+        if (not demographic_block_id):
+            print("Error: Could not find demographic block ID.")
+            exit(1)
+        elif (not category_block_id):
+            print("Error: Could not find category block ID.")
+            exit(1)
+        elif (not formality_block_id):
+            print("Error: Could not find formality block ID.")
             exit(1)
         elif (len(other_block_ids) > 0):
             print(f"Warning: Found {len(other_block_ids)} other blocks that are not 'demographic' or 'category'. These will not be cleared.")
 
         print(f"Found {len(context_block_ids)} previous message blocks.")
 
-        return demographic_block_id, category_block_id, context_block_ids
+        return demographic_block_id, category_block_id, formality_block_id, context_block_ids
 
     def clear_block(self, block_id, name):
         print(f"Clearing {name} block...")

@@ -58,6 +58,56 @@ class QuestionHandler:
 
         return desc_id
     
+    def add_formality_question(self, label, prompt, block_id):
+        # --- Likert Scale Question ---
+        try:
+            if label == "neutral":
+                prompt = "Message will neither be explicitly formal nor informal."
+            desc_resp = requests.post(
+                f"{self.base_url}/questions", 
+                headers=self.headers, 
+                params={"blockId": block_id},
+                json={
+                    "QuestionText": f'<strong>{label}</strong><br><br>{prompt}',
+                    "QuestionType": "Matrix",
+                    "Selector": "Likert",
+                    "SubSelector": "SingleAnswer",
+                    "Configuration": {
+                        "QuestionDescriptionOption": "UseText"
+                    },
+                    "Choices": {
+                        "1": {"Display": "I would like to receive messages from this formality category."}
+                    },
+                    "Answers": {
+                        "1": {"Display": "Strongly Disagree"},
+                        "2": {"Display": "Disagree"},
+                        "3": {"Display": "Somewhat Disagree"},
+                        "4": {"Display": "Neutral"},
+                        "5": {"Display": "Somewhat Agree"},
+                        "6": {"Display": "Agree"},
+                        "7": {"Display": "Strongly Disagree"}
+                    },
+                    "Validation": {
+                        "Settings": {
+                            "ForceResponse": "ON"
+                        }
+                    },
+                    "DataExportTag": f" "
+                }
+            )
+            desc_resp.raise_for_status()
+            desc_id = desc_resp.json()['result']['QuestionID']
+            # print(f"Created dimensional assessment for category {category}")
+        except requests.RequestException as e:
+            print(f"Error creating dimensional assessment for formality: {e}")
+            exit(1)
+        except KeyError as e:
+            print(f"Error parsing response for dimensional assessment question: {e}")
+            print("Response:", desc_resp.json())
+            exit(1)
+
+        return desc_id
+    
     def add_user_context_description_question(self, lapse_risk, lapse_risk_change, description_block_id):
         # add the description question
         try:

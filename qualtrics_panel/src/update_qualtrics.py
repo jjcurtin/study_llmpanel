@@ -26,6 +26,11 @@ class SurveyHandler:
             self.update_category = True
         else:
             self.update_category = False
+        choice = input(f"Update formality ratings? (y/n): ")
+        if choice.lower() == 'y':
+            self.update_formality = True
+        else:
+            self.update_formality = False
         choice = input(f"Update message ratings? (y/n): ")
         if choice.lower() == 'y':
             self.update_message = True
@@ -33,9 +38,10 @@ class SurveyHandler:
             self.update_message = False
 
         print(f"Update category: {self.update_category}")
+        print(f"Update formality: {self.update_formality}")
         print(f"Update message: {self.update_message}")
 
-        if not self.update_category and not self.update_message:
+        if not self.update_category and not self.update_message and not self.update_formality:
             print("No updates selected. Exiting.")
             exit(0)
         else:
@@ -64,12 +70,18 @@ class SurveyHandler:
 
         print("Starting Qualtrics survey update...")
 
-        # Load categories and messages from CSV files
+        # Load categories and messages and formalities from CSV files
         try:
             categories_df = pd.read_csv('../input/user_prompt/message_categories.csv', quotechar='"')
             categories_df.columns = categories_df.columns.str.strip()
         except Exception as e:
             print(f"Error loading categories file: {e}")
+            exit(1)
+        try:
+            formality_df = pd.read_csv('../input/user_prompt/formality_prompts.csv', quotechar='"')
+            formality_df.columns = formality_df.columns.str.strip()
+        except Exception as e:
+            print(f"Error loading formality file: {e}")
             exit(1)
         try:
             messages_df = pd.read_csv('../output/production_messages.csv', quotechar='"')
@@ -79,17 +91,23 @@ class SurveyHandler:
             exit(1)
 
         # read existing blocks from the survey
-        demographic_block_id, category_block_id, context_block_ids = self.block_handler.get_block_ids()
+        demographic_block_id, category_block_id, formality_block_id, context_block_ids = self.block_handler.get_block_ids()
         if not demographic_block_id:
             print("Error: Could not find demographic block ID.")
         if not category_block_id:
             print("Error: Could not find category block ID.")
-        if not demographic_block_id or not category_block_id:
+        if not formality_block_id:
+            print("Error: Could not find formality block ID.")
+        if not demographic_block_id or not category_block_id or not formality_block_id:
             exit(1)
 
         # update category questions
         if self.update_category:
             self.update_categories(categories_df, category_block_id)
+
+        # update formality questions
+        if self.update_formality:
+            self.update_formalities(formality_df, formality_block_id)
 
         # update individual message questions
         if self.update_message:
@@ -107,6 +125,16 @@ class SurveyHandler:
             desc_id = self.question_handler.add_category_question(category, description, example, category_block_id)
             question_category_ids.append(desc_id)
         print(f"Added {len(question_category_ids)} category questions.")
+
+    def update_formalities(self, formality_df, formality_block_id):
+        self.block_handler.clear_block(formality_block_id, "formality")
+        question_formality_ids = []
+        for _, row in formality_df.iterrows():
+            label = row['label']
+            prompt = row['prompt']
+            desc_id = self.question_handler.add_formality_question(label, prompt, formality_block_id)
+            question_formality_ids.append(desc_id)
+        print(f"Added {len(question_formality_ids)} formality questions.")
 
     def update_messages(self, messages_df, block_handler, context_block_ids):
         block_handler.delete_prior_message_blocks(context_block_ids)
