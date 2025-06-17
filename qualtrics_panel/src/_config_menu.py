@@ -259,3 +259,17 @@ def set_additional_info():
     if additional_info == '':
         additional_info = None
     return additional_info
+
+@staticmethod
+def set_recent_feedback_mode():
+    clear()
+    while True:
+        recent_mode = input("Would you like to feed the most recent message back into the prompt to reduce repetition? (ENTER for yes/n for no): ")
+        if recent_mode.lower() == '':
+            return True
+        elif recent_mode.lower() == 'n':
+            return False
+        else:
+            clear()
+            print("Invalid choice. Please enter 'y' or 'n'.")
+            continue
