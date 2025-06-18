@@ -151,6 +151,19 @@ class BlockHandler:
                 json={
                     "Description": f"context_messages_{lapse_risk}_{lapse_risk_change}",
                     "BlockElements": []
+                    # , # add options for randomization, can also be used as a PUT request after messages are added to block
+                    # "Options": {
+                    #    "RandomizeQuestions": "Advanced",
+                    #    "Randomization": {
+                    #        "Advanced": {
+                    #            "QuestionsPerPage": "5",
+                    #            "RandomSubset": [],
+                    #            "TotalRandSubset": "5"
+                    #        },
+                    #        "EvenPresentation": "true",
+                    #    }
+                    # }
+                    # https://api.qualtrics.com/2d5286cc34ed6-create-block
                 }
             )
             block_resp.raise_for_status()
