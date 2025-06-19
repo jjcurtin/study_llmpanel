@@ -15,5 +15,6 @@ TODO
 
 # prism files
 prism/config/study_coordinators.csv
+prism/config/study_participants.csv
 prism/logs
 prism/data
