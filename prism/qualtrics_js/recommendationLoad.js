@@ -1,7 +1,7 @@
 Qualtrics.SurveyEngine.addOnReady(function() {
     var participantID = "${e://Field/ParticipantID}";
     var xhr = new XMLHttpRequest();
-    var url = "https://intense-katydid-ruling.ngrok-free.app/recommendation/" + encodeURIComponent(participantID);
+    var url = "" + encodeURIComponent(participantID); // add in url to ngrok tunnel here
 
     xhr.open("GET", url, true);
     xhr.setRequestHeader("ngrok-skip-browser-warning", "true");

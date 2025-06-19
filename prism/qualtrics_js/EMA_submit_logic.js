@@ -2,7 +2,7 @@ Qualtrics.SurveyEngine.addOnUnload(function() {
     var participantID = "${e://Field/ParticipantID}";
     var subjectName = "${e://Field/SubjectName}";
     var xhr = new XMLHttpRequest();
-    var url = "https://intense-katydid-ruling.ngrok-free.app/EMA/submit";
+    var url = ""; // add in url to ngrok tunnel here
     
     xhr.open("POST", url, true);
     xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
