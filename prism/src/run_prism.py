@@ -5,13 +5,19 @@ import threading
 from _routes import create_flask_app
 import pandas as pd
 
-from _check_system import CheckSystem
+from tasks._check_system import CheckSystem
 
 class PRISM():
     def __init__(self, mode="test"):
         self.clear()
         print("Initializing PRISM application...")
         self.mode = mode
+
+        # make sure you are running in the src directory
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        if not current_dir.endswith('src'):
+            print("ERROR: Please run this script from the 'src' directory.")
+            exit(1)
 
         # load api keys
         qualtrics = pd.read_csv('../qualtrics.api', quotechar='"')
