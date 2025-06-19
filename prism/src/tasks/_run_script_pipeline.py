@@ -14,6 +14,7 @@ class RunScriptPipeline(Task):
 
     def run(self):
         self.task_type = "RUN_SCRIPT_PIPELINE"
+        print(f"{self.task_type} #{self.task_number} initiated.")
         
         initial_dir = os.getcwd()
         scripts_dir = os.path.abspath(os.path.join(initial_dir, '..', 'scripts'))
