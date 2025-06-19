@@ -6,12 +6,15 @@ from _routes import create_flask_app
 import pandas as pd
 
 from tasks._check_system import CheckSystem
+from tasks._run_script_pipeline import RunScriptPipeline
 
 class PRISM():
     def __init__(self, mode="test"):
         self.clear()
         print("Initializing PRISM application...")
         self.mode = mode
+
+        self.notify_coordinators = False # Flag to control SMS notifications off for now since I got it working
 
         # make sure you are running in the src directory
         current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -118,8 +121,7 @@ class PRISM():
             pass
             
         elif task_type == "RUN_SCRIPT_PIPELINE":
-            # Add your script pipeline logic here
-            pass
+            result = RunScriptPipeline(self).execute()
             
         elif task_type == "CHECK_SYSTEM":
             result = CheckSystem(self).execute()
