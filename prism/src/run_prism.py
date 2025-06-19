@@ -1,15 +1,31 @@
 import os
-from datetime import datetime, time
+from datetime import datetime
 import queue
 import threading
-import time as time_module
 from _routes import create_flask_app
+import pandas as pd
 
 class PRISM():
     def __init__(self, mode="test"):
         self.clear()
         print("Initializing PRISM application...")
         self.mode = mode
+
+        # load api keys
+        qualtrics = pd.read_csv('../qualtrics.api', quotechar='"')
+        self.qualtrics_api_token = qualtrics.loc[0, 'api_token']
+        self.qualtrics_data_center = qualtrics.loc[0, 'datacenter']
+        self.ema_survey_id = qualtrics.loc[0, 'ema_survey_id']
+        self.feedback_survey_id = qualtrics.loc[0, 'feedback_survey_id']
+
+        followmee = pd.read_csv('../followmee.api', quotechar='"')
+        self.followmee_username = followmee.loc[0, 'username']  
+        self.followmee_api_token = followmee.loc[0, 'api_token']
+
+        twilio = pd.read_csv('../twilio.api', quotechar='"')
+        self.twilio_account_sid = twilio.loc[0, 'account_sid']
+        self.twilio_auth_token = twilio.loc[0, 'auth_token']
+        self.twilio_from_number = twilio.loc[0, 'from_number']
 
         # create Flask app instance
         self.flask_app = create_flask_app(self)
