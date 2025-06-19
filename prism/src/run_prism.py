@@ -5,6 +5,7 @@ import threading
 from _routes import create_flask_app
 import pandas as pd
 import importlib
+from waitress import serve
 
 class PRISM():
     def __init__(self, mode="test", hot_reload = False, notify_coordinators = False):
@@ -23,9 +24,8 @@ class PRISM():
         # load api keys
         self.load_api_keys()
 
-        # create Flask app instance
+        # create Flask app instance that will be run through waitress separately
         self.flask_app = create_flask_app(self)
-        threading.Thread(target = self.run_flask, daemon = True).start()
 
         # check all files in the tasks directory and establish task types dictionary
         self.update_task_types()
@@ -58,7 +58,7 @@ class PRISM():
         self.add_to_transcript(f"PRISM started with {len(self.scheduled_tasks)} scheduled system tasks", "INFO")
 
         # run system task processor in a separate thread
-        self.run_system_task_processor()
+        threading.Thread(target = self.run_system_task_processor, daemon = True).start()
 
     ############################
     #       System Utils       #
@@ -115,24 +115,6 @@ class PRISM():
         transcript_path = f'../logs/transcripts/{current_date}_transcript.txt'
         with open(transcript_path, 'a') as file:
             file.write(f"{datetime.now().strftime('%H:%M:%S')} - {message_type} - {message}\n")
-
-    ############################
-    #        Flask Logic       #
-    ############################
-    
-    def run_flask(self):
-        self.add_to_transcript("Starting Flask application on port 5000.", "INFO")
-        try:
-            if self.mode == "prod":
-                # for production we want external access
-                self.flask_app.run(host = '0.0.0.0', port = 5000)
-            elif self.mode == "test":
-                # For testing, we can run on localhost which means access is limited to the local machine
-                self.flask_app.run(host = '127.0.0.1', port = 5000)
-            else:
-                raise ValueError("Unknown mode. Cannot start Flask application.")
-        except Exception as e:
-            self.add_to_transcript(f"Failed to start Flask application: {e}", "ERROR")
 
     ############################
     #        Task Logic        #
@@ -241,4 +223,12 @@ class PRISM():
                 self.running = False
 
 if __name__ == "__main__":
-    PRISM(mode = "test", hot_reload = True, notify_coordinators = False)
+
+    mode = "test"
+    prism = PRISM(mode = "test", hot_reload = True, notify_coordinators = False)
+    if mode == "test":
+        serve(prism.flask_app, host = '127.0.0.1', port = 5000)
+        print("Started server on port 5000")
+    elif mode == "prod":
+        serve(prism.flask_app, host = '0.0.0.0', port = 5000)
+        print("Started server on port 5000")
