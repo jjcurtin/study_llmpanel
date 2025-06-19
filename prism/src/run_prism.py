@@ -5,6 +5,8 @@ import threading
 from _routes import create_flask_app
 import pandas as pd
 
+from _check_system import CheckSystem
+
 class PRISM():
     def __init__(self, mode="test"):
         self.clear()
@@ -103,6 +105,7 @@ class PRISM():
     # task run logic
     def process_task(self, task_type):
         print(f"Executing task: {task_type}")
+        result = 0  # Default result for successful execution
         
         if task_type == "PULLDOWN_DATA":
             # Add your data pulling logic here
@@ -113,11 +116,12 @@ class PRISM():
             pass
             
         elif task_type == "CHECK_SYSTEM":
-            # Add your system check logic here
-            pass
-            
+            result = CheckSystem(self).execute()
+
         else:
             print(f"Unknown task type: {task_type}")
+
+        return result
 
     def get_uptime(self):
         return str(datetime.now() - self.start_time)
@@ -155,7 +159,7 @@ class PRISM():
             # Check for scheduled tasks
             self.check_scheduled_tasks()
             try:
-                self.process_task(self.task_queue.get(timeout = 1))
+                result = self.process_task(self.task_queue.get(timeout = 1))
             except queue.Empty:
                 pass
             except Exception as e:
