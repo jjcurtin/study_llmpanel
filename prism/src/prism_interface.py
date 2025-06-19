@@ -96,11 +96,32 @@ class PRISMInterface():
                 while True:
                     self.print_system_task_schedule()
                     task_choice = input("Enter your choice: ")
+
+                    # add task
                     if task_choice == '1':
                         self.clear()
                         print("Add New System Task")
-                        task_type = input("Enter task type (CHECK_SYSTEM, PULLDOWN_DATA, RUN_PIPELINE): ")
+
+                        task_type_index = input("Enter task type (1: CHECK_SYSTEM, 2: PULLDOWN_DATA, 3: RUN_PIPELINE): ")
+                        task_types = {
+                            '1': 'CHECK_SYSTEM',
+                            '2': 'PULLDOWN_DATA',
+                            '3': 'RUN_PIPELINE'
+                        }
+                        task_type = task_types.get(task_type_index)
+                        if not task_type:
+                            print("Invalid task type selected.")
+                            input("Press Enter to continue...")
+                            continue
+
                         task_time = input("Enter task time (HH:MM:SS in military time): ")
+                        try:
+                            time.strptime(task_time, '%H:%M:%S')
+                        except ValueError:
+                            print("Invalid time format. Please use HH:MM:SS in military time.")
+                            input("Press Enter to continue...")
+                            continue
+                        
                         self.add_system_task(task_type, task_time)
                     elif task_choice == '2':
                         # Remove task logic here
