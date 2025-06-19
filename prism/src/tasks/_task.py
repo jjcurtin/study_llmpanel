@@ -12,12 +12,12 @@ class Task:
         result = self.run()
         status = "SUCCESS" if result == 0 else "FAILURE"
         self.outcome = status
-        print(f"{self.task_type} #{self.task_number} completed with status: {status}.")
+        self.app.add_to_transcript(f"{self.task_type} #{self.task_number} completed with status: {status}.", "INFO")
 
         if self.app.notify_coordinators:
             sms_result = self.notify_via_sms()
             if sms_result != 0:
-                print(f"ERROR: Failed to send {sms_result} SMS notifications.")
+                self.app.add_to_transcript(f"Failed to send {sms_result} SMS notifications.", "ERROR")
 
         if status == "FAILURE":
             return 1
@@ -40,10 +40,10 @@ class Task:
                             body = f"{name}: {self.task_type} #{self.task_number} {self.outcome}. Script was executed at {self.task_start.strftime('%m/%d/%Y at %I:%M:%S %p')}."
                             result = send_sms(self.app, [phone_number], [body])
         except FileNotFoundError:
-            print("WARNING: No study coordinators found. SMS notifications will not be sent.")
+            self.app.add_to_transcript("No study coordinators found. SMS notifications will not be sent.", "WARNING")
             return 1
         except Exception as e:
-            print(f"ERROR: Failed to send SMS notifications. Error message: {e}")
+            self.app.add_to_transcript(f"Failed to send SMS notifications. Error message: {e}", "ERROR")
             return 1
 
         return result
