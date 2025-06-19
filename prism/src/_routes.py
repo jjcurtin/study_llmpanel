@@ -45,9 +45,15 @@ def create_flask_app(app_instance):
         app_instance.add_to_transcript("Task schedule requested via API", "INFO")
         return jsonify({"tasks": formatted_tasks}), 200
     
+    @flask_app.route('/system/get_task_types', methods=['GET'])
+    def get_task_types():
+        task_types = app_instance.task_types
+        app_instance.add_to_transcript("Task types requested via API", "INFO")
+        return jsonify({"task_types": task_types}), 200
+    
     @flask_app.route('/system/add_system_task/<task_type>/<task_time>', methods=['POST'])
     def add_system_task(task_type, task_time):
-        if task_type not in ['CHECK_SYSTEM', 'PULLDOWN_DATA', 'RUN_PIPELINE']:
+        if task_type not in app_instance.task_types:
             return jsonify({"error": "Invalid task type"}), 400
         try:
             task_time = datetime.strptime(task_time, '%H:%M:%S')
@@ -73,7 +79,7 @@ def create_flask_app(app_instance):
     
     @flask_app.route('/system/remove_system_task/<task_type>/<task_time>', methods=['DELETE'])
     def remove_system_task(task_type, task_time):
-        if task_type not in ['CHECK_SYSTEM', 'PULLDOWN_DATA', 'RUN_SCRIPT_PIPELINE']:
+        if task_type not in app_instance.task_types:
             return jsonify({"error": "Invalid task type"}), 400
         try:
             task_time = datetime.strptime(task_time, '%H:%M:%S').time()
