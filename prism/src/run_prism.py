@@ -6,6 +6,7 @@ from _routes import create_flask_app
 import pandas as pd
 import importlib
 from waitress import serve
+from _helper import send_sms
 
 class PRISM():
     def __init__(self, mode="test", hot_reload = False, notify_coordinators = False):
@@ -33,7 +34,9 @@ class PRISM():
         self.flask_app = create_flask_app(self)
 
         # set up participant sms thread
+        self.participants = []
         self.load_participants()
+        self.sms_queue = queue.Queue()
         threading.Thread(target = self.run_participant_sms_processor, daemon = True).start()
 
         # set up system task processor thread
@@ -195,6 +198,7 @@ class PRISM():
 
     def run_system_task_processor(self):
         # task processing loop
+        self.add_to_transcript("Starting system task processor...", "INFO")
         while self.running:
             self.check_scheduled_tasks()
             try:
@@ -234,13 +238,112 @@ class PRISM():
                     self.add_to_transcript(f"Loaded participant: {participant['unique_id']}", "INFO")
         self.participants = participants
 
-    def check_scheduled_sms():
-        pass
+        # schedule SMS tasks for each participant
+        self.scheduled_sms_tasks = []
+        for participant in self.participants:
+            # split up each participant into four separate tasks
+            if participant['on_study']:
+
+                participant_name = f"{participant['first_name']} {participant['last_name']}"
+                participant_id = participant['unique_id']
+                participant_phone_number = participant['phone_number']
+
+                if participant['ema_time']:
+                    self.scheduled_sms_tasks.append({
+                        'task_type': 'ema',
+                        'task_time': datetime.strptime(participant['ema_time'], '%H:%M:%S').time(),
+                        'participant_name': participant_name,
+                        'participant_id': participant_id,
+                        'participant_phone_number': participant_phone_number,
+                        'run_today': False  # Flag to indicate if the task has run today
+                    })
+                if participant['ema_reminder_time']:
+                    self.scheduled_sms_tasks.append({
+                        'task_type': 'ema_reminder',
+                        'task_time': datetime.strptime(participant['ema_reminder_time'], '%H:%M:%S').time(),
+                        'participant_name': participant_name,
+                        'participant_id': participant_id,
+                        'participant_phone_number': participant_phone_number,
+                        'run_today': False  # Flag to indicate if the task has run today
+                    })
+                if participant['feedback_time']:
+                    self.scheduled_sms_tasks.append({
+                        'task_type': 'feedback',
+                        'task_time': datetime.strptime(participant['feedback_time'], '%H:%M:%S').time(),
+                        'participant_name': participant_name,
+                        'participant_id': participant_id,
+                        'participant_phone_number': participant_phone_number,
+                        'run_today': False  # Flag to indicate if the task has run today
+                    })
+                if participant['feedback_reminder_time']:
+                    self.scheduled_sms_tasks.append({
+                        'task_type': 'feedback_reminder',
+                        'task_time': datetime.strptime(participant['feedback_reminder_time'], '%H:%M:%S').time(),
+                        'participant_name': participant_name,
+                        'participant_id': participant_id,
+                        'participant_phone_number': participant_phone_number,
+                        'run_today': False  # Flag to indicate if the task has run today
+                    })
+
+    def check_scheduled_sms(self):
+        current_time = datetime.now().time()
+        for task in self.scheduled_sms_tasks:
+            task_time = task['task_time']
+            # Allow a small time window for matching tasks
+            time_difference = abs((datetime.combine(datetime.today(), current_time) 
+                                   - datetime.combine(datetime.today(), task_time)).total_seconds())
+            if time_difference <= 1 and not task['run_today']:
+                self.sms_queue.put(task)
+                task['run_today'] = True
+
+    def process_participant_sms(self, sms_task):
+        task_type = sms_task['task_type']
+        participant_name = sms_task['participant_name']
+        participant_id = sms_task['participant_id']
+        participant_phone_number = sms_task['participant_phone_number']
+        self.add_to_transcript(f"Processing SMS task: {task_type} for participant {participant_id}", "INFO")
+
+        if task_type == 'ema' or task_type == 'ema_reminder':
+            survey_id = self.ema_survey_id
+            if task_type == 'ema':
+                message = "it's time to take your ecological momentary assessment survey."
+            else:
+                message = "you have not yet completed your ecological momentary assessment survey for today."
+        elif task_type == 'feedback' or task_type == 'feedback_reminder':
+            survey_id = self.feedback_survey_id
+            if task_type == 'feedback':
+                message = "it's time to take your feedback survey."
+            else:
+                message = "you have not yet completed your feedback survey for today."
+        else:
+            self.add_to_transcript(f"Unknown SMS task type: {task_type}", "ERROR")
+            return -1
+
+        survey_link = (
+            f"https://uwmadison.co1.qualtrics.com/jfe/form/{survey_id}?ParticipantID={participant_id}"
+        )
+        body = f"{participant_name}, {message} {survey_link}"
+        try:
+            send_sms(
+                self,
+                [participant_phone_number],
+                [body]
+            )
+            self.add_to_transcript(f"SMS sent to {participant_id}.", "INFO")
+            return 0
+        except Exception as e:
+            self.add_to_transcript(f"Failed to send SMS to {participant_id}: {e}", "ERROR")
+            return -1
 
     def run_participant_sms_processor(self):
+        # SMS processing loop
+        self.add_to_transcript("Starting participant SMS processor...", "INFO")
         while self.running:
+            self.check_scheduled_sms()
             try:
-                self.check_scheduled_sms()
+                result = self.process_participant_sms(self.sms_queue.get(timeout = 1))
+            except queue.Empty:
+                pass
             except Exception as e:
                 print(f"An error occurred while processing participant SMS: {e}")
                 self.running = False
