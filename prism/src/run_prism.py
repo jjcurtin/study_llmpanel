@@ -7,6 +7,7 @@ import pandas as pd
 
 from tasks._check_system import CheckSystem
 from tasks._run_script_pipeline import RunScriptPipeline
+from tasks._pulldown_qualtrics_data import PulldownQualtricsData
 
 class PRISM():
     def __init__(self, mode="test"):
@@ -44,7 +45,7 @@ class PRISM():
 
         self.task_types = {
             "CHECK_SYSTEM": "Check System Status",
-            "PULLDOWN_DATA": "Pull Down Data",
+            "PULLDOWN_QUALTRICS_DATA": "Pull Down Qualtrics Data",
             "RUN_SCRIPT_PIPELINE": "Run Script Pipeline"
         }
 
@@ -112,16 +113,12 @@ class PRISM():
         self.add_to_transcript(f"Executing task: {task_type}", "INFO")
         result = 0  # Default result for successful execution
         
-        if task_type == "PULLDOWN_DATA":
-            # Add your data pulling logic here
-            pass
-            
+        if task_type == "PULLDOWN_QUALTRICS_DATA":
+            result = PulldownQualtricsData(self).execute()
         elif task_type == "RUN_SCRIPT_PIPELINE":
             result = RunScriptPipeline(self).execute()
-            
         elif task_type == "CHECK_SYSTEM":
             result = CheckSystem(self).execute()
-
         else:
             self.add_to_transcript(f"Unknown task type: {task_type}", "ERROR")
 
@@ -134,11 +131,10 @@ class PRISM():
         self.add_to_transcript("Starting Flask application on port 5000.", "INFO")
         try:
             if self.mode == "prod":
-                # For production, we can bind to all interfaces
-                # This allows access from any IP address, which is useful for production servers
+                # for production we want external access
                 self.flask_app.run(host = '0.0.0.0', port = 5000)
             elif self.mode == "test":
-                # For testing, we can run on localhost
+                # For testing, we can run on localhost which means access is limited to the local machine
                 self.flask_app.run(host = '127.0.0.1', port = 5000)
             else:
                 raise ValueError("Unknown mode. Cannot start Flask application.")
@@ -166,8 +162,8 @@ class PRISM():
         
         self.add_to_transcript(f"PRISM started with {len(self.scheduled_tasks)} scheduled tasks", "INFO")
         
+        # task processing loop
         while self.running:
-            # Check for scheduled tasks
             self.check_scheduled_tasks()
             try:
                 result = self.process_task(self.task_queue.get(timeout = 1))
