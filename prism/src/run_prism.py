@@ -33,18 +33,20 @@ class PRISM():
         # create Flask app instance that will be run through waitress separately
         self.flask_app = create_flask_app(self)
 
-        # set up participant sms thread
-        self.participants = []
-        self.load_participants()
-        self.sms_queue = queue.Queue()
-        threading.Thread(target = self.run_participant_sms_processor, daemon = True).start()
-
         # set up system task processor thread
         self.update_task_types()
         self.scheduled_tasks = []
         self.load_task_schedule()
         self.task_queue = queue.Queue()
         threading.Thread(target = self.run_system_task_processor, daemon = True).start()
+
+        # set up participant sms thread
+        self.participants = []
+        self.load_participants()
+        self.sms_queue = queue.Queue()
+        threading.Thread(target = self.run_participant_sms_processor, daemon = True).start()
+
+        # set up participant API call thread
 
     ############################
     #       System Utils       #
@@ -102,6 +104,19 @@ class PRISM():
         with open(transcript_path, 'a') as file:
             file.write(f"{datetime.now().strftime('%H:%M:%S')} - {message_type} - {message}\n")
 
+    def clear_all_run_today_flags(self, system_tasks = False, sms_tasks = False):
+        # Clear the run_today flag for all scheduled tasks
+        if system_tasks:
+            for task in self.scheduled_tasks:
+                task['run_today'] = False
+
+        # Clear the run_today flag for all scheduled SMS tasks
+        if sms_tasks:
+            for sms_task in self.scheduled_sms_tasks:
+                sms_task['run_today'] = False
+
+        self.add_to_transcript("Cleared all run_today flags for system and SMS tasks.", "INFO")
+
     ############################
     #        Task Logic        #
     ############################
@@ -158,6 +173,10 @@ class PRISM():
     # add tasks to the queue when it is time to run it
     def check_scheduled_tasks(self):
         current_time = datetime.now().time()
+
+        if current_time.hour == 0 and current_time.minute == 0:
+            self.clear_all_run_today_flags(system_tasks = True)  # Reset run_today flags at midnight
+
         for task in self.scheduled_tasks:
             task_time = task['task_time']
             # Allow a small time window for matching tasks
@@ -216,6 +235,7 @@ class PRISM():
     def load_participants(self):
         # ../config/study_participants.csv contains the following information:
         # "unique_id","last_name","first_name","on_study","phone_number","ema_time","ema_reminder_time","feedback_time","feedback_reminder_time"
+        self.add_to_transcript("Loading study participants...", "INFO")
         participants = []
         current_dir = os.path.dirname(os.path.abspath(__file__))
         with open(os.path.join(current_dir, '..', 'config', 'study_participants.csv'), 'r') as file:
@@ -235,7 +255,6 @@ class PRISM():
                         'feedback_reminder_time': parts[8].strip('"')
                     }
                     participants.append(participant)
-                    self.add_to_transcript(f"Loaded participant: {participant['unique_id']}", "INFO")
         self.participants = participants
 
         # schedule SMS tasks for each participant
@@ -287,6 +306,10 @@ class PRISM():
 
     def check_scheduled_sms(self):
         current_time = datetime.now().time()
+
+        if current_time.hour == 0 and current_time.minute == 0:
+            self.clear_all_run_today_flags(sms_tasks = True)
+
         for task in self.scheduled_sms_tasks:
             task_time = task['task_time']
             # Allow a small time window for matching tasks
@@ -349,7 +372,6 @@ class PRISM():
                 self.running = False
 
 if __name__ == "__main__":
-
     mode = "test"
     hot_reload = True
     notify_coordinators = False
