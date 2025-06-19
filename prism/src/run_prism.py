@@ -188,7 +188,7 @@ class PRISM():
     def add_to_transcript(self, message, message_type = "INFO"):
         print(f"{message_type} - {message}")
         current_date = datetime.now().strftime('%Y-%m-%d')
-        transcript_path = f'../logs/{current_date}_transcript.txt'
+        transcript_path = f'../logs/transcripts/{current_date}_transcript.txt'
         with open(transcript_path, 'a') as file:
             file.write(f"{datetime.now().strftime('%H:%M:%S')} - {message_type} - {message}\n")
 
