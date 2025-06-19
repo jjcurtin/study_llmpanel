@@ -40,20 +40,40 @@ class PRISM():
         self.load_task_schedule()
 
     def load_api_keys(self):
-        qualtrics = pd.read_csv('../qualtrics.api', quotechar='"')
-        self.qualtrics_api_token = qualtrics.loc[0, 'api_token']
-        self.qualtrics_data_center = qualtrics.loc[0, 'datacenter']
-        self.ema_survey_id = qualtrics.loc[0, 'ema_survey_id']
-        self.feedback_survey_id = qualtrics.loc[0, 'feedback_survey_id']
+        try:
+            qualtrics = pd.read_csv('../qualtrics.api', quotechar='"')
+            self.qualtrics_api_token = qualtrics.loc[0, 'api_token']
+            self.qualtrics_data_center = qualtrics.loc[0, 'datacenter']
+            self.ema_survey_id = qualtrics.loc[0, 'ema_survey_id']
+            self.feedback_survey_id = qualtrics.loc[0, 'feedback_survey_id']
+        except Exception as e:
+            self.add_to_transcript(f"Failed to load Qualtrics API keys: {e}", "ERROR")
 
-        followmee = pd.read_csv('../followmee.api', quotechar='"')
-        self.followmee_username = followmee.loc[0, 'username']  
-        self.followmee_api_token = followmee.loc[0, 'api_token']
+        try:
+            followmee = pd.read_csv('../followmee.api', quotechar='"')
+            self.followmee_username = followmee.loc[0, 'username']  
+            self.followmee_api_token = followmee.loc[0, 'api_token']
+        except Exception as e:
+            self.add_to_transcript(f"Failed to load FollowMee API keys: {e}", "ERROR")
 
-        twilio = pd.read_csv('../twilio.api', quotechar='"')
-        self.twilio_account_sid = twilio.loc[0, 'account_sid']
-        self.twilio_auth_token = twilio.loc[0, 'auth_token']
-        self.twilio_from_number = twilio.loc[0, 'from_number']
+        try:
+            twilio = pd.read_csv('../twilio.api', quotechar='"')
+            self.twilio_account_sid = twilio.loc[0, 'account_sid']
+            self.twilio_auth_token = twilio.loc[0, 'auth_token']
+            self.twilio_from_number = twilio.loc[0, 'from_number']
+        except Exception as e:
+            self.add_to_transcript(f"Failed to load Twilio API keys: {e}", "ERROR") 
+
+        try:
+            research_drive = pd.read_csv('../research_drive.api', quotechar='"')
+            self.destination_path = research_drive.loc[0, 'destination_path']
+            self.drive_letter = research_drive.loc[0, 'drive_letter']
+            self.network_domain = research_drive.loc[0, 'network_domain']
+            self.network_username = research_drive.loc[0, 'network_username']
+            self.wisc_netid = research_drive.loc[0, 'wisc_netid']
+            self.wisc_password = research_drive.loc[0, 'wisc_password']
+        except Exception as e:
+            self.add_to_transcript(f"Failed to load Research Drive API keys: {e}", "ERROR")
 
     def update_task_types(self):
         self.add_to_transcript("Loading task types...", "INFO")
