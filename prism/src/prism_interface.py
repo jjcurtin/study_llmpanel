@@ -25,12 +25,13 @@ class PRISMInterface():
             if response.status_code == 200:
                 self.uptime = response.json().get("uptime", "Unknown")
             else:
-                self.uptime = "Failed to retrieve uptime"
+                print("Failed to retrieve uptime")
+                exit()
         except requests.ConnectionError:
-            self.uptime = "PRISM instance not running"
+            print("PRISM instance not running")
             exit()
         except Exception as e:
-            self.uptime = f"Error: {str(e)}"
+            print(f"Error: {str(e)}")
             exit()
 
     def print_main_menu(self):
