@@ -5,10 +5,6 @@ import threading
 from _routes import create_flask_app
 import pandas as pd
 
-from tasks._check_system import CheckSystem
-from tasks._run_script_pipeline import RunScriptPipeline
-from tasks._pulldown_qualtrics_data import PulldownQualtricsData
-
 class PRISM():
     def __init__(self, mode="test"):
         self.clear()
@@ -43,11 +39,18 @@ class PRISM():
         self.flask_app = create_flask_app(self)
         threading.Thread(target = self.run_flask, daemon = True).start()
 
-        self.task_types = {
-            "CHECK_SYSTEM": "Check System Status",
-            "PULLDOWN_QUALTRICS_DATA": "Pull Down Qualtrics Data",
-            "RUN_SCRIPT_PIPELINE": "Run Script Pipeline"
-        }
+        # check all files in the tasks directory and establish task types dictionary
+        self.add_to_transcript("Loading task types...", "INFO")
+        self.task_types = {}
+        task_files = [f for f in os.listdir('tasks') if f.endswith('.py') and f != '_task.py']
+        for task_file in task_files:
+            task_name = task_file[:-3]
+            task_type = task_name.replace('_', ' ').title().replace(' ', '')
+            task_name_for_dict = task_name.upper()
+            if task_name_for_dict.startswith('_'):
+                task_name_for_dict = task_name_for_dict[1:]
+            self.task_types[task_name_for_dict] = task_type
+            self.add_to_transcript(f"Task type loaded: {task_name_for_dict}", "INFO")
 
         # run main event loop
         self.running = True
@@ -112,15 +115,24 @@ class PRISM():
     def process_task(self, task_type):
         self.add_to_transcript(f"Executing task: {task_type}", "INFO")
         result = 0  # Default result for successful execution
-        
-        if task_type == "PULLDOWN_QUALTRICS_DATA":
-            result = PulldownQualtricsData(self).execute()
-        elif task_type == "RUN_SCRIPT_PIPELINE":
-            result = RunScriptPipeline(self).execute()
-        elif task_type == "CHECK_SYSTEM":
-            result = CheckSystem(self).execute()
+
+        if task_type in self.task_types:
+            module_name = f'tasks._{task_type.lower()}'
+            try:
+                module = __import__(module_name, fromlist = [task_type])
+                task_type = task_type.replace('_', ' ').title().replace(' ', '')
+                task_class = getattr(module, task_type)
+            except ImportError as e:
+                self.add_to_transcript(f"Failed to import task {task_type}: {e}", "ERROR")
+                return -1
+            except Exception as e:
+                self.add_to_transcript(f"An error occurred while importing task {task_type}: {e}", "ERROR")
+                return -1
+            
+            result = task_class(self).execute()
         else:
             self.add_to_transcript(f"Unknown task type: {task_type}", "ERROR")
+            return -1
 
         return result
 
