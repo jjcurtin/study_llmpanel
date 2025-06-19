@@ -1,15 +1,14 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 import time
 from datetime import datetime
-import threading
 
 def create_flask_app(app_instance):
     flask_app = Flask(__name__)
     
-    CORS(flask_app, resources={
+    CORS(flask_app, resources = {
         r"/system/*": {"origins": "localhost:5000"}
     })
 
@@ -20,11 +19,11 @@ def create_flask_app(app_instance):
         storage_uri = "memory://"
     )
 
-    @flask_app.route('/system/get_mode', methods=['GET'])
+    @flask_app.route('/system/get_mode', methods = ['GET'])
     def get_mode():
         return jsonify({'mode': app_instance.mode}), 200
     
-    @flask_app.route('/system/uptime', methods=['GET'])
+    @flask_app.route('/system/uptime', methods = ['GET'])
     def get_uptime():
         uptime_seconds = datetime.now() - app_instance.start_time
         uptime_seconds = uptime_seconds.total_seconds()
@@ -32,7 +31,7 @@ def create_flask_app(app_instance):
         app_instance.add_to_transcript(f"Uptime requested via API: {uptime_string}", "INFO")
         return jsonify({"uptime": uptime_string})
     
-    @flask_app.route('/system/get_task_schedule', methods=['GET'])
+    @flask_app.route('/system/get_task_schedule', methods = ['GET'])
     def get_task_schedule():
         tasks = app_instance.scheduled_tasks
         formatted_tasks = [
@@ -45,13 +44,13 @@ def create_flask_app(app_instance):
         app_instance.add_to_transcript("Task schedule requested via API", "INFO")
         return jsonify({"tasks": formatted_tasks}), 200
     
-    @flask_app.route('/system/get_task_types', methods=['GET'])
+    @flask_app.route('/system/get_task_types', methods = ['GET'])
     def get_task_types():
         task_types = app_instance.task_types
         app_instance.add_to_transcript("Task types requested via API", "INFO")
         return jsonify({"task_types": task_types}), 200
     
-    @flask_app.route('/system/add_system_task/<task_type>/<task_time>', methods=['POST'])
+    @flask_app.route('/system/add_system_task/<task_type>/<task_time>', methods = ['POST'])
     def add_system_task(task_type, task_time):
         if task_type not in app_instance.task_types:
             return jsonify({"error": "Invalid task type"}), 400
@@ -77,7 +76,7 @@ def create_flask_app(app_instance):
         
         return jsonify({"message": "Task added successfully"}), 200
     
-    @flask_app.route('/system/remove_system_task/<task_type>/<task_time>', methods=['DELETE'])
+    @flask_app.route('/system/remove_system_task/<task_type>/<task_time>', methods = ['DELETE'])
     def remove_system_task(task_type, task_time):
         if task_type not in app_instance.task_types:
             return jsonify({"error": "Invalid task type"}), 400
@@ -103,14 +102,11 @@ def create_flask_app(app_instance):
         
         return jsonify({"error": "Task not found"}), 404
     
-    @flask_app.route('/system/execute_task/<task_type>', methods=['POST'])
+    @flask_app.route('/system/execute_task/<task_type>', methods = ['POST'])
     def execute_task(task_type):
         if task_type not in app_instance.task_types:
             return jsonify({"error": "Invalid task type"}), 400
-        else:
-            result = app_instance.process_task(task_type)
-        
-        if result != 0:
+        elif app_instance.process_task(task_type) != 0:
             return jsonify({"error": f"Failed to execute {task_type}"}), 500
         else:
             app_instance.add_to_transcript(f"Executed task: {task_type} via API", "INFO")
