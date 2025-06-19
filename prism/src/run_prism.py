@@ -62,7 +62,6 @@ class PRISM():
             if task_name_for_dict.startswith('_'):
                 task_name_for_dict = task_name_for_dict[1:]
             self.task_types[task_name_for_dict] = task_type
-            self.add_to_transcript(f"Task type loaded: {task_name_for_dict}", "INFO")
 
     def load_task_schedule(self):
 
