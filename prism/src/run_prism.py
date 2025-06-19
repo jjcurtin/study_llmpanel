@@ -7,12 +7,12 @@ import pandas as pd
 import importlib
 
 class PRISM():
-    def __init__(self, mode="test"):
+    def __init__(self, mode="test", hot_reload = False, notify_coordinators = False):
         self.clear()
         self.add_to_transcript("Initializing PRISM application...", "INFO")
         self.mode = mode
-
-        self.notify_coordinators = False # Flag to control SMS notifications off for now since I got it working
+        self.hot_reload = hot_reload
+        self.notify_coordinators = notify_coordinators
 
         # make sure you are running in the src directory
         current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -38,6 +38,31 @@ class PRISM():
         
         # Load and schedule tasks
         self.load_task_schedule()
+
+        if self.mode == "prod":
+            self.add_to_transcript("Running in production mode.", "WARNING")
+        elif self.mode == "test":
+            self.add_to_transcript("Running in test mode.", "INFO")
+        else:
+            self.add_to_transcript("Unknown mode. Exiting.", "ERROR")
+            return
+        
+        if self.hot_reload == True:
+            self.add_to_transcript("Running in hot reload mode.", "INFO")
+
+        if self.notify_coordinators:
+            self.add_to_transcript("Coordinators will be notified of the results of system tasks.", "INFO")
+        else:
+            self.add_to_transcript("Coordinators will not be notified of the results of system tasks.", "INFO")
+        
+        self.add_to_transcript(f"PRISM started with {len(self.scheduled_tasks)} scheduled system tasks", "INFO")
+
+        # run system task processor in a separate thread
+        self.run_system_task_processor()
+
+    ############################
+    #       System Utils       #
+    ############################
 
     def load_api_keys(self):
         try:
@@ -75,6 +100,45 @@ class PRISM():
         except Exception as e:
             self.add_to_transcript(f"Failed to load Research Drive API keys: {e}", "ERROR")
 
+    def get_uptime(self):
+        return str(datetime.now() - self.start_time)
+    
+    def clear(self):
+        os.system('cls' if os.name == 'nt' else 'clear')
+
+    def stop(self):
+        self.running = False
+
+    def add_to_transcript(self, message, message_type = "INFO"):
+        print(f"{message_type} - {message}")
+        current_date = datetime.now().strftime('%Y-%m-%d')
+        transcript_path = f'../logs/transcripts/{current_date}_transcript.txt'
+        with open(transcript_path, 'a') as file:
+            file.write(f"{datetime.now().strftime('%H:%M:%S')} - {message_type} - {message}\n")
+
+    ############################
+    #        Flask Logic       #
+    ############################
+    
+    def run_flask(self):
+        self.add_to_transcript("Starting Flask application on port 5000.", "INFO")
+        try:
+            if self.mode == "prod":
+                # for production we want external access
+                self.flask_app.run(host = '0.0.0.0', port = 5000)
+            elif self.mode == "test":
+                # For testing, we can run on localhost which means access is limited to the local machine
+                self.flask_app.run(host = '127.0.0.1', port = 5000)
+            else:
+                raise ValueError("Unknown mode. Cannot start Flask application.")
+        except Exception as e:
+            self.add_to_transcript(f"Failed to start Flask application: {e}", "ERROR")
+
+    ############################
+    #        Task Logic        #
+    ############################
+
+    # update task types
     def update_task_types(self):
         self.add_to_transcript("Loading task types...", "INFO")
         self.task_types = {}
@@ -87,10 +151,8 @@ class PRISM():
                 task_name_for_dict = task_name_for_dict[1:]
             self.task_types[task_name_for_dict] = task_type
 
+    # schedule tasks from file
     def load_task_schedule(self):
-
-        # load task schedule from CSV file
-        # "task_type","task_time"
         tasks = []
         current_dir = os.path.dirname(os.path.abspath(__file__))
         config_path = os.path.join(current_dir, '..', 'config', 'system_task_schedule.csv')
@@ -125,7 +187,7 @@ class PRISM():
                 self.add_to_transcript(f"An error occurred while scheduling task {task_type}: {e}", "ERROR")
         return tasks
 
-    # add task to the queue when it is time to run it
+    # add tasks to the queue when it is time to run it
     def check_scheduled_tasks(self):
         current_time = datetime.now().time()
         for task in self.scheduled_tasks:
@@ -142,7 +204,8 @@ class PRISM():
         self.add_to_transcript(f"Executing task: {task_type}", "INFO")
         result = 0  # Default result for successful execution
 
-        self.update_task_types()  # Ensure task types are up to date
+        if self.hot_reload:
+            self.update_task_types()  # Ensure task types are up to date
 
         if task_type in self.task_types:
             module_name = f'tasks._{task_type.lower()}'
@@ -165,44 +228,7 @@ class PRISM():
 
         return result
 
-    def get_uptime(self):
-        return str(datetime.now() - self.start_time)
-    
-    def run_flask(self):
-        self.add_to_transcript("Starting Flask application on port 5000.", "INFO")
-        try:
-            if self.mode == "prod":
-                # for production we want external access
-                self.flask_app.run(host = '0.0.0.0', port = 5000)
-            elif self.mode == "test":
-                # For testing, we can run on localhost which means access is limited to the local machine
-                self.flask_app.run(host = '127.0.0.1', port = 5000)
-            else:
-                raise ValueError("Unknown mode. Cannot start Flask application.")
-        except Exception as e:
-            self.add_to_transcript(f"Failed to start Flask application: {e}", "ERROR")
-
-    def clear(self):
-        os.system('cls' if os.name == 'nt' else 'clear')
-
-    def add_to_transcript(self, message, message_type = "INFO"):
-        print(f"{message_type} - {message}")
-        current_date = datetime.now().strftime('%Y-%m-%d')
-        transcript_path = f'../logs/transcripts/{current_date}_transcript.txt'
-        with open(transcript_path, 'a') as file:
-            file.write(f"{datetime.now().strftime('%H:%M:%S')} - {message_type} - {message}\n")
-
-    def run(self):
-        if self.mode == "prod":
-            self.add_to_transcript("Running in production mode.", "WARNING")
-        elif self.mode == "test":
-            self.add_to_transcript("Running in test mode.", "INFO")
-        else:
-            self.add_to_transcript("Unknown mode. Exiting.", "ERROR")
-            return
-        
-        self.add_to_transcript(f"PRISM started with {len(self.scheduled_tasks)} scheduled tasks", "INFO")
-        
+    def run_system_task_processor(self):
         # task processing loop
         while self.running:
             self.check_scheduled_tasks()
@@ -215,12 +241,4 @@ class PRISM():
                 self.running = False
 
 if __name__ == "__main__":
-    prism = PRISM(mode = "test")  # Change to "prod" for production mode
-    try:
-        prism.run()
-    except KeyboardInterrupt:
-        prism.add_to_transcript("Exiting PRISM application.", "INFO")
-        prism.running = False
-    except Exception as e:
-        prism.add_to_transcript(f"An unexpected error occurred: {e}", "ERROR")
-        prism.running = False
+    PRISM(mode = "test", hot_reload = True, notify_coordinators = False)
