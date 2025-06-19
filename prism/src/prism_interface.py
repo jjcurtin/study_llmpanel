@@ -14,6 +14,12 @@ class PRISMInterface():
             print("PRISM instance is not running. Please start the PRISM server first.")
             exit()
 
+        self.task_types = {
+            'CHECK_SYSTEM': 'Check System',
+            'PULLDOWN_DATA': 'Pull Down Data',
+            'RUN_SCRIPT_PIPELINE': 'Run Script Pipeline'
+        }
+
         self.run()
 
     def clear(self):
@@ -37,9 +43,9 @@ class PRISMInterface():
         self.clear()
         print("PRISM Interface Menu:")
         print("1. Get PRISM Uptime")
-        print("2. Check System Task Schedule")
-        print("3. Check Participant Task Schedules")
-        print("3. Exit")
+        print("2. Manage System Tasks")
+        print("3. Manage Participant Tasks")
+        print("4. Exit")
         print()
 
     def print_system_task_schedule(self):
@@ -67,7 +73,8 @@ class PRISMInterface():
         print()
         print("1. Add New Task")
         print("2. Remove Task")
-        print("3. Back to Main Menu")
+        print("3. Execute Task Now")
+        print("4. Back to Main Menu")
         print()
 
     def add_system_task(self, task_type, task_time):
@@ -117,12 +124,11 @@ class PRISMInterface():
                     # add task
                     if task_choice == '1':
                         print("Add New System Task")
-
-                        task_type_index = input("Enter task type (1: CHECK_SYSTEM, 2: PULLDOWN_DATA, 3: RUN_PIPELINE): ")
+                        task_type_index = input("Enter task type (1: CHECK_SYSTEM, 2: PULLDOWN_DATA, 3: RUN_SCRIPT_PIPELINE): ")
                         task_types = {
                             '1': 'CHECK_SYSTEM',
                             '2': 'PULLDOWN_DATA',
-                            '3': 'RUN_PIPELINE'
+                            '3': 'RUN_SCRIPT_PIPELINE'
                         }
                         task_type = task_types.get(task_type_index)
                         if not task_type:
@@ -139,6 +145,8 @@ class PRISMInterface():
                             continue
 
                         self.add_system_task(task_type, task_time)
+
+                    # remove task
                     elif task_choice == '2':
                         task_index = input("Enter the index of the task to remove: ")
                         try:
@@ -152,15 +160,55 @@ class PRISMInterface():
                         except ValueError:
                             print("Please enter a valid number.")
                             input("Press Enter to continue...")
+
+                    # execute task now
                     elif task_choice == '3':
+                        task_index = input("Enter the index of the task to execute now (1: CHECK_SYSTEM, 2: PULLDOWN_DATA, 3: RUN_SCRIPT_PIPELINE): ")
+                        try:
+                            if task_index.isdigit() and 1 <= int(task_index) <= len(self.task_types):
+                                if task_index == '1':
+                                    task_type = 'CHECK_SYSTEM'
+                                elif task_index == '2':
+                                    task_type = 'PULLDOWN_DATA'
+                                elif task_index == '3':
+                                    task_type = 'RUN_SCRIPT_PIPELINE'
+                                else:
+                                    print("Invalid task index.")
+                                    input("Press Enter to continue...")
+                                    continue
+                                response = requests.post(f"{self.base_url}/execute_task/{task_type}")
+                                if response.status_code == 200:
+                                    print(f"Task {task_type} executed successfully.")
+                                else:
+                                    print(f"Failed to execute task: {response.json().get('error', 'Unknown error')}")
+                                input("Press Enter to continue...")
+                            else:
+                                print("Invalid task index.")
+                                input("Press Enter to continue...")
+                                continue
+                        except Exception as e:
+                            print(f"An error occurred: {str(e)}")
+                            input("Press Enter to continue...")
+
+                    # back to main menu
+                    elif task_choice == '4':
                         break
+                    else:
+                        print("Invalid choice. Please try again.")
+                        input("Press Enter to continue...")
+
+            # manage participant tasks
+            elif choice == '3':
+                print("Participant task management is not implemented yet.")
+                input("Press Enter to continue...")
 
             # exit the interface
-            elif choice == '3':
+            elif choice == '4':
                 print("Exiting PRISM Interface.")
                 break
             else:
                 print("Invalid choice. Please try again.")
+                input("Press Enter to continue...")
 
 if __name__ == "__main__":
     PRISMInterface()
