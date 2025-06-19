@@ -4,7 +4,7 @@ import subprocess
 import requests
 from requests.exceptions import ConnectionError, Timeout
 
-from _task import Task
+from tasks._task import Task
 
 class CheckSystem(Task):
     def run(self):
