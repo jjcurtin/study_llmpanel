@@ -50,7 +50,7 @@ class CheckSystem(Task):
                 '../logs'
             ]
             files = [
-                ['system_task_schedule.csv', 'study_coordinators.csv'], # config
+                ['system_task_schedule.csv', 'study_coordinators.csv', 'script_pipeline.csv'], # config
                 [], # data
                 ['EMA_load_logic.js', 'EMA_submit_logic.js', 
                  'recommendationLoad.js', 'recommendationSubmit.js'], # qualtrics_js
