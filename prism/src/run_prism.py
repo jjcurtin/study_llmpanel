@@ -4,6 +4,7 @@ import queue
 import threading
 from _routes import create_flask_app
 import pandas as pd
+import importlib
 
 class PRISM():
     def __init__(self, mode="test"):
@@ -128,6 +129,7 @@ class PRISM():
             try:
                 module = __import__(module_name, fromlist = [task_type])
                 task_type = task_type.replace('_', ' ').title().replace(' ', '')
+                module = importlib.reload(module)
                 task_class = getattr(module, task_type)
             except ImportError as e:
                 self.add_to_transcript(f"Failed to import task {task_type}: {e}", "ERROR")
