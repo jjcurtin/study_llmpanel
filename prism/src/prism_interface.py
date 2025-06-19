@@ -14,12 +14,6 @@ class PRISMInterface():
             print("PRISM instance is not running. Please start the PRISM server first.")
             exit()
 
-        self.task_types = {
-            'CHECK_SYSTEM': 'Check System',
-            'PULLDOWN_DATA': 'Pull Down Data',
-            'RUN_SCRIPT_PIPELINE': 'Run Script Pipeline'
-        }
-
         self.run()
 
     def clear(self):
@@ -102,6 +96,22 @@ class PRISMInterface():
             print("PRISM instance not running.")
         except Exception as e:
             print(f"Error: {str(e)}")
+    
+    def get_task_types(self):
+        try:
+            response = requests.get(f"{self.base_url}/get_task_types")
+            if response.status_code == 200:
+                self.task_types = response.json().get("task_types", {})
+                return self.task_types
+            else:
+                print("Failed to retrieve task types.")
+                return {}
+        except requests.ConnectionError:
+            print("PRISM instance not running.")
+            return {}
+        except Exception as e:
+            print(f"Error: {str(e)}")
+            return {}
 
     def run(self):
         while True:
@@ -124,13 +134,24 @@ class PRISMInterface():
                     # add task
                     if task_choice == '1':
                         print("Add New System Task")
-                        task_type_index = input("Enter task type (1: CHECK_SYSTEM, 2: PULLDOWN_DATA, 3: RUN_SCRIPT_PIPELINE): ")
-                        task_types = {
-                            '1': 'CHECK_SYSTEM',
-                            '2': 'PULLDOWN_DATA',
-                            '3': 'RUN_SCRIPT_PIPELINE'
-                        }
-                        task_type = task_types.get(task_type_index)
+                        self.get_task_types()
+                        print("Available Tasks:")
+                        for index, (task_key, task_name) in enumerate(self.task_types.items(), start=1):
+                            print(f"{index}: {task_name} ({task_key})")
+                        task_index = input("Enter the index of the task to add: ")
+                        task_type = None
+                        try:
+                            if task_index.isdigit() and 1 <= int(task_index) <= len(self.task_types):
+                                task_index = int(task_index) - 1
+                                task_type = list(self.task_types.keys())[task_index]
+                            else:
+                                print("Invalid task index.")
+                                input("Press Enter to continue...")
+                                continue
+                        except ValueError:
+                            print("Please enter a valid number.")
+                            input("Press Enter to continue...")
+                            continue
                         if not task_type:
                             print("Invalid task type selected.")
                             input("Press Enter to continue...")
@@ -163,19 +184,18 @@ class PRISMInterface():
 
                     # execute task now
                     elif task_choice == '3':
-                        task_index = input("Enter the index of the task to execute now (1: CHECK_SYSTEM, 2: PULLDOWN_DATA, 3: RUN_SCRIPT_PIPELINE): ")
+                        # get task types
+                        self.get_task_types()
+                        print("Execute Task Now")
+                        print("Available Tasks:")
+                        for index, (task_key, task_name) in enumerate(self.task_types.items(), start=1):
+                            print(f"{index}: {task_name} ({task_key})")
+                        task_index = input("Enter the index of the task to execute: ")
+                        task_type = None
                         try:
                             if task_index.isdigit() and 1 <= int(task_index) <= len(self.task_types):
-                                if task_index == '1':
-                                    task_type = 'CHECK_SYSTEM'
-                                elif task_index == '2':
-                                    task_type = 'PULLDOWN_DATA'
-                                elif task_index == '3':
-                                    task_type = 'RUN_SCRIPT_PIPELINE'
-                                else:
-                                    print("Invalid task index.")
-                                    input("Press Enter to continue...")
-                                    continue
+                                task_index = int(task_index) - 1
+                                task_type = list(self.task_types.keys())[task_index]
                                 response = requests.post(f"{self.base_url}/execute_task/{task_type}")
                                 if response.status_code == 200:
                                     print(f"Task {task_type} executed successfully.")
