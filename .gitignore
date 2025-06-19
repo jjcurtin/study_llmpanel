@@ -12,3 +12,7 @@ all_generated_messages.csv
 TODO
 *.api
 *.pyc
+
+# prism files
+prism/config/study_coordinators.csv
+prism/logs
