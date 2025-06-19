@@ -49,9 +49,13 @@ class PRISMInterface():
             response = requests.get(f"{self.base_url}/get_task_schedule")
             if response.status_code == 200:
                 tasks = response.json().get("tasks", [])
+                self.scheduled_tasks = tasks
                 if tasks:
+                    self.num_tasks = len(tasks)
+                    task_idx = 1
                     for task in tasks:
-                        print(f"{task['task_type']} @ {task['task_time']} - Run Today: {task.get('run_today', False)}")
+                        print(f"{task_idx}: {task['task_type']} @ {task['task_time']} - Run Today: {task.get('run_today', False)}")
+                        task_idx += 1
                 else:
                     print("No tasks scheduled.")
             else:
@@ -79,6 +83,19 @@ class PRISMInterface():
         except Exception as e:
             print(f"Error: {str(e)}")
 
+    def remove_system_task(self, task_type, task_time):
+        try:
+            response = requests.delete(f"{self.base_url}/remove_system_task/{task_type}/{task_time}")
+            if response.status_code == 200:
+                print("Task removed successfully.")
+            else:
+                print(f"Failed to remove task: {response.json().get('error', 'Unknown error')}")
+            input("Press Enter to continue...")
+        except requests.ConnectionError:
+            print("PRISM instance not running.")
+        except Exception as e:
+            print(f"Error: {str(e)}")
+
     def run(self):
         while True:
             self.print_main_menu()
@@ -99,7 +116,6 @@ class PRISMInterface():
 
                     # add task
                     if task_choice == '1':
-                        self.clear()
                         print("Add New System Task")
 
                         task_type_index = input("Enter task type (1: CHECK_SYSTEM, 2: PULLDOWN_DATA, 3: RUN_PIPELINE): ")
@@ -121,11 +137,21 @@ class PRISMInterface():
                             print("Invalid time format. Please use HH:MM:SS in military time.")
                             input("Press Enter to continue...")
                             continue
-                        
+
                         self.add_system_task(task_type, task_time)
                     elif task_choice == '2':
-                        # Remove task logic here
-                        print("Remove Task functionality not implemented yet.")
+                        task_index = input("Enter the index of the task to remove: ")
+                        try:
+                            task_index = int(task_index) - 1
+                            if 0 <= task_index < self.num_tasks:
+                                task_type = self.scheduled_tasks[task_index]['task_type']
+                                task_time = self.scheduled_tasks[task_index]['task_time']
+                                self.remove_system_task(task_type, task_time)
+                            else:
+                                print("Invalid task index.")
+                        except ValueError:
+                            print("Please enter a valid number.")
+                            input("Press Enter to continue...")
                     elif task_choice == '3':
                         break
 
