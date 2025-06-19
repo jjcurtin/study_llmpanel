@@ -11,7 +11,7 @@ from tasks._run_script_pipeline import RunScriptPipeline
 class PRISM():
     def __init__(self, mode="test"):
         self.clear()
-        print("Initializing PRISM application...")
+        self.add_to_transcript("Initializing PRISM application...", "INFO")
         self.mode = mode
 
         self.notify_coordinators = False # Flag to control SMS notifications off for now since I got it working
@@ -19,7 +19,7 @@ class PRISM():
         # make sure you are running in the src directory
         current_dir = os.path.dirname(os.path.abspath(__file__))
         if not current_dir.endswith('src'):
-            print("ERROR: Please run this script from the 'src' directory.")
+            self.add_to_transcript("Please run this script from the 'src' directory.", "ERROR")
             exit(1)
 
         # load api keys
@@ -73,10 +73,10 @@ class PRISM():
                         task_type, task_time = line.strip().split(',')
                         tasks.append((task_type.strip('"'), task_time.strip('"')))
         except FileNotFoundError:
-            print(f"Task schedule file not found at: {config_path}")
+            self.add_to_transcript(f"Task schedule file not found at: {config_path}", "ERROR")
             return []
         except Exception as e:
-            print(f"An error occurred while loading the task schedule: {e}")
+            self.add_to_transcript(f"An error occurred while loading the task schedule: {e}", "ERROR")
             return []
 
         # Store scheduled tasks with their times
@@ -89,13 +89,10 @@ class PRISM():
                     'task_time': task_time,
                     'run_today': False  # Flag to indicate if the task has run today
                 })
-                print(f"Scheduled task: {task_type} at {task_time}")
             except ValueError:
-                print(f"Invalid time format for task {task_type}: {task_time_str}")
+                self.add_to_transcript(f"Invalid time format for task {task_type}: {task_time_str}", "ERROR")
             except Exception as e:
-                print(f"An error occurred while scheduling task {task_type}: {e}")
-        
-        print(f"Loaded {len(self.scheduled_tasks)} scheduled tasks")
+                self.add_to_transcript(f"An error occurred while scheduling task {task_type}: {e}", "ERROR")
         return tasks
 
     # add task to the queue when it is time to run it
@@ -107,13 +104,12 @@ class PRISM():
             time_difference = abs((datetime.combine(datetime.today(), current_time) 
                                    - datetime.combine(datetime.today(), task_time)).total_seconds())
             if time_difference <= 1 and not task['run_today']:
-                print(f"Time to execute task: {task['task_type']} (scheduled for {task_time})")
                 self.task_queue.put(task['task_type'])
                 task['run_today'] = True
 
     # task run logic
     def process_task(self, task_type):
-        print(f"Executing task: {task_type}")
+        self.add_to_transcript(f"Executing task: {task_type}", "INFO")
         result = 0  # Default result for successful execution
         
         if task_type == "PULLDOWN_DATA":
@@ -127,7 +123,7 @@ class PRISM():
             result = CheckSystem(self).execute()
 
         else:
-            print(f"Unknown task type: {task_type}")
+            self.add_to_transcript(f"Unknown task type: {task_type}", "ERROR")
 
         return result
 
@@ -135,7 +131,7 @@ class PRISM():
         return str(datetime.now() - self.start_time)
     
     def run_flask(self):
-        print("Starting Flask application on port 5000.")
+        self.add_to_transcript("Starting Flask application on port 5000.", "INFO")
         try:
             if self.mode == "prod":
                 # For production, we can bind to all interfaces
@@ -147,21 +143,28 @@ class PRISM():
             else:
                 raise ValueError("Unknown mode. Cannot start Flask application.")
         except Exception as e:
-            print(f"Failed to start Flask application: {e}")
+            self.add_to_transcript(f"Failed to start Flask application: {e}", "ERROR")
 
     def clear(self):
         os.system('cls' if os.name == 'nt' else 'clear')
 
+    def add_to_transcript(self, message, message_type = "INFO"):
+        print(f"{message_type} - {message}")
+        current_date = datetime.now().strftime('%Y-%m-%d')
+        transcript_path = f'../logs/{current_date}_transcript.txt'
+        with open(transcript_path, 'a') as file:
+            file.write(f"{datetime.now().strftime('%H:%M:%S')} - {message_type} - {message}\n")
+
     def run(self):
         if self.mode == "prod":
-            print("WARNING: Running in production mode.")
+            self.add_to_transcript("Running in production mode.", "WARNING")
         elif self.mode == "test":
-            print("INFO: Running in test mode.")
+            self.add_to_transcript("Running in test mode.", "INFO")
         else:
-            print("ERROR: Unknown mode. Exiting.")
+            self.add_to_transcript("Unknown mode. Exiting.", "ERROR")
             return
         
-        print(f"PRISM started with {len(self.scheduled_tasks)} scheduled tasks")
+        self.add_to_transcript(f"PRISM started with {len(self.scheduled_tasks)} scheduled tasks", "INFO")
         
         while self.running:
             # Check for scheduled tasks
@@ -179,8 +182,8 @@ if __name__ == "__main__":
     try:
         prism.run()
     except KeyboardInterrupt:
-        print("Exiting PRISM application.")
+        prism.add_to_transcript("Exiting PRISM application.", "INFO")
         prism.running = False
     except Exception as e:
-        print(f"An unexpected error occurred: {e}")
+        prism.add_to_transcript(f"An unexpected error occurred: {e}", "ERROR")
         prism.running = False
