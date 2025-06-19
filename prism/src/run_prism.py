@@ -20,20 +20,7 @@ class PRISM():
             exit(1)
 
         # load api keys
-        qualtrics = pd.read_csv('../qualtrics.api', quotechar='"')
-        self.qualtrics_api_token = qualtrics.loc[0, 'api_token']
-        self.qualtrics_data_center = qualtrics.loc[0, 'datacenter']
-        self.ema_survey_id = qualtrics.loc[0, 'ema_survey_id']
-        self.feedback_survey_id = qualtrics.loc[0, 'feedback_survey_id']
-
-        followmee = pd.read_csv('../followmee.api', quotechar='"')
-        self.followmee_username = followmee.loc[0, 'username']  
-        self.followmee_api_token = followmee.loc[0, 'api_token']
-
-        twilio = pd.read_csv('../twilio.api', quotechar='"')
-        self.twilio_account_sid = twilio.loc[0, 'account_sid']
-        self.twilio_auth_token = twilio.loc[0, 'auth_token']
-        self.twilio_from_number = twilio.loc[0, 'from_number']
+        self.load_api_keys()
 
         # create Flask app instance
         self.flask_app = create_flask_app(self)
@@ -50,6 +37,22 @@ class PRISM():
         
         # Load and schedule tasks
         self.load_task_schedule()
+
+    def load_api_keys(self):
+        qualtrics = pd.read_csv('../qualtrics.api', quotechar='"')
+        self.qualtrics_api_token = qualtrics.loc[0, 'api_token']
+        self.qualtrics_data_center = qualtrics.loc[0, 'datacenter']
+        self.ema_survey_id = qualtrics.loc[0, 'ema_survey_id']
+        self.feedback_survey_id = qualtrics.loc[0, 'feedback_survey_id']
+
+        followmee = pd.read_csv('../followmee.api', quotechar='"')
+        self.followmee_username = followmee.loc[0, 'username']  
+        self.followmee_api_token = followmee.loc[0, 'api_token']
+
+        twilio = pd.read_csv('../twilio.api', quotechar='"')
+        self.twilio_account_sid = twilio.loc[0, 'account_sid']
+        self.twilio_auth_token = twilio.loc[0, 'auth_token']
+        self.twilio_from_number = twilio.loc[0, 'from_number']
 
     def update_task_types(self):
         self.add_to_transcript("Loading task types...", "INFO")
