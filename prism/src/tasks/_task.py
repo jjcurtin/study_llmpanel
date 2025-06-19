@@ -14,9 +14,10 @@ class Task:
         self.outcome = status
         print(f"{self.task_type} #{self.task_number} completed with status: {status}.")
 
-        sms_result = self.notify_via_sms()
-        if sms_result != 0:
-            print(f"ERROR: Failed to send {sms_result} SMS notifications.")
+        if self.app.notify_coordinators:
+            sms_result = self.notify_via_sms()
+            if sms_result != 0:
+                print(f"ERROR: Failed to send {sms_result} SMS notifications.")
 
         if status == "FAILURE":
             return 1
