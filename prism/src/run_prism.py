@@ -14,6 +14,7 @@ class PRISM():
         self.mode = mode
         self.hot_reload = hot_reload
         self.notify_coordinators = notify_coordinators
+        
 
         # make sure you are running in the src directory
         current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -21,43 +22,25 @@ class PRISM():
             self.add_to_transcript("Please run this script from the 'src' directory.", "ERROR")
             exit(1)
 
+        # start tracking the uptime of the application
+        self.running = True
+        self.start_time = datetime.now()
+
         # load api keys
         self.load_api_keys()
 
         # create Flask app instance that will be run through waitress separately
         self.flask_app = create_flask_app(self)
 
-        # check all files in the tasks directory and establish task types dictionary
+        # set up participant sms thread
+        self.load_participants()
+        threading.Thread(target = self.run_participant_sms_processor, daemon = True).start()
+
+        # set up system task processor thread
         self.update_task_types()
-
-        # run main event loop
-        self.running = True
-        self.start_time = datetime.now()
-        self.task_queue = queue.Queue()
         self.scheduled_tasks = []
-        
-        # Load and schedule tasks
         self.load_task_schedule()
-
-        if self.mode == "prod":
-            self.add_to_transcript("Running in production mode.", "WARNING")
-        elif self.mode == "test":
-            self.add_to_transcript("Running in test mode.", "INFO")
-        else:
-            self.add_to_transcript("Unknown mode. Exiting.", "ERROR")
-            return
-        
-        if self.hot_reload == True:
-            self.add_to_transcript("Running in hot reload mode.", "INFO")
-
-        if self.notify_coordinators:
-            self.add_to_transcript("Coordinators will be notified of the results of system tasks.", "INFO")
-        else:
-            self.add_to_transcript("Coordinators will not be notified of the results of system tasks.", "INFO")
-        
-        self.add_to_transcript(f"PRISM started with {len(self.scheduled_tasks)} scheduled system tasks", "INFO")
-
-        # run system task processor in a separate thread
+        self.task_queue = queue.Queue()
         threading.Thread(target = self.run_system_task_processor, daemon = True).start()
 
     ############################
@@ -222,13 +205,62 @@ class PRISM():
                 print(f"An error occurred while processing tasks: {e}")
                 self.running = False
 
+    #######################################
+    #        Participant SMS Logic        #
+    #######################################
+
+    def load_participants(self):
+        # ../config/study_participants.csv contains the following information:
+        # "unique_id","last_name","first_name","on_study","phone_number","ema_time","ema_reminder_time","feedback_time","feedback_reminder_time"
+        participants = []
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        with open(os.path.join(current_dir, '..', 'config', 'study_participants.csv'), 'r') as file:
+            lines = file.readlines()
+            for line in lines[1:]:
+                if line.strip():
+                    parts = line.strip().split(',')
+                    participant = {
+                        'unique_id': parts[0].strip('"'),
+                        'last_name': parts[1].strip('"'),
+                        'first_name': parts[2].strip('"'),
+                        'on_study': parts[3].strip('"').lower() == 'true',
+                        'phone_number': parts[4].strip('"'),
+                        'ema_time': parts[5].strip('"'),
+                        'ema_reminder_time': parts[6].strip('"'),
+                        'feedback_time': parts[7].strip('"'),
+                        'feedback_reminder_time': parts[8].strip('"')
+                    }
+                    participants.append(participant)
+                    self.add_to_transcript(f"Loaded participant: {participant['unique_id']}", "INFO")
+        self.participants = participants
+
+    def check_scheduled_sms():
+        pass
+
+    def run_participant_sms_processor(self):
+        while self.running:
+            try:
+                self.check_scheduled_sms()
+            except Exception as e:
+                print(f"An error occurred while processing participant SMS: {e}")
+                self.running = False
+
 if __name__ == "__main__":
 
     mode = "test"
+    hot_reload = True
+    notify_coordinators = False
     prism = PRISM(mode = "test", hot_reload = True, notify_coordinators = False)
+    if hot_reload:
+        prism.add_to_transcript("Running in hot reload mode.", "INFO")
+    if prism.notify_coordinators:
+        prism.add_to_transcript("Coordinators will be notified of the results of system tasks.", "INFO")
+    else:
+        prism.add_to_transcript("Coordinators will not be notified of the results of system tasks.", "INFO")
+    prism.add_to_transcript(f"PRISM started with {len(prism.scheduled_tasks)} scheduled system tasks", "INFO")
     if mode == "test":
+        prism.add_to_transcript("Running in test mode. Flask app will be served on localhost:5000", "INFO")
         serve(prism.flask_app, host = '127.0.0.1', port = 5000)
-        print("Started server on port 5000")
     elif mode == "prod":
+        prism.add_to_transcript("Running in production mode. Flask app will be served on all interfaces on port 5000", "INFO")
         serve(prism.flask_app, host = '0.0.0.0', port = 5000)
-        print("Started server on port 5000")
