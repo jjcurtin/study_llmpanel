@@ -3,7 +3,7 @@ import os
 from tasks._task import Task
 import pandas as pd
 
-class RunScriptPipeline(Task):
+class RunRScriptPipeline(Task):
     def change_directory(self, new_dir):
         try:
             os.chdir(new_dir)
@@ -13,7 +13,7 @@ class RunScriptPipeline(Task):
             raise Exception(f"Failed to change directory to {new_dir}. Error message: {e}")
 
     def run(self):
-        self.task_type = "RUN_SCRIPT_PIPELINE"
+        self.task_type = "RUN_RSCRIPT_PIPELINE"
         print(f"{self.task_type} #{self.task_number} initiated.")
         
         initial_dir = os.getcwd()
