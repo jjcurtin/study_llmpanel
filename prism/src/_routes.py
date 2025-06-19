@@ -88,5 +88,13 @@ def create_flask_app(app_instance):
                 return jsonify({"message": "Task removed successfully"}), 200
         
         return jsonify({"error": "Task not found"}), 404
+    
+    @flask_app.route('/system/execute_task/<task_type>', methods=['POST'])
+    def execute_task(task_type):
+        if task_type not in app_instance.task_types:
+            return jsonify({"error": "Invalid task type"}), 400
+        else:
+            app_instance.process_task(task_type)
+            return jsonify({"message": f"{task_type} executed successfully"}), 200
 
     return flask_app

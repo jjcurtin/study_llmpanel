@@ -15,6 +15,12 @@ class PRISM():
         self.flask_app = create_flask_app(self)
         threading.Thread(target = self.run_flask, daemon = True).start()
 
+        self.task_types = {
+            "CHECK_SYSTEM": "Check System Status",
+            "PULLDOWN_DATA": "Pull Down Data",
+            "RUN_SCRIPT_PIPELINE": "Run Script Pipeline"
+        }
+
         # run main event loop
         self.running = True
         self.start_time = datetime.now()
