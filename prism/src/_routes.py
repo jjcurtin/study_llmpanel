@@ -94,7 +94,11 @@ def create_flask_app(app_instance):
         if task_type not in app_instance.task_types:
             return jsonify({"error": "Invalid task type"}), 400
         else:
-            app_instance.process_task(task_type)
+            result = app_instance.process_task(task_type)
+        
+        if result != 0:
+            return jsonify({"error": f"Failed to execute {task_type}"}), 500
+        else:
             return jsonify({"message": f"{task_type} executed successfully"}), 200
 
     return flask_app
