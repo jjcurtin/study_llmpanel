@@ -40,6 +40,18 @@ class PRISM():
         threading.Thread(target = self.run_flask, daemon = True).start()
 
         # check all files in the tasks directory and establish task types dictionary
+        self.update_task_types()
+
+        # run main event loop
+        self.running = True
+        self.start_time = datetime.now()
+        self.task_queue = queue.Queue()
+        self.scheduled_tasks = []
+        
+        # Load and schedule tasks
+        self.load_task_schedule()
+
+    def update_task_types(self):
         self.add_to_transcript("Loading task types...", "INFO")
         self.task_types = {}
         task_files = [f for f in os.listdir('tasks') if f.endswith('.py') and f != '_task.py']
@@ -51,15 +63,6 @@ class PRISM():
                 task_name_for_dict = task_name_for_dict[1:]
             self.task_types[task_name_for_dict] = task_type
             self.add_to_transcript(f"Task type loaded: {task_name_for_dict}", "INFO")
-
-        # run main event loop
-        self.running = True
-        self.start_time = datetime.now()
-        self.task_queue = queue.Queue()
-        self.scheduled_tasks = []
-        
-        # Load and schedule tasks
-        self.load_task_schedule()
 
     def load_task_schedule(self):
 
@@ -115,6 +118,8 @@ class PRISM():
     def process_task(self, task_type):
         self.add_to_transcript(f"Executing task: {task_type}", "INFO")
         result = 0  # Default result for successful execution
+
+        self.update_task_types()  # Ensure task types are up to date
 
         if task_type in self.task_types:
             module_name = f'tasks._{task_type.lower()}'
