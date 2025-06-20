@@ -1,7 +1,6 @@
 import requests
 import os
 import time
-import csv
 
 class PRISMInterface():
     def __init__(self):
