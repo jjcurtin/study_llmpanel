@@ -128,10 +128,11 @@ class PRISM():
         self.add_to_transcript("Received shutdown signal. Stopping PRISM application...", "INFO")
         self.stop()
         self.system_task_thread.join(timeout = 5)
-        self.add_to_transcript("System task processor stopped.", "INFO")
         self.sms_task_thread.join(timeout = 5)
-        self.add_to_transcript("Participant SMS processor stopped.", "INFO")
-        exit(0)
+        os._exit(0)
+
+    def shutdown(self):
+        self.handle_shutdown(signal.SIGINT, None)
 
     ############################
     #        Task Logic        #
@@ -243,6 +244,7 @@ class PRISM():
             except Exception as e:
                 print(f"An error occurred while processing tasks: {e}")
                 self.running = False
+        self.add_to_transcript("System task processor stopped.", "INFO")
 
     #######################################
     #        Participant SMS Logic        #
@@ -549,6 +551,7 @@ class PRISM():
             except Exception as e:
                 print(f"An error occurred while processing participant SMS: {e}")
                 self.running = False
+        self.add_to_transcript("Participant SMS processor stopped.", "INFO")
 
 if __name__ == "__main__":
     mode = "test"

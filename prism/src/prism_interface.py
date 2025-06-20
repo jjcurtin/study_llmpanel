@@ -268,6 +268,7 @@ class PRISMInterface():
             # get system uptime
             if choice == '1':
                 self.clear()
+                print("Requesting PRISM Uptime...")
                 self.get_uptime()
                 print(f"PRISM Uptime: {self.uptime}")   
                 input("Press Enter to continue...")
@@ -378,6 +379,8 @@ class PRISMInterface():
                     print()
                     print("ENTER: Back to Main Menu")
                     log_choice = input("Enter your choice: ")
+                    if log_choice == '':
+                        break
                     num_lines = input("Enter the number of lines to display (default is 10): ") or '10'
                     if log_choice == '1':
                         try:
@@ -396,8 +399,6 @@ class PRISMInterface():
                             print("PRISM instance not running.")
                         except Exception as e:
                             print(f"Error: {str(e)}")
-                    elif log_choice == '':
-                        break
                     else:
                         print("Invalid choice. Please try again.")
                     input("Press Enter to continue...")
@@ -410,12 +411,10 @@ class PRISMInterface():
                 if confirm == 'yes':
                     try:
                         response = requests.post(f"{self.base_url}/shutdown")
-                        if response.status_code == 200:
-                            print("PRISM has been shut down successfully.")
-                        else:
-                            print(f"Failed to shutdown PRISM: {response.json().get('error', 'Unknown error')}")
+                        print("Failed to shutdown PRISM.")
                     except requests.ConnectionError:
-                        print("PRISM instance not running.")
+                        print("PRISM has been shut down successfully.")
+                        exit(0)
                     except Exception as e:
                         print(f"Error: {str(e)}")
                 else:

@@ -195,5 +195,12 @@ def create_flask_app(app_instance):
             return jsonify({"transcript": transcript}), 200
         except FileNotFoundError:
             return jsonify({"error": "Transcript not found"}), 404
+        
+    @flask_app.route('/system/shutdown', methods = ['POST'])
+    def shutdown():
+        # send a sigint to the app instance to shutdown (actually send one)
+        app_instance.add_to_transcript("Shutdown requested via API", "INFO")
+        app_instance.shutdown()
+        return jsonify({"message": "Shutdown initiated"}), 200
 
     return flask_app
