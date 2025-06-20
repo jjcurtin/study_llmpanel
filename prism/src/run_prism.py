@@ -105,9 +105,6 @@ class PRISM():
         except Exception as e:
             self.add_to_transcript(f"Failed to load Ngrok API keys: {e}", "ERROR")
 
-    def get_uptime(self):
-        return str(datetime.now() - self.start_time)
-
     def add_to_transcript(self, message, message_type = "INFO"):
         print(f"{message_type} - {message}")
         current_date = datetime.now().strftime('%Y-%m-%d')
