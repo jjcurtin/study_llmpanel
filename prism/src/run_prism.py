@@ -304,6 +304,13 @@ class PRISM():
                         'run_today': False  # Flag to indicate if the task has run today
                     })
 
+    def get_participant(self, unique_id):
+        for participant in self.participants:
+            if participant['unique_id'] == unique_id:
+                return participant
+        self.add_to_transcript(f"Participant with ID {unique_id} not found.", "ERROR")
+        return None
+
     def check_scheduled_sms(self):
         current_time = datetime.now().time()
 

@@ -130,23 +130,13 @@ def create_flask_app(app_instance):
     
     @flask_app.route('/system/get_participant/<unique_id>', methods = ['GET'])
     def get_participant(unique_id):
-        for participant in app_instance.participants:
-            if participant['unique_id'] == unique_id:
-                formatted_participant = {
-                    'unique_id': participant['unique_id'],
-                    'last_name': participant['last_name'],
-                    'first_name': participant['first_name'],
-                    'on_study': participant['on_study'],
-                    'phone_number': participant['phone_number'],
-                    'ema_time': participant['ema_time'],
-                    'ema_reminder_time': participant['ema_reminder_time'],
-                    'feedback_time': participant['feedback_time'],
-                    'feedback_reminder_time': participant['feedback_reminder_time'],
-                }
-                app_instance.add_to_transcript(f"Participant {unique_id} requested via API", "INFO")
-                return jsonify({"participant": formatted_participant}), 200
-        app_instance.add_to_transcript(f"Participant {unique_id} not found", "ERROR")
-        return jsonify({"error": "Participant not found"}), 404
+        participant = app_instance.get_participant(unique_id)
+        if participant:
+            app_instance.add_to_transcript(f"Participant {unique_id} requested via API", "INFO")
+            return jsonify({"participant": participant}), 200
+        else:
+            app_instance.add_to_transcript(f"Participant {unique_id} not found for retrieval", "ERROR")
+            return jsonify({"error": "Participant not found"}), 404
     
     @flask_app.route('/system/update_participant/<unique_id>/<field>/<new_value>', methods = ['PUT'])
     def update_participant(unique_id, field, new_value):
