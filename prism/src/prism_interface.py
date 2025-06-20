@@ -92,13 +92,18 @@ class PRISMInterface():
             except Exception as e:
                 print(f"Error: {str(e)}")
             print()
-            participant_choice = input("Enter the index of the participant to view their information or hit ENTER to return: ")
+            participant_choice = input("Enter the index of the participant to view their information or hit 'a' to add a participant or hit ENTER to return: ")
             if participant_choice.isdigit():
                 #  map participant choice to participant ID
                 participant_choice = int(participant_choice) - 1
                 self.print_participant_schedule(participants[participant_choice]['unique_id'])
             elif participant_choice == '':
                 break
+            elif participant_choice.lower() == 'a':
+                self.add_participant()
+            else:
+                print("Invalid choice. Please try again.")
+                input("Press Enter to continue...")
 
 
     def print_participant_schedule(self, participant_id):
@@ -151,6 +156,56 @@ class PRISMInterface():
         except Exception as e:
             print(f"Error: {str(e)}")
         print()
+
+    def add_participant(self):
+        try:
+            self.clear()
+            print("Add New Participant")
+            first_name = input("Enter first name: ")
+            last_name = input("Enter last name: ")
+            unique_id = input("Enter unique ID: ")
+            on_study = input("Is the participant on study? (yes/no): ").strip().lower()
+            if on_study not in ['yes', 'no']:
+                print("Invalid input for on study. Please enter 'yes' or 'no'.")
+                input("Press Enter to continue...")
+                return
+            on_study = True if on_study == 'yes' else False
+            phone_number = input("Enter phone number: ")
+            ema_time = input("Enter EMA time (HH:MM:SS in military time): ")
+            ema_reminder_time = input("Enter EMA reminder time (HH:MM:SS in military time): ")
+            feedback_time = input("Enter feedback time (HH:MM:SS in military time): ")
+            feedback_reminder_time = input("Enter feedback reminder time (HH:MM:SS in military time): ")
+
+            # Validate time formats
+            for time_str in [ema_time, ema_reminder_time, feedback_time, feedback_reminder_time]:
+                try:
+                    time.strptime(time_str, '%H:%M:%S')
+                except ValueError:
+                    print(f"Invalid time format for {time_str}. Please use HH:MM:SS in military time.")
+                    input("Press Enter to continue...")
+                    return
+
+            response = requests.post(f"{self.base_url}/add_participant", json={
+                "first_name": first_name,
+                "on_study": on_study,
+                "last_name": last_name,
+                "unique_id": unique_id,
+                "phone_number": phone_number,
+                "ema_time": ema_time,
+                "ema_reminder_time": ema_reminder_time,
+                "feedback_time": feedback_time,
+                "feedback_reminder_time": feedback_reminder_time
+            })
+
+            if response.status_code == 200:
+                print("Participant added successfully.")
+            else:
+                print(f"Failed to add participant: {response.json().get('error', 'Unknown error')}")
+        except requests.ConnectionError:
+            print("PRISM instance not running.")
+        except Exception as e:
+            print(f"Error: {str(e)}")
+        input("Press Enter to continue...")
 
     def add_system_task(self, task_type, task_time):
         try:

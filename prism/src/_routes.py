@@ -1,4 +1,4 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -229,5 +229,74 @@ def create_flask_app(app_instance):
                 return jsonify({"message": "Participant updated successfully"}), 200
         app_instance.add_to_transcript(f"Participant {unique_id} not found for update", "ERROR")
         return jsonify({"error": "Participant not found"}), 404
+    
+    @flask_app.route('/system/add_participant', methods = ['POST'])
+    def add_participant():
+        data = request.get_json()
+        required_fields = ['unique_id', 'last_name', 'first_name', 'on_study', 'phone_number', 'ema_time', 'ema_reminder_time', 'feedback_time', 'feedback_reminder_time']
+        
+        if not all(field in data for field in required_fields):
+            return jsonify({"error": "Missing required fields"}), 400
+        
+        new_participant = {
+            'unique_id': data['unique_id'],
+            'last_name': data['last_name'],
+            'first_name': data['first_name'],
+            'on_study': data['on_study'],
+            'phone_number': data['phone_number'],
+            'ema_time': data['ema_time'],
+            'ema_reminder_time': data['ema_reminder_time'],
+            'feedback_time': data['feedback_time'],
+            'feedback_reminder_time': data['feedback_reminder_time']
+        }
+        
+        app_instance.participants.append(new_participant)
+
+        # write to the csv file
+        with open('../config/study_participants.csv', 'a') as f:
+            f.write(f'\n"{new_participant["unique_id"]}","{new_participant["last_name"]}","{new_participant["first_name"]}","{new_participant["on_study"]}","{new_participant["phone_number"]}","{new_participant["ema_time"]}","{new_participant["ema_reminder_time"]}","{new_participant["feedback_time"]}","{new_participant["feedback_reminder_time"]}"')
+
+        # Add the participant to the scheduled SMS tasks if they are on study
+        if new_participant['on_study']:
+            participant_name = f"{new_participant['first_name']} {new_participant['last_name']}"
+            participant_id = new_participant['unique_id']
+            participant_phone_number = new_participant['phone_number']
+
+            app_instance.scheduled_sms_tasks.append({
+                'task_type': 'ema',
+                'task_time': datetime.strptime(new_participant['ema_time'], '%H:%M:%S').time(),
+                'participant_name': participant_name,
+                'participant_id': participant_id,
+                'participant_phone_number': participant_phone_number,
+                'run_today': False  # Flag to indicate if the task has run today
+            })
+            app_instance.scheduled_sms_tasks.append({
+                'task_type': 'ema_reminder',
+                'task_time': datetime.strptime(new_participant['ema_reminder_time'], '%H:%M:%S').time(),
+                'participant_name': participant_name,
+                'participant_id': participant_id,
+                'participant_phone_number': participant_phone_number,
+                'run_today': False  # Flag to indicate if the task has run today
+            })
+            app_instance.scheduled_sms_tasks.append({
+                'task_type': 'feedback',
+                'task_time': datetime.strptime(new_participant['feedback_time'], '%H:%M:%S').time(),
+                'participant_name': participant_name,
+                'participant_id': participant_id,
+                'participant_phone_number': participant_phone_number,
+                'run_today': False  # Flag to indicate if the task has run today
+            })
+            app_instance.scheduled_sms_tasks.append({
+                'task_type': 'feedback_reminder',
+                'task_time': datetime.strptime(new_participant['feedback_reminder_time'], '%H:%M:%S').time(),
+                'participant_name': participant_name,
+                'participant_id': participant_id,
+                'participant_phone_number': participant_phone_number,
+                'run_today': False  # Flag to indicate if the task has run today
+            })
+
+        app_instance.add_to_transcript(f"Added new participant via API: {data['first_name']} {data['last_name']}", "INFO")
+        
+        return jsonify({"message": "Participant added successfully"}), 200
 
     return flask_app
