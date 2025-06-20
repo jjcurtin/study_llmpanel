@@ -9,7 +9,8 @@ def create_flask_app(app_instance):
     flask_app = Flask(__name__)
     
     CORS(flask_app, resources = {
-        r"/system/*": {"origins": "localhost:5000"}
+        r"/system/*": {"origins": "localhost:5000"},
+        r"/system/get_uptime": {"origins": "*"}
     })
 
     limiter = Limiter(
