@@ -108,9 +108,6 @@ class PRISM():
     def get_uptime(self):
         return str(datetime.now() - self.start_time)
 
-    def stop(self):
-        self.running = False
-
     def add_to_transcript(self, message, message_type = "INFO"):
         print(f"{message_type} - {message}")
         current_date = datetime.now().strftime('%Y-%m-%d')
@@ -133,7 +130,7 @@ class PRISM():
 
     def handle_shutdown(self, signum, frame):
         self.add_to_transcript("Received shutdown signal. Stopping PRISM application...", "INFO")
-        self.stop()
+        self.running = False
         self.system_task_thread.join(timeout = 5)
         self.sms_task_thread.join(timeout = 5)
         os._exit(0)
