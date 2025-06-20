@@ -430,50 +430,40 @@ class PRISM():
                 task['run_today'] = True
 
     def process_participant_sms(self, sms_task):
-        participant_id = sms_task['participant_id']
+        participant_id = sms_task.get('participant_id')
         if not participant_id:
             self.add_to_transcript("Participant ID is missing in SMS task.", "ERROR")
             return -1
-        else:
-            participant = self.get_participant(participant_id)
 
-            task_type = sms_task['task_type']
-            participant_name = f"{participant['first_name']} {participant['last_name']}"
-            participant_phone_number = participant['phone_number']
-            self.add_to_transcript(f"Processing SMS task: {task_type} for participant {participant_id}", "INFO")
+        participant = self.get_participant(participant_id)
+        task_type = sms_task.get('task_type')
+        participant_name = f"{participant['first_name']} {participant['last_name']}"
+        participant_phone_number = participant['phone_number']
+        self.add_to_transcript(f"Processing SMS task: {task_type} for participant {participant_id}", "INFO")
 
-            if task_type == 'ema' or task_type == 'ema_reminder':
-                survey_id = self.ema_survey_id
-                if task_type == 'ema':
-                    message = "it's time to take your ecological momentary assessment survey."
-                else:
-                    message = "you have not yet completed your ecological momentary assessment survey for today."
-            elif task_type == 'feedback' or task_type == 'feedback_reminder':
-                survey_id = self.feedback_survey_id
-                if task_type == 'feedback':
-                    message = "it's time to take your feedback survey."
-                else:
-                    message = "you have not yet completed your feedback survey for today."
-            else:
-                self.add_to_transcript(f"Unknown SMS task type: {task_type}", "ERROR")
-                return -1
+        task_map = {
+            'ema': (self.ema_survey_id, "it's time to take your ecological momentary assessment survey."),
+            'ema_reminder': (self.ema_survey_id, "you have not yet completed your ecological momentary assessment survey for today."),
+            'feedback': (self.feedback_survey_id, "it's time to take your feedback survey."),
+            'feedback_reminder': (self.feedback_survey_id, "you have not yet completed your feedback survey for today.")
+        }
 
-            survey_link = (
-                f"https://uwmadison.co1.qualtrics.com/jfe/form/{survey_id}?ParticipantID={participant_id}"
-            )
-            body = f"{participant_name}, {message} {survey_link}"
-            try:
-                if self.mode == "prod":
-                    send_sms(
-                        self,
-                        [participant_phone_number],
-                        [body]
-                    )
-                self.add_to_transcript(f"SMS sent to {participant_id}.", "INFO")
-                return 0
-            except Exception as e:
-                self.add_to_transcript(f"Failed to send SMS to {participant_id}: {e}", "ERROR")
-                return -1
+        if task_type not in task_map:
+            self.add_to_transcript(f"Unknown SMS task type: {task_type}", "ERROR")
+            return -1
+
+        survey_id, message = task_map[task_type]
+        survey_link = f"https://uwmadison.co1.qualtrics.com/jfe/form/{survey_id}?ParticipantID={participant_id}"
+        body = f"{participant_name}, {message} {survey_link}"
+
+        try:
+            if self.mode == "prod":
+                send_sms(self, [participant_phone_number], [body])
+            self.add_to_transcript(f"SMS sent to {participant_id}.", "INFO")
+            return 0
+        except Exception as e:
+            self.add_to_transcript(f"Failed to send SMS to {participant_id}: {e}", "ERROR")
+            return -1
 
     def run_participant_sms_processor(self):
         # SMS processing loop
