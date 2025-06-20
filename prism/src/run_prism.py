@@ -441,6 +441,27 @@ class PRISM():
             })
 
         self.add_to_transcript(f"Added new participant via API: {participant['first_name']} {participant['last_name']}", "INFO")
+
+    def remove_participant(self, unique_id):
+        for participant in self.participants:
+            if participant['unique_id'] == unique_id:
+                self.participants.remove(participant)
+
+                # write to the csv file
+                with open('../config/study_participants.csv', 'w') as f:
+                    f.write('"unique_id","last_name","first_name","on_study","phone_number","ema_time","ema_reminder_time","feedback_time","feedback_reminder_time"')
+                    for p in self.participants:
+                        f.write(f'\n"{p["unique_id"]}","{p["last_name"]}","{p["first_name"]}","{p["on_study"]}","{p["phone_number"]}","{p["ema_time"]}","{p["ema_reminder_time"]}","{p["feedback_time"]}","{p["feedback_reminder_time"]}"')
+
+                # Remove the participant's tasks from the scheduled SMS tasks
+                self.scheduled_sms_tasks = [
+                    task for task in self.scheduled_sms_tasks
+                    if task['participant_id'] != unique_id
+                ]
+
+                self.add_to_transcript(f"Removed participant {unique_id} via API", "INFO")
+                return 0
+        return 1
         
     def check_scheduled_sms(self):
         current_time = datetime.now().time()
