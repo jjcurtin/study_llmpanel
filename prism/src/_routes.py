@@ -47,7 +47,7 @@ def create_flask_app(app_instance):
     
     @flask_app.route('/system/get_task_types', methods = ['GET'])
     def get_task_types():
-        if app_instance.hot_reload:
+        if app_instance.mode == "test":
             app_instance.update_task_types()
         task_types = app_instance.task_types
         app_instance.add_to_transcript("Task types requested via API", "INFO")
