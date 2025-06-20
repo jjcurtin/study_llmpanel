@@ -125,7 +125,7 @@ class PRISMInterface():
                         print(f"8: Feedback Time: {participant['feedback_time']}")
                         print(f"9: Feedback Reminder Time: {participant['feedback_reminder_time']}")
 
-                        edit_choice = input("ENTER to return to the participant list. Input 1-8 to edit a field or 'r' to remove participant. ")
+                        edit_choice = input("ENTER to return to the participant list. Input 1-9 to edit a field or 'r' to remove participant. ")
                         if edit_choice == '':
                             break
                         elif edit_choice in ['1', '2', '3', '4', '5', '6', '7', '8', '9']:
