@@ -216,9 +216,7 @@ def create_flask_app(app_instance):
         if not participant:
             return jsonify({"error": "Participant not found"}), 404
         
-        # add to sms queue 
         current_time = datetime.now()
-        # format current time to match the expected format
         current_time = current_time.strftime('%H:%M:%S')
         app_instance.scheduled_sms_tasks.append({
             'task_type': survey_type,
