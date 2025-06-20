@@ -172,25 +172,10 @@ def create_flask_app(app_instance):
     
     @flask_app.route('/system/remove_participant/<unique_id>', methods = ['DELETE'])
     def remove_participant(unique_id):
-        for participant in app_instance.participants:
-            if participant['unique_id'] == unique_id:
-                app_instance.participants.remove(participant)
-
-                # write to the csv file
-                with open('../config/study_participants.csv', 'w') as f:
-                    f.write('"unique_id","last_name","first_name","on_study","phone_number","ema_time","ema_reminder_time","feedback_time","feedback_reminder_time"')
-                    for p in app_instance.participants:
-                        f.write(f'\n"{p["unique_id"]}","{p["last_name"]}","{p["first_name"]}","{p["on_study"]}","{p["phone_number"]}","{p["ema_time"]}","{p["ema_reminder_time"]}","{p["feedback_time"]}","{p["feedback_reminder_time"]}"')
-
-                # Remove the participant's tasks from the scheduled SMS tasks
-                app_instance.scheduled_sms_tasks = [
-                    task for task in app_instance.scheduled_sms_tasks
-                    if task['participant_id'] != unique_id
-                ]
-
-                app_instance.add_to_transcript(f"Removed participant {unique_id} via API", "INFO")
-                return jsonify({"message": "Participant removed successfully"}), 200
-        app_instance.add_to_transcript(f"Participant {unique_id} not found for removal", "ERROR")
-        return jsonify({"error": "Participant not found"}), 404
+        if app_instance.remove_participant(unique_id) == 0:
+            return jsonify({"message": "Participant removed successfully"}), 200
+        else:
+            app_instance.add_to_transcript(f"Participant {unique_id} not found for removal", "ERROR")
+            return jsonify({"error": "Participant not found"}), 404
 
     return flask_app
