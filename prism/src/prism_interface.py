@@ -30,11 +30,25 @@ class PRISMInterface():
             return 1
         except Exception as e:
             return 1
+        
+    def get_mode(self):
+        try:
+            response = requests.get(f"{self.base_url}/get_mode")
+            if response.status_code == 200:
+                self.mode = response.json().get("mode", "Unknown")
+                return 0
+            else:
+                print("Failed to retrieve mode")
+                return 1
+        except requests.ConnectionError:
+            return 1
+        except Exception as e:
+            return 1
 
     def print_main_menu(self):
         self.clear()
         print("PRISM Interface Menu:")
-        print("1: Get PRISM Uptime")
+        print("1: Get PRISM Uptime and Mode")
         print("2: Manage System Tasks")
         print("3: Manage Participants")
         print("4: View Logs")
@@ -274,6 +288,14 @@ class PRISMInterface():
                     print(f"PRISM Uptime: {self.uptime}")
                 else:
                     print("PRISM instance is not running or is not accessible. Please start the PRISM server first.")
+
+                print("Requesting PRISM Mode...")
+                result = self.get_mode()
+                if result == 0:
+                    print(f"PRISM Mode: {self.mode}")
+                else:
+                    print("PRISM instance is not running or is not accessible. Please start the PRISM server first.")
+
                 input("Press Enter to continue...")
 
             # task management menu
