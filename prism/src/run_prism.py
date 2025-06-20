@@ -150,7 +150,6 @@ class PRISM():
 
     # update task types
     def update_task_types(self):
-        self.add_to_transcript("Loading task types...", "INFO")
         self.task_types = {}
         task_files = [f for f in os.listdir('tasks') if f.endswith('.py') and f != '_task.py']
         for task_file in task_files:
@@ -245,9 +244,8 @@ class PRISM():
 
         return result
 
+    # task processing loop
     def run_system_task_processor(self):
-        # task processing loop
-        self.add_to_transcript("Starting system task processor...", "INFO")
         while self.running:
             self.check_scheduled_tasks()
             try:
@@ -264,27 +262,29 @@ class PRISM():
     #######################################
 
     def load_participants(self):
-        self.add_to_transcript("Loading study participants...", "INFO")
-        participants = []
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        with open(os.path.join(current_dir, '..', 'config', 'study_participants.csv'), 'r') as file:
-            lines = file.readlines()
-            for line in lines[1:]:
-                if line.strip():
-                    parts = line.strip().split(',')
-                    participant = {
-                        'unique_id': parts[0].strip('"'),
-                        'last_name': parts[1].strip('"'),
-                        'first_name': parts[2].strip('"'),
-                        'on_study': parts[3].strip('"').lower() == 'true',
-                        'phone_number': parts[4].strip('"'),
-                        'ema_time': parts[5].strip('"'),
-                        'ema_reminder_time': parts[6].strip('"'),
-                        'feedback_time': parts[7].strip('"'),
-                        'feedback_reminder_time': parts[8].strip('"')
-                    }
-                    participants.append(participant)
-        self.participants = participants
+        try:
+            participants = []
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            with open(os.path.join(current_dir, '..', 'config', 'study_participants.csv'), 'r') as file:
+                lines = file.readlines()
+                for line in lines[1:]:
+                    if line.strip():
+                        parts = line.strip().split(',')
+                        participant = {
+                            'unique_id': parts[0].strip('"'),
+                            'last_name': parts[1].strip('"'),
+                            'first_name': parts[2].strip('"'),
+                            'on_study': parts[3].strip('"').lower() == 'true',
+                            'phone_number': parts[4].strip('"'),
+                            'ema_time': parts[5].strip('"'),
+                            'ema_reminder_time': parts[6].strip('"'),
+                            'feedback_time': parts[7].strip('"'),
+                            'feedback_reminder_time': parts[8].strip('"')
+                        }
+                        participants.append(participant)
+            self.participants = participants
+        except Exception as e:
+            self.add_to_transcript(f"Failed to load participants from CSV: {e}", "ERROR")
 
     def schedule_sms_tasks(self):
         self.scheduled_sms_tasks = []
@@ -315,38 +315,42 @@ class PRISM():
         return None
     
     def update_participant(self, unique_id, field, value):
-        participant = self.get_participant(unique_id)
-        if participant:
-            if field in participant:
-                participant[field] = value
-                
-                # Update the participant in the CSV file
-                with open('../config/study_participants.csv', 'w') as f:
-                    f.write('"unique_id","last_name","first_name","on_study","phone_number","ema_time","ema_reminder_time","feedback_time","feedback_reminder_time"')
-                    for p in self.participants:
-                        f.write(f'\n"{p["unique_id"]}","{p["last_name"]}","{p["first_name"]}","{p["on_study"]}","{p["phone_number"]}","{p["ema_time"]}","{p["ema_reminder_time"]}","{p["feedback_time"]}","{p["feedback_reminder_time"]}"')
-                
-                # If the field is a time field, update the participant's scheduled SMS tasks
-                if field in ['ema_time', 'ema_reminder_time', 'feedback_time', 'feedback_reminder_time']:
-                    task_type_map = {
-                        'ema_time': 'ema',
-                        'ema_reminder_time': 'ema_reminder',
-                        'feedback_time': 'feedback',
-                        'feedback_reminder_time': 'feedback_reminder'
-                    }
-                    task_type = task_type_map.get(field)
-                    if task_type:
-                        self.update_participant_task(participant, task_type, field)
-                    else:
-                        self.add_to_transcript(f"Invalid field for time update: {field}", "ERROR")
-                        return 1
-                self.add_to_transcript(f"Updated {field} for participant {unique_id} to {value}.", "INFO")
-                return 0
+        try:
+            participant = self.get_participant(unique_id)
+            if participant:
+                if field in participant:
+                    participant[field] = value
+                    
+                    # Update the participant in the CSV file
+                    with open('../config/study_participants.csv', 'w') as f:
+                        f.write('"unique_id","last_name","first_name","on_study","phone_number","ema_time","ema_reminder_time","feedback_time","feedback_reminder_time"')
+                        for p in self.participants:
+                            f.write(f'\n"{p["unique_id"]}","{p["last_name"]}","{p["first_name"]}","{p["on_study"]}","{p["phone_number"]}","{p["ema_time"]}","{p["ema_reminder_time"]}","{p["feedback_time"]}","{p["feedback_reminder_time"]}"')
+                    
+                    # If the field is a time field, update the participant's scheduled SMS tasks
+                    if field in ['ema_time', 'ema_reminder_time', 'feedback_time', 'feedback_reminder_time']:
+                        task_type_map = {
+                            'ema_time': 'ema',
+                            'ema_reminder_time': 'ema_reminder',
+                            'feedback_time': 'feedback',
+                            'feedback_reminder_time': 'feedback_reminder'
+                        }
+                        task_type = task_type_map.get(field)
+                        if task_type:
+                            self.update_participant_task(participant, task_type, field)
+                        else:
+                            self.add_to_transcript(f"Invalid field for time update: {field}", "ERROR")
+                            return 1
+                    self.add_to_transcript(f"Updated {field} for participant {unique_id} to {value}.", "INFO")
+                    return 0
+                else:
+                    self.add_to_transcript(f"Field {field} does not exist for participant {unique_id}.", "ERROR")
+                    return 1
             else:
-                self.add_to_transcript(f"Field {field} does not exist for participant {unique_id}.", "ERROR")
+                self.add_to_transcript(f"Failed to update participant {unique_id}: Participant not found.", "ERROR")
                 return 1
-        else:
-            self.add_to_transcript(f"Failed to update participant {unique_id}: Participant not found.", "ERROR")
+        except Exception as e:
+            self.add_to_transcript(f"An error occurred while updating participant {unique_id}: {e}", "ERROR")
             return 1
     
     def update_participant_task(self, participant, task_type, time_field):
@@ -371,29 +375,33 @@ class PRISM():
             })
         
     def add_participant(self, participant):
-        self.participants.append(participant)
+        try:
+            self.participants.append(participant)
 
-        # write to the csv file
-        with open('../config/study_participants.csv', 'a') as f:
-            f.write(f'\n"{participant["unique_id"]}","{participant["last_name"]}","{participant["first_name"]}","{participant["on_study"]}","{participant["phone_number"]}","{participant["ema_time"]}","{participant["ema_reminder_time"]}","{participant["feedback_time"]}","{participant["feedback_reminder_time"]}"')
+            # write to the csv file
+            with open('../config/study_participants.csv', 'a') as f:
+                f.write(f'\n"{participant["unique_id"]}","{participant["last_name"]}","{participant["first_name"]}","{participant["on_study"]}","{participant["phone_number"]}","{participant["ema_time"]}","{participant["ema_reminder_time"]}","{participant["feedback_time"]}","{participant["feedback_reminder_time"]}"')
 
-        # Add the participant to the scheduled SMS tasks if they are on study
-        if participant['on_study']:
-            participant_id = participant['unique_id']
-            task_definitions = [
-                ('ema', 'ema_time'),
-                ('ema_reminder', 'ema_reminder_time'),
-                ('feedback', 'feedback_time'),
-                ('feedback_reminder', 'feedback_reminder_time')
-            ]
-            for task_type, field_name in task_definitions:
-                self.scheduled_sms_tasks.append({
-                    'task_type': task_type,
-                    'task_time': datetime.strptime(participant[field_name], '%H:%M:%S').time(),
-                    'participant_id': participant_id,
-                    'run_today': False
-                })
-        self.add_to_transcript(f"Added new participant via API: {participant['first_name']} {participant['last_name']}", "INFO")
+            # Add the participant to the scheduled SMS tasks if they are on study
+            if participant['on_study']:
+                participant_id = participant['unique_id']
+                task_definitions = [
+                    ('ema', 'ema_time'),
+                    ('ema_reminder', 'ema_reminder_time'),
+                    ('feedback', 'feedback_time'),
+                    ('feedback_reminder', 'feedback_reminder_time')
+                ]
+                for task_type, field_name in task_definitions:
+                    self.scheduled_sms_tasks.append({
+                        'task_type': task_type,
+                        'task_time': datetime.strptime(participant[field_name], '%H:%M:%S').time(),
+                        'participant_id': participant_id,
+                        'run_today': False
+                    })
+            self.add_to_transcript(f"Added new participant via API: {participant['first_name']} {participant['last_name']}", "INFO")
+        except Exception as e:
+            self.add_to_transcript(f"Failed to add participant: {e}", "ERROR")
+            return 1
 
     def remove_participant(self, unique_id):
         participant = self.get_participant(unique_id)
@@ -478,7 +486,6 @@ class PRISM():
 
     def run_participant_sms_processor(self):
         # SMS processing loop
-        self.add_to_transcript("Starting participant SMS processor...", "INFO")
         while self.running:
             self.check_scheduled_sms()
             try:
@@ -505,13 +512,10 @@ if __name__ == "__main__":
 
     if mode == "prod":
         ngrok.set_auth_token(prism.ngrok_auth_token)
-        prism.add_to_transcript("Starting Ngrok tunnel...", "INFO")
         subprocess.Popen(
             ["ngrok", "http", f"--url={prism.ngrok_domain}", "5000"], 
             stdout = subprocess.DEVNULL,
             stderr = subprocess.DEVNULL
         )
-        prism.add_to_transcript(f"Ngrok tunnel started at {prism.ngrok_domain}", "INFO")
     
     serve(prism.flask_app, host = '127.0.0.1', port = 5000)
-    prism.add_to_transcript(f"PRISM started with {len(prism.scheduled_tasks)} scheduled system tasks", "INFO")
