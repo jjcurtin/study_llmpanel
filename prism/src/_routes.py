@@ -27,6 +27,7 @@ def create_flask_app(app_instance):
 
     @flask_app.route('/system/get_mode', methods = ['GET'])
     def get_mode():
+        app_instance.add_to_transcript("Mode requested via API", "INFO")
         return jsonify({'mode': app_instance.mode}), 200
     
     @flask_app.route('/system/uptime', methods = ['GET'])

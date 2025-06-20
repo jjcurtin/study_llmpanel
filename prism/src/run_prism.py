@@ -6,7 +6,7 @@ from _routes import create_flask_app
 import pandas as pd
 import importlib
 from waitress import serve
-from _helper import send_sms
+from _helper import send_sms, clear
 import signal
 from pyngrok import ngrok
 import subprocess
@@ -14,7 +14,7 @@ import argparse
 
 class PRISM():
     def __init__(self, mode = "test"):
-        self.clear()
+        clear()
         self.add_to_transcript("Initializing PRISM application...", "INFO")
         self.mode = mode
 
@@ -107,9 +107,6 @@ class PRISM():
 
     def get_uptime(self):
         return str(datetime.now() - self.start_time)
-    
-    def clear(self):
-        os.system('cls' if os.name == 'nt' else 'clear')
 
     def stop(self):
         self.running = False
