@@ -14,7 +14,7 @@ class Task:
         self.outcome = status
         self.app.add_to_transcript(f"{self.task_type} #{self.task_number} completed with status: {status}.", "INFO")
 
-        if self.app.notify_coordinators:
+        if self.app.mode == "prod":
             sms_result = self.notify_via_sms()
             if sms_result != 0:
                 self.app.add_to_transcript(f"Failed to send {sms_result} SMS notifications.", "ERROR")
