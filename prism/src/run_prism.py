@@ -147,39 +147,34 @@ class PRISM():
 
     # schedule tasks from file
     def load_task_schedule(self):
-        tasks = []
         current_dir = os.path.dirname(os.path.abspath(__file__))
         config_path = os.path.join(current_dir, '..', 'config', 'system_task_schedule.csv')
+        self.scheduled_tasks = []
         try:
             with open(config_path, 'r') as file:
-                lines = file.readlines()
-                # Skip header line
-                for line in lines[1:]:
-                    if line.strip():  # Skip empty lines
-                        task_type, task_time = line.strip().split(',')
-                        tasks.append((task_type.strip('"'), task_time.strip('"')))
+                next(file)  # skip header
+                for line in file:
+                    if not line.strip():
+                        continue
+                    try:
+                        task_type, task_time_str = [x.strip('"') for x in line.strip().split(',')]
+                        task_time = datetime.strptime(task_time_str, '%H:%M:%S').time()
+                        if task_type not in self.task_types:
+                            self.add_to_transcript(f"Unknown task type: {task_type}", "ERROR")
+                            continue
+                        self.scheduled_tasks.append({
+                            'task_type': task_type,
+                            'task_time': task_time,
+                            'run_today': False
+                        })
+                    except ValueError:
+                        self.add_to_transcript(f"Invalid time format for task {task_type}: {task_time_str}", "ERROR")
+                    except Exception as e:
+                        self.add_to_transcript(f"Error scheduling task {task_type}: {e}", "ERROR")
         except FileNotFoundError:
             self.add_to_transcript(f"Task schedule file not found at: {config_path}", "ERROR")
-            return []
         except Exception as e:
             self.add_to_transcript(f"An error occurred while loading the task schedule: {e}", "ERROR")
-            return []
-
-        # Store scheduled tasks with their times
-        self.scheduled_tasks = []
-        for task_type, task_time_str in tasks:
-            try:
-                task_time = datetime.strptime(task_time_str, '%H:%M:%S').time()
-                self.scheduled_tasks.append({
-                    'task_type': task_type,
-                    'task_time': task_time,
-                    'run_today': False  # Flag to indicate if the task has run today
-                })
-            except ValueError:
-                self.add_to_transcript(f"Invalid time format for task {task_type}: {task_time_str}", "ERROR")
-            except Exception as e:
-                self.add_to_transcript(f"An error occurred while scheduling task {task_type}: {e}", "ERROR")
-        return tasks
 
     # add tasks to the queue when it is time to run it
     def check_scheduled_tasks(self):
