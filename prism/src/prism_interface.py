@@ -5,46 +5,24 @@ from _helper import clear
 class PRISMInterface:
     def __init__(self):
         self.base_url = "http://localhost:5000/system"
-        if self.api_get("uptime") is None:
+        if self.api("GET", "uptime") is None:
             print("PRISM instance is not running or is not accessible. Please start the PRISM server first.")
         self.run()
 
-    def api_get(self, endpoint):
+    def api(self, method, endpoint, json=None):
         try:
-            r = requests.get(f"{self.base_url}/{endpoint}")
-            if r.status_code == 200:
-                return r.json()
-        except requests.ConnectionError:
-            pass
-        except Exception:
-            pass
-        return None
+            url = f"{self.base_url}/{endpoint}"
+            if method == "GET":
+                r = requests.get(url)
+            elif method == "POST":
+                r = requests.post(url, json=json)
+            elif method == "PUT":
+                r = requests.put(url)
+            elif method == "DELETE":
+                r = requests.delete(url)
+            else:
+                raise ValueError("Invalid HTTP method")
 
-    def api_post(self, endpoint, json=None):
-        try:
-            r = requests.post(f"{self.base_url}/{endpoint}", json=json)
-            if r.status_code == 200:
-                return r.json()
-        except requests.ConnectionError:
-            pass
-        except Exception:
-            pass
-        return None
-
-    def api_put(self, endpoint):
-        try:
-            r = requests.put(f"{self.base_url}/{endpoint}")
-            if r.status_code == 200:
-                return r.json()
-        except requests.ConnectionError:
-            pass
-        except Exception:
-            pass
-        return None
-
-    def api_delete(self, endpoint):
-        try:
-            r = requests.delete(f"{self.base_url}/{endpoint}")
             if r.status_code == 200:
                 return r.json()
         except requests.ConnectionError:
@@ -70,7 +48,7 @@ class PRISMInterface:
     def print_system_task_schedule(self):
         clear()
         print("System Task Schedule:")
-        tasks = self.api_get("get_task_schedule")
+        tasks = self.api("GET", "get_task_schedule")
         if tasks and "tasks" in tasks:
             self.scheduled_tasks = tasks["tasks"]
             if self.scheduled_tasks:
@@ -83,21 +61,21 @@ class PRISMInterface:
         print("\n1: Add New Task\n2: Remove Task\n3: Execute Task Now\n\nENTER: Back to Main Menu")  
 
     def add_system_task(self, task_type, task_time):
-        if self.api_post(f"add_system_task/{task_type}/{task_time}"):
+        if self.api("POST", f"add_system_task/{task_type}/{task_time}"):
             print("Task added.")
         else:
             print("Failed to add task.")
         input("Press Enter to continue...")
 
     def remove_system_task(self, task_type, task_time):
-        if self.api_delete(f"remove_system_task/{task_type}/{task_time}"):
+        if self.api("DELETE", f"remove_system_task/{task_type}/{task_time}"):
             print("Task removed.")
         else:
             print("Failed to remove task.")
         input("Press Enter to continue...")
 
     def get_task_types(self):
-        data = self.api_get("get_task_types")
+        data = self.api("GET", "get_task_types")
         return data.get("task_types", {}) if data else {}      
 
     ####################
@@ -105,7 +83,7 @@ class PRISMInterface:
     ####################
 
     def print_participant_schedule(self, participant_id):
-        data = self.api_get(f"get_participant/{participant_id}")
+        data = self.api("GET", f"get_participant/{participant_id}")
         participant = data.get("participant") if data else None
         if not participant:
             print("Failed to retrieve participant schedule.")
@@ -129,7 +107,7 @@ class PRISMInterface:
             elif choice in field_map:
                 field = field_map[choice]
                 new_val = input(f"Enter new value for {field}: ")
-                if self.api_put(f"update_participant/{participant_id}/{field}/{new_val}"):
+                if self.api("PUT", f"update_participant/{participant_id}/{field}/{new_val}"):
                     participant[field] = new_val
                     print("Participant updated.")
                 else:
@@ -137,7 +115,7 @@ class PRISMInterface:
                 input("Press Enter to continue...")
             elif choice.lower() == 'r':
                 if input("Remove participant? (yes/no): ").strip().lower() == 'yes':
-                    if self.api_delete(f"remove_participant/{participant_id}"):
+                    if self.api("DELETE", f"remove_participant/{participant_id}"):
                         print("Participant removed.")
                         input("Press Enter to continue...")
                         break
@@ -147,7 +125,7 @@ class PRISMInterface:
             elif choice.lower() == 's':
                 survey_type = input("Enter survey type (ema/feedback): ").strip().lower()
                 if survey_type in ['ema', 'feedback']:
-                    if self.api_post(f"send_survey/{participant_id}/{survey_type}"):
+                    if self.api("POST", f"send_survey/{participant_id}/{survey_type}"):
                         print(f"{survey_type.capitalize()} survey sent.")
                     else:
                         print(f"Failed to send {survey_type} survey.")
@@ -182,7 +160,7 @@ class PRISMInterface:
                 input("Press Enter to continue...")
                 return
         payload = dict(first_name=first_name, last_name=last_name, unique_id=unique_id, on_study=on_study, phone_number=phone_number, **times)
-        if self.api_post("add_participant", json=payload):
+        if self.api("POST", "add_participant", json=payload):
             print("Participant added.")
         else:
             print("Failed to add participant.")
@@ -196,12 +174,12 @@ class PRISMInterface:
             # get mode and uptime
             if choice == '1':
                 clear()
-                uptime_data = self.api_get("uptime")
+                uptime_data = self.api("GET", "uptime")
                 if uptime_data:
                     print(f"PRISM Uptime: {uptime_data.get('uptime', 'Unknown')}")
                 else:
                     print("PRISM not running or inaccessible.")
-                mode_data = self.api_get("get_mode")
+                mode_data = self.api("GET", "get_mode")
                 if mode_data:
                     print(f"PRISM Mode: {mode_data.get('mode', 'Unknown')}")
                 else:
@@ -261,7 +239,7 @@ class PRISMInterface:
                             input("Press Enter to continue...")
                             continue
                         task_type = list(task_types.keys())[int(idx)-1]
-                        if self.api_post(f"execute_task/{task_type}"):
+                        if self.api("POST", f"execute_task/{task_type}"):
                             print(f"Task {task_type} executed.")
                         else:
                             print("Failed to execute task.")
@@ -276,7 +254,7 @@ class PRISMInterface:
             elif choice == '3':
                 while True:
                     clear()
-                    data = self.api_get("get_participants")
+                    data = self.api("GET", "get_participants")
                     participants = data.get("participants", []) if data else []
                     print("Participant List:")
                     if participants:
@@ -312,7 +290,7 @@ class PRISMInterface:
                             print("Invalid number.")
                             input("Press Enter to continue...")
                             continue
-                        data = self.api_get(f"get_transcript/{lines}")
+                        data = self.api("GET", f"get_transcript/{lines}")
                         if data and "transcript" in data:
                             print("Today's Transcript:")
                             for entry in data["transcript"]:
@@ -327,10 +305,10 @@ class PRISMInterface:
             # Shutdown PRISM
             elif choice == '5':
                 clear()
-                if self.api_get("uptime") is not None:
+                if self.api("GET", "uptime") is not None:
                     if input("Shutdown PRISM? (yes/no): ").strip().lower() == 'yes':
                         try:
-                            self.api_post("shutdown")
+                            self.api("POST", "shutdown")
                             print("PRISM shut down.")
                             exit(0)
                         except requests.ConnectionError:
