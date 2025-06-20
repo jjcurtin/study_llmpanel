@@ -62,13 +62,11 @@ def create_flask_app(app_instance):
         except ValueError:
             return jsonify({"error": "Invalid time format"}), 400
         
-        # format to military time and time object
         task_time = task_time.time()
-        
         app_instance.scheduled_tasks.append({
             'task_type': task_type,
             'task_time': task_time,
-            'run_today': False  # Flag to indicate if the task has run today
+            'run_today': False
         })
 
         # write to the csv file
@@ -98,6 +96,7 @@ def create_flask_app(app_instance):
                         f.write('"task_type","task_time"')
                         for t in app_instance.scheduled_tasks:
                             f.write(f'\n"{t["task_type"]}","{t["task_time"].strftime('%H:%M:%S')}"')
+                    
                     app_instance.add_to_transcript(f"Removed task: {task_type} at {task_time.strftime('%H:%M:%S')}", "INFO")
                     return jsonify({"message": "Task removed via API successfully"}), 200
         except Exception as e:
@@ -185,7 +184,6 @@ def create_flask_app(app_instance):
         transcript_path = f'../logs/transcripts/{today_date}_transcript.txt'
         try:
             with open(transcript_path, 'r') as f:
-                # get last 50 lines of the transcript and create an array
                 num_lines = int(num_lines)
                 content = f.read().splitlines()[-num_lines:]
                 if not content:
@@ -199,7 +197,6 @@ def create_flask_app(app_instance):
         
     @flask_app.route('/system/shutdown', methods = ['POST'])
     def shutdown():
-        # send a sigint to the app instance to shutdown (actually send one)
         app_instance.add_to_transcript("Shutdown requested via API", "INFO")
         app_instance.shutdown()
         return jsonify({"message": "Shutdown initiated"}), 200
