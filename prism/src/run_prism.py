@@ -19,8 +19,7 @@ class PRISM():
         self.mode = mode
 
         # make sure you are running in the src directory
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        if not current_dir.endswith('src'):
+        if not os.path.dirname(os.path.abspath(__file__)).endswith('src'):
             self.add_to_transcript("Please run this script from the 'src' directory.", "ERROR")
             exit(1)
 
@@ -104,24 +103,24 @@ class PRISM():
         }, "Ngrok")
 
     def add_to_transcript(self, message, message_type = "INFO"):
-        print(f"{message_type} - {message}")
+        transcript_message = f"{message_type} - {message}"
+        print(transcript_message)
         current_date = datetime.now().strftime('%Y-%m-%d')
-        transcript_path = f'../logs/transcripts/{current_date}_transcript.txt'
-        with open(transcript_path, 'a') as file:
-            file.write(f"{datetime.now().strftime('%H:%M:%S')} - {message_type} - {message}\n")
+        with open(f'../logs/transcripts/{current_date}_transcript.txt', 'a') as file:
+            file.write(f"{datetime.now().strftime('%H:%M:%S')} - {transcript_message}\n")
 
     def clear_all_run_today_flags(self, system_tasks = False, sms_tasks = False):
         # Clear the run_today flag for all scheduled tasks
         if system_tasks:
             for task in self.scheduled_tasks:
                 task['run_today'] = False
+            self.add_to_transcript("Cleared run_today flags for all system tasks.", "INFO")
 
         # Clear the run_today flag for all scheduled SMS tasks
         if sms_tasks:
             for sms_task in self.scheduled_sms_tasks:
                 sms_task['run_today'] = False
-
-        self.add_to_transcript("Cleared all run_today flags for system and SMS tasks.", "INFO")
+            self.add_to_transcript("Cleared run_today flags for all SMS tasks.", "INFO")
 
     def handle_shutdown(self, signum, frame):
         self.add_to_transcript("Received shutdown signal. Stopping PRISM application...", "INFO")
