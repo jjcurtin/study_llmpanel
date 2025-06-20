@@ -39,7 +39,7 @@ class PRISMInterface():
         print("PRISM Interface Menu:")
         print("1. Get PRISM Uptime")
         print("2. Manage System Tasks")
-        print("3. Manage Participant Tasks")
+        print("3. Manage Participants")
         print("4. Exit")
         print()
 
@@ -70,6 +70,86 @@ class PRISMInterface():
         print("2. Remove Task")
         print("3. Execute Task Now")
         print("4. Back to Main Menu")
+        print()
+
+    def print_participant_list(self):
+        while True:
+            self.clear()
+            print("Participant List:")
+            try:
+                response = requests.get(f"{self.base_url}/get_participants")
+                if response.status_code == 200:
+                    participants = response.json().get("participants", [])
+                    if participants:
+                        for idx, participant in enumerate(participants, start=1):
+                            print(f"{idx}: {participant['last_name']}, {participant['first_name']} (ID: {participant['unique_id']}) - On Study: {participant['on_study']}")
+                    else:
+                        print("No participants found.")
+                else:
+                    print("Failed to retrieve participant list.")
+            except requests.ConnectionError:
+                print("PRISM instance not running.")
+            except Exception as e:
+                print(f"Error: {str(e)}")
+            print()
+            participant_choice = input("Enter the index of the participant to view their information or hit ENTER to return: ")
+            if participant_choice.isdigit():
+                #  map participant choice to participant ID
+                participant_choice = int(participant_choice) - 1
+                self.print_participant_schedule(participants[participant_choice]['unique_id'])
+            elif participant_choice == '':
+                break
+
+
+    def print_participant_schedule(self, participant_id):
+        try:
+            response = requests.get(f"{self.base_url}/get_participant/{participant_id}")
+            if response.status_code == 200:
+                participant = response.json().get("participant", [])
+                if participant:
+                    while True:
+                        self.clear()
+                        print(f"Information for Participant ID {participant_id}:")
+                        print(f"1: First Name: {participant['first_name']}")
+                        print(f"2: Last Name: {participant['last_name']}")
+                        print(f"3: Unique ID: {participant['unique_id']}")
+                        print(f"4: On Study: {participant['on_study']}")
+                        print(f"5: Phone Number: {participant['phone_number']}")
+                        print(f"6: EMA Time: {participant['ema_time']}")
+                        print(f"7: EMA Reminder Time: {participant['ema_reminder_time']}")
+                        print(f"8: Feedback Time: {participant['feedback_time']}")
+                        print(f"9: Feedback Reminder Time: {participant['feedback_reminder_time']}")
+
+                        edit_choice = input("ENTER to return to the participant list. Input 1-8 to edit a field. ")
+                        if edit_choice == '':
+                            break
+                        elif edit_choice in ['1', '2', '3', '4', '5', '6', '7', '8', '9']:
+                            field_map = {
+                                '1': 'first_name',
+                                '2': 'last_name',
+                                '3': 'unique_id',
+                                '4': 'on_study',
+                                '5': 'phone_number',
+                                '6': 'ema_time',
+                                '7': 'ema_reminder_time',
+                                '8': 'feedback_time',
+                                '9': 'feedback_reminder_time'
+                            }
+                            field = field_map[edit_choice]
+                            new_value = input(f"Enter new value for {field}: ")
+                            response = requests.put(f"{self.base_url}/update_participant/{participant_id}/{field}/{new_value}")
+                            participant[field] = new_value  # Update local participant data
+                            if response.status_code == 200:
+                                print("Participant updated successfully.")
+                            else:
+                                print(f"Failed to update participant: {response.json().get('error', 'Unknown error')}")
+
+            else:
+                print("Failed to retrieve participant schedule.")
+        except requests.ConnectionError:
+            print("PRISM instance not running.")
+        except Exception as e:
+            print(f"Error: {str(e)}")
         print()
 
     def add_system_task(self, task_type, task_time):
@@ -220,8 +300,7 @@ class PRISMInterface():
 
             # manage participant tasks
             elif choice == '3':
-                print("Participant task management is not implemented yet.")
-                input("Press Enter to continue...")
+                self.print_participant_list()
 
             # exit the interface
             elif choice == '4':
