@@ -8,10 +8,15 @@ from datetime import datetime
 def create_flask_app(app_instance):
     flask_app = Flask(__name__)
     
-    CORS(flask_app, resources = {
-        r"/system/*": {"origins": "localhost:5000"},
-        r"/system/get_uptime": {"origins": "*"}
-    })
+    if app_instance.mode == "prod":
+        CORS(flask_app, resources = {
+            r"/system/*": {"origins": "localhost:5000"},
+            r"/system/get_uptime": {"origins": "*"}
+        })
+    else:
+        CORS(flask_app, resources = {
+            r"/system/*": {"origins": "localhost:5000"},
+        })
 
     limiter = Limiter(
         get_remote_address,
