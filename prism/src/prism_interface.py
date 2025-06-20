@@ -1,6 +1,7 @@
 import requests
 import os
 import time
+from _helper import clear
 
 class PRISMInterface():
     def __init__(self):
@@ -13,9 +14,6 @@ class PRISMInterface():
             print("PRISM instance is not running or is not accessible. Please start the PRISM server first.")
 
         self.run()
-
-    def clear(self):
-        os.system('cls' if os.name == 'nt' else 'clear')
 
     def get_uptime(self):
         try:
@@ -46,7 +44,7 @@ class PRISMInterface():
             return 1
 
     def print_main_menu(self):
-        self.clear()
+        clear()
         print("PRISM Interface Menu:")
         print("1: Get PRISM Uptime and Mode")
         print("2: Manage System Tasks")
@@ -57,7 +55,7 @@ class PRISMInterface():
         print()
 
     def print_system_task_schedule(self):
-        self.clear()
+        clear()
         print("System Task Schedule:")
         try:
             response = requests.get(f"{self.base_url}/get_task_schedule")
@@ -87,7 +85,7 @@ class PRISMInterface():
 
     def print_participant_list(self):
         while True:
-            self.clear()
+            clear()
             print("Participant List:")
             try:
                 response = requests.get(f"{self.base_url}/get_participants")
@@ -128,7 +126,7 @@ class PRISMInterface():
                 participant = response.json().get("participant", [])
                 if participant:
                     while True:
-                        self.clear()
+                        clear()
                         print(f"Information for Participant ID {participant_id}:")
                         print(f"1: First Name: {participant['first_name']}")
                         print(f"2: Last Name: {participant['last_name']}")
@@ -184,7 +182,7 @@ class PRISMInterface():
 
     def add_participant(self):
         try:
-            self.clear()
+            clear()
             print("Add New Participant")
             first_name = input("Enter first name: ")
             last_name = input("Enter last name: ")
@@ -281,7 +279,7 @@ class PRISMInterface():
 
             # get system uptime
             if choice == '1':
-                self.clear()
+                clear()
                 print("Requesting PRISM Uptime...")
                 result = self.get_uptime()
                 if result == 0:
@@ -397,7 +395,7 @@ class PRISMInterface():
             # view logs
             elif choice == '4':
                 while True:
-                    self.clear()
+                    clear()
                     print("View Logs")
                     # options are: today's transcript, ema log, and feedback log
                     print("1: Today's Transcript")
@@ -430,7 +428,7 @@ class PRISMInterface():
 
             # shutdown PRISM
             elif choice == '5':
-                self.clear()
+                clear()
                 print("Shutdown PRISM")
                 currently_running = self.get_uptime()
                 if currently_running == 0:

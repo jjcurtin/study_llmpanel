@@ -1,4 +1,5 @@
 from twilio.rest import Client
+import os
 
 def send_sms(app, receiver_numbers, messages):
     account_sid = app.twilio_account_sid
@@ -17,3 +18,6 @@ def send_sms(app, receiver_numbers, messages):
             result += 1
 
     return result
+
+def clear():
+    os.system('cls' if os.name == 'nt' else 'clear')
