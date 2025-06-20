@@ -129,6 +129,8 @@ class PRISMInterface():
                         edit_choice = input("ENTER to return to the participant list. Input 1-9 to edit a field or 'r' to remove participant. ")
                         if edit_choice == '':
                             break
+                        
+                        # edit participant information
                         elif edit_choice in ['1', '2', '3', '4', '5', '6', '7', '8', '9']:
                             field_map = {
                                 '1': 'first_name',
@@ -149,6 +151,8 @@ class PRISMInterface():
                                 print("Participant updated successfully.")
                             else:
                                 print(f"Failed to update participant: {response.json().get('error', 'Unknown error')}")
+                        
+                        # remove participant
                         elif edit_choice.lower() == 'r':
                             confirm = input("Are you sure you want to remove this participant? (yes/no): ").strip().lower()
                             if confirm == 'yes':
@@ -156,7 +160,6 @@ class PRISMInterface():
                                 if response.status_code == 200:
                                     print("Participant removed successfully.")
                                     break
-
             else:
                 print("Failed to retrieve participant schedule.")
         except requests.ConnectionError:

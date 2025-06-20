@@ -48,6 +48,7 @@ class PRISM():
         # set up participant sms thread
         self.participants = []
         self.load_participants()
+        self.schedule_sms_tasks()
         self.sms_queue = queue.Queue()
         self.sms_task_thread = threading.Thread(target = self.run_participant_sms_processor)
         self.sms_task_thread.start()
@@ -261,8 +262,6 @@ class PRISM():
     #######################################
 
     def load_participants(self):
-        # ../config/study_participants.csv contains the following information:
-        # "unique_id","last_name","first_name","on_study","phone_number","ema_time","ema_reminder_time","feedback_time","feedback_reminder_time"
         self.add_to_transcript("Loading study participants...", "INFO")
         participants = []
         current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -285,35 +284,26 @@ class PRISM():
                     participants.append(participant)
         self.participants = participants
 
-        # schedule SMS tasks for each participant
+    def schedule_sms_tasks(self):
         self.scheduled_sms_tasks = []
         for participant in self.participants:
-            # split up each participant into four separate tasks
             if participant['on_study']:
-
-                participant_name = f"{participant['first_name']} {participant['last_name']}"
                 participant_id = participant['unique_id']
-                participant_phone_number = participant['phone_number']
-
                 task_definitions = [
                     ('ema', 'ema_time'),
                     ('ema_reminder', 'ema_reminder_time'),
                     ('feedback', 'feedback_time'),
                     ('feedback_reminder', 'feedback_reminder_time')
                 ]
-
                 for task_type, time_key in task_definitions:
                     task_time_str = participant.get(time_key)
                     if task_time_str:
                         self.scheduled_sms_tasks.append({
                             'task_type': task_type,
                             'task_time': datetime.strptime(task_time_str, '%H:%M:%S').time(),
-                            'participant_name': participant_name,
                             'participant_id': participant_id,
-                            'participant_phone_number': participant_phone_number,
-                            'run_today': False  # Flag to indicate if the task has run today
+                            'run_today': False
                         })
-
 
     def get_participant(self, unique_id):
         for participant in self.participants:
@@ -371,15 +361,10 @@ class PRISM():
         
         time_str = participant.get(time_field)
         if time_str:
-            participant_name = f"{participant['first_name']} {participant['last_name']}"
-            participant_phone_number = participant['phone_number']
-            
             self.scheduled_sms_tasks.append({
                 'task_type': task_type,
                 'task_time': datetime.strptime(time_str, '%H:%M:%S').time(),
-                'participant_name': participant_name,
                 'participant_id': participant_id,
-                'participant_phone_number': participant_phone_number,
                 'run_today': False
             })
         
@@ -392,25 +377,19 @@ class PRISM():
 
         # Add the participant to the scheduled SMS tasks if they are on study
         if participant['on_study']:
-            participant_name = f"{participant['first_name']} {participant['last_name']}"
             participant_id = participant['unique_id']
-            participant_phone_number = participant['phone_number']
-
             task_definitions = [
                 ('ema', 'ema_time'),
                 ('ema_reminder', 'ema_reminder_time'),
                 ('feedback', 'feedback_time'),
                 ('feedback_reminder', 'feedback_reminder_time')
             ]
-
             for task_type, field_name in task_definitions:
                 self.scheduled_sms_tasks.append({
                     'task_type': task_type,
                     'task_time': datetime.strptime(participant[field_name], '%H:%M:%S').time(),
-                    'participant_name': participant_name,
                     'participant_id': participant_id,
-                    'participant_phone_number': participant_phone_number,
-                    'run_today': False  # Flag to indicate if the task has run today
+                    'run_today': False
                 })
         self.add_to_transcript(f"Added new participant via API: {participant['first_name']} {participant['last_name']}", "INFO")
 
@@ -423,6 +402,7 @@ class PRISM():
                 f.write('"unique_id","last_name","first_name","on_study","phone_number","ema_time","ema_reminder_time","feedback_time","feedback_reminder_time"')
                 for p in self.participants:
                     f.write(f'\n"{p["unique_id"]}","{p["last_name"]}","{p["first_name"]}","{p["on_study"]}","{p["phone_number"]}","{p["ema_time"]}","{p["ema_reminder_time"]}","{p["feedback_time"]}","{p["feedback_reminder_time"]}"')
+            
             # Remove the participant's tasks from the scheduled SMS tasks
             self.scheduled_sms_tasks = [
                 task for task in self.scheduled_sms_tasks
