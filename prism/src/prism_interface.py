@@ -125,7 +125,7 @@ class PRISMInterface():
                         print(f"8: Feedback Time: {participant['feedback_time']}")
                         print(f"9: Feedback Reminder Time: {participant['feedback_reminder_time']}")
 
-                        edit_choice = input("ENTER to return to the participant list. Input 1-8 to edit a field. ")
+                        edit_choice = input("ENTER to return to the participant list. Input 1-8 to edit a field or 'r' to remove participant. ")
                         if edit_choice == '':
                             break
                         elif edit_choice in ['1', '2', '3', '4', '5', '6', '7', '8', '9']:
@@ -148,6 +148,13 @@ class PRISMInterface():
                                 print("Participant updated successfully.")
                             else:
                                 print(f"Failed to update participant: {response.json().get('error', 'Unknown error')}")
+                        elif edit_choice.lower() == 'r':
+                            confirm = input("Are you sure you want to remove this participant? (yes/no): ").strip().lower()
+                            if confirm == 'yes':
+                                response = requests.delete(f"{self.base_url}/remove_participant/{participant_id}")
+                                if response.status_code == 200:
+                                    print("Participant removed successfully.")
+                                    break
 
             else:
                 print("Failed to retrieve participant schedule.")
