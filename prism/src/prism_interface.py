@@ -9,10 +9,9 @@ class PRISMInterface():
         self.base_url = "http://localhost:5000/system"
 
         # send a get_uptime request to the PRISM instance using the base_url to see if it is running
-        self.get_uptime()
-        if self.uptime == "PRISM instance not running":
-            print("PRISM instance is not running. Please start the PRISM server first.")
-            exit()
+        result = self.get_uptime()
+        if result == 1:
+            print("PRISM instance is not running or is not accessible. Please start the PRISM server first.")
 
         self.run()
 
@@ -24,15 +23,14 @@ class PRISMInterface():
             response = requests.get(f"{self.base_url}/uptime")
             if response.status_code == 200:
                 self.uptime = response.json().get("uptime", "Unknown")
+                return 0
             else:
                 print("Failed to retrieve uptime")
-                exit()
+                return 1
         except requests.ConnectionError:
-            print("PRISM instance not running")
-            exit()
+            return 1
         except Exception as e:
-            print(f"Error: {str(e)}")
-            exit()
+            return 1
 
     def print_main_menu(self):
         self.clear()
@@ -269,8 +267,11 @@ class PRISMInterface():
             if choice == '1':
                 self.clear()
                 print("Requesting PRISM Uptime...")
-                self.get_uptime()
-                print(f"PRISM Uptime: {self.uptime}")   
+                result = self.get_uptime()
+                if result == 0:
+                    print(f"PRISM Uptime: {self.uptime}")
+                else:
+                    print("PRISM instance is not running or is not accessible. Please start the PRISM server first.")
                 input("Press Enter to continue...")
 
             # task management menu
@@ -407,18 +408,22 @@ class PRISMInterface():
             elif choice == '5':
                 self.clear()
                 print("Shutdown PRISM")
-                confirm = input("Are you sure you want to shutdown PRISM? (yes/no): ").strip().lower()
-                if confirm == 'yes':
-                    try:
-                        response = requests.post(f"{self.base_url}/shutdown")
-                        print("Failed to shutdown PRISM.")
-                    except requests.ConnectionError:
-                        print("PRISM has been shut down successfully.")
-                        exit(0)
-                    except Exception as e:
-                        print(f"Error: {str(e)}")
+                currently_running = self.get_uptime()
+                if currently_running == 0:
+                    confirm = input("Are you sure you want to shutdown PRISM? (yes/no): ").strip().lower()
+                    if confirm == 'yes':
+                        try:
+                            response = requests.post(f"{self.base_url}/shutdown")
+                            print("Failed to shutdown PRISM.")
+                        except requests.ConnectionError:
+                            print("PRISM has been shut down successfully.")
+                            exit(0)
+                        except Exception as e:
+                            print(f"Error: {str(e)}")
+                    else:
+                        print("Shutdown cancelled.")
                 else:
-                    print("Shutdown cancelled.")
+                    print("PRISM instance is not running. Cannot shutdown.")
                 input("Press Enter to continue...")
 
             # exit the interface
