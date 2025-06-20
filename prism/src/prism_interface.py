@@ -2,45 +2,56 @@ import requests
 import time
 from _helper import clear
 
-class PRISMInterface():
+class PRISMInterface:
     def __init__(self):
-        # check to see if the PRISM instance is running on port 5000
         self.base_url = "http://localhost:5000/system"
-
-        # send a get_uptime request to the PRISM instance using the base_url to see if it is running
-        result = self.get_uptime()
-        if result == 1:
+        if self.api_get("uptime") is None:
             print("PRISM instance is not running or is not accessible. Please start the PRISM server first.")
-
         self.run()
 
-    def get_uptime(self):
+    def api_get(self, endpoint):
         try:
-            response = requests.get(f"{self.base_url}/uptime")
-            if response.status_code == 200:
-                self.uptime = response.json().get("uptime", "Unknown")
-                return 0
-            else:
-                print("Failed to retrieve uptime")
-                return 1
+            r = requests.get(f"{self.base_url}/{endpoint}")
+            if r.status_code == 200:
+                return r.json()
         except requests.ConnectionError:
-            return 1
-        except Exception as e:
-            return 1
-        
-    def get_mode(self):
+            pass
+        except Exception:
+            pass
+        return None
+
+    def api_post(self, endpoint, json=None):
         try:
-            response = requests.get(f"{self.base_url}/get_mode")
-            if response.status_code == 200:
-                self.mode = response.json().get("mode", "Unknown")
-                return 0
-            else:
-                print("Failed to retrieve mode")
-                return 1
+            r = requests.post(f"{self.base_url}/{endpoint}", json=json)
+            if r.status_code == 200:
+                return r.json()
         except requests.ConnectionError:
-            return 1
-        except Exception as e:
-            return 1
+            pass
+        except Exception:
+            pass
+        return None
+
+    def api_put(self, endpoint):
+        try:
+            r = requests.put(f"{self.base_url}/{endpoint}")
+            if r.status_code == 200:
+                return r.json()
+        except requests.ConnectionError:
+            pass
+        except Exception:
+            pass
+        return None
+
+    def api_delete(self, endpoint):
+        try:
+            r = requests.delete(f"{self.base_url}/{endpoint}")
+            if r.status_code == 200:
+                return r.json()
+        except requests.ConnectionError:
+            pass
+        except Exception:
+            pass
+        return None
 
     def print_main_menu(self):
         clear()
@@ -51,431 +62,287 @@ class PRISMInterface():
         print("4: View Logs")
         print("5: Shutdown PRISM")
         print("6: Exit")
-        print()
 
     def print_system_task_schedule(self):
         clear()
         print("System Task Schedule:")
-        try:
-            response = requests.get(f"{self.base_url}/get_task_schedule")
-            if response.status_code == 200:
-                tasks = response.json().get("tasks", [])
-                self.scheduled_tasks = tasks
-                if tasks:
-                    self.num_tasks = len(tasks)
-                    task_idx = 1
-                    for task in tasks:
-                        print(f"{task_idx}. {task['task_type']} @ {task['task_time']} - Run Today: {task.get('run_today', False)}")
-                        task_idx += 1
-                else:
-                    print("No tasks scheduled.")
+        tasks = self.api_get("get_task_schedule")
+        if tasks and "tasks" in tasks:
+            self.scheduled_tasks = tasks["tasks"]
+            if self.scheduled_tasks:
+                for i, t in enumerate(self.scheduled_tasks, 1):
+                    print(f"{i}. {t['task_type']} @ {t['task_time']} - Run Today: {t.get('run_today', False)}")
             else:
-                print("Failed to retrieve task schedule.")
-        except requests.ConnectionError:
-            print("PRISM instance not running.")
-        except Exception as e:
-            print(f"Error: {str(e)}")
-        print()
-        print("1: Add New Task")
-        print("2: Remove Task")
-        print("3: Execute Task Now")
-        print()
-        print("ENTER: Back to Main Menu")
-
-    def print_participant_list(self):
-        while True:
-            clear()
-            print("Participant List:")
-            try:
-                response = requests.get(f"{self.base_url}/get_participants")
-                if response.status_code == 200:
-                    participants = response.json().get("participants", [])
-                    if participants:
-                        for idx, participant in enumerate(participants, start=1):
-                            print(f"{idx}: {participant['last_name']}, {participant['first_name']} (ID: {participant['unique_id']}) - On Study: {participant['on_study']}")
-                    else:
-                        print("No participants found.")
-                else:
-                    print("Failed to retrieve participant list.")
-            except requests.ConnectionError:
-                print("PRISM instance not running.")
-            except Exception as e:
-                print(f"Error: {str(e)}")
-            print()
-            print("a: Add a Participant")
-            print("ENTER: Back to Main Menu")
-            participant_choice = input("Enter the index of the participant to view their information or 'a' or ENTER: ")
-            if participant_choice.isdigit():
-                #  map participant choice to participant ID
-                participant_choice = int(participant_choice) - 1
-                self.print_participant_schedule(participants[participant_choice]['unique_id'])
-            elif participant_choice == '':
-                break
-            elif participant_choice.lower() == 'a':
-                self.add_participant()
-            else:
-                print("Invalid choice. Please try again.")
-                input("Press Enter to continue...")
-
+                print("No tasks scheduled.")
+        else:
+            print("Failed to retrieve task schedule or PRISM not running.")
+        print("\n1: Add New Task\n2: Remove Task\n3: Execute Task Now\n\nENTER: Back to Main Menu")        
 
     def print_participant_schedule(self, participant_id):
-        try:
-            response = requests.get(f"{self.base_url}/get_participant/{participant_id}")
-            if response.status_code == 200:
-                participant = response.json().get("participant", [])
-                if participant:
-                    while True:
-                        clear()
-                        print(f"Information for Participant ID {participant_id}:")
-                        print(f"1: First Name: {participant['first_name']}")
-                        print(f"2: Last Name: {participant['last_name']}")
-                        print(f"3: Unique ID: {participant['unique_id']}")
-                        print(f"4: On Study: {participant['on_study']}")
-                        print(f"5: Phone Number: {participant['phone_number']}")
-                        print(f"6: EMA Time: {participant['ema_time']}")
-                        print(f"7: EMA Reminder Time: {participant['ema_reminder_time']}")
-                        print(f"8: Feedback Time: {participant['feedback_time']}")
-                        print(f"9: Feedback Reminder Time: {participant['feedback_reminder_time']}")
-                        print()
-                        print("Input 1-9 to edit a participant field.")
-                        print("s: send a survey to the participant.")
-                        print("r: remove participant.")
-                        print("ENTER: return to the participant list.")
+        data = self.api_get(f"get_participant/{participant_id}")
+        participant = data.get("participant") if data else None
+        if not participant:
+            print("Failed to retrieve participant schedule.")
+            input("Press Enter to continue...")
+            return
+        field_map = {
+            '1': 'first_name', '2': 'last_name', '3': 'unique_id', '4': 'on_study',
+            '5': 'phone_number', '6': 'ema_time', '7': 'ema_reminder_time',
+            '8': 'feedback_time', '9': 'feedback_reminder_time'
+        }
+        while True:
+            clear()
+            print(f"Participant ID {participant_id} Info:")
+            for k, f in sorted(field_map.items()):
+                print(f"{k}: {f.replace('_',' ').capitalize()}: {participant.get(f)}")
+            print("\nindex: select field, s: send survey, r: remove participant, ENTER: back")
 
-                        
-
-                        edit_choice = input("Enter your choice here: ")
-                        if edit_choice == '':
-                            break
-                        
-                        # edit participant information
-                        elif edit_choice in ['1', '2', '3', '4', '5', '6', '7', '8', '9']:
-                            field_map = {
-                                '1': 'first_name',
-                                '2': 'last_name',
-                                '3': 'unique_id',
-                                '4': 'on_study',
-                                '5': 'phone_number',
-                                '6': 'ema_time',
-                                '7': 'ema_reminder_time',
-                                '8': 'feedback_time',
-                                '9': 'feedback_reminder_time'
-                            }
-                            field = field_map[edit_choice]
-                            new_value = input(f"Enter new value for {field}: ")
-                            response = requests.put(f"{self.base_url}/update_participant/{participant_id}/{field}/{new_value}")
-                            participant[field] = new_value  # Update local participant data
-                            if response.status_code == 200:
-                                print("Participant updated successfully.")
-                            else:
-                                print(f"Failed to update participant: {response.json().get('error', 'Unknown error')}")
-                        
-                        # remove participant
-                        elif edit_choice.lower() == 'r':
-                            confirm = input("Are you sure you want to remove this participant? (yes/no): ").strip().lower()
-                            if confirm == 'yes':
-                                response = requests.delete(f"{self.base_url}/remove_participant/{participant_id}")
-                                if response.status_code == 200:
-                                    print("Participant removed successfully.")
-                                    break
-                        
-                        # send a survey
-                        elif edit_choice.lower() == 's':
-                            survey_type = input("Enter the type of survey to send (ema/feedback): ").strip().lower()
-                            if survey_type not in ['ema', 'feedback']:
-                                print("Invalid survey type. Please enter 'ema' or 'feedback'.")
-                                input("Press Enter to continue...")
-                                continue
-                            response = requests.post(f"{self.base_url}/send_survey/{participant_id}/{survey_type}")
-                            if response.status_code == 200:
-                                print(f"{survey_type.capitalize()} survey sent successfully.")
-                            else:
-                                print(f"Failed to send {survey_type} survey: {response.json().get('error', 'Unknown error')}")
-                        else:
-                            print("Invalid choice. Please try again.")
-                            input("Press Enter to continue...")
+            choice = input("Enter choice: ").strip()
+            if choice == '':
+                break
+            elif choice in field_map:
+                field = field_map[choice]
+                new_val = input(f"Enter new value for {field}: ")
+                if self.api_put(f"update_participant/{participant_id}/{field}/{new_val}"):
+                    participant[field] = new_val
+                    print("Participant updated.")
+                else:
+                    print("Failed to update participant.")
+                input("Press Enter to continue...")
+            elif choice.lower() == 'r':
+                if input("Remove participant? (yes/no): ").strip().lower() == 'yes':
+                    if self.api_delete(f"remove_participant/{participant_id}"):
+                        print("Participant removed.")
+                        input("Press Enter to continue...")
+                        break
+                    else:
+                        print("Failed to remove participant.")
+                        input("Press Enter to continue...")
+            elif choice.lower() == 's':
+                survey_type = input("Enter survey type (ema/feedback): ").strip().lower()
+                if survey_type in ['ema', 'feedback']:
+                    if self.api_post(f"send_survey/{participant_id}/{survey_type}"):
+                        print(f"{survey_type.capitalize()} survey sent.")
+                    else:
+                        print(f"Failed to send {survey_type} survey.")
+                else:
+                    print("Invalid survey type.")
+                input("Press Enter to continue...")
             else:
-                print("Failed to retrieve participant schedule.")
-        except requests.ConnectionError:
-            print("PRISM instance not running.")
-        except Exception as e:
-            print(f"Error: {str(e)}")
-        print()
+                print("Invalid choice.")
+                input("Press Enter to continue...")
 
     def add_participant(self):
-        try:
-            clear()
-            print("Add New Participant")
-            first_name = input("Enter first name: ")
-            last_name = input("Enter last name: ")
-            unique_id = input("Enter unique ID: ")
-            on_study = input("Is the participant on study? (yes/no): ").strip().lower()
-            if on_study not in ['yes', 'no']:
-                print("Invalid input for on study. Please enter 'yes' or 'no'.")
+        clear()
+        print("Add New Participant")
+        first_name = input("First name: ")
+        last_name = input("Last name: ")
+        unique_id = input("Unique ID: ")
+        on_study = input("On study? (yes/no): ").strip().lower()
+        if on_study not in ('yes', 'no'):
+            print("Invalid input for on study.")
+            input("Press Enter to continue...")
+            return
+        on_study = on_study == 'yes'
+        phone_number = input("Phone number: ")
+        times = {}
+        for t in ['ema_time', 'ema_reminder_time', 'feedback_time', 'feedback_reminder_time']:
+            val = input(f"Enter {t.replace('_', ' ')} (HH:MM:SS): ")
+            try:
+                time.strptime(val, '%H:%M:%S')
+                times[t] = val
+            except ValueError:
+                print(f"Invalid time format for {val}.")
                 input("Press Enter to continue...")
                 return
-            on_study = True if on_study == 'yes' else False
-            phone_number = input("Enter phone number: ")
-            ema_time = input("Enter EMA time (HH:MM:SS in military time): ")
-            ema_reminder_time = input("Enter EMA reminder time (HH:MM:SS in military time): ")
-            feedback_time = input("Enter feedback time (HH:MM:SS in military time): ")
-            feedback_reminder_time = input("Enter feedback reminder time (HH:MM:SS in military time): ")
-
-            # Validate time formats
-            for time_str in [ema_time, ema_reminder_time, feedback_time, feedback_reminder_time]:
-                try:
-                    time.strptime(time_str, '%H:%M:%S')
-                except ValueError:
-                    print(f"Invalid time format for {time_str}. Please use HH:MM:SS in military time.")
-                    input("Press Enter to continue...")
-                    return
-
-            response = requests.post(f"{self.base_url}/add_participant", json={
-                "first_name": first_name,
-                "on_study": on_study,
-                "last_name": last_name,
-                "unique_id": unique_id,
-                "phone_number": phone_number,
-                "ema_time": ema_time,
-                "ema_reminder_time": ema_reminder_time,
-                "feedback_time": feedback_time,
-                "feedback_reminder_time": feedback_reminder_time
-            })
-
-            if response.status_code == 200:
-                print("Participant added successfully.")
-            else:
-                print(f"Failed to add participant: {response.json().get('error', 'Unknown error')}")
-        except requests.ConnectionError:
-            print("PRISM instance not running.")
-        except Exception as e:
-            print(f"Error: {str(e)}")
+        payload = dict(first_name=first_name, last_name=last_name, unique_id=unique_id, on_study=on_study, phone_number=phone_number, **times)
+        if self.api_post("add_participant", json=payload):
+            print("Participant added.")
+        else:
+            print("Failed to add participant.")
         input("Press Enter to continue...")
 
     def add_system_task(self, task_type, task_time):
-        try:
-            response = requests.post(f"{self.base_url}/add_system_task/{task_type}/{task_time}")
-            if response.status_code == 200:
-                print("Task added successfully.")
-            else:
-                print(f"Failed to add task: {response.json().get('error', 'Unknown error')}")
-            input("Press Enter to continue...")
-        except requests.ConnectionError:
-            print("PRISM instance not running.")
-        except Exception as e:
-            print(f"Error: {str(e)}")
+        if self.api_post(f"add_system_task/{task_type}/{task_time}"):
+            print("Task added.")
+        else:
+            print("Failed to add task.")
+        input("Press Enter to continue...")
 
     def remove_system_task(self, task_type, task_time):
-        try:
-            response = requests.delete(f"{self.base_url}/remove_system_task/{task_type}/{task_time}")
-            if response.status_code == 200:
-                print("Task removed successfully.")
-            else:
-                print(f"Failed to remove task: {response.json().get('error', 'Unknown error')}")
-            input("Press Enter to continue...")
-        except requests.ConnectionError:
-            print("PRISM instance not running.")
-        except Exception as e:
-            print(f"Error: {str(e)}")
-    
+        if self.api_delete(f"remove_system_task/{task_type}/{task_time}"):
+            print("Task removed.")
+        else:
+            print("Failed to remove task.")
+        input("Press Enter to continue...")
+
     def get_task_types(self):
-        try:
-            response = requests.get(f"{self.base_url}/get_task_types")
-            if response.status_code == 200:
-                self.task_types = response.json().get("task_types", {})
-                return self.task_types
-            else:
-                print("Failed to retrieve task types.")
-                return {}
-        except requests.ConnectionError:
-            print("PRISM instance not running.")
-            return {}
-        except Exception as e:
-            print(f"Error: {str(e)}")
-            return {}
+        data = self.api_get("get_task_types")
+        return data.get("task_types", {}) if data else {}
 
     def run(self):
         while True:
             self.print_main_menu()
-            choice = input("Enter your choice: ")
-
-            # get system uptime
+            choice = input("Enter your choice: ").strip()
+            
+            # get mode and uptime
             if choice == '1':
                 clear()
-                print("Requesting PRISM Uptime...")
-                result = self.get_uptime()
-                if result == 0:
-                    print(f"PRISM Uptime: {self.uptime}")
+                uptime_data = self.api_get("uptime")
+                if uptime_data:
+                    print(f"PRISM Uptime: {uptime_data.get('uptime', 'Unknown')}")
                 else:
-                    print("PRISM instance is not running or is not accessible. Please start the PRISM server first.")
-
-                print("Requesting PRISM Mode...")
-                result = self.get_mode()
-                if result == 0:
-                    print(f"PRISM Mode: {self.mode}")
+                    print("PRISM not running or inaccessible.")
+                mode_data = self.api_get("get_mode")
+                if mode_data:
+                    print(f"PRISM Mode: {mode_data.get('mode', 'Unknown')}")
                 else:
-                    print("PRISM instance is not running or is not accessible. Please start the PRISM server first.")
-
+                    print("PRISM not running or inaccessible.")
                 input("Press Enter to continue...")
 
-            # task management menu
+            # Manage System Tasks
             elif choice == '2':
                 while True:
                     self.print_system_task_schedule()
-                    task_choice = input("Enter your choice: ")
-
-                    # add task
+                    task_choice = input("Enter choice: ").strip()
                     if task_choice == '1':
-                        print("Add New System Task")
-                        self.get_task_types()
+                        task_types = self.get_task_types()
+                        if not task_types:
+                            input("No task types available. Press Enter to continue...")
+                            continue
                         print("Available Tasks:")
-                        for index, (task_key, task_name) in enumerate(self.task_types.items(), start=1):
-                            print(f"{index}: {task_name} ({task_key})")
-                        task_index = input("Enter the index of the task to add: ")
-                        task_type = None
-                        try:
-                            if task_index.isdigit() and 1 <= int(task_index) <= len(self.task_types):
-                                task_index = int(task_index) - 1
-                                task_type = list(self.task_types.keys())[task_index]
-                            else:
-                                print("Invalid task index.")
-                                input("Press Enter to continue...")
-                                continue
-                        except ValueError:
-                            print("Please enter a valid number.")
+                        for i, (k,v) in enumerate(task_types.items(),1):
+                            print(f"{i}: {v} ({k})")
+                        idx = input("Task index to add: ").strip()
+                        if not idx.isdigit() or not (1 <= int(idx) <= len(task_types)):
+                            print("Invalid index.")
                             input("Press Enter to continue...")
                             continue
-                        if not task_type:
-                            print("Invalid task type selected.")
-                            input("Press Enter to continue...")
-                            continue
-
-                        task_time = input("Enter task time (HH:MM:SS in military time): ")
+                        task_type = list(task_types.keys())[int(idx)-1]
+                        task_time = input("Task time (HH:MM:SS): ").strip()
                         try:
                             time.strptime(task_time, '%H:%M:%S')
                         except ValueError:
-                            print("Invalid time format. Please use HH:MM:SS in military time.")
+                            print("Invalid time format.")
                             input("Press Enter to continue...")
                             continue
-
                         self.add_system_task(task_type, task_time)
-
-                    # remove task
                     elif task_choice == '2':
-                        task_index = input("Enter the index of the task to remove: ")
                         try:
-                            task_index = int(task_index) - 1
-                            if 0 <= task_index < self.num_tasks:
-                                task_type = self.scheduled_tasks[task_index]['task_type']
-                                task_time = self.scheduled_tasks[task_index]['task_time']
-                                self.remove_system_task(task_type, task_time)
+                            idx = int(input("Task index to remove: ")) - 1
+                            if 0 <= idx < len(self.scheduled_tasks):
+                                t = self.scheduled_tasks[idx]
+                                self.remove_system_task(t['task_type'], t['task_time'])
                             else:
-                                print("Invalid task index.")
-                        except ValueError:
-                            print("Please enter a valid number.")
+                                print("Invalid index.")
+                                input("Press Enter to continue...")
+                        except Exception:
+                            print("Invalid input.")
                             input("Press Enter to continue...")
-
-                    # execute task now
                     elif task_choice == '3':
-                        # get task types
-                        self.get_task_types()
-                        print("Execute Task Now")
+                        task_types = self.get_task_types()
+                        if not task_types:
+                            input("No task types available. Press Enter to continue...")
+                            continue
                         print("Available Tasks:")
-                        for index, (task_key, task_name) in enumerate(self.task_types.items(), start=1):
-                            print(f"{index}: {task_name} ({task_key})")
-                        task_index = input("Enter the index of the task to execute: ")
-                        task_type = None
-                        try:
-                            if task_index.isdigit() and 1 <= int(task_index) <= len(self.task_types):
-                                task_index = int(task_index) - 1
-                                task_type = list(self.task_types.keys())[task_index]
-                                response = requests.post(f"{self.base_url}/execute_task/{task_type}")
-                                if response.status_code == 200:
-                                    print(f"Task {task_type} executed successfully.")
-                                else:
-                                    print(f"Failed to execute task: {response.json().get('error', 'Unknown error')}")
-                                input("Press Enter to continue...")
-                            else:
-                                print("Invalid task index.")
-                                input("Press Enter to continue...")
-                                continue
-                        except Exception as e:
-                            print(f"An error occurred: {str(e)}")
+                        for i, (k,v) in enumerate(task_types.items(),1):
+                            print(f"{i}: {v} ({k})")
+                        idx = input("Task index to execute: ").strip()
+                        if not idx.isdigit() or not (1 <= int(idx) <= len(task_types)):
+                            print("Invalid index.")
                             input("Press Enter to continue...")
-
-                    # back to main menu
+                            continue
+                        task_type = list(task_types.keys())[int(idx)-1]
+                        if self.api_post(f"execute_task/{task_type}"):
+                            print(f"Task {task_type} executed.")
+                        else:
+                            print("Failed to execute task.")
+                        input("Press Enter to continue...")
                     elif task_choice == '':
                         break
                     else:
-                        print("Invalid choice. Please try again.")
+                        print("Invalid choice.")
                         input("Press Enter to continue...")
 
-            # manage participant tasks
+            # Manage Participants
             elif choice == '3':
-                self.print_participant_list()
+                while True:
+                    clear()
+                    data = self.api_get("get_participants")
+                    participants = data.get("participants", []) if data else []
+                    print("Participant List:")
+                    if participants:
+                        for i, p in enumerate(participants, 1):
+                            print(f"{i}: {p['last_name']}, {p['first_name']} (ID: {p['unique_id']}) - On Study: {p['on_study']}")
+                    else:
+                        print("No participants found or failed to retrieve.")
+                    print("\na: Add a Participant\nENTER: Back to Main Menu")
+                    choice = input("Enter index, 'a', or ENTER: ").strip()
+                    if choice.isdigit():
+                        idx = int(choice)-1
+                        if 0 <= idx < len(participants):
+                            self.print_participant_schedule(participants[idx]['unique_id'])
+                    elif choice.lower() == 'a':
+                        self.add_participant()
+                    elif choice == '':
+                        break
+                    else:
+                        print("Invalid choice.")
+                        input("Press Enter to continue...")
 
-            # view logs
+            # View Logs
             elif choice == '4':
                 while True:
                     clear()
-                    print("View Logs")
-                    # options are: today's transcript, ema log, and feedback log
-                    print("1: Today's Transcript")
-                    print()
-                    print("ENTER: Back to Main Menu")
-                    log_choice = input("Enter your choice: ")
+                    print("View Logs\n1: Today's Transcript\n\nENTER: Back to Main Menu")
+                    log_choice = input("Enter your choice: ").strip()
                     if log_choice == '':
                         break
-                    num_lines = input("Enter the number of lines to display (default is 10): ") or '10'
-                    if log_choice == '1':
-                        try:
-                            response = requests.get(f"{self.base_url}/get_transcript/{num_lines}")
-                            if response.status_code == 200:
-                                transcript = response.json().get("transcript", [])
-                                if transcript:
-                                    print("Today's Transcript:")
-                                    for entry in transcript:
-                                        print(f"{entry['timestamp']} - {entry['message']}")
-                                else:
-                                    print("No transcript entries found for today.")
-                            else:
-                                print("Failed to retrieve today's transcript.")
-                        except requests.ConnectionError:
-                            print("PRISM instance not running.")
-                        except Exception as e:
-                            print(f"Error: {str(e)}")
+                    elif log_choice == '1':
+                        lines = input("Number of lines to display (default 10): ").strip() or '10'
+                        if not lines.isdigit():
+                            print("Invalid number.")
+                            input("Press Enter to continue...")
+                            continue
+                        data = self.api_get(f"get_transcript/{lines}")
+                        if data and "transcript" in data:
+                            print("Today's Transcript:")
+                            for entry in data["transcript"]:
+                                print(f"{entry['timestamp']} - {entry['message']}")
+                        else:
+                            print("No transcript found or failed to retrieve.")
+                        input("Press Enter to continue...")
                     else:
-                        print("Invalid choice. Please try again.")
-                    input("Press Enter to continue...")
+                        print("Invalid choice.")
+                        input("Press Enter to continue...")
 
-            # shutdown PRISM
+            # Shutdown PRISM
             elif choice == '5':
                 clear()
-                print("Shutdown PRISM")
-                currently_running = self.get_uptime()
-                if currently_running == 0:
-                    confirm = input("Are you sure you want to shutdown PRISM? (yes/no): ").strip().lower()
-                    if confirm == 'yes':
+                if self.api_get("uptime") is not None:
+                    if input("Shutdown PRISM? (yes/no): ").strip().lower() == 'yes':
                         try:
-                            response = requests.post(f"{self.base_url}/shutdown")
-                            print("Failed to shutdown PRISM.")
+                            self.api_post("shutdown")
+                            print("PRISM shut down.")
+                            exit(0)
                         except requests.ConnectionError:
-                            print("PRISM has been shut down successfully.")
+                            print("PRISM shut down.")
                             exit(0)
                         except Exception as e:
-                            print(f"Error: {str(e)}")
+                            print(f"Error: {e}")
                     else:
                         print("Shutdown cancelled.")
                 else:
-                    print("PRISM instance is not running. Cannot shutdown.")
+                    print("PRISM not running, cannot shutdown.")
                 input("Press Enter to continue...")
 
-            # exit the interface
+            # Exit
             elif choice == '6':
                 print("Exiting PRISM Interface.")
                 break
+
             else:
-                print("Invalid choice. Please try again.")
+                print("Invalid choice.")
                 input("Press Enter to continue...")
 
 if __name__ == "__main__":
