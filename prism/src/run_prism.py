@@ -63,47 +63,45 @@ class PRISM():
     ############################
 
     def load_api_keys(self):
-        try:
-            qualtrics = pd.read_csv('../qualtrics.api', quotechar='"')
-            self.qualtrics_api_token = qualtrics.loc[0, 'api_token']
-            self.qualtrics_data_center = qualtrics.loc[0, 'datacenter']
-            self.ema_survey_id = qualtrics.loc[0, 'ema_survey_id']
-            self.feedback_survey_id = qualtrics.loc[0, 'feedback_survey_id']
-        except Exception as e:
-            self.add_to_transcript(f"Failed to load Qualtrics API keys: {e}", "ERROR")
+        def load_keys(file_path, field_map, label):
+            try:
+                df = pd.read_csv(file_path, quotechar='"')
+                for attr, column in field_map.items():
+                    setattr(self, attr, df.loc[0, column])
+            except Exception as e:
+                self.add_to_transcript(f"Failed to load {label} API keys: {e}", "ERROR")
 
-        try:
-            followmee = pd.read_csv('../followmee.api', quotechar='"')
-            self.followmee_username = followmee.loc[0, 'username']  
-            self.followmee_api_token = followmee.loc[0, 'api_token']
-        except Exception as e:
-            self.add_to_transcript(f"Failed to load FollowMee API keys: {e}", "ERROR")
+        load_keys('../qualtrics.api', {
+            'qualtrics_api_token': 'api_token',
+            'qualtrics_data_center': 'datacenter',
+            'ema_survey_id': 'ema_survey_id',
+            'feedback_survey_id': 'feedback_survey_id'
+        }, "Qualtrics")
 
-        try:
-            twilio = pd.read_csv('../twilio.api', quotechar='"')
-            self.twilio_account_sid = twilio.loc[0, 'account_sid']
-            self.twilio_auth_token = twilio.loc[0, 'auth_token']
-            self.twilio_from_number = twilio.loc[0, 'from_number']
-        except Exception as e:
-            self.add_to_transcript(f"Failed to load Twilio API keys: {e}", "ERROR") 
+        load_keys('../followmee.api', {
+            'followmee_username': 'username',
+            'followmee_api_token': 'api_token'
+        }, "FollowMee")
 
-        try:
-            research_drive = pd.read_csv('../research_drive.api', quotechar='"')
-            self.destination_path = research_drive.loc[0, 'destination_path']
-            self.drive_letter = research_drive.loc[0, 'drive_letter']
-            self.network_domain = research_drive.loc[0, 'network_domain']
-            self.network_username = research_drive.loc[0, 'network_username']
-            self.wisc_netid = research_drive.loc[0, 'wisc_netid']
-            self.wisc_password = research_drive.loc[0, 'wisc_password']
-        except Exception as e:
-            self.add_to_transcript(f"Failed to load Research Drive API keys: {e}", "ERROR")
+        load_keys('../twilio.api', {
+            'twilio_account_sid': 'account_sid',
+            'twilio_auth_token': 'auth_token',
+            'twilio_from_number': 'from_number'
+        }, "Twilio")
 
-        try:
-            ngrok = pd.read_csv('../ngrok.api', quotechar='"')
-            self.ngrok_auth_token = ngrok.loc[0, 'auth_token']
-            self.ngrok_domain = ngrok.loc[0, 'domain']
-        except Exception as e:
-            self.add_to_transcript(f"Failed to load Ngrok API keys: {e}", "ERROR")
+        load_keys('../research_drive.api', {
+            'destination_path': 'destination_path',
+            'drive_letter': 'drive_letter',
+            'network_domain': 'network_domain',
+            'network_username': 'network_username',
+            'wisc_netid': 'wisc_netid',
+            'wisc_password': 'wisc_password'
+        }, "Research Drive")
+
+        load_keys('../ngrok.api', {
+            'ngrok_auth_token': 'auth_token',
+            'ngrok_domain': 'domain'
+        }, "Ngrok")
 
     def add_to_transcript(self, message, message_type = "INFO"):
         print(f"{message_type} - {message}")
