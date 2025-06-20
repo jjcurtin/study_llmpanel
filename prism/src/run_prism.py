@@ -462,11 +462,12 @@ class PRISM():
             )
             body = f"{participant_name}, {message} {survey_link}"
             try:
-                send_sms(
-                    self,
-                    [participant_phone_number],
-                    [body]
-                )
+                if self.mode == "prod":
+                    send_sms(
+                        self,
+                        [participant_phone_number],
+                        [body]
+                    )
                 self.add_to_transcript(f"SMS sent to {participant_id}.", "INFO")
                 return 0
             except Exception as e:
