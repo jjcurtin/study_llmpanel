@@ -393,7 +393,55 @@ class PRISM():
         else:
             self.add_to_transcript(f"Failed to update participant {unique_id}: Participant not found.", "ERROR")
             return 1
+        
+    def add_participant(self, participant):
+        self.participants.append(participant)
 
+        # write to the csv file
+        with open('../config/study_participants.csv', 'a') as f:
+            f.write(f'\n"{participant["unique_id"]}","{participant["last_name"]}","{participant["first_name"]}","{participant["on_study"]}","{participant["phone_number"]}","{participant["ema_time"]}","{participant["ema_reminder_time"]}","{participant["feedback_time"]}","{participant["feedback_reminder_time"]}"')
+
+        # Add the participant to the scheduled SMS tasks if they are on study
+        if participant['on_study']:
+            participant_name = f"{participant['first_name']} {participant['last_name']}"
+            participant_id = participant['unique_id']
+            participant_phone_number = participant['phone_number']
+
+            self.scheduled_sms_tasks.append({
+                'task_type': 'ema',
+                'task_time': datetime.strptime(participant['ema_time'], '%H:%M:%S').time(),
+                'participant_name': participant_name,
+                'participant_id': participant_id,
+                'participant_phone_number': participant_phone_number,
+                'run_today': False  # Flag to indicate if the task has run today
+            })
+            self.scheduled_sms_tasks.append({
+                'task_type': 'ema_reminder',
+                'task_time': datetime.strptime(participant['ema_reminder_time'], '%H:%M:%S').time(),
+                'participant_name': participant_name,
+                'participant_id': participant_id,
+                'participant_phone_number': participant_phone_number,
+                'run_today': False  # Flag to indicate if the task has run today
+            })
+            self.scheduled_sms_tasks.append({
+                'task_type': 'feedback',
+                'task_time': datetime.strptime(participant['feedback_time'], '%H:%M:%S').time(),
+                'participant_name': participant_name,
+                'participant_id': participant_id,
+                'participant_phone_number': participant_phone_number,
+                'run_today': False  # Flag to indicate if the task has run today
+            })
+            self.scheduled_sms_tasks.append({
+                'task_type': 'feedback_reminder',
+                'task_time': datetime.strptime(participant['feedback_reminder_time'], '%H:%M:%S').time(),
+                'participant_name': participant_name,
+                'participant_id': participant_id,
+                'participant_phone_number': participant_phone_number,
+                'run_today': False  # Flag to indicate if the task has run today
+            })
+
+        self.add_to_transcript(f"Added new participant via API: {participant['first_name']} {participant['last_name']}", "INFO")
+        
     def check_scheduled_sms(self):
         current_time = datetime.now().time()
 
