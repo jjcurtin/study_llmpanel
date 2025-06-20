@@ -167,53 +167,7 @@ def create_flask_app(app_instance):
             'feedback_reminder_time': data['feedback_reminder_time']
         }
         
-        app_instance.participants.append(new_participant)
-
-        # write to the csv file
-        with open('../config/study_participants.csv', 'a') as f:
-            f.write(f'\n"{new_participant["unique_id"]}","{new_participant["last_name"]}","{new_participant["first_name"]}","{new_participant["on_study"]}","{new_participant["phone_number"]}","{new_participant["ema_time"]}","{new_participant["ema_reminder_time"]}","{new_participant["feedback_time"]}","{new_participant["feedback_reminder_time"]}"')
-
-        # Add the participant to the scheduled SMS tasks if they are on study
-        if new_participant['on_study']:
-            participant_name = f"{new_participant['first_name']} {new_participant['last_name']}"
-            participant_id = new_participant['unique_id']
-            participant_phone_number = new_participant['phone_number']
-
-            app_instance.scheduled_sms_tasks.append({
-                'task_type': 'ema',
-                'task_time': datetime.strptime(new_participant['ema_time'], '%H:%M:%S').time(),
-                'participant_name': participant_name,
-                'participant_id': participant_id,
-                'participant_phone_number': participant_phone_number,
-                'run_today': False  # Flag to indicate if the task has run today
-            })
-            app_instance.scheduled_sms_tasks.append({
-                'task_type': 'ema_reminder',
-                'task_time': datetime.strptime(new_participant['ema_reminder_time'], '%H:%M:%S').time(),
-                'participant_name': participant_name,
-                'participant_id': participant_id,
-                'participant_phone_number': participant_phone_number,
-                'run_today': False  # Flag to indicate if the task has run today
-            })
-            app_instance.scheduled_sms_tasks.append({
-                'task_type': 'feedback',
-                'task_time': datetime.strptime(new_participant['feedback_time'], '%H:%M:%S').time(),
-                'participant_name': participant_name,
-                'participant_id': participant_id,
-                'participant_phone_number': participant_phone_number,
-                'run_today': False  # Flag to indicate if the task has run today
-            })
-            app_instance.scheduled_sms_tasks.append({
-                'task_type': 'feedback_reminder',
-                'task_time': datetime.strptime(new_participant['feedback_reminder_time'], '%H:%M:%S').time(),
-                'participant_name': participant_name,
-                'participant_id': participant_id,
-                'participant_phone_number': participant_phone_number,
-                'run_today': False  # Flag to indicate if the task has run today
-            })
-
-        app_instance.add_to_transcript(f"Added new participant via API: {data['first_name']} {data['last_name']}", "INFO")
-        
+        app_instance.add_participant(new_participant)
         return jsonify({"message": "Participant added successfully"}), 200
     
     @flask_app.route('/system/remove_participant/<unique_id>', methods = ['DELETE'])
