@@ -63,6 +63,10 @@ class PRISMInterface:
         print("5: Shutdown PRISM")
         print("6: Exit")
 
+    ####################
+    #   System Tasks   #
+    ####################
+
     def print_system_task_schedule(self):
         clear()
         print("System Task Schedule:")
@@ -76,7 +80,29 @@ class PRISMInterface:
                 print("No tasks scheduled.")
         else:
             print("Failed to retrieve task schedule or PRISM not running.")
-        print("\n1: Add New Task\n2: Remove Task\n3: Execute Task Now\n\nENTER: Back to Main Menu")        
+        print("\n1: Add New Task\n2: Remove Task\n3: Execute Task Now\n\nENTER: Back to Main Menu")  
+
+    def add_system_task(self, task_type, task_time):
+        if self.api_post(f"add_system_task/{task_type}/{task_time}"):
+            print("Task added.")
+        else:
+            print("Failed to add task.")
+        input("Press Enter to continue...")
+
+    def remove_system_task(self, task_type, task_time):
+        if self.api_delete(f"remove_system_task/{task_type}/{task_time}"):
+            print("Task removed.")
+        else:
+            print("Failed to remove task.")
+        input("Press Enter to continue...")
+
+    def get_task_types(self):
+        data = self.api_get("get_task_types")
+        return data.get("task_types", {}) if data else {}      
+
+    ####################
+    #   Participants    #
+    ####################
 
     def print_participant_schedule(self, participant_id):
         data = self.api_get(f"get_participant/{participant_id}")
@@ -161,24 +187,6 @@ class PRISMInterface:
         else:
             print("Failed to add participant.")
         input("Press Enter to continue...")
-
-    def add_system_task(self, task_type, task_time):
-        if self.api_post(f"add_system_task/{task_type}/{task_time}"):
-            print("Task added.")
-        else:
-            print("Failed to add task.")
-        input("Press Enter to continue...")
-
-    def remove_system_task(self, task_type, task_time):
-        if self.api_delete(f"remove_system_task/{task_type}/{task_time}"):
-            print("Task removed.")
-        else:
-            print("Failed to remove task.")
-        input("Press Enter to continue...")
-
-    def get_task_types(self):
-        data = self.api_get("get_task_types")
-        return data.get("task_types", {}) if data else {}
 
     def run(self):
         while True:
