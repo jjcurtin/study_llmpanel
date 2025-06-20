@@ -295,42 +295,25 @@ class PRISM():
                 participant_id = participant['unique_id']
                 participant_phone_number = participant['phone_number']
 
-                if participant['ema_time']:
-                    self.scheduled_sms_tasks.append({
-                        'task_type': 'ema',
-                        'task_time': datetime.strptime(participant['ema_time'], '%H:%M:%S').time(),
-                        'participant_name': participant_name,
-                        'participant_id': participant_id,
-                        'participant_phone_number': participant_phone_number,
-                        'run_today': False  # Flag to indicate if the task has run today
-                    })
-                if participant['ema_reminder_time']:
-                    self.scheduled_sms_tasks.append({
-                        'task_type': 'ema_reminder',
-                        'task_time': datetime.strptime(participant['ema_reminder_time'], '%H:%M:%S').time(),
-                        'participant_name': participant_name,
-                        'participant_id': participant_id,
-                        'participant_phone_number': participant_phone_number,
-                        'run_today': False  # Flag to indicate if the task has run today
-                    })
-                if participant['feedback_time']:
-                    self.scheduled_sms_tasks.append({
-                        'task_type': 'feedback',
-                        'task_time': datetime.strptime(participant['feedback_time'], '%H:%M:%S').time(),
-                        'participant_name': participant_name,
-                        'participant_id': participant_id,
-                        'participant_phone_number': participant_phone_number,
-                        'run_today': False  # Flag to indicate if the task has run today
-                    })
-                if participant['feedback_reminder_time']:
-                    self.scheduled_sms_tasks.append({
-                        'task_type': 'feedback_reminder',
-                        'task_time': datetime.strptime(participant['feedback_reminder_time'], '%H:%M:%S').time(),
-                        'participant_name': participant_name,
-                        'participant_id': participant_id,
-                        'participant_phone_number': participant_phone_number,
-                        'run_today': False  # Flag to indicate if the task has run today
-                    })
+                task_definitions = [
+                    ('ema', 'ema_time'),
+                    ('ema_reminder', 'ema_reminder_time'),
+                    ('feedback', 'feedback_time'),
+                    ('feedback_reminder', 'feedback_reminder_time')
+                ]
+
+                for task_type, time_key in task_definitions:
+                    task_time_str = participant.get(time_key)
+                    if task_time_str:
+                        self.scheduled_sms_tasks.append({
+                            'task_type': task_type,
+                            'task_time': datetime.strptime(task_time_str, '%H:%M:%S').time(),
+                            'participant_name': participant_name,
+                            'participant_id': participant_id,
+                            'participant_phone_number': participant_phone_number,
+                            'run_today': False  # Flag to indicate if the task has run today
+                        })
+
 
     def get_participant(self, unique_id):
         for participant in self.participants:
