@@ -13,13 +13,10 @@ import subprocess
 import argparse
 
 class PRISM():
-    def __init__(self, mode="test", hot_reload = False, notify_coordinators = False):
+    def __init__(self, mode = "test"):
         self.clear()
         self.add_to_transcript("Initializing PRISM application...", "INFO")
         self.mode = mode
-        self.hot_reload = hot_reload
-        self.notify_coordinators = notify_coordinators
-        
 
         # make sure you are running in the src directory
         current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -58,6 +55,8 @@ class PRISM():
         # set up signal handlers for graceful shutdown
         signal.signal(signal.SIGINT, self.handle_shutdown)
         signal.signal(signal.SIGTERM, self.handle_shutdown)
+
+        self.add_to_transcript(f"PRISM started in {self.mode} mode.", "INFO")
 
     ############################
     #       System Utils       #
@@ -219,9 +218,12 @@ class PRISM():
         self.add_to_transcript(f"Executing task: {task_type}", "INFO")
         result = 0  # Default result for successful execution
 
-        if self.hot_reload:
-            self.update_task_types()  # Ensure task types are up to date
+        # hot reload mode for test mode this only affects new tasks added during runtime so should not be needed in prod
+        if self.mode == "test":
+            self.update_task_types()
 
+        # if the task is valid, import the task module and run it 
+        # this allows for dynamic task loading and minor changes during prod if necessary
         if task_type in self.task_types:
             module_name = f'tasks._{task_type.lower()}'
             try:
@@ -498,19 +500,9 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     mode = args.mode
-    hot_reload = True
-    notify_coordinators = False
     
-    prism = PRISM(mode = mode, hot_reload = hot_reload, notify_coordinators = notify_coordinators)
-    
-    if hot_reload:
-        prism.add_to_transcript("Running in hot reload mode.", "INFO")
-    
-    if prism.notify_coordinators:
-        prism.add_to_transcript("Coordinators will be notified of the results of system tasks.", "INFO")
-    else:
-        prism.add_to_transcript("Coordinators will not be notified of the results of system tasks.", "INFO")
-    
+    prism = PRISM(mode = mode)
+
     if mode == "prod":
         ngrok.set_auth_token(prism.ngrok_auth_token)
         prism.add_to_transcript("Starting Ngrok tunnel...", "INFO")
