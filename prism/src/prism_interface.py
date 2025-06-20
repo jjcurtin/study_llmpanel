@@ -1,5 +1,4 @@
 import requests
-import os
 import time
 from _helper import clear
 
@@ -137,8 +136,15 @@ class PRISMInterface():
                         print(f"7: EMA Reminder Time: {participant['ema_reminder_time']}")
                         print(f"8: Feedback Time: {participant['feedback_time']}")
                         print(f"9: Feedback Reminder Time: {participant['feedback_reminder_time']}")
+                        print()
+                        print("Input 1-9 to edit a participant field.")
+                        print("s: send a survey to the participant.")
+                        print("r: remove participant.")
+                        print("ENTER: return to the participant list.")
 
-                        edit_choice = input("ENTER to return to the participant list. Input 1-9 to edit a field or 'r' to remove participant. ")
+                        
+
+                        edit_choice = input("Enter your choice here: ")
                         if edit_choice == '':
                             break
                         
@@ -172,6 +178,22 @@ class PRISMInterface():
                                 if response.status_code == 200:
                                     print("Participant removed successfully.")
                                     break
+                        
+                        # send a survey
+                        elif edit_choice.lower() == 's':
+                            survey_type = input("Enter the type of survey to send (ema/feedback): ").strip().lower()
+                            if survey_type not in ['ema', 'feedback']:
+                                print("Invalid survey type. Please enter 'ema' or 'feedback'.")
+                                input("Press Enter to continue...")
+                                continue
+                            response = requests.post(f"{self.base_url}/send_survey/{participant_id}/{survey_type}")
+                            if response.status_code == 200:
+                                print(f"{survey_type.capitalize()} survey sent successfully.")
+                            else:
+                                print(f"Failed to send {survey_type} survey: {response.json().get('error', 'Unknown error')}")
+                        else:
+                            print("Invalid choice. Please try again.")
+                            input("Press Enter to continue...")
             else:
                 print("Failed to retrieve participant schedule.")
         except requests.ConnectionError:
