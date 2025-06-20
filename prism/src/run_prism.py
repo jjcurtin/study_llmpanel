@@ -7,6 +7,7 @@ import pandas as pd
 import importlib
 from waitress import serve
 from _helper import send_sms
+import signal
 
 class PRISM():
     def __init__(self, mode="test", hot_reload = False, notify_coordinators = False):
@@ -38,15 +39,21 @@ class PRISM():
         self.scheduled_tasks = []
         self.load_task_schedule()
         self.task_queue = queue.Queue()
-        threading.Thread(target = self.run_system_task_processor, daemon = True).start()
+        self.system_task_thread = threading.Thread(target = self.run_system_task_processor)
+        self.system_task_thread.start()
 
         # set up participant sms thread
         self.participants = []
         self.load_participants()
         self.sms_queue = queue.Queue()
-        threading.Thread(target = self.run_participant_sms_processor, daemon = True).start()
+        self.sms_task_thread = threading.Thread(target = self.run_participant_sms_processor)
+        self.sms_task_thread.start()
 
         # set up participant API call thread
+
+        # set up signal handlers for graceful shutdown
+        signal.signal(signal.SIGINT, self.handle_shutdown)
+        signal.signal(signal.SIGTERM, self.handle_shutdown)
 
     ############################
     #       System Utils       #
@@ -116,6 +123,15 @@ class PRISM():
                 sms_task['run_today'] = False
 
         self.add_to_transcript("Cleared all run_today flags for system and SMS tasks.", "INFO")
+
+    def handle_shutdown(self, signum, frame):
+        self.add_to_transcript("Received shutdown signal. Stopping PRISM application...", "INFO")
+        self.stop()
+        self.system_task_thread.join(timeout = 5)
+        self.add_to_transcript("System task processor stopped.", "INFO")
+        self.sms_task_thread.join(timeout = 5)
+        self.add_to_transcript("Participant SMS processor stopped.", "INFO")
+        exit(0)
 
     ############################
     #        Task Logic        #
