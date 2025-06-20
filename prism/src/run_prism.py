@@ -8,6 +8,9 @@ import importlib
 from waitress import serve
 from _helper import send_sms
 import signal
+from pyngrok import ngrok
+import subprocess
+import argparse
 
 class PRISM():
     def __init__(self, mode="test", hot_reload = False, notify_coordinators = False):
@@ -94,6 +97,13 @@ class PRISM():
             self.wisc_password = research_drive.loc[0, 'wisc_password']
         except Exception as e:
             self.add_to_transcript(f"Failed to load Research Drive API keys: {e}", "ERROR")
+
+        try:
+            ngrok = pd.read_csv('../ngrok.api', quotechar='"')
+            self.ngrok_auth_token = ngrok.loc[0, 'auth_token']
+            self.ngrok_domain = ngrok.loc[0, 'domain']
+        except Exception as e:
+            self.add_to_transcript(f"Failed to load Ngrok API keys: {e}", "ERROR")
 
     def get_uptime(self):
         return str(datetime.now() - self.start_time)
@@ -554,20 +564,37 @@ class PRISM():
         self.add_to_transcript("Participant SMS processor stopped.", "INFO")
 
 if __name__ == "__main__":
-    mode = "test"
+    parser = argparse.ArgumentParser(description = "Run the PRISM application.")
+    parser.add_argument(
+        '-mode', 
+        choices = ['test', 'prod'], 
+        default = 'test', 
+        help = "Mode to run the application in. 'test' for development, 'prod' for production."
+    )
+    args = parser.parse_args()
+    mode = args.mode
     hot_reload = True
     notify_coordinators = False
-    prism = PRISM(mode = "test", hot_reload = True, notify_coordinators = False)
+    
+    prism = PRISM(mode = mode, hot_reload = hot_reload, notify_coordinators = notify_coordinators)
+    
     if hot_reload:
         prism.add_to_transcript("Running in hot reload mode.", "INFO")
+    
     if prism.notify_coordinators:
         prism.add_to_transcript("Coordinators will be notified of the results of system tasks.", "INFO")
     else:
         prism.add_to_transcript("Coordinators will not be notified of the results of system tasks.", "INFO")
+    
+    if mode == "prod":
+        ngrok.set_auth_token(prism.ngrok_auth_token)
+        prism.add_to_transcript("Starting Ngrok tunnel...", "INFO")
+        subprocess.Popen(
+            ["ngrok", "http", f"--url={prism.ngrok_domain}", "5000"], 
+            stdout = subprocess.DEVNULL,
+            stderr = subprocess.DEVNULL
+        )
+        prism.add_to_transcript(f"Ngrok tunnel started at {prism.ngrok_domain}", "INFO")
+    
+    serve(prism.flask_app, host = '127.0.0.1', port = 5000)
     prism.add_to_transcript(f"PRISM started with {len(prism.scheduled_tasks)} scheduled system tasks", "INFO")
-    if mode == "test":
-        prism.add_to_transcript("Running in test mode. Flask app will be served on localhost:5000", "INFO")
-        serve(prism.flask_app, host = '127.0.0.1', port = 5000)
-    elif mode == "prod":
-        prism.add_to_transcript("Running in production mode. Flask app will be served on all interfaces on port 5000", "INFO")
-        serve(prism.flask_app, host = '0.0.0.0', port = 5000)
