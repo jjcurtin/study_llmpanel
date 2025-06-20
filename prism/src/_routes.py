@@ -206,5 +206,27 @@ def create_flask_app(app_instance):
         app_instance.add_to_transcript("Shutdown requested via API", "INFO")
         app_instance.shutdown()
         return jsonify({"message": "Shutdown initiated"}), 200
+    
+    @flask_app.route('/system/send_survey/<unique_id>/<survey_type>', methods = ['POST'])
+    def send_survey(unique_id, survey_type):
+        if survey_type not in ['ema', 'feedback']:
+            return jsonify({"error": "Invalid survey type"}), 400
+        
+        participant = app_instance.get_participant(unique_id)
+        if not participant:
+            return jsonify({"error": "Participant not found"}), 404
+        
+        # add to sms queue 
+        current_time = datetime.now()
+        # format current time to match the expected format
+        current_time = current_time.strftime('%H:%M:%S')
+        app_instance.scheduled_sms_tasks.append({
+            'task_type': survey_type,
+            'task_time': datetime.strptime(current_time, '%H:%M:%S').time(),
+            'participant_id': unique_id,
+            'run_today': False
+        })
+        app_instance.add_to_transcript(f"Survey {survey_type} sent to participant {unique_id} via API", "INFO")
+        return jsonify({"message": f"{survey_type.capitalize()} survey sent to participant {unique_id}"}), 200
 
     return flask_app
