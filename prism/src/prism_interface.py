@@ -37,10 +37,12 @@ class PRISMInterface():
     def print_main_menu(self):
         self.clear()
         print("PRISM Interface Menu:")
-        print("1. Get PRISM Uptime")
-        print("2. Manage System Tasks")
-        print("3. Manage Participants")
-        print("4. Exit")
+        print("1: Get PRISM Uptime")
+        print("2: Manage System Tasks")
+        print("3: Manage Participants")
+        print("4: View Logs")
+        print("5: Shutdown PRISM")
+        print("6: Exit")
         print()
 
     def print_system_task_schedule(self):
@@ -55,7 +57,7 @@ class PRISMInterface():
                     self.num_tasks = len(tasks)
                     task_idx = 1
                     for task in tasks:
-                        print(f"{task_idx}: {task['task_type']} @ {task['task_time']} - Run Today: {task.get('run_today', False)}")
+                        print(f"{task_idx}. {task['task_type']} @ {task['task_time']} - Run Today: {task.get('run_today', False)}")
                         task_idx += 1
                 else:
                     print("No tasks scheduled.")
@@ -66,11 +68,11 @@ class PRISMInterface():
         except Exception as e:
             print(f"Error: {str(e)}")
         print()
-        print("1. Add New Task")
-        print("2. Remove Task")
-        print("3. Execute Task Now")
-        print("4. Back to Main Menu")
+        print("1: Add New Task")
+        print("2: Remove Task")
+        print("3: Execute Task Now")
         print()
+        print("ENTER: Back to Main Menu")
 
     def print_participant_list(self):
         while True:
@@ -92,7 +94,9 @@ class PRISMInterface():
             except Exception as e:
                 print(f"Error: {str(e)}")
             print()
-            participant_choice = input("Enter the index of the participant to view their information or hit 'a' to add a participant or hit ENTER to return: ")
+            print("a: Add a Participant")
+            print("ENTER: Back to Main Menu")
+            participant_choice = input("Enter the index of the participant to view their information or 'a' or ENTER: ")
             if participant_choice.isdigit():
                 #  map participant choice to participant ID
                 participant_choice = int(participant_choice) - 1
@@ -354,7 +358,7 @@ class PRISMInterface():
                             input("Press Enter to continue...")
 
                     # back to main menu
-                    elif task_choice == '4':
+                    elif task_choice == '':
                         break
                     else:
                         print("Invalid choice. Please try again.")
@@ -364,8 +368,62 @@ class PRISMInterface():
             elif choice == '3':
                 self.print_participant_list()
 
-            # exit the interface
+            # view logs
             elif choice == '4':
+                while True:
+                    self.clear()
+                    print("View Logs")
+                    # options are: today's transcript, ema log, and feedback log
+                    print("1: Today's Transcript")
+                    print()
+                    print("ENTER: Back to Main Menu")
+                    log_choice = input("Enter your choice: ")
+                    num_lines = input("Enter the number of lines to display (default is 10): ") or '10'
+                    if log_choice == '1':
+                        try:
+                            response = requests.get(f"{self.base_url}/get_transcript/{num_lines}")
+                            if response.status_code == 200:
+                                transcript = response.json().get("transcript", [])
+                                if transcript:
+                                    print("Today's Transcript:")
+                                    for entry in transcript:
+                                        print(f"{entry['timestamp']} - {entry['message']}")
+                                else:
+                                    print("No transcript entries found for today.")
+                            else:
+                                print("Failed to retrieve today's transcript.")
+                        except requests.ConnectionError:
+                            print("PRISM instance not running.")
+                        except Exception as e:
+                            print(f"Error: {str(e)}")
+                    elif log_choice == '':
+                        break
+                    else:
+                        print("Invalid choice. Please try again.")
+                    input("Press Enter to continue...")
+
+            # shutdown PRISM
+            elif choice == '5':
+                self.clear()
+                print("Shutdown PRISM")
+                confirm = input("Are you sure you want to shutdown PRISM? (yes/no): ").strip().lower()
+                if confirm == 'yes':
+                    try:
+                        response = requests.post(f"{self.base_url}/shutdown")
+                        if response.status_code == 200:
+                            print("PRISM has been shut down successfully.")
+                        else:
+                            print(f"Failed to shutdown PRISM: {response.json().get('error', 'Unknown error')}")
+                    except requests.ConnectionError:
+                        print("PRISM instance not running.")
+                    except Exception as e:
+                        print(f"Error: {str(e)}")
+                else:
+                    print("Shutdown cancelled.")
+                input("Press Enter to continue...")
+
+            # exit the interface
+            elif choice == '6':
                 print("Exiting PRISM Interface.")
                 break
             else:
