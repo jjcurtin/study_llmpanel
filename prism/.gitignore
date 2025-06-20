@@ -1,0 +1,11 @@
+# prism files
+config/*.csv
+
+data/qualtrics/
+data/followmee/
+
+scripts/*.R
+
+logs/ema_logs/
+logs/feedback_logs/
+logs/transcripts/
