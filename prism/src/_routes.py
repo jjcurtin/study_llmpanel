@@ -140,85 +140,12 @@ def create_flask_app(app_instance):
     
     @flask_app.route('/system/update_participant/<unique_id>/<field>/<new_value>', methods = ['PUT'])
     def update_participant(unique_id, field, new_value):
-        for participant in app_instance.participants:
-            if participant['unique_id'] == unique_id:
-                if field not in participant:
-                    return jsonify({"error": "Invalid field"}), 400
-                participant[field] = new_value
-
-                # Update the participant in the CSV file
-                with open('../config/study_participants.csv', 'w') as f:
-                    f.write('"unique_id","last_name","first_name","on_study","phone_number","ema_time","ema_reminder_time","feedback_time","feedback_reminder_time"')
-                    for p in app_instance.participants:
-                        f.write(f'\n"{p["unique_id"]}","{p["last_name"]}","{p["first_name"]}","{p["on_study"]}","{p["phone_number"]}","{p["ema_time"]}","{p["ema_reminder_time"]}","{p["feedback_time"]}","{p["feedback_reminder_time"]}"')
-
-                # if the field is a ema, ema_reminder, feedback, or feedback_reminder time need to add to queue and remove the old value
-                if field in ['ema_time', 'ema_reminder_time', 'feedback_time', 'feedback_reminder_time']:
-                    if participant['on_study']:
-                        participant_name = f"{participant['first_name']} {participant['last_name']}"
-                        participant_id = participant['unique_id']
-                        participant_phone_number = participant['phone_number']
-
-                        if field == 'ema_time':
-                            app_instance.scheduled_sms_tasks = [
-                                task for task in app_instance.scheduled_sms_tasks
-                                if not (task['task_type'] == 'ema' and task['participant_id'] == participant_id)
-                            ]
-                            app_instance.scheduled_sms_tasks.append({
-                                'task_type': 'ema',
-                                'task_time': datetime.strptime(participant['ema_time'], '%H:%M:%S').time(),
-                                'participant_name': participant_name,
-                                'participant_id': participant_id,
-                                'participant_phone_number': participant_phone_number,
-                                'run_today': False  # Flag to indicate if the task has run today
-                            })
-                        elif field == 'ema_reminder_time':
-                            app_instance.scheduled_sms_tasks = [
-                                task for task in app_instance.scheduled_sms_tasks
-                                if not (task['task_type'] == 'ema_reminder' and task['participant_id'] == participant_id)
-                            ]
-                            app_instance.scheduled_sms_tasks.append({
-                                'task_type': 'ema_reminder',
-                                'task_time': datetime.strptime(participant['ema_reminder_time'], '%H:%M:%S').time(),
-                                'participant_name': participant_name,
-                                'participant_id': participant_id,
-                                'participant_phone_number': participant_phone_number,
-                                'run_today': False  # Flag to indicate if the task has run today
-                            })
-                        elif field == 'feedback_time':
-                            app_instance.scheduled_sms_tasks = [
-                                task for task in app_instance.scheduled_sms_tasks
-                                if not (task['task_type'] == 'feedback' and task['participant_id'] == participant_id)
-                            ]
-                            app_instance.scheduled_sms_tasks.append({
-                                'task_type': 'feedback',
-                                'task_time': datetime.strptime(participant['feedback_time'], '%H:%M:%S').time(),
-                                'participant_name': participant_name,
-                                'participant_id': participant_id,
-                                'participant_phone_number': participant_phone_number,
-                                'run_today': False  # Flag to indicate if the task has run today
-                            })
-                        elif field == 'feedback_reminder_time':
-                            app_instance.scheduled_sms_tasks = [
-                                task for task in app_instance.scheduled_sms_tasks
-                                if not (task['task_type'] == 'feedback_reminder' and task['participant_id'] == participant_id)
-                            ]
-                            app_instance.scheduled_sms_tasks.append({
-                                'task_type': 'feedback_reminder',
-                                'task_time': datetime.strptime(participant['feedback_reminder_time'], '%H:%M:%S').time(),
-                                'participant_name': participant_name,
-                                'participant_id': participant_id,
-                                'participant_phone_number': participant_phone_number,
-                                'run_today': False  # Flag to indicate if the task has run today
-                            })
-                        else:
-                            app_instance.add_to_transcript(f"Invalid field for time update: {field}", "ERROR")
-                            return jsonify({"error": "Invalid field for time update"}), 400
-
-                app_instance.add_to_transcript(f"Updated participant {unique_id}: {field} set to {new_value}", "INFO")
-                return jsonify({"message": "Participant updated successfully"}), 200
-        app_instance.add_to_transcript(f"Participant {unique_id} not found for update", "ERROR")
-        return jsonify({"error": "Participant not found"}), 404
+        result = app_instance.update_participant(unique_id, field, new_value)
+        if result == 0:
+            return jsonify({"message": "Participant updated successfully"}), 200
+        else:
+            app_instance.add_to_transcript(f"Participant {unique_id} not found for update", "ERROR")
+            return jsonify({"error": "Participant not found"}), 404
     
     @flask_app.route('/system/add_participant', methods = ['POST'])
     def add_participant():
