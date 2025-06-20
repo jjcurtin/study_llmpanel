@@ -351,68 +351,20 @@ class PRISM():
                     for p in self.participants:
                         f.write(f'\n"{p["unique_id"]}","{p["last_name"]}","{p["first_name"]}","{p["on_study"]}","{p["phone_number"]}","{p["ema_time"]}","{p["ema_reminder_time"]}","{p["feedback_time"]}","{p["feedback_reminder_time"]}"')
                 
-                # if the field is a ema, ema_reminder, feedback, or feedback_reminder time need to add to queue and remove the old value
+                # If the field is a time field, update the participant's scheduled SMS tasks
                 if field in ['ema_time', 'ema_reminder_time', 'feedback_time', 'feedback_reminder_time']:
-                    if participant['on_study']:
-                        participant_name = f"{participant['first_name']} {participant['last_name']}"
-                        participant_id = participant['unique_id']
-                        participant_phone_number = participant['phone_number']
-
-                        if field == 'ema_time':
-                            self.scheduled_sms_tasks = [
-                                task for task in self.scheduled_sms_tasks
-                                if not (task['task_type'] == 'ema' and task['participant_id'] == participant_id)
-                            ]
-                            self.scheduled_sms_tasks.append({
-                                'task_type': 'ema',
-                                'task_time': datetime.strptime(participant['ema_time'], '%H:%M:%S').time(),
-                                'participant_name': participant_name,
-                                'participant_id': participant_id,
-                                'participant_phone_number': participant_phone_number,
-                                'run_today': False  # Flag to indicate if the task has run today
-                            })
-                        elif field == 'ema_reminder_time':
-                            self.scheduled_sms_tasks = [
-                                task for task in self.scheduled_sms_tasks
-                                if not (task['task_type'] == 'ema_reminder' and task['participant_id'] == participant_id)
-                            ]
-                            self.scheduled_sms_tasks.append({
-                                'task_type': 'ema_reminder',
-                                'task_time': datetime.strptime(participant['ema_reminder_time'], '%H:%M:%S').time(),
-                                'participant_name': participant_name,
-                                'participant_id': participant_id,
-                                'participant_phone_number': participant_phone_number,
-                                'run_today': False  # Flag to indicate if the task has run today
-                            })
-                        elif field == 'feedback_time':
-                            self.scheduled_sms_tasks = [
-                                task for task in self.scheduled_sms_tasks
-                                if not (task['task_type'] == 'feedback' and task['participant_id'] == participant_id)
-                            ]
-                            self.scheduled_sms_tasks.append({
-                                'task_type': 'feedback',
-                                'task_time': datetime.strptime(participant['feedback_time'], '%H:%M:%S').time(),
-                                'participant_name': participant_name,
-                                'participant_id': participant_id,
-                                'participant_phone_number': participant_phone_number,
-                                'run_today': False  # Flag to indicate if the task has run today
-                            })
-                        elif field == 'feedback_reminder_time':
-                            self.scheduled_sms_tasks = [
-                                task for task in self.scheduled_sms_tasks
-                                if not (task['task_type'] == 'feedback_reminder' and task['participant_id'] == participant_id)
-                            ]
-                            self.scheduled_sms_tasks.append({
-                                'task_type': 'feedback_reminder',
-                                'task_time': datetime.strptime(participant['feedback_reminder_time'], '%H:%M:%S').time(),
-                                'participant_name': participant_name,
-                                'participant_id': participant_id,
-                                'participant_phone_number': participant_phone_number,
-                                'run_today': False  # Flag to indicate if the task has run today
-                            })
-                        else:
-                            self.add_to_transcript(f"Invalid field for time update: {field}", "ERROR")
-                            return 1
+                    task_type_map = {
+                        'ema_time': 'ema',
+                        'ema_reminder_time': 'ema_reminder',
+                        'feedback_time': 'feedback',
+                        'feedback_reminder_time': 'feedback_reminder'
+                    }
+                    task_type = task_type_map.get(field)
+                    if task_type:
+                        self.update_participant_task(participant, task_type, field)
+                    else:
+                        self.add_to_transcript(f"Invalid field for time update: {field}", "ERROR")
+                        return 1
                 self.add_to_transcript(f"Updated {field} for participant {unique_id} to {value}.", "INFO")
                 return 0
             else:
@@ -421,6 +373,32 @@ class PRISM():
         else:
             self.add_to_transcript(f"Failed to update participant {unique_id}: Participant not found.", "ERROR")
             return 1
+    
+    def update_participant_task(self, participant, task_type, time_field):
+        if not participant['on_study']:
+            return
+        
+        participant_id = participant['unique_id']
+        
+        # Remove old task of this type for this participant
+        self.scheduled_sms_tasks = [
+            task for task in self.scheduled_sms_tasks
+            if not (task['task_type'] == task_type and task['participant_id'] == participant_id)
+        ]
+        
+        time_str = participant.get(time_field)
+        if time_str:
+            participant_name = f"{participant['first_name']} {participant['last_name']}"
+            participant_phone_number = participant['phone_number']
+            
+            self.scheduled_sms_tasks.append({
+                'task_type': task_type,
+                'task_time': datetime.strptime(time_str, '%H:%M:%S').time(),
+                'participant_name': participant_name,
+                'participant_id': participant_id,
+                'participant_phone_number': participant_phone_number,
+                'run_today': False
+            })
         
     def add_participant(self, participant):
         self.participants.append(participant)
