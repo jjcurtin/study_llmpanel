@@ -136,18 +136,14 @@ class PRISM():
     ############################
     #        Task Logic        #
     ############################
-
-    # update task types
+    
+    # update task types with the format TASK_NAME: 'TaskName'
     def update_task_types(self):
-        self.task_types = {}
-        task_files = [f for f in os.listdir('tasks') if f.endswith('.py') and f != '_task.py']
-        for task_file in task_files:
-            task_name = task_file[:-3]
-            task_type = task_name.replace('_', ' ').title().replace(' ', '')
-            task_name_for_dict = task_name.upper()
-            if task_name_for_dict.startswith('_'):
-                task_name_for_dict = task_name_for_dict[1:]
-            self.task_types[task_name_for_dict] = task_type
+        self.task_types = {
+            (f[:-3].upper().lstrip('_')): (f[:-3].replace('_', ' ').title().replace(' ', ''))
+            for f in os.listdir('tasks')
+            if f.endswith('.py') and f != '_task.py'
+        }
 
     # schedule tasks from file
     def load_task_schedule(self):
