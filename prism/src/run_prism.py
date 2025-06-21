@@ -42,6 +42,12 @@ class PRISM():
         self.system_task_thread.start()
 
         # set up participant sms thread
+        self.survey_types = [
+            ('ema', 'ema_time'),
+            ('ema_reminder', 'ema_reminder_time'),
+            ('feedback', 'feedback_time'),
+            ('feedback_reminder', 'feedback_reminder_time')
+        ]
         self.participants = []
         self.load_participants()
         self.schedule_sms_tasks()
@@ -264,19 +270,22 @@ class PRISM():
             self.participants = participants
         except Exception as e:
             self.add_to_transcript(f"Failed to load participants from CSV: {e}", "ERROR")
+        
+    def save_participants(self):
+        try:
+            with open('../config/study_participants.csv', 'w') as f:
+                f.write('"unique_id","last_name","first_name","on_study","phone_number","ema_time","ema_reminder_time","feedback_time","feedback_reminder_time"')
+                for p in self.participants:
+                    f.write(f'\n"{p["unique_id"]}","{p["last_name"]}","{p["first_name"]}","{p["on_study"]}","{p["phone_number"]}","{p["ema_time"]}","{p["ema_reminder_time"]}","{p["feedback_time"]}","{p["feedback_reminder_time"]}"')
+        except Exception as e:
+            self.add_to_transcript(f"Failed to save participants to CSV: {e}", "ERROR")
 
     def schedule_sms_tasks(self):
         self.scheduled_sms_tasks = []
         for participant in self.participants:
             if participant['on_study']:
                 participant_id = participant['unique_id']
-                task_definitions = [
-                    ('ema', 'ema_time'),
-                    ('ema_reminder', 'ema_reminder_time'),
-                    ('feedback', 'feedback_time'),
-                    ('feedback_reminder', 'feedback_reminder_time')
-                ]
-                for task_type, time_key in task_definitions:
+                for task_type, time_key in self.survey_types:
                     task_time_str = participant.get(time_key)
                     if task_time_str:
                         self.scheduled_sms_tasks.append({
@@ -299,14 +308,7 @@ class PRISM():
             if participant:
                 if field in participant:
                     participant[field] = value
-                    
-                    # Update the participant in the CSV file
-                    with open('../config/study_participants.csv', 'w') as f:
-                        f.write('"unique_id","last_name","first_name","on_study","phone_number","ema_time","ema_reminder_time","feedback_time","feedback_reminder_time"')
-                        for p in self.participants:
-                            f.write(f'\n"{p["unique_id"]}","{p["last_name"]}","{p["first_name"]}","{p["on_study"]}","{p["phone_number"]}","{p["ema_time"]}","{p["ema_reminder_time"]}","{p["feedback_time"]}","{p["feedback_reminder_time"]}"')
-                    
-                    # If the field is a time field, update the participant's scheduled SMS tasks
+                    self.save_participants()
                     if field in ['ema_time', 'ema_reminder_time', 'feedback_time', 'feedback_reminder_time']:
                         task_type_map = {
                             'ema_time': 'ema',
@@ -356,21 +358,10 @@ class PRISM():
     def add_participant(self, participant):
         try:
             self.participants.append(participant)
-
-            # write to the csv file
-            with open('../config/study_participants.csv', 'a') as f:
-                f.write(f'\n"{participant["unique_id"]}","{participant["last_name"]}","{participant["first_name"]}","{participant["on_study"]}","{participant["phone_number"]}","{participant["ema_time"]}","{participant["ema_reminder_time"]}","{participant["feedback_time"]}","{participant["feedback_reminder_time"]}"')
-
-            # Add the participant to the scheduled SMS tasks if they are on study
+            self.save_participants()
             if participant['on_study']:
                 participant_id = participant['unique_id']
-                task_definitions = [
-                    ('ema', 'ema_time'),
-                    ('ema_reminder', 'ema_reminder_time'),
-                    ('feedback', 'feedback_time'),
-                    ('feedback_reminder', 'feedback_reminder_time')
-                ]
-                for task_type, field_name in task_definitions:
+                for task_type, field_name in self.survey_types:
                     self.scheduled_sms_tasks.append({
                         'task_type': task_type,
                         'task_time': datetime.strptime(participant[field_name], '%H:%M:%S').time(),
@@ -386,13 +377,7 @@ class PRISM():
         participant = self.get_participant(unique_id)
         if participant:
             self.participants.remove(participant)
-            # write to the csv file
-            with open('../config/study_participants.csv', 'w') as f:
-                f.write('"unique_id","last_name","first_name","on_study","phone_number","ema_time","ema_reminder_time","feedback_time","feedback_reminder_time"')
-                for p in self.participants:
-                    f.write(f'\n"{p["unique_id"]}","{p["last_name"]}","{p["first_name"]}","{p["on_study"]}","{p["phone_number"]}","{p["ema_time"]}","{p["ema_reminder_time"]}","{p["feedback_time"]}","{p["feedback_reminder_time"]}"')
-            
-            # Remove the participant's tasks from the scheduled SMS tasks
+            self.save_participants()
             self.scheduled_sms_tasks = [
                 task for task in self.scheduled_sms_tasks
                 if task['participant_id'] != unique_id
