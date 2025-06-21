@@ -3,6 +3,7 @@ config/*.csv
 
 data/qualtrics/
 data/followmee/
+data/messages/
 
 scripts/*.R
 
