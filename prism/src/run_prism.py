@@ -6,7 +6,7 @@ from _routes import create_flask_app
 import pandas as pd
 import importlib
 from waitress import serve
-from _helper import send_sms, clear
+from _helper import send_sms, clear, get_task_types
 import signal
 from pyngrok import ngrok
 import subprocess
@@ -33,15 +33,14 @@ class PRISM():
         self.study_participants_file_path = '../config/study_participants.csv'
 
         self.load_api_keys()
+        self.task_types = get_task_types()
         self.flask_app = create_flask_app(self)
 
         self.scheduled_tasks = []
-        self.update_task_types()
         self.load_task_schedule()
         self.task_queue, self.system_task_thread = self.start_task_thread('System Task', self.scheduled_tasks, self.process_system_task)
 
-        self.scheduled_sms_tasks = []
-        self.participants = []
+        self.scheduled_sms_tasks, self.participants = [], []
         self.load_participants()
         self.sms_queue, self.sms_task_thread = self.start_task_thread('Participant SMS', self.scheduled_sms_tasks, self.process_participant_sms)
 
@@ -86,13 +85,6 @@ class PRISM():
             'ngrok_auth_token': 'auth_token',
             'ngrok_domain': 'domain'
         }, "Ngrok")
-
-    def update_task_types(self):
-        self.task_types = {
-            (f[:-3].upper().lstrip('_')): (f[:-3].replace('_', ' ').title().replace(' ', ''))
-            for f in os.listdir('tasks')
-            if f.endswith('.py') and f != '_task.py'
-        }
 
     def add_to_transcript(self, message, message_type = "INFO"):
         transcript_message = f"{message_type} - {message}"
@@ -221,7 +213,7 @@ class PRISM():
         task_type = task.get('task_type')
         self.add_to_transcript(f"Executing task: {task_type}", "INFO")
         if self.mode == "test":
-            self.update_task_types()
+            self.task_types = get_task_types()
         if task_type in self.task_types:
             module_name = f'tasks._{task_type.lower()}'
             try:
