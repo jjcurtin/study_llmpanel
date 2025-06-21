@@ -5,6 +5,7 @@ import requests
 from requests.exceptions import ConnectionError, Timeout
 
 from tasks._task import Task
+from tasks._push_data_to_research_drive import PushDataToResearchDrive
 
 class CheckSystem(Task):
     def run(self):
@@ -14,7 +15,8 @@ class CheckSystem(Task):
         qualtrics_check = self.check_qualtrics()
         followmee_check = self.check_followmee()
         package_check = self.check_installed_packages()
-        return file_system_check + qualtrics_check + followmee_check + package_check
+        research_drive_check = self.check_research_drive()
+        return file_system_check + qualtrics_check + followmee_check + package_check + research_drive_check
     
     def check_installed_packages(self):
         print(f"INFO: Now checking installed packages...")
@@ -47,21 +49,27 @@ class CheckSystem(Task):
                 '../data',
                 '../qualtrics_js',
                 '../scripts',
-                '../logs'
+                '../logs',
+                'tasks'
             ]
             files = [
-                ['system_task_schedule.csv', 'study_coordinators.csv', 'script_pipeline.csv'], # config
+                ['system_task_schedule.csv', 'study_coordinators.csv', 
+                 'script_pipeline.csv', 'study_participants.csv'], # config
                 [], # data
                 ['EMA_load_logic.js', 'EMA_submit_logic.js', 
                  'recommendationLoad.js', 'recommendationSubmit.js'], # qualtrics_js
                 [], # scripts
-                [] # logs
+                [], # logs
+                ['_check_system.py', # obviously
+                 '_pulldown_qualtrics_data.py', '_pulldown_followmee_data.py',
+                 '_push_data_to_research_drive.py', '_run_r_script_pipeline.py',
+                 '_task.py' # obviously
+                ] # tasks
             ]
 
             for index, (directory, files_list) in enumerate(zip(directories, files)):
                 if not os.path.exists(directory):
                     print(f"ERROR: The '{directory}' directory is missing.")
-
                 for file in files_list:
                     file_path = os.path.join(directory, file)
                     if not os.path.isfile(file_path):
@@ -80,15 +88,12 @@ class CheckSystem(Task):
         api_token = self.app.qualtrics_api_token
         url = f"https://{data_center}.qualtrics.com/API/v3/survey-definitions/{survey_id}/metadata"
         headers = {"X-API-TOKEN": api_token}
-
         try:
             response = requests.get(url, headers = headers, timeout = 10)
             if response.status_code == 200:
-                data = response.json()
                 return 0
-            else:
-                print(f"ERROR: Status code: {response.status_code}")
-                return 1
+            print(f"ERROR: Status code: {response.status_code}")
+            return 1
         except (ConnectionError, Timeout) as e:
             print(f"ERROR: Connection error occurred: {str(e)}")
             return 1
@@ -97,16 +102,25 @@ class CheckSystem(Task):
         print(f"INFO: Now checking FollowMee connection...")
         username = self.app.followmee_username
         api_key = self.app.followmee_api_token
-
         url = f"https://www.followmee.com/api/info.aspx?key={api_key}&username={username}&function=devicelist"
-        
         try:
-            response = requests.get(url, timeout=10)
+            response = requests.get(url, timeout = 10)
             if response.status_code == 200:
                 return 0
-            else:
-                print(f"ERROR: FollowMee connection failed. Status code: {response.status_code}")
-                return 1
+            print(f"ERROR: FollowMee connection failed. Status code: {response.status_code}")
+            return 1
         except (ConnectionError, Timeout) as e:
             print(f"ERROR: FollowMee connection error occurred: {str(e)}")
             return 1
+        
+    def check_research_drive(self):
+        if self.app.mode == "prod":
+            print(f"INFO: Now checking Research Drive connection...")
+            researchdrivetest = PushDataToResearchDrive(self.app)
+            researchdrivetest.task_type = "PUSH_DATA_TO_RESEARCH_DRIVE"
+            result = researchdrivetest.map_network_drive()
+            if result != 0:
+                print("ERROR: Failed to connect to Research Drive.")
+                return 1
+            print("INFO: Successfully connected to Research Drive.")
+        return 0
