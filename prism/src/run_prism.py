@@ -38,8 +38,8 @@ class PRISM():
             'feedback_reminder': 'feedback_reminder_time'
         }
         self.scheduled_sms_tasks = []
+        self.participants = []
         self.load_participants()
-        self.schedule_sms_tasks()
         self.sms_queue, self.sms_task_thread = self.start_task_thread('Participant SMS', self.scheduled_sms_tasks, self.process_participant_sms)
 
         signal.signal(signal.SIGINT, self.handle_shutdown)
@@ -178,7 +178,29 @@ class PRISM():
         }
         if participant_id is not None:
             task_dict['participant_id'] = participant_id
-        target_list.append(task_dict)
+        target_list.append(task_dict)        
+
+    def schedule_participant_tasks(self, participant_id):
+        participant = self.get_participant(participant_id)
+        if not participant:
+            self.add_to_transcript(f"Participant {participant_id} not found for scheduling tasks.", "ERROR")
+            return 1
+        if not participant['on_study']:
+            self.add_to_transcript(f"Participant {participant_id} is not on study, no tasks scheduled.", "INFO")
+            return 0
+        for task_type, field_name in self.survey_types.items():
+            task_time_str = participant.get(field_name)
+            if task_time_str:
+                self.add_task(task_type, task_time_str, self.scheduled_sms_tasks, participant_id)
+        self.add_to_transcript(f"Scheduled tasks for participant {participant_id}.", "INFO")
+        return 0
+
+    def remove_participant_tasks(self, participant_id):
+        self.scheduled_sms_tasks[:] = [
+            task for task in self.scheduled_sms_tasks
+            if task['participant_id'] != participant_id
+        ]
+        self.add_to_transcript(f"Removed all tasks for participant {participant_id}.", "INFO")
 
     def check_scheduled_tasks(self, task_list, task_queue):
         current_time = datetime.now().time()
@@ -268,7 +290,8 @@ class PRISM():
 
     def load_participants(self):
         try:
-            participants = []
+            self.participants.clear()
+            self.scheduled_sms_tasks.clear()
             current_dir = os.path.dirname(os.path.abspath(__file__))
             with open(os.path.join(current_dir, '..', 'config', 'study_participants.csv'), 'r') as file:
                 lines = file.readlines()
@@ -286,21 +309,14 @@ class PRISM():
                             'feedback_time': parts[7].strip('"'),
                             'feedback_reminder_time': parts[8].strip('"')
                         }
-                        participants.append(participant)
-            self.participants = participants
-        except Exception as e:
-            self.add_to_transcript(f"Failed to load participants from CSV: {e}", "ERROR")
-        
-    def refresh_participants(self):
-        try:
-            self.load_participants()
-            self.schedule_sms_tasks()
-            self.add_to_transcript("Participants refreshed successfully.", "INFO")
+                        self.participants.append(participant)
+            for participant in self.participants:
+                self.schedule_participant_tasks(participant['unique_id'])
             return 0
         except Exception as e:
-            self.add_to_transcript(f"Failed to refresh participants: {e}", "ERROR")
+            self.add_to_transcript(f"Failed to load participants from CSV: {e}", "ERROR")
             return 1
-
+        
     def save_participants(self):
         try:
             with open('../config/study_participants.csv', 'w') as f:
@@ -309,16 +325,6 @@ class PRISM():
                     f.write(f'\n"{p["unique_id"]}","{p["last_name"]}","{p["first_name"]}","{p["on_study"]}","{p["phone_number"]}","{p["ema_time"]}","{p["ema_reminder_time"]}","{p["feedback_time"]}","{p["feedback_reminder_time"]}"')
         except Exception as e:
             self.add_to_transcript(f"Failed to save participants to CSV: {e}", "ERROR")
-
-    def schedule_sms_tasks(self):
-        self.scheduled_sms_tasks.clear()
-        for participant in self.participants:
-            if participant['on_study']:
-                participant_id = participant['unique_id']
-                for task_type, time_key in self.survey_types.items():
-                    task_time_str = participant.get(time_key)
-                    if task_time_str:
-                        self.add_task(task_type, task_time_str, self.scheduled_sms_tasks, participant_id)
 
     def get_participant(self, unique_id):
         for participant in self.participants:
@@ -362,28 +368,6 @@ class PRISM():
         except Exception as e:
             self.add_to_transcript(f"An error occurred while updating participant {unique_id}: {e}", "ERROR")
             return 1
-
-    def schedule_participant_tasks(self, participant_id):
-        participant = self.get_participant(participant_id)
-        if not participant:
-            self.add_to_transcript(f"Participant {participant_id} not found for scheduling tasks.", "ERROR")
-            return 1
-        if not participant['on_study']:
-            self.add_to_transcript(f"Participant {participant_id} is not on study, no tasks scheduled.", "INFO")
-            return 0
-        for task_type, field_name in self.survey_types.items():
-            task_time_str = participant.get(field_name)
-            if task_time_str:
-                self.add_task(task_type, task_time_str, self.scheduled_sms_tasks, participant_id)
-        self.add_to_transcript(f"Scheduled tasks for participant {participant_id}.", "INFO")
-        return 0
-
-    def remove_participant_tasks(self, participant_id):
-        self.scheduled_sms_tasks[:] = [
-            task for task in self.scheduled_sms_tasks
-            if task['participant_id'] != participant_id
-        ]
-        self.add_to_transcript(f"Removed all tasks for participant {participant_id}.", "INFO")
         
     def add_participant(self, participant):
         self.participants.append(participant)

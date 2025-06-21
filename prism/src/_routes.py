@@ -134,7 +134,7 @@ def create_flask_app(app_instance):
     
     @flask_app.route('/participants/refresh_participants', methods = ['POST'])
     def refresh_participants():
-        if app_instance.refresh_participants() != 0:
+        if app_instance.load_participants() != 0:
             app_instance.add_to_transcript("Failed to refresh participants", "ERROR")
             return jsonify({"error": "Failed to refresh participants"}), 500
         app_instance.add_to_transcript("Participants refreshed via API", "INFO")
