@@ -33,11 +33,9 @@ def create_flask_app(app_instance):
     
     @flask_app.route('/system/uptime', methods = ['GET'])
     def get_uptime():
-        uptime_seconds = datetime.now() - app_instance.start_time
-        uptime_seconds = uptime_seconds.total_seconds()
-        uptime_string = time.strftime('%H:%M:%S', time.gmtime(uptime_seconds))
-        app_instance.add_to_transcript(f"Uptime requested via API: {uptime_string}", "INFO")
-        return jsonify({"uptime": uptime_string})
+        uptime = time.strftime('%H:%M:%S', time.gmtime((datetime.now() - app_instance.start_time).total_seconds()))
+        app_instance.add_to_transcript(f"Uptime requested via API: {uptime}", "INFO")
+        return jsonify({"uptime": uptime})
     
     @flask_app.route('/system/get_task_schedule', methods = ['GET'])
     def get_task_schedule():
@@ -56,9 +54,8 @@ def create_flask_app(app_instance):
     def get_task_types():
         if app_instance.mode == "test":
             app_instance.update_task_types()
-        task_types = app_instance.task_types
         app_instance.add_to_transcript("Task types requested via API", "INFO")
-        return jsonify({"task_types": task_types}), 200
+        return jsonify({"task_types": app_instance.task_types}), 200
     
     @flask_app.route('/system/add_system_task/<task_type>/<task_time>', methods = ['POST'])
     def add_system_task(task_type, task_time):
