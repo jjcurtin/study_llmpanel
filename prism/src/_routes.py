@@ -67,7 +67,7 @@ def create_flask_app(app_instance):
         if task_type not in app_instance.task_types:
             return jsonify({"error": "Invalid task type"}), 400
         app_instance.add_task(task_type, task_time, app_instance.scheduled_tasks)
-        app_instance.save_tasks()
+        app_instance.save_to_csv(app_instance.scheduled_tasks, app_instance.system_task_schedule_file_path)
         app_instance.add_to_transcript(f"Added system task via API: {task_type} at {task_time}", "INFO")
         return jsonify({"message": "Task added successfully"}), 200
     
