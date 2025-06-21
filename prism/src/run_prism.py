@@ -349,13 +349,8 @@ class PRISM():
                     participant[field] = value
                     self.save_participants()
                     if field in self.survey_types.values():
-                        task_type_map = {v: k for k, v in self.survey_types.items()}
-                        task_type = task_type_map.get(field)
-                        if task_type:
-                            self.update_participant_task(participant, task_type, field)
-                        else:
-                            self.add_to_transcript(f"Invalid field for time update: {field}", "ERROR")
-                            return 1
+                        self.remove_participant_tasks(unique_id)
+                        self.schedule_participant_tasks(unique_id)
                     self.add_to_transcript(f"Updated {field} for participant {unique_id} to {value}.", "INFO")
                     return 0
                 else:
@@ -367,47 +362,42 @@ class PRISM():
         except Exception as e:
             self.add_to_transcript(f"An error occurred while updating participant {unique_id}: {e}", "ERROR")
             return 1
-    
-    def update_participant_task(self, participant, task_type, time_field):
+
+    def schedule_participant_tasks(self, participant_id):
+        participant = self.get_participant(participant_id)
+        if not participant:
+            self.add_to_transcript(f"Participant {participant_id} not found for scheduling tasks.", "ERROR")
+            return 1
         if not participant['on_study']:
-            return
-        participant_id = participant['unique_id']
-        self.scheduled_sms_tasks = [
+            self.add_to_transcript(f"Participant {participant_id} is not on study, no tasks scheduled.", "INFO")
+            return 0
+        for task_type, field_name in self.survey_types.items():
+            task_time_str = participant.get(field_name)
+            if task_time_str:
+                self.add_task(task_type, task_time_str, self.scheduled_sms_tasks, participant_id)
+        self.add_to_transcript(f"Scheduled tasks for participant {participant_id}.", "INFO")
+        return 0
+
+    def remove_participant_tasks(self, participant_id):
+        self.scheduled_sms_tasks[:] = [
             task for task in self.scheduled_sms_tasks
-            if not (task['task_type'] == task_type and task['participant_id'] == participant_id)
+            if task['participant_id'] != participant_id
         ]
-        time_str = participant.get(time_field)
-        if time_str:
-            self.add_task(task_type, time_str, self.scheduled_sms_tasks, participant_id)
+        self.add_to_transcript(f"Removed all tasks for participant {participant_id}.", "INFO")
         
     def add_participant(self, participant):
-        try:
-            self.participants.append(participant)
-            self.save_participants()
-            if participant['on_study']:
-                participant_id = participant['unique_id']
-                for task_type, field_name in self.survey_types.items():
-                    task_time_str = participant.get(field_name)
-                    if task_time_str:
-                        self.add_task(task_type, task_time_str, self.scheduled_sms_tasks, participant_id)
-                self.add_to_transcript(f"Added new participant via API: {participant['first_name']} {participant['last_name']}", "INFO")
-        except Exception as e:
-            self.add_to_transcript(f"Failed to add participant: {e}", "ERROR")
-            return 1
+        self.participants.append(participant)
+        self.save_participants()
+        self.schedule_participant_tasks(participant['unique_id'])
 
     def remove_participant(self, unique_id):
         participant = self.get_participant(unique_id)
         if participant:
             self.participants.remove(participant)
             self.save_participants()
-            self.scheduled_sms_tasks = [
-                task for task in self.scheduled_sms_tasks
-                if task['participant_id'] != unique_id
-            ]
-            self.add_to_transcript(f"Removed participant {unique_id} via API", "INFO")
+            self.remove_participant_tasks(unique_id)
             return 0
-        else:
-            return 1
+        return 1
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description = "Run the PRISM application.")
