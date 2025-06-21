@@ -39,7 +39,7 @@ class PRISM():
         self.task_queue = queue.Queue()
         self.system_task_thread = threading.Thread(
             target = self.run_task_processor,
-            args = ('System Task', self.scheduled_tasks, self.task_queue, self.process_task)
+            args = ('System Task', self.scheduled_tasks, self.task_queue, self.process_system_task)
         )
         self.system_task_thread.start()
 
@@ -210,7 +210,7 @@ class PRISM():
                 task['run_today'] = True
 
     # task run logic
-    def process_task(self, task):
+    def process_system_task(self, task):
         task_type = task.get('task_type')
         self.add_to_transcript(f"Executing task: {task_type}", "INFO")
         result = 0  # Default result for successful execution
