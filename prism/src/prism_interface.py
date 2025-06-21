@@ -262,14 +262,23 @@ class PRISMInterface:
                             print(f"{i}: {p['last_name']}, {p['first_name']} (ID: {p['unique_id']}) - On Study: {p['on_study']}")
                     else:
                         print("No participants found or failed to retrieve.")
-                    print("\na: Add a Participant\nENTER: Back to Main Menu")
-                    choice = input("Enter index, 'a', or ENTER: ").strip()
+                    print("\na: Add a Participant\nr: Full Participants Refresh from CSV\nENTER: Back to Main Menu")
+                    choice = input("Enter index, 'a', 'r', or ENTER: ").strip()
                     if choice.isdigit():
                         idx = int(choice)-1
                         if 0 <= idx < len(participants):
                             self.print_participant_schedule(participants[idx]['unique_id'])
                     elif choice.lower() == 'a':
                         self.add_participant()
+                    elif choice.lower() == 'r':
+                        if input("Refresh participants from CSV? (yes/no): ").strip().lower() == 'yes':
+                            if self.api("POST", "refresh_participants"):
+                                print("Participants refreshed from CSV.")
+                            else:
+                                print(f"Failed to refresh participants. Error code: {self.api('POST', 'refresh_participants').get('status_code', 'Unknown')}")
+                        else:
+                            print("Refresh cancelled.")
+                        input("Press Enter to continue...")
                     elif choice == '':
                         break
                     else:
@@ -304,7 +313,6 @@ class PRISMInterface:
 
             # Shutdown PRISM
             elif choice == '5':
-                clear()
                 if self.api("GET", "uptime") is not None:
                     if input("Shutdown PRISM? (yes/no): ").strip().lower() == 'yes':
                         try:
