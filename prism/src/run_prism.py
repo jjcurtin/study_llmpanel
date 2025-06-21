@@ -196,18 +196,6 @@ class PRISM():
                 self.add_task(task_type, task_time_str, self.scheduled_sms_tasks, participant_id)
         return 0
 
-    # task saving methods
-
-    def save_to_csv(self, data, file_path):
-        try:
-            headers = data[0].keys() if data else []
-            with open(file_path, 'w') as f:
-                f.write(','.join(f'"{header}"' for header in headers) + '\n')
-                for row in data:
-                    f.write(','.join(f'"{str(row[header])}"' for header in headers) + '\n')
-        except Exception as e:
-            self.add_to_transcript(f"Failed to save data to CSV at {file_path}: {e}", "ERROR")
-
     # task removal methods
 
     def remove_system_task(self, task_type, task_time):
@@ -285,6 +273,16 @@ class PRISM():
             return -1
         
     # abstracted task methods
+
+    def save_to_csv(self, data, file_path):
+        try:
+            headers = data[0].keys() if data else []
+            with open(file_path, 'w') as f:
+                f.write(','.join(f'"{header}"' for header in headers) + '\n')
+                for row in data:
+                    f.write(','.join(f'"{str(row[header])}"' for header in headers) + '\n')
+        except Exception as e:
+            self.add_to_transcript(f"Failed to save data to CSV at {file_path}: {e}", "ERROR")
 
     def add_task(self, task_type, task_time, target_list, participant_id = None):
         task_dict = {
