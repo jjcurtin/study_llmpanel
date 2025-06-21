@@ -167,11 +167,7 @@ class PRISM():
                         if task_type not in self.task_types:
                             self.add_to_transcript(f"Unknown task type: {task_type}", "ERROR")
                             continue
-                        self.scheduled_tasks.append({
-                            'task_type': task_type,
-                            'task_time': task_time,
-                            'run_today': False
-                        })
+                        self.add_task(task_type, task_time)
                     except ValueError:
                         self.add_to_transcript(f"Invalid time format for task {task_type}: {task_time_str}", "ERROR")
                     except Exception as e:
