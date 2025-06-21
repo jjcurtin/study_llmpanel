@@ -14,3 +14,5 @@
 ### raw
 - followmee_device_list.json
 - raw_followmee_data.json
+
+## messages
