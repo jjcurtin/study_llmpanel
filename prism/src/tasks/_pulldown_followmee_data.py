@@ -18,12 +18,6 @@ class PulldownFollowmeeData(Task):
             return 1
         
         return 0
-    
-    def get_one_week_ago_date(self):
-        utc = pytz.UTC
-        current_date = datetime.now(utc)
-        one_week_ago = (current_date - timedelta(weeks=1)).replace(hour=0, minute=0, second=0, microsecond=0)
-        return one_week_ago.strftime("%Y-%m-%dT%H:%M:%SZ")
 
     def get_one_day_ago_date(self):
         utc = pytz.UTC
@@ -33,10 +27,8 @@ class PulldownFollowmeeData(Task):
 
     def get_followmee_devices(self):
         self.app.add_to_transcript("Retrieving FollowMee devices...", "INFO")
-
         username = self.app.followmee_username
         api_key = self.app.followmee_api_token
-
         url = f"https://www.followmee.com/api/info.aspx?key={api_key}&username={username}&function=devicelist"
         
         try:
@@ -64,10 +56,8 @@ class PulldownFollowmeeData(Task):
 
     def pull_down_followmee_data(self, raw_file_name, processed_file_name):
         self.app.add_to_transcript("Now pulling down FollowMee data...", "INFO")
-
         username = self.app.followmee_username
         api_key = self.app.followmee_api_token
-
         device_list_file = self.get_followmee_devices()
         if not device_list_file:
             return 1
@@ -111,30 +101,22 @@ class PulldownFollowmeeData(Task):
             filepath = f"../data/followmee/raw/{raw_file_name}"
             with open(filepath, "r") as file:
                 new_data = json.load(file)
-
             new_grouped_data = defaultdict(list)
             for entry in new_data['Data']:
                 device_id = entry['DeviceID']
                 new_grouped_data[device_id].append(entry)
-
             for device_id, entries in new_grouped_data.items():
                 device_processed_file = f"../data/followmee/processed/{device_id}_{processed_file_name}"
-
                 if os.path.exists(device_processed_file):
                     existing_data = pd.read_csv(device_processed_file)
                 else:
                     os.makedirs(os.path.dirname(device_processed_file), exist_ok=True)
                     existing_data = pd.DataFrame()
-
                 new_entries_df = pd.DataFrame(entries)
                 updated_data = pd.concat([existing_data, new_entries_df]).drop_duplicates()
-
                 updated_data.to_csv(device_processed_file, index=False)
-
                 self.app.add_to_transcript(f"INFO: Processed data for device {device_id} saved to {device_processed_file}.")
-
             return 0
-
         except Exception as e:
             self.app.add_to_transcript(f"ERROR: Failed to process FollowMee data. Exception: {str(e)}")
             return 1
