@@ -325,6 +325,20 @@ class PRISM():
         self.add_to_transcript(f"Participant with ID {unique_id} not found.", "ERROR")
         return None
     
+    def get_participants(self):
+        try:
+            return [
+                {
+                    'unique_id': participant['unique_id'],
+                    'last_name': participant['last_name'],
+                    'first_name': participant['first_name'],
+                    'on_study': participant['on_study'],
+                } for participant in self.participants
+            ]
+        except Exception as e:
+            self.add_to_transcript(f"Failed to retrieve participants: {e}", "ERROR")
+            return []
+    
     def update_participant(self, unique_id, field, value):
         try:
             participant = self.get_participant(unique_id)

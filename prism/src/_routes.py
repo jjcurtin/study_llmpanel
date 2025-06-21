@@ -100,8 +100,6 @@ def create_flask_app(app_instance):
             task_time = datetime.strptime(task_time, '%H:%M:%S').time()
         except ValueError:
             return jsonify({"error": "Invalid time format"}), 400
-        
-        # Find and remove the task
         try:
             for task in app_instance.scheduled_tasks:
                 if task['task_type'] == task_type and task['task_time'] == task_time:
@@ -111,7 +109,6 @@ def create_flask_app(app_instance):
                     return jsonify({"message": "Task removed via API successfully"}), 200
         except Exception as e:
             app_instance.add_to_transcript(f"Failed to remove task: {task_type} at {task_time.strftime('%H:%M:%S')}. Error message: {e}", "ERROR")
-        
         return jsonify({"error": "Task not found"}), 404
     
     @flask_app.route('/system/execute_task/<task_type>', methods = ['POST'])
@@ -120,9 +117,8 @@ def create_flask_app(app_instance):
             return jsonify({"error": "Invalid task type"}), 400
         elif app_instance.process_system_task({'task_type': task_type}) != 0:
             return jsonify({"error": f"Failed to execute {task_type}"}), 500
-        else:
-            app_instance.add_to_transcript(f"Executed task: {task_type} via API", "INFO")
-            return jsonify({"message": f"{task_type} executed successfully"}), 200
+        app_instance.add_to_transcript(f"Executed task: {task_type} via API", "INFO")
+        return jsonify({"message": f"{task_type} executed successfully"}), 200
         
     #################
     #  Participants #
@@ -130,36 +126,28 @@ def create_flask_app(app_instance):
 
     @flask_app.route('/participants/get_participants', methods = ['GET'])
     def get_participants():
-        participants = app_instance.participants
-        formatted_participants = [
-            {
-                'unique_id': participant['unique_id'],
-                'last_name': participant['last_name'],
-                'first_name': participant['first_name'],
-                'on_study': participant['on_study']
-            } for participant in participants
-        ]
+        participants = app_instance.get_participants()
+        if not participants:
+            return jsonify({"error": "No participants found"}), 404
         app_instance.add_to_transcript("Participants requested via API", "INFO")
-        return jsonify({"participants": formatted_participants}), 200
+        return jsonify({"participants": participants}), 200
     
     @flask_app.route('/participants/refresh_participants', methods = ['POST'])
     def refresh_participants():
-        if app_instance.refresh_participants() == 0:
-            app_instance.add_to_transcript("Participants refreshed via API", "INFO")
-            return jsonify({"message": "Participants refreshed successfully"}), 200
-        else:
+        if app_instance.refresh_participants() != 0:
             app_instance.add_to_transcript("Failed to refresh participants", "ERROR")
             return jsonify({"error": "Failed to refresh participants"}), 500
+        app_instance.add_to_transcript("Participants refreshed via API", "INFO")
+        return jsonify({"message": "Participants refreshed successfully"}), 200
     
     @flask_app.route('/participants/get_participant/<unique_id>', methods = ['GET'])
     def get_participant(unique_id):
         participant = app_instance.get_participant(unique_id)
-        if participant:
-            app_instance.add_to_transcript(f"Participant {unique_id} requested via API", "INFO")
-            return jsonify({"participant": participant}), 200
-        else:
+        if not participant:
             app_instance.add_to_transcript(f"Participant {unique_id} not found for retrieval", "ERROR")
             return jsonify({"error": "Participant not found"}), 404
+        app_instance.add_to_transcript(f"Participant {unique_id} requested via API", "INFO")
+        return jsonify({"participant": participant}), 200
 
     @flask_app.route('/participants/add_participant', methods = ['POST'])
     def add_participant():
@@ -167,25 +155,22 @@ def create_flask_app(app_instance):
         required_fields = ['unique_id', 'last_name', 'first_name', 'on_study', 'phone_number', 'ema_time', 'ema_reminder_time', 'feedback_time', 'feedback_reminder_time']
         if not all(field in data for field in required_fields):
             return jsonify({"error": "Missing required fields"}), 400
-        else:
-            app_instance.add_participant(data)
-            return jsonify({"message": "Participant added successfully"}), 200
+        app_instance.add_participant(data)
+        return jsonify({"message": "Participant added successfully"}), 200
     
     @flask_app.route('/participants/remove_participant/<unique_id>', methods = ['DELETE'])
     def remove_participant(unique_id):
-        if app_instance.remove_participant(unique_id) == 0:
-            return jsonify({"message": "Participant removed successfully"}), 200
-        else:
+        if app_instance.remove_participant(unique_id) != 0:
             app_instance.add_to_transcript(f"Participant {unique_id} not found for removal", "ERROR")
             return jsonify({"error": "Participant not found"}), 404
+        return jsonify({"message": "Participant removed successfully"}), 200
         
     @flask_app.route('/participants/update_participant/<unique_id>/<field>/<new_value>', methods = ['PUT'])
     def update_participant(unique_id, field, new_value):
-        if app_instance.update_participant(unique_id, field, new_value) == 0:
-            return jsonify({"message": "Participant updated successfully"}), 200
-        else:
+        if app_instance.update_participant(unique_id, field, new_value) != 0:
             app_instance.add_to_transcript(f"Participant {unique_id} not found for update", "ERROR")
             return jsonify({"error": "Participant not found"}), 404
+        return jsonify({"message": "Participant updated successfully"}), 200
     
     @flask_app.route('/participants/send_survey/<unique_id>/<survey_type>', methods = ['POST'])
     def send_survey(unique_id, survey_type):
