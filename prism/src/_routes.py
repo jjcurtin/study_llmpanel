@@ -165,19 +165,11 @@ def create_flask_app(app_instance):
 
     @flask_app.route('/system/get_transcript/<num_lines>', methods = ['GET'])
     def get_transcript(num_lines):
-        today_date = datetime.now().strftime('%Y-%m-%d')
-        transcript_path = f'../logs/transcripts/{today_date}_transcript.txt'
-        try:
-            with open(transcript_path, 'r') as f:
-                num_lines = int(num_lines)
-                content = f.read().splitlines()[-num_lines:]
-                if not content:
-                    return jsonify({"error": "Transcript is empty"}), 404
-                transcript = [{"timestamp": line.split(' - ')[0], "message": ' - '.join(line.split(' - ')[1:])} for line in content]
-                
-            app_instance.add_to_transcript("Transcript requested via API", "INFO")
+        app_instance.add_to_transcript("Transcript requested via API", "INFO")
+        transcript = app_instance.get_transcript(num_lines)
+        if transcript:
             return jsonify({"transcript": transcript}), 200
-        except FileNotFoundError:
+        else:
             return jsonify({"error": "Transcript not found"}), 404
         
     @flask_app.route('/system/shutdown', methods = ['POST'])
