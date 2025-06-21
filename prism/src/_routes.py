@@ -66,7 +66,7 @@ def create_flask_app(app_instance):
         except ValueError:
             return jsonify({"error": "Invalid time format"}), 400
         task_time = task_time.time()
-        app_instance.add_task(task_type, task_time)
+        app_instance.add_task(task_type, task_time, app_instance.scheduled_tasks)
         app_instance.save_tasks()
         app_instance.add_to_transcript(f"Added new task via API: {task_type} at {task_time.strftime('%H:%M:%S')}", "INFO")
         return jsonify({"message": "Task added successfully"}), 200
@@ -183,7 +183,7 @@ def create_flask_app(app_instance):
             return jsonify({"error": "Invalid survey type"}), 400
         if not app_instance.get_participant(unique_id):
             return jsonify({"error": "Participant not found"}), 404
-        app_instance.add_sms_task(survey_type, (datetime.now() + timedelta(seconds=10)).strftime('%H:%M:%S'), unique_id)
+        app_instance.add_task(survey_type, (datetime.now() + timedelta(seconds=10)).strftime('%H:%M:%S'), app_instance.scheduled_sms_tasks, unique_id)
         app_instance.add_to_transcript(f"Survey {survey_type} sent to participant {unique_id} via API", "INFO")
         return jsonify({"message": f"{survey_type.capitalize()} survey sent to participant {unique_id}"}), 200
 

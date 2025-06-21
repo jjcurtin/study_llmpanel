@@ -173,7 +173,7 @@ class PRISM():
                         if task_type not in self.task_types:
                             self.add_to_transcript(f"Unknown task type: {task_type}", "ERROR")
                             continue
-                        self.add_task(task_type, task_time)
+                        self.add_task(task_type, task_time, self.scheduled_tasks)
                     except ValueError:
                         self.add_to_transcript(f"Invalid time format for task {task_type}: {task_time_str}", "ERROR")
                     except Exception as e:
@@ -189,14 +189,16 @@ class PRISM():
             for t in self.scheduled_tasks:
                 f.write(f'\n"{t["task_type"]}","{t["task_time"].strftime('%H:%M:%S')}"')
 
-    def add_task(self, task_type, task_time):
-        self.scheduled_tasks.append({
+    def add_task(self, task_type, task_time, target_list, participant_id = None):
+        task_dict = {
             'task_type': task_type,
-            'task_time': task_time,
+            'task_time': datetime.strptime(task_time, '%H:%M:%S').time() if isinstance(task_time, str) else task_time,
             'run_today': False
-        })
+        }
+        if participant_id is not None:
+            task_dict['participant_id'] = participant_id
+        target_list.append(task_dict)
 
-    # add tasks to the queue when it is time to run it
     def check_scheduled_tasks(self, task_list, task_queue):
         current_time = datetime.now().time()
         if current_time.hour == 0 and current_time.minute == 0:
@@ -305,14 +307,6 @@ class PRISM():
         except Exception as e:
             self.add_to_transcript(f"Failed to save participants to CSV: {e}", "ERROR")
 
-    def add_sms_task(self, task_type, task_time, participant_id):
-        self.scheduled_sms_tasks.append({
-            'task_type': task_type,
-            'task_time': datetime.strptime(task_time, '%H:%M:%S').time(),
-            'participant_id': participant_id,
-            'run_today': False
-        })
-
     def schedule_sms_tasks(self):
         self.scheduled_sms_tasks = []
         for participant in self.participants:
@@ -321,7 +315,7 @@ class PRISM():
                 for task_type, time_key in self.survey_types.items():
                     task_time_str = participant.get(time_key)
                     if task_time_str:
-                        self.add_sms_task(task_type, task_time_str, participant_id)
+                        self.add_task(task_type, task_time_str, self.scheduled_sms_tasks, participant_id)
 
     def get_participant(self, unique_id):
         for participant in self.participants:
@@ -367,7 +361,7 @@ class PRISM():
         ]
         time_str = participant.get(time_field)
         if time_str:
-            self.add_sms_task(task_type, time_str, participant_id)
+            self.add_task(task_type, time_str, self.scheduled_sms_tasks, participant_id)
         
     def add_participant(self, participant):
         try:
@@ -378,7 +372,7 @@ class PRISM():
                 for task_type, field_name in self.survey_types.items():
                     task_time_str = participant.get(field_name)
                     if task_time_str:
-                        self.add_sms_task(task_type, task_time_str, participant_id)
+                        self.add_task(task_type, task_time_str, self.scheduled_sms_tasks, participant_id)
                 self.add_to_transcript(f"Added new participant via API: {participant['first_name']} {participant['last_name']}", "INFO")
         except Exception as e:
             self.add_to_transcript(f"Failed to add participant: {e}", "ERROR")
