@@ -4,6 +4,7 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 import time
 from datetime import datetime
+from datetime import timedelta
 
 def create_flask_app(app_instance):
     flask_app = Flask(__name__)
@@ -216,14 +217,7 @@ def create_flask_app(app_instance):
         if not participant:
             return jsonify({"error": "Participant not found"}), 404
         
-        current_time = datetime.now()
-        current_time = current_time.strftime('%H:%M:%S')
-        app_instance.scheduled_sms_tasks.append({
-            'task_type': survey_type,
-            'task_time': datetime.strptime(current_time, '%H:%M:%S').time(),
-            'participant_id': unique_id,
-            'run_today': False
-        })
+        app_instance.add_sms_task(survey_type, (datetime.now() + timedelta(seconds=10)).strftime('%H:%M:%S'), unique_id)
         app_instance.add_to_transcript(f"Survey {survey_type} sent to participant {unique_id} via API", "INFO")
         return jsonify({"message": f"{survey_type.capitalize()} survey sent to participant {unique_id}"}), 200
 
