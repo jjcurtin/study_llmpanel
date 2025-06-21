@@ -26,6 +26,7 @@ class PRISM():
         self.load_api_keys()
         self.flask_app = create_flask_app(self)
 
+        self.scheduled_tasks = []
         self.update_task_types()
         self.load_task_schedule()
         self.task_queue, self.system_task_thread = self.start_task_thread('System Task', self.scheduled_tasks, self.process_system_task)
@@ -36,6 +37,7 @@ class PRISM():
             'feedback': 'feedback_time',
             'feedback_reminder': 'feedback_reminder_time'
         }
+        self.scheduled_sms_tasks = []
         self.load_participants()
         self.schedule_sms_tasks()
         self.sms_queue, self.sms_task_thread = self.start_task_thread('Participant SMS', self.scheduled_sms_tasks, self.process_participant_sms)
@@ -139,7 +141,7 @@ class PRISM():
     def load_task_schedule(self):
         current_dir = os.path.dirname(os.path.abspath(__file__))
         config_path = os.path.join(current_dir, '..', 'config', 'system_task_schedule.csv')
-        self.scheduled_tasks = []
+        self.scheduled_tasks.clear()
         try:
             with open(config_path, 'r') as file:
                 next(file)  # skip header
@@ -309,7 +311,7 @@ class PRISM():
             self.add_to_transcript(f"Failed to save participants to CSV: {e}", "ERROR")
 
     def schedule_sms_tasks(self):
-        self.scheduled_sms_tasks = []
+        self.scheduled_sms_tasks.clear()
         for participant in self.participants:
             if participant['on_study']:
                 participant_id = participant['unique_id']
