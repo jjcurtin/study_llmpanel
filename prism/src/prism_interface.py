@@ -243,6 +243,13 @@ class PRISMInterface:
                             print(f"Task {task_type} executed.")
                         else:
                             print("Failed to execute task.")
+                            data = self.api("GET", f"system/get_transcript/{15}")
+                            if data and "transcript" in data:
+                                for entry in data["transcript"]:
+                                    print(f"{entry['timestamp']} - {entry['message']}")
+                            else:
+                                print("No transcript found or failed to retrieve.")
+
                         input("Press Enter to continue...")
                     elif task_choice == '':
                         break
