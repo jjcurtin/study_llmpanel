@@ -65,20 +65,10 @@ def create_flask_app(app_instance):
             task_time = datetime.strptime(task_time, '%H:%M:%S')
         except ValueError:
             return jsonify({"error": "Invalid time format"}), 400
-        
         task_time = task_time.time()
-        app_instance.scheduled_tasks.append({
-            'task_type': task_type,
-            'task_time': task_time,
-            'run_today': False
-        })
-
-        # write to the csv file
-        with open('../config/system_task_schedule.csv', 'a') as f:
-            f.write(f'\n"{task_type}","{task_time.strftime('%H:%M:%S')}"')
-
+        app_instance.add_task(task_type, task_time)
+        app_instance.save_tasks()
         app_instance.add_to_transcript(f"Added new task via API: {task_type} at {task_time.strftime('%H:%M:%S')}", "INFO")
-        
         return jsonify({"message": "Task added successfully"}), 200
     
     @flask_app.route('/system/remove_system_task/<task_type>/<task_time>', methods = ['DELETE'])
@@ -95,12 +85,7 @@ def create_flask_app(app_instance):
             for task in app_instance.scheduled_tasks:
                 if task['task_type'] == task_type and task['task_time'] == task_time:
                     app_instance.scheduled_tasks.remove(task)
-                    # write to the csv file
-                    with open('../config/system_task_schedule.csv', 'w') as f:
-                        f.write('"task_type","task_time"')
-                        for t in app_instance.scheduled_tasks:
-                            f.write(f'\n"{t["task_type"]}","{t["task_time"].strftime('%H:%M:%S')}"')
-                    
+                    app_instance.save_tasks()
                     app_instance.add_to_transcript(f"Removed task: {task_type} at {task_time.strftime('%H:%M:%S')}", "INFO")
                     return jsonify({"message": "Task removed via API successfully"}), 200
         except Exception as e:

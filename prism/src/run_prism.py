@@ -181,6 +181,19 @@ class PRISM():
         except Exception as e:
             self.add_to_transcript(f"An error occurred while loading the task schedule: {e}", "ERROR")
 
+    def save_tasks(self):
+        with open('../config/system_task_schedule.csv', 'w') as f:
+            f.write('"task_type","task_time"')
+            for t in self.scheduled_tasks:
+                f.write(f'\n"{t["task_type"]}","{t["task_time"].strftime('%H:%M:%S')}"')
+
+    def add_task(self, task_type, task_time):
+        self.scheduled_tasks.append({
+            'task_type': task_type,
+            'task_time': task_time,
+            'run_today': False
+        })
+
     # add tasks to the queue when it is time to run it
     def check_scheduled_tasks(self):
         current_time = datetime.now().time()
