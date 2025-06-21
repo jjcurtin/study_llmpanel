@@ -96,20 +96,10 @@ def create_flask_app(app_instance):
     def remove_system_task(task_type, task_time):
         if task_type not in app_instance.task_types:
             return jsonify({"error": "Invalid task type"}), 400
-        try:
-            task_time = datetime.strptime(task_time, '%H:%M:%S').time()
-        except ValueError:
-            return jsonify({"error": "Invalid time format"}), 400
-        try:
-            for task in app_instance.scheduled_tasks:
-                if task['task_type'] == task_type and task['task_time'] == task_time:
-                    app_instance.scheduled_tasks.remove(task)
-                    app_instance.save_tasks()
-                    app_instance.add_to_transcript(f"Removed task: {task_type} at {task_time.strftime('%H:%M:%S')}", "INFO")
-                    return jsonify({"message": "Task removed via API successfully"}), 200
-        except Exception as e:
-            app_instance.add_to_transcript(f"Failed to remove task: {task_type} at {task_time.strftime('%H:%M:%S')}. Error message: {e}", "ERROR")
-        return jsonify({"error": "Task not found"}), 404
+        elif app_instance.remove_system_task(task_type, task_time) != 0:
+            app_instance.add_to_transcript(f"Failed to remove task: {task_type} at {task_time}", "ERROR")
+            return jsonify({"error": "Task not found"}), 404
+        return jsonify({"message": "Task removed successfully"}), 200
     
     @flask_app.route('/system/execute_task/<task_type>', methods = ['POST'])
     def execute_task(task_type):
