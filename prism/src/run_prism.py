@@ -129,18 +129,9 @@ class PRISM():
             self.add_to_transcript(f"Failed to read transcript: {e}", "ERROR")
             return None
 
-    def clear_all_run_today_flags(self, system_tasks = False, sms_tasks = False):
-        # Clear the run_today flag for all scheduled tasks
-        if system_tasks:
-            for task in self.scheduled_tasks:
-                task['run_today'] = False
-            self.add_to_transcript("Cleared run_today flags for all system tasks.", "INFO")
-
-        # Clear the run_today flag for all scheduled SMS tasks
-        if sms_tasks:
-            for sms_task in self.scheduled_sms_tasks:
-                sms_task['run_today'] = False
-            self.add_to_transcript("Cleared run_today flags for all SMS tasks.", "INFO")
+    def clear_all_run_today_flags(self, task_list):
+        for task in task_list:
+            task['run_today'] = False
 
     def handle_shutdown(self, signum, frame):
         self.add_to_transcript("Received shutdown signal. Stopping PRISM application...", "INFO")
@@ -208,7 +199,7 @@ class PRISM():
     def check_scheduled_tasks(self):
         current_time = datetime.now().time()
         if current_time.hour == 0 and current_time.minute == 0:
-            self.clear_all_run_today_flags(system_tasks = True)
+            self.clear_all_run_today_flags(self.scheduled_tasks)
         for task in self.scheduled_tasks:
             task_time = task['task_time']
             diff = abs((datetime.combine(datetime.today(), current_time) - datetime.combine(datetime.today(), task_time)).total_seconds())
@@ -405,7 +396,7 @@ class PRISM():
     def check_scheduled_sms(self):
         current_time = datetime.now().time()
         if current_time.hour == 0 and current_time.minute == 0:
-            self.clear_all_run_today_flags(sms_tasks = True)
+            self.clear_all_run_today_flags(self.scheduled_sms_tasks)
         for task in self.scheduled_sms_tasks:
             task_time = task['task_time']
             diff = abs((datetime.combine(datetime.today(), current_time) - datetime.combine(datetime.today(), task_time)).total_seconds())
