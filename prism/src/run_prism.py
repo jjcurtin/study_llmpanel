@@ -36,12 +36,7 @@ class PRISM():
         # set up system task processor thread
         self.update_task_types()
         self.load_task_schedule()
-        self.task_queue = queue.Queue()
-        self.system_task_thread = threading.Thread(
-            target = self.run_task_processor,
-            args = ('System Task', self.scheduled_tasks, self.task_queue, self.process_system_task)
-        )
-        self.system_task_thread.start()
+        self.task_queue, self.system_task_thread = self.start_task_thread('System Task', self.scheduled_tasks, self.process_system_task)
 
         # set up participant sms thread
         self.survey_types = {
@@ -50,15 +45,9 @@ class PRISM():
             'feedback': 'feedback_time',
             'feedback_reminder': 'feedback_reminder_time'
         }
-        self.participants = []
         self.load_participants()
         self.schedule_sms_tasks()
-        self.sms_queue = queue.Queue()
-        self.sms_task_thread = threading.Thread(
-            target = self.run_task_processor, 
-            args = ('Participant SMS', self.scheduled_sms_tasks, self.sms_queue, self.process_participant_sms)
-        )
-        self.sms_task_thread.start()
+        self.sms_queue, self.sms_task_thread = self.start_task_thread('Participant SMS', self.scheduled_sms_tasks, self.process_participant_sms)
 
         # set up participant API call thread
 
@@ -147,6 +136,15 @@ class PRISM():
     ############################
     #        Task Logic        #
     ############################
+
+    def start_task_thread(self, name, task_list, process_function):
+        task_queue = queue.Queue()
+        task_thread = threading.Thread(
+            target = self.run_task_processor,
+            args = (name, task_list, task_queue, process_function)
+        )
+        task_thread.start()
+        return task_queue, task_thread
     
     # update task types with the format TASK_NAME: 'TaskName'
     def update_task_types(self):
