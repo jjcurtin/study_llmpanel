@@ -182,6 +182,15 @@ def create_flask_app(app_instance):
             app_instance.add_to_transcript(f"Participant {unique_id} not found for removal", "ERROR")
             return jsonify({"error": "Participant not found"}), 404
         
+    @flask_app.route('/system/refresh_participants', methods = ['POST'])
+    def refresh_participants():
+        if app_instance.refresh_participants() == 0:
+            app_instance.add_to_transcript("Participants refreshed via API", "INFO")
+            return jsonify({"message": "Participants refreshed successfully"}), 200
+        else:
+            app_instance.add_to_transcript("Failed to refresh participants", "ERROR")
+            return jsonify({"error": "Failed to refresh participants"}), 500
+
     @flask_app.route('/system/get_transcript/<num_lines>', methods = ['GET'])
     def get_transcript(num_lines):
         today_date = datetime.now().strftime('%Y-%m-%d')

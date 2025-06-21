@@ -267,6 +267,16 @@ class PRISM():
         except Exception as e:
             self.add_to_transcript(f"Failed to load participants from CSV: {e}", "ERROR")
         
+    def refresh_participants(self):
+        try:
+            self.load_participants()
+            self.schedule_sms_tasks()
+            self.add_to_transcript("Participants refreshed successfully.", "INFO")
+            return 0
+        except Exception as e:
+            self.add_to_transcript(f"Failed to refresh participants: {e}", "ERROR")
+            return 1
+
     def save_participants(self):
         try:
             with open('../config/study_participants.csv', 'w') as f:
