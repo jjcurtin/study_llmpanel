@@ -12,11 +12,13 @@ def create_flask_app(app_instance):
     if app_instance.mode == "prod":
         CORS(flask_app, resources = {
             r"/system/*": {"origins": "localhost:5000"},
+            r"/participants/*": {"origins": "localhost:5000"},
             r"/system/get_uptime": {"origins": "*"}
         })
     else:
         CORS(flask_app, resources = {
             r"/system/*": {"origins": "localhost:5000"},
+            r"/participants/*": {"origins": "localhost:5000"}
         })
 
     limiter = Limiter(
@@ -25,6 +27,10 @@ def create_flask_app(app_instance):
         default_limits = [],
         storage_uri = "memory://"
     )
+
+    ################
+    #    System    #
+    ################
 
     @flask_app.route('/system/get_mode', methods = ['GET'])
     def get_mode():
@@ -36,6 +42,21 @@ def create_flask_app(app_instance):
         uptime = time.strftime('%H:%M:%S', time.gmtime((datetime.now() - app_instance.start_time).total_seconds()))
         app_instance.add_to_transcript(f"Uptime requested via API: {uptime}", "INFO")
         return jsonify({"uptime": uptime})
+    
+    @flask_app.route('/system/get_transcript/<num_lines>', methods = ['GET'])
+    def get_transcript(num_lines):
+        app_instance.add_to_transcript("Transcript requested via API", "INFO")
+        transcript = app_instance.get_transcript(num_lines)
+        if transcript:
+            return jsonify({"transcript": transcript}), 200
+        else:
+            return jsonify({"error": "Transcript not found"}), 404
+        
+    @flask_app.route('/system/shutdown', methods = ['POST'])
+    def shutdown():
+        app_instance.add_to_transcript("Shutdown requested via API", "INFO")
+        app_instance.shutdown()
+        return jsonify({"message": "Shutdown initiated"}), 200
     
     @flask_app.route('/system/get_task_schedule', methods = ['GET'])
     def get_task_schedule():
@@ -103,7 +124,11 @@ def create_flask_app(app_instance):
             app_instance.add_to_transcript(f"Executed task: {task_type} via API", "INFO")
             return jsonify({"message": f"{task_type} executed successfully"}), 200
         
-    @flask_app.route('/system/get_participants', methods = ['GET'])
+    #################
+    #  Participants #
+    #################
+
+    @flask_app.route('/participants/get_participants', methods = ['GET'])
     def get_participants():
         participants = app_instance.participants
         formatted_participants = [
@@ -117,7 +142,16 @@ def create_flask_app(app_instance):
         app_instance.add_to_transcript("Participants requested via API", "INFO")
         return jsonify({"participants": formatted_participants}), 200
     
-    @flask_app.route('/system/get_participant/<unique_id>', methods = ['GET'])
+    @flask_app.route('/participants/refresh_participants', methods = ['POST'])
+    def refresh_participants():
+        if app_instance.refresh_participants() == 0:
+            app_instance.add_to_transcript("Participants refreshed via API", "INFO")
+            return jsonify({"message": "Participants refreshed successfully"}), 200
+        else:
+            app_instance.add_to_transcript("Failed to refresh participants", "ERROR")
+            return jsonify({"error": "Failed to refresh participants"}), 500
+    
+    @flask_app.route('/participants/get_participant/<unique_id>', methods = ['GET'])
     def get_participant(unique_id):
         participant = app_instance.get_participant(unique_id)
         if participant:
@@ -126,16 +160,8 @@ def create_flask_app(app_instance):
         else:
             app_instance.add_to_transcript(f"Participant {unique_id} not found for retrieval", "ERROR")
             return jsonify({"error": "Participant not found"}), 404
-    
-    @flask_app.route('/system/update_participant/<unique_id>/<field>/<new_value>', methods = ['PUT'])
-    def update_participant(unique_id, field, new_value):
-        if app_instance.update_participant(unique_id, field, new_value) == 0:
-            return jsonify({"message": "Participant updated successfully"}), 200
-        else:
-            app_instance.add_to_transcript(f"Participant {unique_id} not found for update", "ERROR")
-            return jsonify({"error": "Participant not found"}), 404
-    
-    @flask_app.route('/system/add_participant', methods = ['POST'])
+
+    @flask_app.route('/participants/add_participant', methods = ['POST'])
     def add_participant():
         data = request.get_json()
         required_fields = ['unique_id', 'last_name', 'first_name', 'on_study', 'phone_number', 'ema_time', 'ema_reminder_time', 'feedback_time', 'feedback_reminder_time']
@@ -145,7 +171,7 @@ def create_flask_app(app_instance):
             app_instance.add_participant(data)
             return jsonify({"message": "Participant added successfully"}), 200
     
-    @flask_app.route('/system/remove_participant/<unique_id>', methods = ['DELETE'])
+    @flask_app.route('/participants/remove_participant/<unique_id>', methods = ['DELETE'])
     def remove_participant(unique_id):
         if app_instance.remove_participant(unique_id) == 0:
             return jsonify({"message": "Participant removed successfully"}), 200
@@ -153,31 +179,15 @@ def create_flask_app(app_instance):
             app_instance.add_to_transcript(f"Participant {unique_id} not found for removal", "ERROR")
             return jsonify({"error": "Participant not found"}), 404
         
-    @flask_app.route('/system/refresh_participants', methods = ['POST'])
-    def refresh_participants():
-        if app_instance.refresh_participants() == 0:
-            app_instance.add_to_transcript("Participants refreshed via API", "INFO")
-            return jsonify({"message": "Participants refreshed successfully"}), 200
+    @flask_app.route('/participants/update_participant/<unique_id>/<field>/<new_value>', methods = ['PUT'])
+    def update_participant(unique_id, field, new_value):
+        if app_instance.update_participant(unique_id, field, new_value) == 0:
+            return jsonify({"message": "Participant updated successfully"}), 200
         else:
-            app_instance.add_to_transcript("Failed to refresh participants", "ERROR")
-            return jsonify({"error": "Failed to refresh participants"}), 500
-
-    @flask_app.route('/system/get_transcript/<num_lines>', methods = ['GET'])
-    def get_transcript(num_lines):
-        app_instance.add_to_transcript("Transcript requested via API", "INFO")
-        transcript = app_instance.get_transcript(num_lines)
-        if transcript:
-            return jsonify({"transcript": transcript}), 200
-        else:
-            return jsonify({"error": "Transcript not found"}), 404
-        
-    @flask_app.route('/system/shutdown', methods = ['POST'])
-    def shutdown():
-        app_instance.add_to_transcript("Shutdown requested via API", "INFO")
-        app_instance.shutdown()
-        return jsonify({"message": "Shutdown initiated"}), 200
+            app_instance.add_to_transcript(f"Participant {unique_id} not found for update", "ERROR")
+            return jsonify({"error": "Participant not found"}), 404
     
-    @flask_app.route('/system/send_survey/<unique_id>/<survey_type>', methods = ['POST'])
+    @flask_app.route('/participants/send_survey/<unique_id>/<survey_type>', methods = ['POST'])
     def send_survey(unique_id, survey_type):
         if survey_type not in ['ema', 'feedback']:
             return jsonify({"error": "Invalid survey type"}), 400
