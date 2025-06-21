@@ -334,7 +334,17 @@ class PRISM():
                 self.running = False
         self.add_to_transcript(f"{queue_name} processor stopped.", "INFO")
 
-    # participant methods
+    # get methods
+
+    def get_system_task_schedule(self):
+        tasks = [
+            {
+                "task_type": task['task_type'],
+                "task_time": task['task_time'].strftime('%H:%M:%S'),
+                "run_today": task.get('run_today', False)
+            } for task in self.scheduled_tasks
+        ]
+        return tasks
 
     def get_participant(self, unique_id):
         for participant in self.participants:
@@ -356,6 +366,8 @@ class PRISM():
         except Exception as e:
             self.add_to_transcript(f"Failed to retrieve participants: {e}", "ERROR")
             return []
+    
+    # participant editing methods
     
     def update_participant(self, unique_id, field, value):
         try:
