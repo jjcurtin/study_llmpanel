@@ -46,9 +46,7 @@ class PRISM():
         signal.signal(signal.SIGTERM, self.handle_shutdown)
         self.add_to_transcript(f"PRISM started in {self.mode} mode.", "INFO")
 
-    ############################
-    #       System Utils       #
-    ############################
+    # system methods
 
     def load_api_keys(self):
         def load_keys(file_path, field_map, label):
@@ -124,9 +122,7 @@ class PRISM():
     def shutdown(self):
         self.handle_shutdown(signal.SIGINT, None)
 
-    ############################
-    #        Task Logic        #
-    ############################
+    # task loading methods
 
     def load_task_schedule(self):
         current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -197,6 +193,8 @@ class PRISM():
                 self.add_task(task_type, task_time_str, self.scheduled_sms_tasks, participant_id)
         return 0
 
+    # task saving methods
+
     def save_tasks(self):
         with open('../config/system_task_schedule.csv', 'w') as f:
             f.write('"task_type","task_time"')
@@ -211,6 +209,8 @@ class PRISM():
                     f.write(f'\n"{p["unique_id"]}","{p["last_name"]}","{p["first_name"]}","{p["on_study"]}","{p["phone_number"]}","{p["ema_time"]}","{p["ema_reminder_time"]}","{p["feedback_time"]}","{p["feedback_reminder_time"]}"')
         except Exception as e:
             self.add_to_transcript(f"Failed to save participants to CSV: {e}", "ERROR")
+
+    # task removal methods
 
     def remove_system_task(self, task_type, task_time):
         task_time = datetime.strptime(task_time, '%H:%M:%S').time()
@@ -228,6 +228,8 @@ class PRISM():
             task for task in self.scheduled_sms_tasks
             if task['participant_id'] != participant_id
         ]
+
+    # task processing methods
 
     def process_system_task(self, task):
         task_type = task.get('task_type')
@@ -284,6 +286,8 @@ class PRISM():
             self.add_to_transcript(f"Failed to send SMS to {participant_id}: {e}", "ERROR")
             return -1
         
+    # abstracted task methods
+
     def add_task(self, task_type, task_time, target_list, participant_id = None):
         task_dict = {
             'task_type': task_type,
@@ -330,9 +334,7 @@ class PRISM():
                 self.running = False
         self.add_to_transcript(f"{queue_name} processor stopped.", "INFO")
 
-    ##############################################
-    #        Participant Management Logic        #
-    ##############################################
+    # participant methods
 
     def get_participant(self, unique_id):
         for participant in self.participants:
@@ -392,6 +394,7 @@ class PRISM():
             return 0
         return 1
 
+# application entry point
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description = "Run the PRISM application.")
     parser.add_argument(
