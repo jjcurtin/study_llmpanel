@@ -184,16 +184,12 @@ class PRISM():
     # add tasks to the queue when it is time to run it
     def check_scheduled_tasks(self):
         current_time = datetime.now().time()
-
         if current_time.hour == 0 and current_time.minute == 0:
-            self.clear_all_run_today_flags(system_tasks = True)  # Reset run_today flags at midnight
-
+            self.clear_all_run_today_flags(system_tasks = True)
         for task in self.scheduled_tasks:
             task_time = task['task_time']
-            # Allow a small time window for matching tasks
-            time_difference = abs((datetime.combine(datetime.today(), current_time) 
-                                   - datetime.combine(datetime.today(), task_time)).total_seconds())
-            if time_difference <= 1 and not task['run_today']:
+            diff = abs((datetime.combine(datetime.today(), current_time) - datetime.combine(datetime.today(), task_time)).total_seconds())
+            if diff <= 1 and not task['run_today']:
                 self.task_queue.put(task['task_type'])
                 task['run_today'] = True
 
@@ -386,16 +382,12 @@ class PRISM():
         
     def check_scheduled_sms(self):
         current_time = datetime.now().time()
-
         if current_time.hour == 0 and current_time.minute == 0:
             self.clear_all_run_today_flags(sms_tasks = True)
-
         for task in self.scheduled_sms_tasks:
             task_time = task['task_time']
-            # Allow a small time window for matching tasks
-            time_difference = abs((datetime.combine(datetime.today(), current_time) 
-                                   - datetime.combine(datetime.today(), task_time)).total_seconds())
-            if time_difference <= 1 and not task['run_today']:
+            diff = abs((datetime.combine(datetime.today(), current_time) - datetime.combine(datetime.today(), task_time)).total_seconds())
+            if diff <= 1 and not task['run_today']:
                 self.sms_queue.put(task)
                 task['run_today'] = True
 
