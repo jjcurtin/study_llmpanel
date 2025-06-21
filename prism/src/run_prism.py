@@ -178,7 +178,18 @@ class PRISM():
         }
         if participant_id is not None:
             task_dict['participant_id'] = participant_id
-        target_list.append(task_dict)        
+        target_list.append(task_dict)   
+
+    def remove_system_task(self, task_type, task_time):
+        task_time = datetime.strptime(task_time, '%H:%M:%S').time()
+        for task in self.scheduled_tasks:
+            if task['task_type'] == task_type and task['task_time'] == task_time:
+                self.scheduled_tasks.remove(task)
+                self.save_tasks()
+                self.add_to_transcript(f"Removed system task: {task_type} at {task_time.strftime('%H:%M:%S')}", "INFO")
+                return 0
+        self.add_to_transcript(f"Task {task_type} at {task_time.strftime('%H:%M:%S')} not found.", "ERROR")
+        return 1
 
     def schedule_participant_tasks(self, participant_id):
         participant = self.get_participant(participant_id)
@@ -192,7 +203,6 @@ class PRISM():
             task_time_str = participant.get(field_name)
             if task_time_str:
                 self.add_task(task_type, task_time_str, self.scheduled_sms_tasks, participant_id)
-        self.add_to_transcript(f"Scheduled tasks for participant {participant_id}.", "INFO")
         return 0
 
     def remove_participant_tasks(self, participant_id):
@@ -200,7 +210,6 @@ class PRISM():
             task for task in self.scheduled_sms_tasks
             if task['participant_id'] != participant_id
         ]
-        self.add_to_transcript(f"Removed all tasks for participant {participant_id}.", "INFO")
 
     def check_scheduled_tasks(self, task_list, task_queue):
         current_time = datetime.now().time()
@@ -380,6 +389,7 @@ class PRISM():
             self.participants.remove(participant)
             self.save_participants()
             self.remove_participant_tasks(unique_id)
+            self.add_to_transcript(f"Removed participant {unique_id}.", "INFO")
             return 0
         return 1
 
