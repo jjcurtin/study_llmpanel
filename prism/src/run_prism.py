@@ -17,28 +17,19 @@ class PRISM():
         clear()
         self.add_to_transcript("Initializing PRISM application...", "INFO")
         self.mode = mode
-
-        # make sure you are running in the src directory
-        if not os.path.dirname(os.path.abspath(__file__)).endswith('src'):
-            self.add_to_transcript("Please run this script from the 'src' directory.", "ERROR")
-            exit(1)
-
-        # start tracking the uptime of the application
         self.running = True
         self.start_time = datetime.now()
 
-        # load api keys
+        if not os.path.dirname(os.path.abspath(__file__)).endswith('src'):
+            self.add_to_transcript("Please run this script from the 'src' directory.", "ERROR")
+            exit(1)
         self.load_api_keys()
-
-        # create Flask app instance that will be run through waitress separately
         self.flask_app = create_flask_app(self)
 
-        # set up system task processor thread
         self.update_task_types()
         self.load_task_schedule()
         self.task_queue, self.system_task_thread = self.start_task_thread('System Task', self.scheduled_tasks, self.process_system_task)
 
-        # set up participant sms thread
         self.survey_types = {
             'ema': 'ema_time',
             'ema_reminder': 'ema_reminder_time',
@@ -49,12 +40,8 @@ class PRISM():
         self.schedule_sms_tasks()
         self.sms_queue, self.sms_task_thread = self.start_task_thread('Participant SMS', self.scheduled_sms_tasks, self.process_participant_sms)
 
-        # set up participant API call thread
-
-        # set up signal handlers for graceful shutdown
         signal.signal(signal.SIGINT, self.handle_shutdown)
         signal.signal(signal.SIGTERM, self.handle_shutdown)
-
         self.add_to_transcript(f"PRISM started in {self.mode} mode.", "INFO")
 
     ############################
@@ -69,25 +56,21 @@ class PRISM():
                     setattr(self, attr, df.loc[0, column])
             except Exception as e:
                 self.add_to_transcript(f"Failed to load {label} API keys: {e}", "ERROR")
-
         load_keys('../qualtrics.api', {
             'qualtrics_api_token': 'api_token',
             'qualtrics_data_center': 'datacenter',
             'ema_survey_id': 'ema_survey_id',
             'feedback_survey_id': 'feedback_survey_id'
         }, "Qualtrics")
-
         load_keys('../followmee.api', {
             'followmee_username': 'username',
             'followmee_api_token': 'api_token'
         }, "FollowMee")
-
         load_keys('../twilio.api', {
             'twilio_account_sid': 'account_sid',
             'twilio_auth_token': 'auth_token',
             'twilio_from_number': 'from_number'
         }, "Twilio")
-
         load_keys('../research_drive.api', {
             'destination_path': 'destination_path',
             'drive_letter': 'drive_letter',
@@ -96,7 +79,6 @@ class PRISM():
             'wisc_netid': 'wisc_netid',
             'wisc_password': 'wisc_password'
         }, "Research Drive")
-
         load_keys('../ngrok.api', {
             'ngrok_auth_token': 'auth_token',
             'ngrok_domain': 'domain'
@@ -154,7 +136,6 @@ class PRISM():
             if f.endswith('.py') and f != '_task.py'
         }
 
-    # schedule tasks from file
     def load_task_schedule(self):
         current_dir = os.path.dirname(os.path.abspath(__file__))
         config_path = os.path.join(current_dir, '..', 'config', 'system_task_schedule.csv')
@@ -238,28 +219,23 @@ class PRISM():
         if not participant_id:
             self.add_to_transcript("Participant ID is missing in SMS task.", "ERROR")
             return -1
-
         participant = self.get_participant(participant_id)
         task_type = sms_task.get('task_type')
         participant_name = f"{participant['first_name']} {participant['last_name']}"
         participant_phone_number = participant['phone_number']
         self.add_to_transcript(f"Processing SMS task: {task_type} for participant {participant_id}", "INFO")
-
         task_map = {
             'ema': (self.ema_survey_id, "it's time to take your ecological momentary assessment survey."),
             'ema_reminder': (self.ema_survey_id, "you have not yet completed your ecological momentary assessment survey for today."),
             'feedback': (self.feedback_survey_id, "it's time to take your feedback survey."),
             'feedback_reminder': (self.feedback_survey_id, "you have not yet completed your feedback survey for today.")
         }
-
         if task_type not in task_map:
             self.add_to_transcript(f"Unknown SMS task type: {task_type}", "ERROR")
             return -1
-
         survey_id, message = task_map[task_type]
         survey_link = f"https://uwmadison.co1.qualtrics.com/jfe/form/{survey_id}?ParticipantID={participant_id}"
         body = f"{participant_name}, {message} {survey_link}"
-
         try:
             if self.mode == "prod":
                 send_sms(self, [participant_phone_number], [body])
@@ -427,9 +403,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     mode = args.mode
-    
     prism = PRISM(mode = mode)
-
     if mode == "prod":
         ngrok.set_auth_token(prism.ngrok_auth_token)
         subprocess.Popen(
@@ -437,5 +411,4 @@ if __name__ == "__main__":
             stdout = subprocess.DEVNULL,
             stderr = subprocess.DEVNULL
         )
-    
     serve(prism.flask_app, host = '127.0.0.1', port = 5000)
