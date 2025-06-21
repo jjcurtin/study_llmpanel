@@ -129,8 +129,7 @@ def create_flask_app(app_instance):
     
     @flask_app.route('/system/update_participant/<unique_id>/<field>/<new_value>', methods = ['PUT'])
     def update_participant(unique_id, field, new_value):
-        result = app_instance.update_participant(unique_id, field, new_value)
-        if result == 0:
+        if app_instance.update_participant(unique_id, field, new_value) == 0:
             return jsonify({"message": "Participant updated successfully"}), 200
         else:
             app_instance.add_to_transcript(f"Participant {unique_id} not found for update", "ERROR")
@@ -182,11 +181,8 @@ def create_flask_app(app_instance):
     def send_survey(unique_id, survey_type):
         if survey_type not in ['ema', 'feedback']:
             return jsonify({"error": "Invalid survey type"}), 400
-        
-        participant = app_instance.get_participant(unique_id)
-        if not participant:
+        if not app_instance.get_participant(unique_id):
             return jsonify({"error": "Participant not found"}), 404
-        
         app_instance.add_sms_task(survey_type, (datetime.now() + timedelta(seconds=10)).strftime('%H:%M:%S'), unique_id)
         app_instance.add_to_transcript(f"Survey {survey_type} sent to participant {unique_id} via API", "INFO")
         return jsonify({"message": f"{survey_type.capitalize()} survey sent to participant {unique_id}"}), 200
