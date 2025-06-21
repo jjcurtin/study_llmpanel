@@ -14,15 +14,24 @@ import argparse
 
 class PRISM():
     def __init__(self, mode = "test"):
+        if not os.path.dirname(os.path.abspath(__file__)).endswith('src'):
+            self.add_to_transcript("Please run this script from the 'src' directory.", "ERROR")
+            exit(1)
+        
         clear()
         self.add_to_transcript("Initializing PRISM application...", "INFO")
         self.mode = mode
         self.running = True
         self.start_time = datetime.now()
+        self.survey_types = {
+            'ema': 'ema_time',
+            'ema_reminder': 'ema_reminder_time',
+            'feedback': 'feedback_time',
+            'feedback_reminder': 'feedback_reminder_time'
+        }
+        self.system_task_schedule_file_path = '../config/system_task_schedule.csv'
+        self.study_participants_file_path = '../config/study_participants.csv'
 
-        if not os.path.dirname(os.path.abspath(__file__)).endswith('src'):
-            self.add_to_transcript("Please run this script from the 'src' directory.", "ERROR")
-            exit(1)
         self.load_api_keys()
         self.flask_app = create_flask_app(self)
 
@@ -31,12 +40,6 @@ class PRISM():
         self.load_task_schedule()
         self.task_queue, self.system_task_thread = self.start_task_thread('System Task', self.scheduled_tasks, self.process_system_task)
 
-        self.survey_types = {
-            'ema': 'ema_time',
-            'ema_reminder': 'ema_reminder_time',
-            'feedback': 'feedback_time',
-            'feedback_reminder': 'feedback_reminder_time'
-        }
         self.scheduled_sms_tasks = []
         self.participants = []
         self.load_participants()
@@ -135,7 +138,7 @@ class PRISM():
                     if not line.strip():
                         continue
                     try:
-                        task_type, task_time_str = [x.strip('"') for x in line.strip().split(',')]
+                        task_type, task_time_str, run_today = [x.strip('"') for x in line.strip().split(',')]
                         task_time = datetime.strptime(task_time_str, '%H:%M:%S').time()
                         if task_type not in self.task_types:
                             self.add_to_transcript(f"Unknown task type: {task_type}", "ERROR")
@@ -195,20 +198,15 @@ class PRISM():
 
     # task saving methods
 
-    def save_tasks(self):
-        with open('../config/system_task_schedule.csv', 'w') as f:
-            f.write('"task_type","task_time"')
-            for t in self.scheduled_tasks:
-                f.write(f'\n"{t["task_type"]}","{t["task_time"].strftime('%H:%M:%S')}"')
-
-    def save_participants(self):
+    def save_to_csv(self, data, file_path):
         try:
-            with open('../config/study_participants.csv', 'w') as f:
-                f.write('"unique_id","last_name","first_name","on_study","phone_number","ema_time","ema_reminder_time","feedback_time","feedback_reminder_time"')
-                for p in self.participants:
-                    f.write(f'\n"{p["unique_id"]}","{p["last_name"]}","{p["first_name"]}","{p["on_study"]}","{p["phone_number"]}","{p["ema_time"]}","{p["ema_reminder_time"]}","{p["feedback_time"]}","{p["feedback_reminder_time"]}"')
+            headers = data[0].keys() if data else []
+            with open(file_path, 'w') as f:
+                f.write(','.join(f'"{header}"' for header in headers) + '\n')
+                for row in data:
+                    f.write(','.join(f'"{str(row[header])}"' for header in headers) + '\n')
         except Exception as e:
-            self.add_to_transcript(f"Failed to save participants to CSV: {e}", "ERROR")
+            self.add_to_transcript(f"Failed to save data to CSV at {file_path}: {e}", "ERROR")
 
     # task removal methods
 
@@ -217,7 +215,7 @@ class PRISM():
         for task in self.scheduled_tasks:
             if task['task_type'] == task_type and task['task_time'] == task_time:
                 self.scheduled_tasks.remove(task)
-                self.save_tasks()
+                self.save_to_csv(self.scheduled_tasks, self.system_task_schedule_file_path)
                 self.add_to_transcript(f"Removed system task: {task_type} at {task_time.strftime('%H:%M:%S')}", "INFO")
                 return 0
         self.add_to_transcript(f"Task {task_type} at {task_time.strftime('%H:%M:%S')} not found.", "ERROR")
@@ -375,7 +373,7 @@ class PRISM():
             if participant:
                 if field in participant:
                     participant[field] = value
-                    self.save_participants()
+                    self.save_to_csv(self.participants, self.study_participants_file_path)
                     if field in self.survey_types.values():
                         self.remove_participant_tasks(unique_id)
                         self.schedule_participant_tasks(unique_id)
@@ -393,14 +391,14 @@ class PRISM():
         
     def add_participant(self, participant):
         self.participants.append(participant)
-        self.save_participants()
+        self.save_to_csv(self.participants, self.study_participants_file_path)
         self.schedule_participant_tasks(participant['unique_id'])
 
     def remove_participant(self, unique_id):
         participant = self.get_participant(unique_id)
         if participant:
             self.participants.remove(participant)
-            self.save_participants()
+            self.save_to_csv(self.participants, self.study_participants_file_path)
             self.remove_participant_tasks(unique_id)
             self.add_to_transcript(f"Removed participant {unique_id}.", "INFO")
             return 0
