@@ -127,11 +127,7 @@ class PRISM():
                 return [{"timestamp": line.split(' - ')[0], "message": ' - '.join(line.split(' - ')[1:])} for line in content]
         except Exception as e:
             self.add_to_transcript(f"Failed to read transcript: {e}", "ERROR")
-            return None
-
-    def clear_all_run_today_flags(self, task_list):
-        for task in task_list:
-            task['run_today'] = False
+            return None        
 
     def handle_shutdown(self, signum, frame):
         self.add_to_transcript("Received shutdown signal. Stopping PRISM application...", "INFO")
@@ -196,19 +192,21 @@ class PRISM():
         })
 
     # add tasks to the queue when it is time to run it
-    def check_scheduled_tasks(self):
+    def check_scheduled_tasks(self, task_list, task_queue):
         current_time = datetime.now().time()
         if current_time.hour == 0 and current_time.minute == 0:
-            self.clear_all_run_today_flags(self.scheduled_tasks)
-        for task in self.scheduled_tasks:
+            for task in task_list:
+                task['run_today'] = False
+        for task in task_list:
             task_time = task['task_time']
             diff = abs((datetime.combine(datetime.today(), current_time) - datetime.combine(datetime.today(), task_time)).total_seconds())
             if diff <= 1 and not task['run_today']:
-                self.task_queue.put(task['task_type'])
+                task_queue.put(task)
                 task['run_today'] = True
 
     # task run logic
-    def process_task(self, task_type):
+    def process_task(self, task):
+        task_type = task.get('task_type')
         self.add_to_transcript(f"Executing task: {task_type}", "INFO")
         result = 0  # Default result for successful execution
 
@@ -242,9 +240,9 @@ class PRISM():
     # task processing loop
     def run_system_task_processor(self):
         while self.running:
-            self.check_scheduled_tasks()
+            self.check_scheduled_tasks(self.scheduled_tasks, self.task_queue)
             try:
-                result = self.process_task(self.task_queue.get(timeout = 1))
+                self.process_task(self.task_queue.get(timeout = 1))
             except queue.Empty:
                 pass
             except Exception as e:
@@ -393,17 +391,6 @@ class PRISM():
         else:
             return 1
         
-    def check_scheduled_sms(self):
-        current_time = datetime.now().time()
-        if current_time.hour == 0 and current_time.minute == 0:
-            self.clear_all_run_today_flags(self.scheduled_sms_tasks)
-        for task in self.scheduled_sms_tasks:
-            task_time = task['task_time']
-            diff = abs((datetime.combine(datetime.today(), current_time) - datetime.combine(datetime.today(), task_time)).total_seconds())
-            if diff <= 1 and not task['run_today']:
-                self.sms_queue.put(task)
-                task['run_today'] = True
-
     def process_participant_sms(self, sms_task):
         participant_id = sms_task.get('participant_id')
         if not participant_id:
@@ -443,9 +430,9 @@ class PRISM():
     def run_participant_sms_processor(self):
         # SMS processing loop
         while self.running:
-            self.check_scheduled_sms()
+            self.check_scheduled_tasks(self.scheduled_sms_tasks, self.sms_queue)
             try:
-                result = self.process_participant_sms(self.sms_queue.get(timeout = 1))
+                self.process_participant_sms(self.sms_queue.get(timeout = 1))
             except queue.Empty:
                 pass
             except Exception as e:
