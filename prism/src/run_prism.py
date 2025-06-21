@@ -35,10 +35,12 @@ class PRISM():
 
         # set up system task processor thread
         self.update_task_types()
-        self.scheduled_tasks = []
         self.load_task_schedule()
         self.task_queue = queue.Queue()
-        self.system_task_thread = threading.Thread(target = self.run_system_task_processor)
+        self.system_task_thread = threading.Thread(
+            target = self.run_task_processor,
+            args = ('System Task', self.scheduled_tasks, self.task_queue, self.process_task)
+        )
         self.system_task_thread.start()
 
         # set up participant sms thread
@@ -52,7 +54,10 @@ class PRISM():
         self.load_participants()
         self.schedule_sms_tasks()
         self.sms_queue = queue.Queue()
-        self.sms_task_thread = threading.Thread(target = self.run_participant_sms_processor)
+        self.sms_task_thread = threading.Thread(
+            target = self.run_task_processor, 
+            args = ('Participant SMS', self.scheduled_sms_tasks, self.sms_queue, self.process_participant_sms)
+        )
         self.sms_task_thread.start()
 
         # set up participant API call thread
@@ -236,19 +241,21 @@ class PRISM():
             return -1
 
         return result
-
-    # task processing loop
-    def run_system_task_processor(self):
+    
+    def run_task_processor(self, queue_name, task_list, task_queue, process_function):
         while self.running:
-            self.check_scheduled_tasks(self.scheduled_tasks, self.task_queue)
+            self.check_scheduled_tasks(task_list, task_queue)
             try:
-                self.process_task(self.task_queue.get(timeout = 1))
+                task = task_queue.get(timeout = 1)
+                result = process_function(task)
+                if result != 0:
+                    self.add_to_transcript(f"Task {task['task_type']} failed with error code {result}.", "ERROR")
             except queue.Empty:
                 pass
             except Exception as e:
                 print(f"An error occurred while processing tasks: {e}")
                 self.running = False
-        self.add_to_transcript("System task processor stopped.", "INFO")
+        self.add_to_transcript(f"{queue_name} processor stopped.", "INFO")
 
     #######################################
     #        Participant SMS Logic        #
@@ -426,19 +433,6 @@ class PRISM():
         except Exception as e:
             self.add_to_transcript(f"Failed to send SMS to {participant_id}: {e}", "ERROR")
             return -1
-
-    def run_participant_sms_processor(self):
-        # SMS processing loop
-        while self.running:
-            self.check_scheduled_tasks(self.scheduled_sms_tasks, self.sms_queue)
-            try:
-                self.process_participant_sms(self.sms_queue.get(timeout = 1))
-            except queue.Empty:
-                pass
-            except Exception as e:
-                print(f"An error occurred while processing participant SMS: {e}")
-                self.running = False
-        self.add_to_transcript("Participant SMS processor stopped.", "INFO")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description = "Run the PRISM application.")
