@@ -15,17 +15,11 @@ class RunRScriptPipeline(Task):
     def run(self):
         self.task_type = "RUN_RSCRIPT_PIPELINE"
         print(f"{self.task_type} #{self.task_number} initiated.")
-        
         initial_dir = os.getcwd()
         scripts_dir = os.path.abspath(os.path.join(initial_dir, '..', 'scripts'))
         if not os.path.exists(scripts_dir):
             self.app.add_to_transcript(f"Scripts directory {scripts_dir} does not exist. Please check the path.", "ERROR")
             return 1
-
-        # load in script paths and arguments and enabled status from ../config/script_pipeline.csv
-        # paths are relative to the ../scripts directory
-        # arguments are formatted like "arg1 arg2 arg3"
-        # enabled will either be "true" or "false"
         try:
             if os.path.exists('../config/script_pipeline.csv'):
                 script_df = pd.read_csv('../config/script_pipeline.csv')
@@ -39,11 +33,6 @@ class RunRScriptPipeline(Task):
         except Exception as e:
             self.app.add_to_transcript(f"Failed to load script pipeline configuration. Error message: {e}", "ERROR")
             return 1
-        
-        self.app.add_to_transcript(f"paths: {self.script_paths}", "INFO")
-        self.app.add_to_transcript(f"args: {self.args}", "INFO")
-        self.app.add_to_transcript(f"enabled: {self.enabled_scripts}", "INFO")
-
         try:
             for index, script_path in enumerate(self.script_paths):
                 scripts_run = 0
