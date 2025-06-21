@@ -86,6 +86,13 @@ class PRISM():
             'ngrok_domain': 'domain'
         }, "Ngrok")
 
+    def update_task_types(self):
+        self.task_types = {
+            (f[:-3].upper().lstrip('_')): (f[:-3].replace('_', ' ').title().replace(' ', ''))
+            for f in os.listdir('tasks')
+            if f.endswith('.py') and f != '_task.py'
+        }
+
     def add_to_transcript(self, message, message_type = "INFO"):
         transcript_message = f"{message_type} - {message}"
         print(transcript_message)
@@ -121,23 +128,6 @@ class PRISM():
     #        Task Logic        #
     ############################
 
-    def start_task_thread(self, name, task_list, process_function):
-        task_queue = queue.Queue()
-        task_thread = threading.Thread(
-            target = self.run_task_processor,
-            args = (name, task_list, task_queue, process_function)
-        )
-        task_thread.start()
-        return task_queue, task_thread
-    
-    # update task types with the format TASK_NAME: 'TaskName'
-    def update_task_types(self):
-        self.task_types = {
-            (f[:-3].upper().lstrip('_')): (f[:-3].replace('_', ' ').title().replace(' ', ''))
-            for f in os.listdir('tasks')
-            if f.endswith('.py') and f != '_task.py'
-        }
-
     def load_task_schedule(self):
         current_dir = os.path.dirname(os.path.abspath(__file__))
         config_path = os.path.join(current_dir, '..', 'config', 'system_task_schedule.csv')
@@ -164,33 +154,35 @@ class PRISM():
         except Exception as e:
             self.add_to_transcript(f"An error occurred while loading the task schedule: {e}", "ERROR")
 
-    def save_tasks(self):
-        with open('../config/system_task_schedule.csv', 'w') as f:
-            f.write('"task_type","task_time"')
-            for t in self.scheduled_tasks:
-                f.write(f'\n"{t["task_type"]}","{t["task_time"].strftime('%H:%M:%S')}"')
-
-    def add_task(self, task_type, task_time, target_list, participant_id = None):
-        task_dict = {
-            'task_type': task_type,
-            'task_time': datetime.strptime(task_time, '%H:%M:%S').time() if isinstance(task_time, str) else task_time,
-            'run_today': False
-        }
-        if participant_id is not None:
-            task_dict['participant_id'] = participant_id
-        target_list.append(task_dict)   
-
-    def remove_system_task(self, task_type, task_time):
-        task_time = datetime.strptime(task_time, '%H:%M:%S').time()
-        for task in self.scheduled_tasks:
-            if task['task_type'] == task_type and task['task_time'] == task_time:
-                self.scheduled_tasks.remove(task)
-                self.save_tasks()
-                self.add_to_transcript(f"Removed system task: {task_type} at {task_time.strftime('%H:%M:%S')}", "INFO")
-                return 0
-        self.add_to_transcript(f"Task {task_type} at {task_time.strftime('%H:%M:%S')} not found.", "ERROR")
-        return 1
-
+    def load_participants(self):
+        try:
+            self.participants.clear()
+            self.scheduled_sms_tasks.clear()
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            with open(os.path.join(current_dir, '..', 'config', 'study_participants.csv'), 'r') as file:
+                lines = file.readlines()
+                for line in lines[1:]:
+                    if line.strip():
+                        parts = line.strip().split(',')
+                        participant = {
+                            'unique_id': parts[0].strip('"'),
+                            'last_name': parts[1].strip('"'),
+                            'first_name': parts[2].strip('"'),
+                            'on_study': parts[3].strip('"').lower() == 'true',
+                            'phone_number': parts[4].strip('"'),
+                            'ema_time': parts[5].strip('"'),
+                            'ema_reminder_time': parts[6].strip('"'),
+                            'feedback_time': parts[7].strip('"'),
+                            'feedback_reminder_time': parts[8].strip('"')
+                        }
+                        self.participants.append(participant)
+            for participant in self.participants:
+                self.schedule_participant_tasks(participant['unique_id'])
+            return 0
+        except Exception as e:
+            self.add_to_transcript(f"Failed to load participants from CSV: {e}", "ERROR")
+            return 1
+        
     def schedule_participant_tasks(self, participant_id):
         participant = self.get_participant(participant_id)
         if not participant:
@@ -205,23 +197,37 @@ class PRISM():
                 self.add_task(task_type, task_time_str, self.scheduled_sms_tasks, participant_id)
         return 0
 
+    def save_tasks(self):
+        with open('../config/system_task_schedule.csv', 'w') as f:
+            f.write('"task_type","task_time"')
+            for t in self.scheduled_tasks:
+                f.write(f'\n"{t["task_type"]}","{t["task_time"].strftime('%H:%M:%S')}"')
+
+    def save_participants(self):
+        try:
+            with open('../config/study_participants.csv', 'w') as f:
+                f.write('"unique_id","last_name","first_name","on_study","phone_number","ema_time","ema_reminder_time","feedback_time","feedback_reminder_time"')
+                for p in self.participants:
+                    f.write(f'\n"{p["unique_id"]}","{p["last_name"]}","{p["first_name"]}","{p["on_study"]}","{p["phone_number"]}","{p["ema_time"]}","{p["ema_reminder_time"]}","{p["feedback_time"]}","{p["feedback_reminder_time"]}"')
+        except Exception as e:
+            self.add_to_transcript(f"Failed to save participants to CSV: {e}", "ERROR")
+
+    def remove_system_task(self, task_type, task_time):
+        task_time = datetime.strptime(task_time, '%H:%M:%S').time()
+        for task in self.scheduled_tasks:
+            if task['task_type'] == task_type and task['task_time'] == task_time:
+                self.scheduled_tasks.remove(task)
+                self.save_tasks()
+                self.add_to_transcript(f"Removed system task: {task_type} at {task_time.strftime('%H:%M:%S')}", "INFO")
+                return 0
+        self.add_to_transcript(f"Task {task_type} at {task_time.strftime('%H:%M:%S')} not found.", "ERROR")
+        return 1
+    
     def remove_participant_tasks(self, participant_id):
         self.scheduled_sms_tasks[:] = [
             task for task in self.scheduled_sms_tasks
             if task['participant_id'] != participant_id
         ]
-
-    def check_scheduled_tasks(self, task_list, task_queue):
-        current_time = datetime.now().time()
-        if current_time.hour == 0 and current_time.minute == 0:
-            for task in task_list:
-                task['run_today'] = False
-        for task in task_list:
-            task_time = task['task_time']
-            diff = abs((datetime.combine(datetime.today(), current_time) - datetime.combine(datetime.today(), task_time)).total_seconds())
-            if diff <= 1 and not task['run_today']:
-                task_queue.put(task)
-                task['run_today'] = True
 
     def process_system_task(self, task):
         task_type = task.get('task_type')
@@ -277,6 +283,37 @@ class PRISM():
         except Exception as e:
             self.add_to_transcript(f"Failed to send SMS to {participant_id}: {e}", "ERROR")
             return -1
+        
+    def add_task(self, task_type, task_time, target_list, participant_id = None):
+        task_dict = {
+            'task_type': task_type,
+            'task_time': datetime.strptime(task_time, '%H:%M:%S').time() if isinstance(task_time, str) else task_time,
+            'run_today': False
+        }
+        if participant_id is not None:
+            task_dict['participant_id'] = participant_id
+        target_list.append(task_dict)   
+
+    def check_scheduled_tasks(self, task_list, task_queue):
+        current_time = datetime.now().time()
+        if current_time.hour == 0 and current_time.minute == 0:
+            for task in task_list:
+                task['run_today'] = False
+        for task in task_list:
+            task_time = task['task_time']
+            diff = abs((datetime.combine(datetime.today(), current_time) - datetime.combine(datetime.today(), task_time)).total_seconds())
+            if diff <= 1 and not task['run_today']:
+                task_queue.put(task)
+                task['run_today'] = True
+
+    def start_task_thread(self, name, task_list, process_function):
+        task_queue = queue.Queue()
+        task_thread = threading.Thread(
+            target = self.run_task_processor,
+            args = (name, task_list, task_queue, process_function)
+        )
+        task_thread.start()
+        return task_queue, task_thread
     
     def run_task_processor(self, queue_name, task_list, task_queue, process_function):
         while self.running:
@@ -293,47 +330,9 @@ class PRISM():
                 self.running = False
         self.add_to_transcript(f"{queue_name} processor stopped.", "INFO")
 
-    #######################################
-    #        Participant SMS Logic        #
-    #######################################
-
-    def load_participants(self):
-        try:
-            self.participants.clear()
-            self.scheduled_sms_tasks.clear()
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            with open(os.path.join(current_dir, '..', 'config', 'study_participants.csv'), 'r') as file:
-                lines = file.readlines()
-                for line in lines[1:]:
-                    if line.strip():
-                        parts = line.strip().split(',')
-                        participant = {
-                            'unique_id': parts[0].strip('"'),
-                            'last_name': parts[1].strip('"'),
-                            'first_name': parts[2].strip('"'),
-                            'on_study': parts[3].strip('"').lower() == 'true',
-                            'phone_number': parts[4].strip('"'),
-                            'ema_time': parts[5].strip('"'),
-                            'ema_reminder_time': parts[6].strip('"'),
-                            'feedback_time': parts[7].strip('"'),
-                            'feedback_reminder_time': parts[8].strip('"')
-                        }
-                        self.participants.append(participant)
-            for participant in self.participants:
-                self.schedule_participant_tasks(participant['unique_id'])
-            return 0
-        except Exception as e:
-            self.add_to_transcript(f"Failed to load participants from CSV: {e}", "ERROR")
-            return 1
-        
-    def save_participants(self):
-        try:
-            with open('../config/study_participants.csv', 'w') as f:
-                f.write('"unique_id","last_name","first_name","on_study","phone_number","ema_time","ema_reminder_time","feedback_time","feedback_reminder_time"')
-                for p in self.participants:
-                    f.write(f'\n"{p["unique_id"]}","{p["last_name"]}","{p["first_name"]}","{p["on_study"]}","{p["phone_number"]}","{p["ema_time"]}","{p["ema_reminder_time"]}","{p["feedback_time"]}","{p["feedback_reminder_time"]}"')
-        except Exception as e:
-            self.add_to_transcript(f"Failed to save participants to CSV: {e}", "ERROR")
+    ##############################################
+    #        Participant Management Logic        #
+    ##############################################
 
     def get_participant(self, unique_id):
         for participant in self.participants:
