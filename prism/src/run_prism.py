@@ -276,6 +276,14 @@ class PRISM():
         except Exception as e:
             self.add_to_transcript(f"Failed to save participants to CSV: {e}", "ERROR")
 
+    def add_sms_task(self, task_type, task_time, participant_id):
+        self.scheduled_sms_tasks.append({
+            'task_type': task_type,
+            'task_time': datetime.strptime(task_time, '%H:%M:%S').time(),
+            'participant_id': participant_id,
+            'run_today': False
+        })
+
     def schedule_sms_tasks(self):
         self.scheduled_sms_tasks = []
         for participant in self.participants:
@@ -284,12 +292,7 @@ class PRISM():
                 for task_type, time_key in self.survey_types.items():
                     task_time_str = participant.get(time_key)
                     if task_time_str:
-                        self.scheduled_sms_tasks.append({
-                            'task_type': task_type,
-                            'task_time': datetime.strptime(task_time_str, '%H:%M:%S').time(),
-                            'participant_id': participant_id,
-                            'run_today': False
-                        })
+                        self.add_sms_task(task_type, task_time_str, participant_id)
 
     def get_participant(self, unique_id):
         for participant in self.participants:
@@ -328,23 +331,14 @@ class PRISM():
     def update_participant_task(self, participant, task_type, time_field):
         if not participant['on_study']:
             return
-        
         participant_id = participant['unique_id']
-        
-        # Remove old task of this type for this participant
         self.scheduled_sms_tasks = [
             task for task in self.scheduled_sms_tasks
             if not (task['task_type'] == task_type and task['participant_id'] == participant_id)
         ]
-        
         time_str = participant.get(time_field)
         if time_str:
-            self.scheduled_sms_tasks.append({
-                'task_type': task_type,
-                'task_time': datetime.strptime(time_str, '%H:%M:%S').time(),
-                'participant_id': participant_id,
-                'run_today': False
-            })
+            self.add_sms_task(task_type, time_str, participant_id)
         
     def add_participant(self, participant):
         try:
@@ -355,13 +349,8 @@ class PRISM():
                 for task_type, field_name in self.survey_types.items():
                     task_time_str = participant.get(field_name)
                     if task_time_str:
-                        self.scheduled_sms_tasks.append({
-                            'task_type': task_type,
-                            'task_time': datetime.strptime(task_time_str, '%H:%M:%S').time(),
-                            'participant_id': participant_id,
-                            'run_today': False
-                        })
-            self.add_to_transcript(f"Added new participant via API: {participant['first_name']} {participant['last_name']}", "INFO")
+                        self.add_sms_task(task_type, task_time_str, participant_id)
+                        self.add_to_transcript(f"Added new participant via API: {participant['first_name']} {participant['last_name']}", "INFO")
         except Exception as e:
             self.add_to_transcript(f"Failed to add participant: {e}", "ERROR")
             return 1
