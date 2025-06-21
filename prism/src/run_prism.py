@@ -360,7 +360,7 @@ class PRISM():
                     task_time_str = participant.get(field_name)
                     if task_time_str:
                         self.add_sms_task(task_type, task_time_str, participant_id)
-                        self.add_to_transcript(f"Added new participant via API: {participant['first_name']} {participant['last_name']}", "INFO")
+                self.add_to_transcript(f"Added new participant via API: {participant['first_name']} {participant['last_name']}", "INFO")
         except Exception as e:
             self.add_to_transcript(f"Failed to add participant: {e}", "ERROR")
             return 1

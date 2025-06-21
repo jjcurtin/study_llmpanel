@@ -155,24 +155,11 @@ def create_flask_app(app_instance):
     def add_participant():
         data = request.get_json()
         required_fields = ['unique_id', 'last_name', 'first_name', 'on_study', 'phone_number', 'ema_time', 'ema_reminder_time', 'feedback_time', 'feedback_reminder_time']
-        
         if not all(field in data for field in required_fields):
             return jsonify({"error": "Missing required fields"}), 400
-        
-        new_participant = {
-            'unique_id': data['unique_id'],
-            'last_name': data['last_name'],
-            'first_name': data['first_name'],
-            'on_study': data['on_study'],
-            'phone_number': data['phone_number'],
-            'ema_time': data['ema_time'],
-            'ema_reminder_time': data['ema_reminder_time'],
-            'feedback_time': data['feedback_time'],
-            'feedback_reminder_time': data['feedback_reminder_time']
-        }
-        
-        app_instance.add_participant(new_participant)
-        return jsonify({"message": "Participant added successfully"}), 200
+        else:
+            app_instance.add_participant(data)
+            return jsonify({"message": "Participant added successfully"}), 200
     
     @flask_app.route('/system/remove_participant/<unique_id>', methods = ['DELETE'])
     def remove_participant(unique_id):
