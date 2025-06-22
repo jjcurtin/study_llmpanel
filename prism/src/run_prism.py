@@ -325,21 +325,29 @@ class PRISM():
     # get methods
 
     def get_system_task_schedule(self):
-        tasks = [
-            {
-                "task_type": task['task_type'],
-                "task_time": task['task_time'].strftime('%H:%M:%S'),
-                "run_today": task.get('run_today', False)
-            } for task in self.scheduled_tasks
-        ]
-        return tasks
+        try:
+            tasks = [
+                {
+                    "task_type": task['task_type'],
+                    "task_time": task['task_time'].strftime('%H:%M:%S'),
+                    "run_today": task.get('run_today', False)
+                } for task in self.scheduled_tasks
+            ]
+            return tasks
+        except Exception as e:
+            self.add_to_transcript(f"Failed to retrieve system task schedule: {e}", "ERROR")
+            return []
 
     def get_participant(self, unique_id):
-        for participant in self.participants:
-            if participant['unique_id'] == unique_id:
-                return participant
-        self.add_to_transcript(f"Participant with ID {unique_id} not found.", "ERROR")
-        return None
+        try:
+            for participant in self.participants:
+                if participant['unique_id'] == unique_id:
+                    return participant
+            self.add_to_transcript(f"Participant with ID {unique_id} not found.", "ERROR")
+            return None
+        except Exception as e:
+            self.add_to_transcript(f"Failed to retrieve participant {unique_id}: {e}", "ERROR")
+            return None
     
     def get_participants(self):
         try:
