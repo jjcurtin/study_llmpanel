@@ -168,25 +168,14 @@ class PRISM():
                         }
                         self.participants.append(participant)
             for participant in self.participants:
-                self.schedule_participant_tasks(participant['unique_id'])
+                for task_type, field_name in self.survey_types.items():
+                    task_time_str = participant.get(field_name)
+                    if task_time_str:
+                        self.add_task(task_type, task_time_str, self.scheduled_sms_tasks, participant['unique_id'])
             return 0
         except Exception as e:
             self.add_to_transcript(f"Failed to load participants from CSV: {e}", "ERROR")
             return 1
-        
-    def schedule_participant_tasks(self, participant_id):
-        participant = self.get_participant(participant_id)
-        if not participant:
-            self.add_to_transcript(f"Participant {participant_id} not found for scheduling tasks.", "ERROR")
-            return 1
-        if not participant['on_study']:
-            self.add_to_transcript(f"Participant {participant_id} is not on study, no tasks scheduled.", "INFO")
-            return 0
-        for task_type, field_name in self.survey_types.items():
-            task_time_str = participant.get(field_name)
-            if task_time_str:
-                self.add_task(task_type, task_time_str, self.scheduled_sms_tasks, participant_id)
-        return 0
 
     # task removal methods
 
@@ -201,11 +190,14 @@ class PRISM():
         self.add_to_transcript(f"Task {task_type} at {task_time.strftime('%H:%M:%S')} not found.", "ERROR")
         return 1
     
-    def remove_participant_tasks(self, participant_id):
-        self.scheduled_sms_tasks[:] = [
-            task for task in self.scheduled_sms_tasks
-            if task['participant_id'] != participant_id
-        ]
+    def remove_participant_task(self, task_type, participant_id):
+        for task in self.scheduled_sms_tasks:
+            if task['participant_id'] == participant_id and task['task_type'] == task_type:
+                self.scheduled_sms_tasks.remove(task)
+                self.add_to_transcript(f"Removed SMS task: {task_type} for participant {participant_id}", "INFO")
+                return 0
+        self.add_to_transcript(f"SMS task {task_type} for participant {participant_id} not found.", "ERROR")
+        return 1
 
     # task processing methods
 
@@ -372,9 +364,10 @@ class PRISM():
                 if field in participant:
                     participant[field] = value
                     self.save_to_csv(self.participants, self.study_participants_file_path)
-                    if field in self.survey_types.values():
-                        self.remove_participant_tasks(unique_id)
-                        self.schedule_participant_tasks(unique_id)
+                    for task_type, field_name in self.survey_types.items():
+                        if field_name == field:
+                            self.remove_participant_task(task_type, unique_id)
+                            self.add_task(task_type, value, self.scheduled_sms_tasks, unique_id)
                     self.add_to_transcript(f"Updated {field} for participant {unique_id} to {value}.", "INFO")
                     return 0
                 else:
@@ -390,14 +383,18 @@ class PRISM():
     def add_participant(self, participant):
         self.participants.append(participant)
         self.save_to_csv(self.participants, self.study_participants_file_path)
-        self.schedule_participant_tasks(participant['unique_id'])
+        for task_type, field_name in self.survey_types.items():
+            task_time_str = participant.get(field_name)
+            if task_time_str:
+                self.add_task(task_type, task_time_str, self.scheduled_sms_tasks, participant['unique_id'])
 
     def remove_participant(self, unique_id):
         participant = self.get_participant(unique_id)
         if participant:
             self.participants.remove(participant)
             self.save_to_csv(self.participants, self.study_participants_file_path)
-            self.remove_participant_tasks(unique_id)
+            for task_type, field_name in self.survey_types.items():
+                self.remove_participant_task(task_type, unique_id)
             self.add_to_transcript(f"Removed participant {unique_id}.", "INFO")
             return 0
         return 1
