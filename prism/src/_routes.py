@@ -54,10 +54,15 @@ def create_flask_app(app_instance):
     
     @flask_app.route('/system/get_task_schedule', methods = ['GET'])
     def get_task_schedule():
-        return jsonify({"tasks": app_instance.get_system_task_schedule()}), 200
+        tasks = app_instance.get_system_task_schedule()
+        if not tasks:
+            return jsonify({"error": "No scheduled tasks found"}), 404
+        return jsonify({"tasks": tasks}), 200
     
     @flask_app.route('/system/get_task_types', methods = ['GET'])
     def get_task_types():
+        if not app_instance.task_types:
+            return jsonify({"error": "No task types available"}), 404
         return jsonify({"task_types": app_instance.task_types}), 200
     
     @flask_app.route('/system/add_system_task/<task_type>/<task_time>', methods = ['POST'])
