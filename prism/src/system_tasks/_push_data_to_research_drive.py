@@ -1,8 +1,8 @@
 import os
 
-from tasks._task import Task
+from system_tasks._system_task import SystemTask
 
-class PushDataToResearchDrive(Task):
+class PushDataToResearchDrive(SystemTask):
     def map_network_drive(self):
         self.app.add_to_transcript(f"{self.task_type} #{self.task_number} now attempting to map to the research drive...")
         mapped_drives = os.popen("net use").read()

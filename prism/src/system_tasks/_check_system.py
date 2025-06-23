@@ -4,10 +4,10 @@ import subprocess
 import requests
 from requests.exceptions import ConnectionError, Timeout
 
-from tasks._task import Task
-from tasks._push_data_to_research_drive import PushDataToResearchDrive
+from system_tasks._system_task import SystemTask
+from system_tasks._push_data_to_research_drive import PushDataToResearchDrive
 
-class CheckSystem(Task):
+class CheckSystem(SystemTask):
     def run(self):
         self.task_type = "CHECK_SYSTEM"
         print(f"{self.task_type} #{self.task_number} initiated.")
@@ -50,7 +50,7 @@ class CheckSystem(Task):
                 '../qualtrics_js',
                 '../scripts',
                 '../logs',
-                'tasks'
+                'system_tasks'
             ]
             files = [
                 ['system_task_schedule.csv', 'study_coordinators.csv', 
@@ -63,7 +63,7 @@ class CheckSystem(Task):
                 ['_check_system.py', # obviously
                  '_pulldown_qualtrics_data.py', '_pulldown_followmee_data.py',
                  '_push_data_to_research_drive.py', '_run_r_script_pipeline.py',
-                 '_task.py' # obviously
+                 '_system_task.py' # obviously
                 ] # tasks
             ]
 

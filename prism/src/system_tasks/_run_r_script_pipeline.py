@@ -1,9 +1,10 @@
 import subprocess
 import os
-from tasks._task import Task
 import pandas as pd
 
-class RunRScriptPipeline(Task):
+from system_tasks._system_task import SystemTask
+
+class RunRScriptPipeline(SystemTask):
     def change_directory(self, new_dir):
         try:
             os.chdir(new_dir)

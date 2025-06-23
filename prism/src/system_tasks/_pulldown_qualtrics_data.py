@@ -2,11 +2,12 @@ import pandas as pd
 import time
 import requests
 from requests.exceptions import ConnectionError, Timeout
-from tasks._task import Task
 import os
 import warnings
 
-class PulldownQualtricsData(Task):
+from system_tasks._system_task import SystemTask
+
+class PulldownQualtricsData(SystemTask):
     def run(self):
         self.task_type = "PULLDOWN_QUALTRICS_DATA"
         self.app.add_to_transcript(f"{self.task_type} #{self.task_number} now attempting to pull down Qualtrics data...", "INFO")

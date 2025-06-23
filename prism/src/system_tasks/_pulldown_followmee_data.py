@@ -5,11 +5,12 @@ import pytz
 from datetime import timedelta
 import requests
 from requests.exceptions import ConnectionError, Timeout
-from tasks._task import Task
 from collections import defaultdict
 import os
 
-class PulldownFollowmeeData(Task):
+from system_tasks._system_task import SystemTask
+
+class PulldownFollowmeeData(SystemTask):
     def run(self):
         self.task_type = "PULLDOWN_FOLLOWMEE_DATA"
         self.app.add_to_transcript(f"{self.task_type} #{self.task_number} now attempting to pull down FollowMee data...", "INFO")
