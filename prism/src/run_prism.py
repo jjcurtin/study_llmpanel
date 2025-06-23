@@ -24,7 +24,6 @@ class PRISM():
         self.start_time = datetime.now()
 
         self.load_api_keys()
-        self.flask_app = create_flask_app(self)
 
         self.system_task_manager = SystemTaskManager(self)
         self.participant_manager = ParticipantManager(self)
@@ -32,6 +31,7 @@ class PRISM():
         signal.signal(signal.SIGINT, self.handle_shutdown)
         signal.signal(signal.SIGTERM, self.handle_shutdown)
         self.add_to_transcript(f"PRISM started in {self.mode} mode.", "INFO")
+        self.launch_web_app()
 
     # system methods
 
@@ -90,7 +90,18 @@ class PRISM():
                 return [{"timestamp": line.split(' - ')[0], "message": ' - '.join(line.split(' - ')[1:])} for line in content]
         except Exception as e:
             self.add_to_transcript(f"Failed to read transcript: {e}", "ERROR")
-            return None        
+            return None    
+
+    def launch_web_app(self):
+        self.flask_app = create_flask_app(self)
+        if self.mode == "prod":
+            ngrok.set_auth_token(self.ngrok_auth_token)
+            subprocess.Popen(
+                ["ngrok", "http", f"--url={self.ngrok_domain}", "5000"], 
+                stdout = subprocess.DEVNULL,
+                stderr = subprocess.DEVNULL
+            )
+        serve(self.flask_app, host = '127.0.0.1', port = 5000)
 
     def handle_shutdown(self, signum, frame):
         self.add_to_transcript("Received shutdown signal. Stopping PRISM application...", "INFO")
@@ -111,13 +122,4 @@ if __name__ == "__main__":
         help = "Mode to run the application in. 'test' for development, 'prod' for production."
     )
     args = parser.parse_args()
-    mode = args.mode
-    prism = PRISM(mode = mode)
-    if mode == "prod":
-        ngrok.set_auth_token(prism.ngrok_auth_token)
-        subprocess.Popen(
-            ["ngrok", "http", f"--url={prism.ngrok_domain}", "5000"], 
-            stdout = subprocess.DEVNULL,
-            stderr = subprocess.DEVNULL
-        )
-    serve(prism.flask_app, host = '127.0.0.1', port = 5000)
+    prism = PRISM(args.mode)
