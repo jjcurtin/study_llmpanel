@@ -148,7 +148,7 @@ class ParticipantManager(TaskManager):
         body = f"{participant_name}, {message} {survey_link}"
         try:
             if self.app.mode == "prod":
-                send_sms(self, [participant_phone_number], [body])
+                send_sms(self.app, [participant_phone_number], [body])
             self.app.add_to_transcript(f"SMS sent to {participant_id}.", "INFO")
             return 0
         except Exception as e:
