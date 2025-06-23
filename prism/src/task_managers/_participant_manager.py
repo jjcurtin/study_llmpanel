@@ -35,11 +35,7 @@ class ParticipantManager(TaskManager):
                             'feedback_reminder_time': parts[8].strip('"')
                         }
                         self.participants.append(participant)
-            for participant in self.participants:
-                for task_type, field_name in self.survey_types.items():
-                    task_time = participant.get(field_name)
-                    if task_time:
-                        self.add_task(task_type, task_time, participant['unique_id'])
+                        self.schedule_participant_tasks(participant)
             return 0
         except Exception as e:
             self.app.add_to_transcript(f"Failed to load participants from CSV: {e}", "ERROR")
@@ -99,6 +95,9 @@ class ParticipantManager(TaskManager):
     def add_participant(self, participant):
         self.participants.append(participant)
         self.save_participants()
+        self.schedule_participant_tasks(participant)
+
+    def schedule_participant_tasks(self, participant):
         for task_type, field_name in self.survey_types.items():
             task_time_str = participant.get(field_name)
             if task_time_str:
