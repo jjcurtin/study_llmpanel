@@ -1,0 +1,1 @@
+Put R scripts in here, configure them in ../config/script_pipeline.csv and they will be run with the R script pipeline task
