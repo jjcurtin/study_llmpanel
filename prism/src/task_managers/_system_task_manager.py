@@ -14,8 +14,8 @@ class SystemTaskManager(TaskManager):
     def get_task_types(self):
         return {
             (f[:-3].upper().lstrip('_')): (f[:-3].replace('_', ' ').title().replace(' ', ''))
-            for f in os.listdir('tasks')
-            if f.endswith('.py') and f != '_task.py'
+            for f in os.listdir('system_tasks')
+            if f.endswith('.py') and f != '_system_task.py'
         }
     
     def load_task_schedule(self):
@@ -75,7 +75,7 @@ class SystemTaskManager(TaskManager):
         if self.app.mode == "test":
             self.task_types = self.get_task_types()
         if task_type in self.task_types:
-            module_name = f'tasks._{task_type.lower()}'
+            module_name = f'system_tasks._{task_type.lower()}'
             try:
                 module = __import__(module_name, fromlist = [task_type])
                 task_type = task_type.replace('_', ' ').title().replace(' ', '')

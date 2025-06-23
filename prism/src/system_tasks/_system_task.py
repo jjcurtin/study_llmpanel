@@ -2,7 +2,7 @@ import random
 from datetime import datetime
 from _helper import send_sms
 
-class Task:
+class SystemTask:
     def __init__(self, app):
         self.app = app
         self.task_number = str(random.randint(100000, 999999))
