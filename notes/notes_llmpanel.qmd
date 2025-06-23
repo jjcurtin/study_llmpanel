@@ -9,6 +9,11 @@ Decisions Made:
 Additional Questions:
 - Which user contexts do we choose?
 
+Additional Notes:
+- Rewrote much of the original PRISM system to decouple user interface from server logic, use CSV files instead of JSON,
+  better configurability and performance and to be able to support message generation logic
+- Need to consider overall system requirements, user interface (for study team), and reimplement Qualtrics survey logic
+
 Colin TODO:
 - Update system prompt and user prompts to remove redundant and/or unnecessary information (should/must etc.)   DONE
 - Move information about prompts from script to text files (will eventually be conditional on info received)    DONE
