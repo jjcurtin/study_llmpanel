@@ -269,14 +269,21 @@ class PRISMInterface:
                             print(f"{i}: {p['last_name']}, {p['first_name']} (ID: {p['unique_id']}) - On Study: {p['on_study']}")
                     else:
                         print("No participants found or failed to retrieve.")
-                    print("\na: Add a Participant\nr: Full Participants Refresh from CSV\nENTER: Back to Main Menu")
-                    choice = input("Enter index, 'a', 'r', or ENTER: ").strip()
+                    print("\na: Add a Participant\ns: Get Participant Task Schedule\nr: Full Participants Refresh from CSV\nENTER: Back to Main Menu")
+                    choice = input("Enter index, 'a', 's', 'r', or ENTER: ").strip()
                     if choice.isdigit():
                         idx = int(choice)-1
                         if 0 <= idx < len(participants):
                             self.print_participant_schedule(participants[idx]['unique_id'])
                     elif choice.lower() == 'a':
                         self.add_participant()
+                    elif choice.lower() == 's':
+                        tasks = self.api("GET", "participants/get_participant_task_schedule")
+                        if tasks:
+                            print("Participant Task Schedule:")
+                            for task in tasks.get("tasks", []):
+                                print(f"{task['participant_id']}: {task['task_type']} at {task['task_time']} - On Study: {task['on_study']}")
+                            input("\nPress Enter to continue...")
                     elif choice.lower() == 'r':
                         if input("Refresh participants from CSV? (yes/no): ").strip().lower() == 'yes':
                             if self.api("POST", "participants/refresh_participants"):

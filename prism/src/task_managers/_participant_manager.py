@@ -124,6 +124,21 @@ class ParticipantManager(TaskManager):
         self.app.add_to_transcript(f"SMS task {task_type} for participant {participant_id} not found.", "ERROR")
         return 1
     
+    def get_task_schedule(self):
+        try:
+            return [
+                {
+                    "participant_id": task.get('participant_id', 'N/A'),
+                    "on_study": self.get_participant(task['participant_id'])['on_study'] if 'participant_id' in task else 'N/A',
+                    "task_type": task['task_type'],
+                    "task_time": task['task_time'].strftime('%H:%M:%S'),
+                    "run_today": task.get('run_today', False)
+                } for task in self.tasks
+            ]
+        except Exception as e:
+            self.add_to_transcript(f"Failed to retrieve system task schedule: {e}", "ERROR")
+            return []
+    
     def process_task(self, task):
         participant_id = task.get('participant_id')
         if not participant_id:

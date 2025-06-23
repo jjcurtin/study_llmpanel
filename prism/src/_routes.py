@@ -101,6 +101,13 @@ def create_flask_app(app_instance):
             return jsonify({"error": "No participants found"}), 404
         return jsonify({"participants": participants}), 200
     
+    @flask_app.route('/participants/get_participant_task_schedule', methods = ['GET'])
+    def get_participant_task_schedule():
+        tasks = app_instance.participant_manager.get_task_schedule()
+        if not tasks:
+            return jsonify({"error": "No participant tasks found"}), 404
+        return jsonify({"tasks": tasks}), 200
+    
     @flask_app.route('/participants/refresh_participants', methods = ['POST'])
     def refresh_participants():
         if app_instance.participant_manager.load_participants() != 0:
