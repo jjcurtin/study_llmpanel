@@ -145,6 +145,8 @@ class ParticipantManager(TaskManager):
             self.app.add_to_transcript("Participant ID is missing in SMS task.", "ERROR")
             return -1
         participant = self.get_participant(participant_id)
+        if participant['on_study'] is False:
+            return 0
         task_type = task.get('task_type')
         participant_name = f"{participant['first_name']} {participant['last_name']}"
         participant_phone_number = participant['phone_number']
