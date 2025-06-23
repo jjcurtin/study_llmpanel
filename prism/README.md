@@ -1,18 +1,6 @@
 # Directory
-
-## required api keys
-### followmee.api
-"username","api_token"
-
-### qualtrics.api
-"api_token","datacenter","ema_survey_id","feedback_survey_id"
-
-### research_drive.api
-"destination_path","drive_letter","network_domain","network_username","wisc_netid","wisc_password"
-
-### twilio.api
-"account_sid","auth_token","from_number"
-
+## api
+- various api keys, will change to environment variables at some point for security purposes
 ## config
 - Contains various configuration csv files for PRISM to work
 ## data
@@ -22,6 +10,6 @@
 ## qualtrics_js
 - Contains the JavaScript code used by the Qualtrics surveys to connect to the PRISM server
 ## scripts
-- Contains R scripts used in the script pipeline (this is a task I have implemented)
+- Contains R scripts used in the script pipeline (this is a task I have implemented, considering treating R scripts as tasks as well)
 ## src
 - Contains the code for the PRISM server, interface, and system tasks

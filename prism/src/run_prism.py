@@ -43,22 +43,22 @@ class PRISM():
                     setattr(self, attr, df.loc[0, column])
             except Exception as e:
                 self.add_to_transcript(f"Failed to load {label} API keys: {e}", "ERROR")
-        load_keys('../qualtrics.api', {
+        load_keys('../api/qualtrics.api', {
             'qualtrics_api_token': 'api_token',
             'qualtrics_data_center': 'datacenter',
             'ema_survey_id': 'ema_survey_id',
             'feedback_survey_id': 'feedback_survey_id'
         }, "Qualtrics")
-        load_keys('../followmee.api', {
+        load_keys('../api/followmee.api', {
             'followmee_username': 'username',
             'followmee_api_token': 'api_token'
         }, "FollowMee")
-        load_keys('../twilio.api', {
+        load_keys('../api/twilio.api', {
             'twilio_account_sid': 'account_sid',
             'twilio_auth_token': 'auth_token',
             'twilio_from_number': 'from_number'
         }, "Twilio")
-        load_keys('../research_drive.api', {
+        load_keys('../api/research_drive.api', {
             'destination_path': 'destination_path',
             'drive_letter': 'drive_letter',
             'network_domain': 'network_domain',
@@ -66,7 +66,7 @@ class PRISM():
             'wisc_netid': 'wisc_netid',
             'wisc_password': 'wisc_password'
         }, "Research Drive")
-        load_keys('../ngrok.api', {
+        load_keys('../api/ngrok.api', {
             'ngrok_auth_token': 'auth_token',
             'ngrok_domain': 'domain'
         }, "Ngrok")
