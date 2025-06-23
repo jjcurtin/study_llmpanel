@@ -21,10 +21,3 @@ def send_sms(app, receiver_numbers, messages):
 
 def clear():
     os.system('cls' if os.name == 'nt' else 'clear')
-
-def get_task_types():
-    return {
-        (f[:-3].upper().lstrip('_')): (f[:-3].replace('_', ' ').title().replace(' ', ''))
-        for f in os.listdir('tasks')
-        if f.endswith('.py') and f != '_task.py'
-    }
