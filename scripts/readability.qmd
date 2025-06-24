@@ -8,11 +8,8 @@ format:
 
 Setup
 ```{r}
-#turn off warnings to make an easier-to-read html
-options(warn=-1)
-
 library(tidyverse)
-
+options(conflicts.policy = "depends.ok") 
 # install.packages("quanteda")
 # install.packages("quanteda.textstats")
 # install.packages("quanteda.textplots")
@@ -22,7 +19,7 @@ library(quanteda.textplots)
 
 devtools::source_url("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
 
-path_optimize <- "Z:/studydata/optimize/administration/readability"
+path_optimize <- "optimize/raw_data"
 ```
 
 Import document from Chris
