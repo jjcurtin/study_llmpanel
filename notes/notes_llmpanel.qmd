@@ -1,3 +1,20 @@
+# 2025-06-24
+For Colin/John meeting
+
+- Review survey in Qualtrics.   Confirm how put together.  Is it using separate demo survey?  Separate tone survey? (Review in Qualtrics account)
+- Demo survey
+  - update instructions?
+  - let me explain text box
+- Organize lab qualtrics account (with susan)
+- Drop neutral tone
+- Discuss variation regarding text about lapse probability and change
+- Talk about generating images for lapse probability and change (for optimize project, not panel study)
+- Discuss temperature note below
+- Document decision regarding providing prior messages for optimize project and llm panel study
+- Discuss number of messages and total questions/survey length
+- Review wording of two questions about messages
+- Take survey together
+
 # 2025-06-17
 Meeting with Colin
 
