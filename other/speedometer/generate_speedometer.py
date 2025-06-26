@@ -47,6 +47,13 @@ def draw_horizontal_speedometer(percentage):
     fig.savefig(f'speedometer_{percentage}.png', bbox_inches='tight', pad_inches=0.1, dpi=300)
 
 # Example usage
-draw_horizontal_speedometer(100)
-draw_horizontal_speedometer(50)
-draw_horizontal_speedometer(0)
+if __name__ == "__main__":
+    while True:
+        try:
+            percentage = float(input("Enter a percentage (0-100): "))
+            draw_horizontal_speedometer(percentage)
+            print(f"Speedometer image saved as 'speedometer_{percentage}.png'")
+        except ValueError as e:
+            print(f"Error: {e}. Please enter a valid percentage between 0 and 100.")
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
