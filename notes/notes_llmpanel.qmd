@@ -3,7 +3,6 @@
 
 ## To Do
 
-- Colin will update his code to generate the llm survey by starting with an import of the current demographics survey in qualtrics and the current message tone survey in qualtrics
 - Talk about generating images for lapse probability and change (for optimize project, not panel study)
 
 - Colin will make a static message tone survey in qualtrics              DONE
@@ -11,6 +10,9 @@
 - Drop neutral tone                                                      DONE
 - Update demographics static survey to make meaningful variable names    DONE
 - add validity checks to questions where possible (age and num people)   DONE
+- Colin will update his code to generate the llm survey by starting      DONE
+  with an import of the current demographics survey in qualtrics 
+  and the current message tone survey in qualtrics
 
 For Colin/John meeting
 
