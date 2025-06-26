@@ -1,5 +1,9 @@
 # README for Qualtrics Panel Study Python Code
 
+### Note about survey import logic for demographic and tone category surveys
+Survey copying logic copies over regex but requires validation to be manually set up (takes ~20 seconds total)
+Do not have any questions in the trash when running the survey import logic or they will be added as well
+
 ## root/
 - Requires azure.api and qualtrics.api which contain the API keys for Azure OpenAI and Qualtrics, respectively.
 
