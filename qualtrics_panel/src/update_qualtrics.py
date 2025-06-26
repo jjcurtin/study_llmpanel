@@ -23,22 +23,22 @@ class SurveyHandler:
                 exit(1)
 
             while True:
-                choice = input(f"Update category ratings? (y/n): ")
+                choice = input("Update demographic survey? (y/n): ")
                 if choice.lower() == 'y':
-                    self.update_category = True
+                    self.update_demographics = True
                 elif choice.lower() == 'n':
-                    self.update_category = False
+                    self.update_demographics = False
                 else:
                     print("Invalid choice. Please enter 'y' or 'n'.")
                     continue
                 break
 
             while True:
-                choice = input(f"Update formality ratings? (y/n): ")
+                choice = input(f"Update tone category survey? (y/n): ")
                 if choice.lower() == 'y':
-                    self.update_formality = True
+                    self.update_category = True
                 elif choice.lower() == 'n':
-                    self.update_formality = False
+                    self.update_category = False
                 else:
                     print("Invalid choice. Please enter 'y' or 'n'.")
                     continue
@@ -55,11 +55,11 @@ class SurveyHandler:
                     continue
                 break
 
-            print(f"Update category: {self.update_category}")
-            print(f"Update formality: {self.update_formality}")
+            print(f"Update demographics: {self.update_demographics}")
+            print(f"Update tone category: {self.update_category}")
             print(f"Update message: {self.update_message}")
 
-            if not self.update_category and not self.update_message and not self.update_formality:
+            if not self.update_category and not self.update_message and not self.update_demographics:
                 print("No updates selected. Exiting.")
                 exit(0)
             else:
@@ -78,35 +78,27 @@ class SurveyHandler:
             api_token = config_df.loc[0, 'api_token']
             survey_id = config_df.loc[0, 'survey_id']
             datacenter = config_df.loc[0, 'datacenter']
+            demographic_survey_id = config_df.loc[0, 'demographic_survey_id']
+            category_survey_id = config_df.loc[0, 'category_survey_id']
         except Exception as e:
             print(f"Error loading config file: {e}")
             exit(1)
 
         self.base_url = f'https://{datacenter}.qualtrics.com/API/v3/survey-definitions/{survey_id}'
+        self.demographic_survey_url = f'https://{datacenter}.qualtrics.com/API/v3/survey-definitions/{demographic_survey_id}'
+        self.category_survey_url = f'https://{datacenter}.qualtrics.com/API/v3/survey-definitions/{category_survey_id}'
 
         self.headers = {
             'X-API-Token': api_token,
             'Content-Type': 'application/json'
         }
 
-        self.question_handler = QuestionHandler(self.base_url, self.headers)
+        self.question_handler = QuestionHandler(self.base_url, self.headers, self.demographic_survey_url, self.category_survey_url)
         self.block_handler = BlockHandler(self.base_url, self.headers, self.question_handler)
 
         print("Starting Qualtrics survey update...")
 
         # Load categories and messages and formalities from CSV files
-        try:
-            categories_df = pd.read_csv('../input/user_prompt/message_categories.csv', quotechar='"')
-            categories_df.columns = categories_df.columns.str.strip()
-        except Exception as e:
-            print(f"Error loading categories file: {e}")
-            exit(1)
-        try:
-            formality_df = pd.read_csv('../input/user_prompt/formality_prompts.csv', quotechar='"')
-            formality_df.columns = formality_df.columns.str.strip()
-        except Exception as e:
-            print(f"Error loading formality file: {e}")
-            exit(1)
         try:
             messages_df = pd.read_csv('../output/production_messages.csv', quotechar='"')
             messages_df.columns = messages_df.columns.str.strip()
@@ -115,58 +107,92 @@ class SurveyHandler:
             exit(1)
 
         # read existing blocks from the survey
-        demographic_block_id, category_block_id, formality_block_id, context_block_ids = self.block_handler.get_block_ids()
+        demographic_block_id, category_block_id, context_block_ids = self.block_handler.get_block_ids()
         if not demographic_block_id:
             print("Error: Could not find demographic block ID.")
         if not category_block_id:
             print("Error: Could not find category block ID.")
-        if not formality_block_id:
-            print("Error: Could not find formality block ID.")
-        if not demographic_block_id or not category_block_id or not formality_block_id:
+        if not demographic_block_id or not category_block_id:
             exit(1)
 
-        # update category questions
-        if self.update_category:
-            self.update_categories(categories_df, category_block_id)
+        # update demographic questions
+        if self.update_demographics:
+            self.reload_demographic_survey(demographic_block_id)
 
-        # update formality questions
-        if self.update_formality:
-            self.update_formalities(formality_df, formality_block_id)
+        # update tone category questions
+        if self.update_category:
+            self.reload_tone_category_survey(category_block_id)
 
         # update individual message questions
         if self.update_message:
             self.update_messages(messages_df, self.block_handler, context_block_ids)
 
         self.publish_survey()
+
+    def reload_demographic_survey(self, demographic_block_id):
+        try:
+            self.block_handler.clear_block(demographic_block_id, "demographic")
+            demographic_questions = self.question_handler.get_demographic_questions()
+            demographic_question_ids = []
+            if not demographic_questions:
+                print("No demographic questions found. Exiting.")
+                exit(1)
+            demographic_questions = sorted(
+                demographic_questions, 
+                key=lambda x: (x['DataExportTag'] != "description", int(x['DataExportTag'][1:]) if x['DataExportTag'][1:].isdigit() else float('inf'))
+            )
+            print(f"Sorted {len(demographic_questions)} demographic questions.")
+            for question in demographic_questions:
+                print(f"Processing question: {question['DataExportTag']}")
+                if question['DataExportTag'] == "description":
+                    question_id = self.question_handler.add_existing_question(question, demographic_block_id)
+                    print(f"Added demographic description question with ID: {question_id}")
+                else:
+                    question_id = self.question_handler.add_existing_question(question, demographic_block_id)
+                    print(f"Added demographic question with ID: {question_id}")
+                demographic_question_ids.append({
+                    "DataExportTag": question['DataExportTag'],
+                    "QuestionID": question_id
+                })
+        except Exception as e:
+            print(f"Error updating demographic survey: {e}")
+            exit(1)
+
+        with open('../output/demographic_question_ids.json', 'w') as f:
+            json.dump(demographic_question_ids, f, indent=4)
+        print("Saved demographic question IDs to demographic_question_ids.json")
     
-    def update_categories(self, categories_df, category_block_id):
-        self.block_handler.clear_block(category_block_id, "category")
-        question_category_ids = []
-        for _, row in categories_df.iterrows():
-            category = row['message_category']
-            description = row['description']
-            example = row['example']
-            question_text = f'<strong>{category}</strong><br><br>{description}<br><br>Example: {example}'
-            questions = ["I would like to receive messages from this tone category."]
-            desc_id = self.question_handler.add_likert_scale_question(question_text, category_block_id, questions)
-            question_category_ids.append(desc_id)
-        print(f"Added {len(question_category_ids)} category questions.")
-
-    def update_formalities(self, formality_df, formality_block_id):
-        self.block_handler.clear_block(formality_block_id, "formality")
-        question_formality_ids = []
-        for _, row in formality_df.iterrows():
-            label = row['label']
-            prompt = row['prompt']
-
-            if label == "neutral":
-                prompt = "Address this user in a manner that is neither explicitly formal nor informal."
-            question_text = f'<strong>{label}</strong><br><br>{prompt}'
-            questions = ["I would like to receive messages from this formality category."]
-
-            desc_id = self.question_handler.add_likert_scale_question(question_text, formality_block_id, questions)
-            question_formality_ids.append(desc_id)
-        print(f"Added {len(question_formality_ids)} formality questions.")
+    def reload_tone_category_survey(self, category_block_id):
+        try:
+            self.block_handler.clear_block(category_block_id, "category")
+            category_questions = self.question_handler.get_tone_category_questions()
+            category_question_ids = []
+            if not category_questions:
+                print("No tone category questions found. Exiting.")
+                exit(1)
+            category_questions = sorted(
+                category_questions,
+                key=lambda x: (x['DataExportTag'] != "description", int(x['DataExportTag'][1:]) if x['DataExportTag'][1:].isdigit() else float('inf'))
+            )
+            print(f"Sorted {len(category_questions)} tone category questions.")
+            for question in category_questions:
+                print(f"Processing question: {question['DataExportTag']}")
+                if question['DataExportTag'] == "description":
+                    question_id = self.question_handler.add_existing_question(question, category_block_id)
+                    print(f"Added category description question with ID: {question_id}")
+                else:
+                    question_id = self.question_handler.add_existing_question(question, category_block_id)
+                    print(f"Added category question with ID: {question_id}")
+                category_question_ids.append({
+                    "DataExportTag": question['DataExportTag'],
+                    "QuestionID": question_id
+                })
+        except Exception as e:
+            print(f"Error updating tone category survey: {e}")
+            exit(1)
+        
+        with open('../output/category_question_ids.json', 'w') as f:
+            json.dump(category_question_ids, f, indent=4)
 
     def update_messages(self, messages_df, block_handler, context_block_ids):
         block_handler.delete_prior_message_blocks(context_block_ids)
