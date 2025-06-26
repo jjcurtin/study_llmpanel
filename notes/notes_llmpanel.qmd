@@ -3,14 +3,14 @@
 
 ## To Do
 
-- Colin will make a static message tone survey in qualtrics
 - Colin will update his code to generate the llm survey by starting with an import of the current demographics survey in qualtrics and the current message tone survey in qualtrics
-- Colin will update demographics static survey in qualtrics to 
-  - make meaningful variable names (e.g., start first question with Q1 or similar).
-- Drop prefer not to respond options from demographics
-- add validity checks to questions where possible.
-- Drop neutral tone
 - Talk about generating images for lapse probability and change (for optimize project, not panel study)
+
+- Colin will make a static message tone survey in qualtrics              DONE
+- Drop prefer not to respond options from demographics                   DONE
+- Drop neutral tone                                                      DONE
+- Update demographics static survey to make meaningful variable names    DONE
+- add validity checks to questions where possible (age and num people)   DONE
 
 For Colin/John meeting
 
