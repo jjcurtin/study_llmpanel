@@ -51,6 +51,14 @@ class ParticipantManager(TaskManager):
         except Exception as e:
             self.app.add_to_transcript(f"Failed to retrieve participant {unique_id}: {e}", "ERROR")
             return None
+        
+    def get_lapse_data_and_message(self, unique_id):
+        return {
+            'lapse_level': 'high',
+            'lapse_change': 'increasing',
+            'most_important_feature': 'craving',
+            'message': 'Sample message'
+        }
     
     def get_participants(self):
         try:

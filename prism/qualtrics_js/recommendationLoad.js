@@ -1,7 +1,8 @@
 Qualtrics.SurveyEngine.addOnReady(function() {
     var participantID = "${e://Field/ParticipantID}";
     var xhr = new XMLHttpRequest();
-    var url = "" + encodeURIComponent(participantID); // add in url to ngrok tunnel here
+    var url = "http://localhost:5000/feedback_survey/access_feedback/" + encodeURIComponent(participantID);
+    // change the url to the ngrok one for prod (do not push the url!)
 
     xhr.open("GET", url, true);
     xhr.setRequestHeader("ngrok-skip-browser-warning", "true");
@@ -14,16 +15,23 @@ Qualtrics.SurveyEngine.addOnReady(function() {
 
                     if (jsonResponse.subject_name) {
                         Qualtrics.SurveyEngine.setEmbeddedData("SubjectName", jsonResponse.subject_name);
-                        var newLabel = "Hello, " + jsonResponse.subject_name;
+						Qualtrics.SurveyEngine.setEmbeddedData("LapseLevel", jsonResponse.lapse_level);
+						Qualtrics.SurveyEngine.setEmbeddedData("LapseChange", jsonResponse.lapse_change);
+						Qualtrics.SurveyEngine.setEmbeddedData("MostImportantFeature", jsonResponse.most_important_feature);
+						Qualtrics.SurveyEngine.setEmbeddedData("Message", jsonResponse.message);
+                        var newLabel = "Hello, " + jsonResponse.subject_name + ".";
                         
                         if (jsonResponse.status) {
-                            newLabel += ". " + jsonResponse.status;
+                            newLabel += " " + jsonResponse.status;
                             Qualtrics.SurveyEngine.setEmbeddedData("Status", jsonResponse.status);
                         } else {
-                            newLabel += " ERROR.";
+                            newLabel += " ERROR";
                         }
-                        
-                        jQuery('.QuestionText').text(newLabel);
+						
+						newLabel += "<br><br>Your lapse risk is " + jsonResponse.lapse_level + " and " + jsonResponse.lapse_change;
+                        newLabel += "<br><br>The most important feature relating to your lapse risk is " + jsonResponse.most_important_feature;
+						newLabel += "<br><br>" + jsonResponse.message;
+                        jQuery('.QuestionText').html(newLabel);
                     } else {
                         throw new Error("No subject name found in the response.");
                     }
