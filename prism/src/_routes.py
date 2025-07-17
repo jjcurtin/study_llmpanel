@@ -76,7 +76,7 @@ def create_flask_app(app_instance):
     def add_system_task(task_type, task_time):
         if task_type not in app_instance.system_task_manager.task_types:
             return jsonify({"error": "Invalid task type"}), 400
-        app_instance.system_task_manager.add_task(task_type, task_time)
+        app_instance.system_task_manager.add_task(task_type, task_time, r_script_path = "")
         app_instance.system_task_manager.save_tasks()
         app_instance.add_to_transcript(f"Added system task via API: {task_type} at {task_time}", "INFO")
         return jsonify({"message": "Task added successfully"}), 200
@@ -96,6 +96,36 @@ def create_flask_app(app_instance):
         elif app_instance.system_task_manager.process_task({'task_type': task_type}) != 0:
             return jsonify({"error": f"Failed to execute {task_type}."}), 500
         return jsonify({"message": f"{task_type} executed successfully."}), 200
+    
+    @flask_app.route('/system/add_r_script_task/<r_script_path>/<task_time>', methods = ['POST'])
+    def add_r_script_task(r_script_path, task_time):
+        if not r_script_path:
+            return jsonify({"error": "R script path cannot be empty."}), 400
+        try:
+            datetime.strptime(task_time, '%H:%M:%S')
+        except ValueError:
+            return jsonify({"error": "Invalid time format."}), 400
+        app_instance.system_task_manager.add_task("RUN_R_SCRIPT", task_time, r_script_path = r_script_path)
+        app_instance.system_task_manager.save_tasks()
+        app_instance.add_to_transcript(f"Added R script task via API: {r_script_path} at {task_time}", "INFO")
+        return jsonify({"message": "R script task added successfully"}), 200
+    
+    @flask_app.route('/system/remove_r_script_task/<r_script_path>/<task_time>', methods = ['DELETE'])
+    def remove_r_script_task(r_script_path, task_time):
+        if not r_script_path:
+            return jsonify({"error": "R script path cannot be empty."}), 400
+        elif app_instance.system_task_manager.remove_task("RUN_R_SCRIPT", task_time = task_time, r_script_path = r_script_path) != 0:
+            return jsonify({"error": "R script task not found."}), 404
+        return jsonify({"message": "R script task removed successfully."}), 200
+    
+    @flask_app.route('/system/execute_r_script_task/<r_script_path>', methods = ['POST'])
+    def execute_r_script_task(r_script_path):
+        if not r_script_path:
+            return jsonify({"error": "R script path cannot be empty."}), 400
+        task = {'task_type': 'RUN_R_SCRIPT', 'r_script_path': r_script_path}
+        if app_instance.system_task_manager.process_task(task) != 0:
+            return jsonify({"error": f"Failed to execute R script task: {r_script_path}."}), 500
+        return jsonify({"message": f"R script task {r_script_path} executed successfully."}), 200
         
     #################
     #  Participants #
@@ -161,7 +191,7 @@ def create_flask_app(app_instance):
             return jsonify({"error": "Invalid survey type"}), 400
         elif not app_instance.participant_manager.get_participant(unique_id):
             return jsonify({"error": "Participant not found"}), 404
-        app_instance.participant_manager.add_task(survey_type, (datetime.now() + timedelta(seconds = 10)).strftime('%H:%M:%S'), unique_id)
+        app_instance.participant_manager.add_task(survey_type, (datetime.now() + timedelta(seconds = 10)).strftime('%H:%M:%S'), participant_id = unique_id)
         return jsonify({"message": f"{survey_type.capitalize()} survey sent to participant {unique_id}"}), 200
 
     return flask_app
