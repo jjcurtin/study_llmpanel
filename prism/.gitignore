@@ -6,6 +6,8 @@ data/followmee/
 data/messages/
 
 scripts/*.R
+!scripts/test.R
+!scripts/test2.R
 
 logs/ema_logs/
 logs/feedback_logs/
