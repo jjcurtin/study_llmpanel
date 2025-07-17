@@ -79,7 +79,7 @@ class ParticipantManager(TaskManager):
                     for task_type, field_name in self.survey_types.items():
                         if field_name == field:
                             self.remove_task(task_type, participant_id = unique_id)
-                            self.add_task(task_type, value, unique_id)
+                            self.add_task(task_type, value, participant_id = unique_id)
                     self.app.add_to_transcript(f"Updated {field} for participant {unique_id} to {value}.", "INFO")
                     return 0
                 else:
@@ -101,7 +101,7 @@ class ParticipantManager(TaskManager):
         for task_type, field_name in self.survey_types.items():
             task_time_str = participant.get(field_name)
             if task_time_str:
-                self.add_task(task_type, task_time_str, participant['unique_id'])
+                self.add_task(task_type, task_time_str, participant_id = participant['unique_id'])
 
     def remove_participant(self, unique_id):
         participant = self.get_participant(unique_id)
