@@ -144,5 +144,6 @@ class CheckSystem(SystemTask):
             self.app.add_to_transcript("ERROR: Duplicate unique IDs found among participants:")
             for uid, names in duplicates.items():
                 self.app.add_to_transcript(f"Unique ID: {uid}, Participants: {', '.join(names)}")
+            self.app.add_to_transcript("Please remedy these issues either through this interface or in the CSV file and refresh from CSV when you are ready.")
             return 1
         return 0

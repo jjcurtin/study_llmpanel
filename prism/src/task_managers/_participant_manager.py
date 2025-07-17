@@ -125,7 +125,7 @@ class ParticipantManager(TaskManager):
     
     def get_task_schedule(self):
         try:
-            return [
+            data = [
                 {
                     "participant_id": task.get('participant_id', 'N/A'),
                     "on_study": self.get_participant(task['participant_id'])['on_study'] if 'participant_id' in task else 'N/A',
@@ -134,6 +134,8 @@ class ParticipantManager(TaskManager):
                     "run_today": task.get('run_today', False)
                 } for task in self.tasks
             ]
+            data.sort(key = lambda x: (x['participant_id'], x['task_time']))
+            return data
         except Exception as e:
             self.add_to_transcript(f"Failed to retrieve system task schedule: {e}", "ERROR")
             return []
