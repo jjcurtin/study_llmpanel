@@ -19,9 +19,9 @@ class PRISM():
             exit(1)
         
         clear()
-        self.add_to_transcript("Initializing PRISM application...", "INFO")
         self.mode = mode
         self.start_time = datetime.now()
+        self.add_to_transcript("Initializing PRISM application...", "INFO")
 
         self.load_api_keys()
 
@@ -75,13 +75,20 @@ class PRISM():
         transcript_message = f"{message_type} - {message}"
         print(transcript_message)
         current_date = datetime.now().strftime('%Y-%m-%d')
-        with open(f'../logs/transcripts/{current_date}_transcript.txt', 'a') as file:
+        if self.mode == "test":
+            file_path = f'../logs/transcripts/test_transcript.txt'
+        else:
+            file_path = f'../logs/transcripts/{current_date}_transcript.txt'
+        with open(file_path, 'a') as file:
             file.write(f"{datetime.now().strftime('%H:%M:%S')} - {transcript_message}\n")
 
     def get_transcript(self, num_lines = 10):
         try:
             today_date = datetime.now().strftime('%Y-%m-%d')
-            transcript_path = f'../logs/transcripts/{today_date}_transcript.txt'
+            if self.mode == "test":
+                transcript_path = f'../logs/transcripts/test_transcript.txt'
+            else:
+                transcript_path = f'../logs/transcripts/{today_date}_transcript.txt'
             with open(transcript_path, 'r') as f:
                 num_lines = int(num_lines)
                 content = f.read().splitlines()[-num_lines:]
