@@ -1,0 +1,1 @@
+cat("Sample script 2 run", "\n")
