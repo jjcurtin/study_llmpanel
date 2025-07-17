@@ -67,7 +67,7 @@ class QuestionHandler:
                 headers=self.headers, 
                 params={"blockId": description_block_id},
                 json={
-                    "QuestionText": f'Imagine you are a recovering alcoholic with a {lapse_risk} lapse risk that has been {lapse_risk_change} over the last week.<br><br>The following page contains messages that are tailored to this user\'s context. Please read the messages and provide feedback on their helpfulness and whether you like them or not.',
+                    "QuestionText": f'Imagine you are an individual in recovery from alcohol use disorder (AUD) with a risk of lapsing that is {lapse_risk} and that has been {lapse_risk_change} over the last week.<br><br>The following page contains messages that are tailored to this user\'s context. Please read the messages and provide feedback on their helpfulness and whether you like them or not.',
                     "QuestionType": "DB",
                     "Selector": "TB",
                     "DataExportTag": f" "
