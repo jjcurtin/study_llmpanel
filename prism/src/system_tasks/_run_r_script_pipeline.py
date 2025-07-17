@@ -15,7 +15,7 @@ class RunRScriptPipeline(SystemTask):
 
     def run(self):
         self.task_type = "RUN_RSCRIPT_PIPELINE"
-        print(f"{self.task_type} #{self.task_number} initiated.")
+        self.app.add_to_transcript(f"{self.task_type} #{self.task_number} initiated.")
         initial_dir = os.getcwd()
         scripts_dir = os.path.abspath(os.path.join(initial_dir, '..', 'scripts'))
         if not os.path.exists(scripts_dir):

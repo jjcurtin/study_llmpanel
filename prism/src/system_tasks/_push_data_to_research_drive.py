@@ -23,7 +23,7 @@ class PushDataToResearchDrive(SystemTask):
                     raise ConnectionError("Failed to map network drive. Please check your credentials and ensure you are connected to WiscVPN.")
             except Exception as e:
                 self.app.add_to_transcript(f"ERROR: Authentication failed: {e}")
-                print("ERROR: Authentication failed. Please try again.")
+                self.app.add_to_transcript("ERROR: Authentication failed. Please try again.")
                 return 1
         else:
             self.app.add_to_transcript(f"INFO: Drive {self.app.drive_letter} is already mapped. Skipping authentication.")
