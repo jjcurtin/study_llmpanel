@@ -15,12 +15,14 @@ def create_flask_app(app_instance):
         CORS(flask_app, resources = {
             r"/system/*": {"origins": "localhost:5000"},
             r"/participants/*": {"origins": "localhost:5000"},
+            r"/EMA/*": {"origins": "https://uwmadison.co1.qualtrics.com"},
             r"/system/get_uptime": {"origins": "*"}
         })
     else:
         CORS(flask_app, resources = {
             r"/system/*": {"origins": "localhost:5000"},
-            r"/participants/*": {"origins": "localhost:5000"}
+            r"/participants/*": {"origins": "localhost:5000"},
+            r"/EMA/*": {"origins": "https://uwmadison.co1.qualtrics.com"}
         })
 
     limiter = Limiter(
@@ -232,5 +234,84 @@ def create_flask_app(app_instance):
         else:
             app_instance.add_to_transcript(f"Simulated sending messages.")
         return jsonify({"message": f"Study announcement sent to all participants, require on study: {require_on_study}"}), 200
+
+    ####################
+    #    EMA Logic     #
+    ####################
+
+    @flask_app.route('/EMA/access_ema/<unique_id>', methods=['GET'])
+    def access_ema(unique_id):
+        participant = app_instance.participant_manager.get_participant(unique_id)
+        if not participant:
+            return jsonify({'error': 'Participant not found'}), 404
+                
+        current_date = datetime.now().date()
+        status_message = "It's time to take your ecological momentary assessment."
+        transcript_message = "(first time today)"
+        
+        if app_instance.mode == "prod":
+            log_file_path = f'../logs/ema_logs/{current_date}_ema_log.txt'
+        else:
+            log_file_path = '../logs/ema_logs/test_ema_log.txt'
+        
+        opened_ema_time = None
+        finished_ema_time = None
+
+        try:
+            with open(log_file_path, 'r') as file:
+                for line in file:
+                    if f"#{unique_id} has opened an EMA survey" in line:
+                        timestamp_str = line.split('at ')[-1].strip()
+                        opened_time = datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S')
+                        if opened_time.date() == current_date:
+                            opened_ema_time = opened_time
+                    elif f"#{unique_id} has finished their EMA survey" in line:
+                        timestamp_str = line.split('at ')[-1].strip()
+                        finished_time = datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S')
+                        if finished_time.date() == current_date:
+                            finished_ema_time = finished_time
+            
+            if finished_ema_time:
+                status_message = "You've already completed your ecological momentary assessment for today."
+                transcript_message = "(already completed)"
+            elif opened_ema_time and not finished_ema_time:
+                transcript_message = "(resumed)"
+                status_message = "It's time to resume your ecological momentary assessment."
+        except FileNotFoundError:
+            app_instance.add_to_transcript(f"Log file {log_file_path} not found. Creating a new one.", "WARNING")
+            with open(log_file_path, 'w') as file:
+                file.write(f"Log file created on {current_date}.\n")
+        
+        app_instance.add_to_transcript(f"#{unique_id} has opened an EMA survey at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} {transcript_message}")
+        
+        with open(log_file_path, 'a') as file:
+            file.write(f"#{unique_id} has opened an EMA survey at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        
+        participant_name = f"{participant['first_name']} {participant['last_name']}"
+
+        if participant_name:
+            return jsonify({'subject_name': participant_name, 'status': status_message}), 200
+        else:
+            return jsonify({'error': 'Subject name not found'}), 404
+
+    @flask_app.route('/EMA/submit_ema', methods=['POST'])
+    def submit_ema():
+        data = request.get_json()
+
+        participant_id = data.get('participantID')
+        subject_name = data.get('subjectName')
+
+        if participant_id and subject_name:
+            app_instance.add_to_transcript(f"{subject_name} #{participant_id} has finished their EMA survey at {time.strftime('%Y-%m-%d %H:%M:%S')}")
+            if app_instance.mode == "prod":
+                current_date = datetime.now().strftime('%Y-%m-%d')
+                filepath = f"../logs/ema_logs/{current_date}_ema_log.txt"
+            else:
+                filepath = "../logs/ema_logs/test_ema_log.txt"
+            with open(filepath, 'a') as file:
+                file.write(f"#{participant_id} has finished their EMA survey at {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+            return jsonify({'message': 'EMA submission successful'}), 200
+        else:
+            return jsonify({'error': 'Missing participantID or subjectName'}), 400
 
     return flask_app
