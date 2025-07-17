@@ -35,12 +35,12 @@ class SystemTaskManager(TaskManager):
                     if not line.strip():
                         continue
                     try:
-                        task_type, task_time_str, run_today = [x.strip('"') for x in line.strip().split(',')]
+                        task_type, task_time_str, r_script_path, run_today = [x.strip('"') for x in line.strip().split(',')]
                         task_time = datetime.strptime(task_time_str, '%H:%M:%S').time()
                         if task_type not in self.task_types:
                             self.app.app.add_to_transcript(f"Unknown task type: {task_type}", "ERROR")
                             continue
-                        self.add_task(task_type, task_time)
+                        self.add_task(task_type, task_time, r_script_path = r_script_path)
                     except ValueError:
                         self.app.add_to_transcript(f"Invalid time format for task {task_type}: {task_time_str}", "ERROR")
                     except Exception as e:
@@ -56,6 +56,7 @@ class SystemTaskManager(TaskManager):
                 {
                     "task_type": task['task_type'],
                     "task_time": task['task_time'].strftime('%H:%M:%S'),
+                    "r_script_path": task.get('r_script_path', ''),
                     "run_today": task.get('run_today', False)
                 } for task in self.tasks
             ]
@@ -66,10 +67,12 @@ class SystemTaskManager(TaskManager):
     def save_tasks(self):
         self.save_to_csv(self.tasks, self.file_path)
 
-    def remove_task(self, task_type, task_time = None, participant_id = None):
+    def remove_task(self, task_type, task_time = None, participant_id = None, r_script_path = None):
         task_time = datetime.strptime(task_time, '%H:%M:%S').time()
         for task in self.tasks:
             if task['task_type'] == task_type and task['task_time'] == task_time:
+                if r_script_path and task.get('r_script_path') != r_script_path:
+                    continue
                 self.tasks.remove(task)
                 self.save_tasks()
                 self.app.add_to_transcript(f"Removed system task: {task_type} at {task_time.strftime('%H:%M:%S')}", "INFO")
@@ -95,7 +98,11 @@ class SystemTaskManager(TaskManager):
             except Exception as e:
                 self.app.add_to_transcript(f"An error occurred while importing task {task_type}: {e}", "ERROR")
                 return -1
-            result = task_class(self.app).execute()
+            r_script_path = task.get('r_script_path')
+            if r_script_path:
+                result = task_class(self.app, r_script_path).execute()
+            else:
+                result = task_class(self.app).execute()
         else:
             self.app.add_to_transcript(f"Unknown task type: {task_type}", "ERROR")
             return -1
