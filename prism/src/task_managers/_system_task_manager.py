@@ -45,6 +45,7 @@ class SystemTaskManager(TaskManager):
                         self.app.add_to_transcript(f"Invalid time format for task {task_type}: {task_time_str}", "ERROR")
                     except Exception as e:
                         self.app.add_to_transcript(f"Error scheduling task {task_type}: {e}", "ERROR")
+                self.tasks.sort(key = lambda x: x['task_time'])
         except FileNotFoundError:
             self.app.add_to_transcript(f"Task schedule file not found at: {self.file_path}", "ERROR")
         except Exception as e:
@@ -65,6 +66,7 @@ class SystemTaskManager(TaskManager):
             return []
         
     def save_tasks(self):
+        self.tasks.sort(key = lambda x: x['task_time'])
         self.save_to_csv(self.tasks, self.file_path)
 
     def remove_task(self, task_type, task_time = None, participant_id = None, r_script_path = None):
