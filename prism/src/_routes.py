@@ -204,25 +204,33 @@ def create_flask_app(app_instance):
         participant = app_instance.participant_manager.get_participant(unique_id)
         if not participant:
             return jsonify({"error": "Participant not found"}), 404
-        send_sms(app_instance, [participant['phone_number']], [data['message']])
+        if app_instance.mode == "prod":
+            send_sms(app_instance, [participant['phone_number']], [data['message']])
         return jsonify({"message": f"Custom SMS sent to participant {unique_id}"}), 200
     
     @flask_app.route('/participants/study_announcement/<require_on_study>', methods = ['POST'])
-    def send_study_announcement(require_on_study):
+    def study_announcement(require_on_study):
         data = request.get_json()
         if not data or 'message' not in data:
             return jsonify({"error": "Message content is required"}), 400
-        participants = app_instance.participant_manager.get_participants()
-        if not participants:
+        if not app_instance.participant_manager.participants:
             return jsonify({"error": "No participants found"}), 404
         
-        if require_on_study.lower() == 'true':
-            phone_numbers = [p['phone_number'] for p in participants if p['on_study']]
+        if require_on_study.lower() == 'yes':
+            phone_numbers = [p['phone_number'] for p in app_instance.participant_manager.participants if p['on_study']]
         else:
-            phone_numbers = [p['phone_number'] for p in participants]
+            phone_numbers = [p['phone_number'] for p in app_instance.participant_manager.participants]
+        
         if not phone_numbers:
             return jsonify({"error": "No participants on study"}), 404
-        send_sms(app_instance, phone_numbers, [data['message']])
-        return jsonify({"message": "Study announcement sent to all participants on study"}), 200
+        
+        if app_instance.mode == "prod":
+            for phone_number in phone_numbers:
+                if phone_number.strip():
+                    send_sms(app_instance, [phone_number], [data['message']])
+                    app_instance.add_to_transcript(f"Study announcement sent to {phone_number}", "INFO")
+        else:
+            app_instance.add_to_transcript(f"Simulated sending messages.")
+        return jsonify({"message": f"Study announcement sent to all participants, require on study: {require_on_study}"}), 200
 
     return flask_app
