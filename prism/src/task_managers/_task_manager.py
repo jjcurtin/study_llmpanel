@@ -12,17 +12,22 @@ class TaskManager():
         self.thread = threading.Thread(target = self.run)
         self.thread.start()
 
-    def add_task(self, task_type, task_time, participant_id = None):
+    def add_task(self, task_type, task_time, r_script_path = None, participant_id = None):
         task_dict = {
             'task_type': task_type,
             'task_time': datetime.strptime(task_time, '%H:%M:%S').time() if isinstance(task_time, str) else task_time,
-            'run_today': False
         }
+        if r_script_path is not None:
+            if r_script_path == "" or r_script_path == "None":
+                task_dict['r_script_path'] = None
+            else:
+                task_dict['r_script_path'] = r_script_path
+        task_dict['run_today'] = False
         if participant_id is not None:
             task_dict['participant_id'] = participant_id
         self.tasks.append(task_dict)  
 
-    def remove_task(self, task_type, task_time = None, participant_id = None):
+    def remove_task(self, task_type, task_time = None, participant_id = None, r_script_path = None):
         raise NotImplementedError("Subclasses must implement this method.")
     
     def save_to_csv(self, data, file_path):
