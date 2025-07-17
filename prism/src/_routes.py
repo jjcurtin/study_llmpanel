@@ -65,6 +65,13 @@ def create_flask_app(app_instance):
             return jsonify({"error": "No task types available"}), 404
         return jsonify({"task_types": app_instance.system_task_manager.task_types}), 200
     
+    @flask_app.route('/system/get_r_script_tasks', methods = ['GET'])
+    def get_r_script_tasks():
+        tasks = app_instance.system_task_manager.get_r_script_tasks()
+        if not tasks:
+            return jsonify({"error": "No R script tasks found"}), 404
+        return jsonify({"r_script_tasks": tasks}), 200
+    
     @flask_app.route('/system/add_system_task/<task_type>/<task_time>', methods = ['POST'])
     def add_system_task(task_type, task_time):
         if task_type not in app_instance.system_task_manager.task_types:
