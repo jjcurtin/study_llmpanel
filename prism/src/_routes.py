@@ -14,15 +14,17 @@ def create_flask_app(app_instance):
     if app_instance.mode == "prod":
         CORS(flask_app, resources = {
             r"/system/*": {"origins": "localhost:5000"},
+            r"/system/get_uptime": {"origins": "*"},
             r"/participants/*": {"origins": "localhost:5000"},
             r"/EMA/*": {"origins": "https://uwmadison.co1.qualtrics.com"},
-            r"/system/get_uptime": {"origins": "*"}
+            r"/feedback_survey/*": {"origins": "https://uwmadison.co1.qualtrics.com"}
         })
     else:
         CORS(flask_app, resources = {
             r"/system/*": {"origins": "localhost:5000"},
             r"/participants/*": {"origins": "localhost:5000"},
-            r"/EMA/*": {"origins": "https://uwmadison.co1.qualtrics.com"}
+            r"/EMA/*": {"origins": "https://uwmadison.co1.qualtrics.com"},
+            r"/feedback_survey/*": {"origins": "https://uwmadison.co1.qualtrics.com"}
         })
 
     limiter = Limiter(
@@ -311,6 +313,90 @@ def create_flask_app(app_instance):
             with open(filepath, 'a') as file:
                 file.write(f"#{participant_id} has finished their EMA survey at {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
             return jsonify({'message': 'EMA submission successful'}), 200
+        else:
+            return jsonify({'error': 'Missing participantID or subjectName'}), 400
+        
+    ################################
+    #    Feedback Survey Logic     #
+    ################################
+
+    @flask_app.route('/feedback_survey/access_feedback/<unique_id>', methods=['GET'])
+    def access_feedback(unique_id):
+        participant = app_instance.participant_manager.get_participant(unique_id)
+        if not participant:
+            return jsonify({'error': 'Participant not found'}), 404
+        
+        subject_name = f"{participant['first_name']} {participant['last_name']}"
+        current_date = datetime.now().date()
+        lapse_data = app_instance.participant_manager.get_lapse_data_and_message(unique_id)
+        
+        if app_instance.mode == "prod":
+            log_file_path = f'../logs/feedback_logs/{current_date}_feedback_log.txt'
+        else:
+            log_file_path = '../logs/feedback_logs/test_feedback_log.txt'
+        
+        opened_recommendations_time = None
+        finished_recommendations_time = None
+        
+        try:
+            with open(log_file_path, 'r') as file:
+                for line in file:
+                    if f"#{unique_id} has opened their recommendations" in line:
+                        timestamp_str = line.split('at ')[-1].strip()
+                        opened_time = datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S')
+                        if opened_time.date() == current_date:
+                            opened_recommendations_time = opened_time
+                    elif f"#{unique_id} has finished their recommendations" in line:
+                        timestamp_str = line.split('at ')[-1].strip()
+                        finished_time = datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M:%S')
+                        if finished_time.date() == current_date:
+                            finished_recommendations_time = finished_time
+        except FileNotFoundError:
+            app_instance.add_to_transcript(f"Log file {log_file_path} not found. Creating a new one.", "WARNING")
+            with open(log_file_path, 'w') as file:
+                file.write(f"Log file created on {current_date}.\n")
+
+        if finished_recommendations_time:
+            status_message = "You've already submitted the acknowledgement of your recommendations for today."
+        elif opened_recommendations_time:
+            status_message = "You're viewing today's recommendations again but have not acknowledged them with the button."
+        else:
+            status_message = "It's time to view your recommendations for today."
+
+        app_instance.add_to_transcript(f"#{unique_id} has opened their recommendations at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        
+        with open(log_file_path, 'a') as file:
+            file.write(f"#{unique_id} has opened their recommendations at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+
+        if subject_name:
+            return jsonify({'subject_name': subject_name, 
+                            'status': status_message,
+                            'lapse_level': lapse_data['lapse_level'],
+                            'lapse_change': lapse_data['lapse_change'],
+                            'most_important_feature': lapse_data['most_important_feature'],
+                            'message': lapse_data['message']
+                            }), 200
+        else:
+            return jsonify({'error': 'Subject name not found'}), 404
+        
+    @flask_app.route('/feedback_survey/submit_feedback', methods=['POST'])
+    def submit_recommendations():
+        data = request.get_json()
+
+        participant_id = data.get('participantID')
+        subject_name = data.get('subjectName')
+
+        current_date = datetime.now().strftime('%Y-%m-%d')
+
+        if participant_id and subject_name:
+            app_instance.add_to_transcript(f"#{participant_id} has finished their recommendations at {time.strftime('%Y-%m-%d %H:%M:%S')}")
+            if app_instance.mode == "prod":
+                filepath = f"../logs/feedback_logs/{current_date}_feedback_log.txt"
+            else:
+                filepath = "../logs/feedback_logs/test_feedback_log.txt"
+            with open(filepath, 'a') as file:
+                file.write(f"#{participant_id} has finished their recommendations at {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+            return jsonify({'message': 'Recommendations submission successful'}), 200
         else:
             return jsonify({'error': 'Missing participantID or subjectName'}), 400
 
