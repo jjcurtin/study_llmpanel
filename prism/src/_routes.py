@@ -6,6 +6,8 @@ import time
 from datetime import datetime
 from datetime import timedelta
 
+from _helper import send_sms
+
 def create_flask_app(app_instance):
     flask_app = Flask(__name__)
     
@@ -193,5 +195,34 @@ def create_flask_app(app_instance):
             return jsonify({"error": "Participant not found"}), 404
         app_instance.participant_manager.add_task(survey_type, (datetime.now() + timedelta(seconds = 10)).strftime('%H:%M:%S'), participant_id = unique_id)
         return jsonify({"message": f"{survey_type.capitalize()} survey sent to participant {unique_id}"}), 200
+
+    @flask_app.route('/participants/send_custom_sms/<unique_id>', methods = ['POST'])
+    def send_custom_sms(unique_id):
+        data = request.get_json()
+        if not data or 'message' not in data:
+            return jsonify({"error": "Message content is required"}), 400
+        participant = app_instance.participant_manager.get_participant(unique_id)
+        if not participant:
+            return jsonify({"error": "Participant not found"}), 404
+        send_sms(app_instance, [participant['phone_number']], [data['message']])
+        return jsonify({"message": f"Custom SMS sent to participant {unique_id}"}), 200
+    
+    @flask_app.route('/participants/study_announcement/<require_on_study>', methods = ['POST'])
+    def send_study_announcement(require_on_study):
+        data = request.get_json()
+        if not data or 'message' not in data:
+            return jsonify({"error": "Message content is required"}), 400
+        participants = app_instance.participant_manager.get_participants()
+        if not participants:
+            return jsonify({"error": "No participants found"}), 404
+        
+        if require_on_study.lower() == 'true':
+            phone_numbers = [p['phone_number'] for p in participants if p['on_study']]
+        else:
+            phone_numbers = [p['phone_number'] for p in participants]
+        if not phone_numbers:
+            return jsonify({"error": "No participants on study"}), 404
+        send_sms(app_instance, phone_numbers, [data['message']])
+        return jsonify({"message": "Study announcement sent to all participants on study"}), 200
 
     return flask_app

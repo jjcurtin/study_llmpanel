@@ -110,7 +110,7 @@ class PRISMInterface:
             print(f"Participant ID {participant_id} Info:")
             for k, f in sorted(field_map.items()):
                 print(f"{k}: {f.replace('_',' ').capitalize()}: {participant.get(f)}")
-            print("\nindex: select field, s: send survey, r: remove participant, ENTER: back")
+            print("\nindex: select field, s: send survey, r: remove participant, m: send message, ENTER: back")
 
             choice = input("Enter choice: ").strip()
             if choice == '':
@@ -142,6 +142,13 @@ class PRISMInterface:
                         print(f"Failed to send {survey_type} survey.")
                 else:
                     print("Invalid survey type.")
+                input("Press Enter to continue...")
+            elif choice.lower() == 'm':
+                message = input("Enter message to send: ").strip()
+                if self.api("POST", f"participants/send_custom_sms/{participant_id}", json={"message": message}):
+                    print("Message sent.")
+                else:
+                    print("Failed to send message.")
                 input("Press Enter to continue...")
             else:
                 print("Invalid choice.")
