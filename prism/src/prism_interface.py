@@ -53,22 +53,32 @@ class PRISMInterface:
             self.scheduled_tasks = tasks["tasks"]
             if self.scheduled_tasks:
                 for i, t in enumerate(self.scheduled_tasks, 1):
-                    print(f"{i}. {t['task_type']} @ {t['task_time']} - Run Today: {t.get('run_today', False)}")
+                    print(f"{i}. {t['task_type']} @ {t['task_time']}{f" {t['r_script_path']}" if t['r_script_path'] else ""} - Run Today: {t.get('run_today', False)}")
             else:
                 print("No tasks scheduled.")
         else:
             print("Failed to retrieve task schedule or PRISM not running.")
         print("\n1: Add New Task\n2: Remove Task\n3: Execute Task Now\n\nENTER: Back to Main Menu")  
 
-    def add_system_task(self, task_type, task_time):
-        if self.api("POST", f"system/add_system_task/{task_type}/{task_time}"):
+    def add_system_task(self, task_type, task_time, r_script_path = None):
+        if r_script_path:
+            if self.api("POST", f"system/add_r_script_task/{r_script_path}/{task_time}"):
+                print(f"R script task {r_script_path} scheduled at {task_time}.")
+            else:
+                print(f"Failed to schedule R script task {task_type}.")
+        elif self.api("POST", f"system/add_system_task/{task_type}/{task_time}"):
             print("Task added.")
         else:
             print("Failed to add task.")
         input("Press Enter to continue...")
 
-    def remove_system_task(self, task_type, task_time):
-        if self.api("DELETE", f"system/remove_system_task/{task_type}/{task_time}"):
+    def remove_system_task(self, task_type, task_time, r_script_path = None):
+        if r_script_path:
+            if self.api("DELETE", f"system/remove_r_script_task/{r_script_path}/{task_time}"):
+                print(f"R script task {task_type} at {task_time} removed.")
+            else:
+                print(f"Failed to remove R script task {task_type}.")
+        elif self.api("DELETE", f"system/remove_system_task/{task_type}/{task_time}"):
             print("Task removed.")
         else:
             print("Failed to remove task.")
@@ -205,6 +215,28 @@ class PRISMInterface:
                             input("Press Enter to continue...")
                             continue
                         task_type = list(task_types.keys())[int(idx)-1]
+                        r_script_path = None
+                        
+                        if task_type == 'RUN_R_SCRIPT':
+                            r_scripts = self.api("GET", "system/get_r_script_tasks")
+                            if not r_scripts:
+                                print("No R scripts available.")
+                                input("Press Enter to continue...")
+                                continue
+                            print("Available R Scripts:")
+                            for i, (name, script) in enumerate(r_scripts['r_script_tasks'].items(), 1):
+                                print(f"{i}: {name}")
+                            script_idx = input("Select R script index: ").strip()
+                            r_script_dict = r_scripts['r_script_tasks']
+                            script_names = list(r_script_dict.keys())
+
+                            if not script_idx.isdigit() or not (1 <= int(script_idx) <= len(script_names)):
+                                print("Invalid index.")
+                                input("Press Enter to continue...")
+                                continue
+                            selected_script_name = script_names[int(script_idx) - 1]
+                            r_script_path = f"{r_script_dict[selected_script_name]}.R"
+
                         task_time = input("Task time (HH:MM:SS): ").strip()
                         try:
                             time.strptime(task_time, '%H:%M:%S')
@@ -212,7 +244,8 @@ class PRISMInterface:
                             print("Invalid time format.")
                             input("Press Enter to continue...")
                             continue
-                        self.add_system_task(task_type, task_time)
+
+                        self.add_system_task(task_type, task_time, r_script_path)
                     elif task_choice == '2':
                         try:
                             idx = int(input("Task index to remove: ")) - 1
@@ -239,7 +272,32 @@ class PRISMInterface:
                             input("Press Enter to continue...")
                             continue
                         task_type = list(task_types.keys())[int(idx)-1]
-                        if self.api("POST", f"system/execute_task/{task_type}"):
+
+                        if task_type == 'RUN_R_SCRIPT':
+                            r_scripts = self.api("GET", "system/get_r_script_tasks")
+                            if not r_scripts:
+                                print("No R scripts available.")
+                                input("Press Enter to continue...")
+                                continue
+                            print("Available R Scripts:")
+                            for i, (name, script) in enumerate(r_scripts['r_script_tasks'].items(), 1):
+                                print(f"{i}: {name}")
+                            script_idx = input("Select R script index: ").strip()
+                            r_script_dict = r_scripts['r_script_tasks']
+                            script_names = list(r_script_dict.keys())
+
+                            if not script_idx.isdigit() or not (1 <= int(script_idx) <= len(script_names)):
+                                print("Invalid index.")
+                                input("Press Enter to continue...")
+                                continue
+                            selected_script_name = script_names[int(script_idx) - 1]
+                            r_script_path = f"{r_script_dict[selected_script_name]}.R"
+                            print(f"Executing R script: {selected_script_name} at {r_script_path}")
+                            if self.api("POST", f"system/execute_r_script_task/{r_script_path}"):
+                                print(f"R script task {selected_script_name} executed.")
+                            else:
+                                print(f"Failed to execute R script task {selected_script_name}.")
+                        elif self.api("POST", f"system/execute_task/{task_type}"):
                             print(f"Task {task_type} executed.")
                         else:
                             print("Failed to execute task.")
