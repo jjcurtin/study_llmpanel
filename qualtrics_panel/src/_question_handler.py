@@ -36,7 +36,7 @@ class QuestionHandler:
                         "4": {"Display": "Neutral"},
                         "5": {"Display": "Somewhat Agree"},
                         "6": {"Display": "Agree"},
-                        "7": {"Display": "Strongly Disagree"}
+                        "7": {"Display": "Strongly Agree"}
                     },
                     "Validation": {
                         "Settings": {
