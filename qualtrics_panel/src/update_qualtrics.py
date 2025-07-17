@@ -220,7 +220,7 @@ class SurveyHandler:
                 print(f"Error: No message block ID found for user index {row['user_index']}.")
                 continue
             question_text = f'"{message}"'
-            questions = ["I liked this message.", "I found this message to be helpful."]
+            questions = ["I found this message to be helpful."]
             desc_id = self.question_handler.add_likert_scale_question(question_text, message_block_id, questions)
             question_message_ids.append({"user_index": row['user_index'], "category": category, "question_id": desc_id, "formality": row['formality']})
             print(f"Added message question for user index {row['user_index']} in category {category} with question ID {desc_id}")
