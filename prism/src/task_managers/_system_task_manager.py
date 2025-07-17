@@ -18,6 +18,14 @@ class SystemTaskManager(TaskManager):
             if f.endswith('.py') and f != '_system_task.py'
         }
     
+    def get_r_script_tasks(self):
+        data = {
+            (f[:-2]): (f[:-2])
+            for f in os.listdir('../scripts')
+            if f.endswith('.R')
+        }
+        return data
+    
     def load_task_schedule(self):
         self.tasks.clear()
         try:
