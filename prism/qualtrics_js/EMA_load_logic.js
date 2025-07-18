@@ -1,7 +1,7 @@
 Qualtrics.SurveyEngine.addOnReady(function() { 
     var participantID = "${e://Field/ParticipantID}";
     var xhr = new XMLHttpRequest();
-    var url = "" + encodeURIComponent(participantID); // add in url to ngrok tunnel here
+    var url = "http://localhost:5000/EMA/access_ema/" + encodeURIComponent(participantID);
 
     xhr.open("GET", url, true);
 
