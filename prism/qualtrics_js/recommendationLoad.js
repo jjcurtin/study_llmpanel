@@ -2,7 +2,7 @@ Qualtrics.SurveyEngine.addOnReady(function() {
     var participantID = "${e://Field/ParticipantID}";
     var xhr = new XMLHttpRequest();
     var url = "http://localhost:5000/feedback_survey/access_feedback/" + encodeURIComponent(participantID);
-    // change the url to the ngrok one for prod (do not push the url!)
+	// put ngrok link in Qualtrics but do not push
 
     xhr.open("GET", url, true);
     xhr.setRequestHeader("ngrok-skip-browser-warning", "true");

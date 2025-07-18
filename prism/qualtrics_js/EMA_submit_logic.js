@@ -2,7 +2,8 @@ Qualtrics.SurveyEngine.addOnUnload(function() {
     var participantID = "${e://Field/ParticipantID}";
     var subjectName = "${e://Field/SubjectName}";
     var xhr = new XMLHttpRequest();
-    var url = ""; // add in url to ngrok tunnel here
+    var url = "http://localhost:5000/EMA/submit_ema";
+    // change the url to the ngrok one for prod (do not push the url!)
     
     xhr.open("POST", url, true);
     xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
