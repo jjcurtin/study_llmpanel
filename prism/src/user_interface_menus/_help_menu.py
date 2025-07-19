@@ -4,8 +4,7 @@ from user_interface_menus.documentation._research_assistant_documentation import
 
 def help_menu(self):
     def general_information(self):
-        clear()
-        print("General Information:")
+        print_menu_header("General Information")
         print("This application is designed to manage and monitor participants in a study.")
         print("It includes features for system checks, task management, participant management, and logging.")
         print("It is designed to incorporate data collection, data processing, and communication with participants in a single system.")
