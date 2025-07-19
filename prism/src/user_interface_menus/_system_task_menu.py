@@ -3,21 +3,19 @@ from user_interface_menus._menu_helper import *
 
 def system_task_menu(self):
     def print_task_schedule(self):
-        print("System and R Script Task Schedule:")
         tasks = self.api("GET", "system/get_task_schedule")
         if tasks and "tasks" in tasks:
             self.scheduled_tasks = tasks["tasks"]
             if self.scheduled_tasks:
                 for i, t in enumerate(self.scheduled_tasks, 1):
-                    print(f"{t['task_type']} @ {t['task_time']}{f" {t['r_script_path']}" if t['r_script_path'] else ""} - Run Today: {t.get('run_today', False)}")
+                    print(f"{i}: {t['task_type']} @ {t['task_time']}{f" {t['r_script_path']}" if t['r_script_path'] else ""} - Run Today: {t.get('run_today', False)}")
             else:
                 print("No tasks scheduled.")
         else:
             error("Failed to retrieve task schedule or PRISM not running.")
 
     def add_new_r_script_menu(self):
-        clear()
-        print("Add New R Script Task")
+        print_menu_header("Add New R Script Task")
         r_scripts = self.api("GET", "system/get_r_script_tasks")
         if not r_scripts:
             error("No R scripts available.")
@@ -33,20 +31,23 @@ def system_task_menu(self):
             return
         selected_script_name = script_names[int(script_idx) - 1]
         r_script_path = f"{r_script_dict[selected_script_name]}.R"
-        task_time = input("Task time (HH:MM:SS): ").strip()
-        try:
-            time.strptime(task_time, '%H:%M:%S')
-        except ValueError:
-            error("Invalid time format.")
-            return
+        task_time = input("Task time (HH:MM:SS, default 00:00:00): ").strip()
+        if not task_time:
+            print("No time provided, using default 00:00:00.")
+            task_time = "00:00:00"
+        else:
+            try:
+                time.strptime(task_time, '%H:%M:%S')
+            except ValueError:
+                print("Invalid time format, using default 00:00:00.")
+                task_time = "00:00:00"
         if self.api("POST", f"system/add_r_script_task/{r_script_path}/{task_time}"):
             success(f"R script task {r_script_path} scheduled at {task_time}.")
         else:
             error(f"Failed to schedule R script task {selected_script_name}.")
 
     def add_new_task_menu(self):
-        clear()
-        print("Add New System Task")
+        print_menu_header("Add New System Task")
         task_types = self.get_task_types()
         if not task_types:
             error("No task types available.")
@@ -63,13 +64,16 @@ def system_task_menu(self):
         if task_type == 'RUN_R_SCRIPT':
             add_new_r_script_menu(self)
         else:
-            task_time = input("Task time (HH:MM:SS): ").strip()
-            try:
-                time.strptime(task_time, '%H:%M:%S')
-            except ValueError:
-                error("Invalid time format.")
-                return
-
+            task_time = input("Task time (HH:MM:SS, default 00:00:00): ").strip()
+            if not task_time:
+                print("No time provided, using default 00:00:00.")
+                task_time = "00:00:00"
+            else:
+                try:
+                    time.strptime(task_time, '%H:%M:%S')
+                except ValueError:
+                    print("Invalid time format, using default 00:00:00.")
+                    task_time = "00:00:00"
             if self.api("POST", f"system/add_system_task/{task_type}/{task_time}"):
                 success("Task added.")
             else:
@@ -90,8 +94,7 @@ def system_task_menu(self):
             error("Invalid input.")
         
     def execute_r_script_menu(self):
-        clear()
-        print("Execute R Script Task")
+        print_menu_header("Execute R Script Task")
         r_scripts = self.api("GET", "system/get_r_script_tasks")
         if not r_scripts:
             error("No R scripts available.")
@@ -115,8 +118,7 @@ def system_task_menu(self):
             error(f"Failed to execute R script task {selected_script_name}.")
 
     def execute_task_menu(self):
-        clear()
-        print("Execute System Task")
+        print_menu_header("Execute System Task")
         task_types = self.get_task_types()
         if not task_types:
             error("No task types available.")
@@ -144,26 +146,16 @@ def system_task_menu(self):
             error("Failed to execute task.")
 
     menu_options = {
-        '1': {'description': 'Add New Task', 'menu_caller': add_new_task_menu},
-        '2': {'description': 'Add New R Script Task', 'menu_caller': add_new_r_script_menu},
-        '3': {'description': 'Remove Task', 'menu_caller': remove_task_menu},
-        '4': {'description': 'Execute Task Now', 'menu_caller': execute_task_menu},
-        '5': {'description': 'Execute R Script Task Now', 'menu_caller': execute_r_script_menu},
+        'add': {'description': 'Add New Task', 'menu_caller': add_new_task_menu},
+        'add -r': {'description': 'Add New R Script Task', 'menu_caller': add_new_r_script_menu},
+        'remove': {'description': 'Remove Task', 'menu_caller': remove_task_menu},
+        'execute': {'description': 'Execute Task Now', 'menu_caller': execute_task_menu},
+        'execute -r': {'description': 'Execute R Script Task Now', 'menu_caller': execute_r_script_menu},
     }
 
     while True:
         print_menu_header("PRISM System Task Menu")
         print_task_schedule(self)
         print()
-        for key, item in menu_options.items():
-            print(f"{key}: {item['description']}")
-        print("\nENTER: Back to Main Menu")   
-        choice = input("Enter your choice: ").strip()
-        selected = menu_options.get(choice)
-        if selected:
-            handler = selected['menu_caller']
-            handler(self)
-        elif choice == '':
+        if print_menu_options(self, menu_options, submenu = True):
             break
-        else:
-            error("Invalid choice.")
