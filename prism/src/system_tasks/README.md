@@ -1,4 +1,5 @@
 # TASK abstraction format
+This is for creating Python tasks. To run an R script, put it in the ../../scripts directory and PRISM will automatically detect it. 
 
 ## Location
 - tasks directory
