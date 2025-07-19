@@ -1,5 +1,145 @@
+import requests
 import time
 from _helper import clear
+import random
+
+def main_menu(self):
+    while True:
+            self.print_main_menu()
+            choice = input("Enter your choice: ").strip()
+            
+            # get mode and uptime
+            if choice == '1':
+                clear()
+                uptime_data = self.api("GET", "system/uptime")
+                if uptime_data:
+                    print(f"PRISM Uptime: {uptime_data.get('uptime', 'Unknown')}")
+                else:
+                    print("PRISM not running or inaccessible.")
+                mode_data = self.api("GET", "system/get_mode")
+                if mode_data:
+                    print(f"PRISM Mode: {mode_data.get('mode', 'Unknown')}")
+                else:
+                    print("PRISM not running or inaccessible.")
+                input("Press Enter to continue...")
+
+            # Manage System Tasks
+            elif choice == '2':
+                task_schedule_menu(self)
+
+            # Manage Participants
+            elif choice == '3':
+                while True:
+                    clear()
+                    data = self.api("GET", "participants/get_participants")
+                    participants = data.get("participants", []) if data else []
+                    print("Participant List:")
+                    if participants:
+                        for i, p in enumerate(participants, 1):
+                            print(f"{i}: {p['last_name']}, {p['first_name']} (ID: {p['unique_id']}) - On Study: {p['on_study']}")
+                    else:
+                        print("No participants found or failed to retrieve.")
+                    print("\na: Add a Participant\ns: Get Participant Task Schedule\nr: Full Participants Refresh from CSV\nn: study announcement\n\nENTER: Back to Main Menu")
+                    choice = input("Enter index, 'a', 's', 'r', 'n', or ENTER: ").strip()
+                    if choice.isdigit():
+                        idx = int(choice)-1
+                        if 0 <= idx < len(participants):
+                            self.print_participant_schedule(participants[idx]['unique_id'])
+                    elif choice.lower() == 'a':
+                        self.add_participant()
+                    elif choice.lower() == 's':
+                        tasks = self.api("GET", "participants/get_participant_task_schedule")
+                        if tasks:
+                            print("Participant Task Schedule:")
+                            for task in tasks.get("tasks", []):
+                                print(f"{task['participant_id']}: {task['task_type']} at {task['task_time']} - On Study: {task['on_study']}")
+                            input("\nPress Enter to continue...")
+                    elif choice.lower() == 'r':
+                        if input("Refresh participants from CSV? (yes/no): ").strip().lower() == 'yes':
+                            if self.api("POST", "participants/refresh_participants"):
+                                print("Participants refreshed from CSV.")
+                            else:
+                                print(f"Failed to refresh participants. Error code: {self.api('POST', 'participants/refresh_participants').get('status_code', 'Unknown')}")
+                        else:
+                            print("Refresh cancelled.")
+                        input("Press Enter to continue...")
+                    elif choice.lower() == 'n':
+                        message = input("Enter study announcement message: ").strip()
+                        if not message:
+                            print("Message cannot be empty.")
+                            input("Press Enter to continue...")
+                            continue
+                        require_on_study = input("Send to participants on study only? (yes/no): ").strip().lower()
+                        if require_on_study not in ('yes', 'y', 'no', 'n'):
+                            input("Invalid input. Cancelling. Press Enter to continue...")
+                            continue
+                        if self.api("POST", f"participants/study_announcement/{require_on_study}", json = {"message": message}):
+                            print("Study announcement sent.")
+                        else:
+                            print("No participants found or failed to retrieve.")
+                        input("Press Enter to continue...")
+                    elif choice == '':
+                        break
+                    else:
+                        print("Invalid choice.")
+                        input("Press Enter to continue...")
+
+            # View Logs
+            elif choice == '4':
+                while True:
+                    clear()
+                    print("View Logs\n1: Today's Transcript\n2: EMA log\n3: Feedback survey log\n\nENTER: Back to Main Menu")
+                    log_choice = input("Enter your choice: ").strip()
+                    if log_choice == '':
+                        break
+                    elif log_choice == '1' or log_choice == '2' or log_choice == '3':
+                        lines = input("Number of lines to display (default 10): ").strip() or '10'
+                        if not lines.isdigit():
+                            print("Invalid number.")
+                            input("Press Enter to continue...")
+                            continue
+
+                        log_type = "get_transcript" if log_choice == '1' else "get_ema_log" if log_choice == '2' else "get_feedback_log" if log_choice == '3' else None
+
+                        data = self.api("GET", f"system/{log_type}/{lines}")
+                        if data and "transcript" in data:
+                            print("Today's Transcript:")
+                            for entry in data["transcript"]:
+                                print(f"{entry['timestamp']} - {entry['message']}")
+                        else:
+                            print("No transcript found or failed to retrieve.")
+                        input("Press Enter to continue...")
+                    else:
+                        print("Invalid choice.")
+                        input("Press Enter to continue...")
+
+            # Shutdown PRISM
+            elif choice == '5':
+                if self.api("GET", "system/uptime") is not None:
+                    if input("Shutdown PRISM? (yes/no): ").strip().lower() == 'yes':
+                        try:
+                            self.api("POST", "system/shutdown")
+                            print("PRISM shut down.")
+                            exit(0)
+                        except requests.ConnectionError:
+                            print("PRISM shut down.")
+                            exit(0)
+                        except Exception as e:
+                            print(f"Error: {e}")
+                    else:
+                        print("Shutdown cancelled.")
+                else:
+                    print("PRISM not running, cannot shutdown.")
+                input("Press Enter to continue...")
+
+            # Exit
+            elif choice == '6':
+                print("Exiting PRISM Interface.")
+                break
+
+            else:
+                print("Invalid choice.")
+                input("Press Enter to continue...")
 
 def task_schedule_menu(self):
         while True:
