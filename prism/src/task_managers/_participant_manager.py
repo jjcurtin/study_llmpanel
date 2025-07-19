@@ -74,6 +74,30 @@ class ParticipantManager(TaskManager):
             self.app.add_to_transcript(f"Failed to retrieve participants: {e}", "ERROR")
             return []
         
+    def get_coords(self, unique_id):
+        file_path = f'../config/followmee_coords.csv'
+        payload = []
+        try:
+            with open(file_path, 'r') as file:
+                lines = file.readlines()
+                for line in lines[1:]:
+                    if line.strip():
+                        parts = line.strip().split(',')
+                        if parts[0].strip('"') == unique_id:
+                            payload.append({
+                                'unique_id': parts[0].strip('"'),
+                                'latitude': float(parts[3].strip('"')),
+                                'longitude': float(parts[4].strip('"')),
+                            })
+            if payload:
+                self.app.add_to_transcript(f"Retrieved coordinates for participant {unique_id}.", "INFO")
+                return payload
+            self.app.add_to_transcript(f"Coordinates for participant {unique_id} not found.", "ERROR")
+            return None
+        except Exception as e:
+            self.app.add_to_transcript(f"Failed to retrieve coordinates for participant {unique_id}: {e}", "ERROR")
+            return None
+        
     def save_participants(self):
         self.save_to_csv(self.participants, self.file_path)
         
