@@ -80,67 +80,6 @@ class PRISMInterface:
     #   Participants    #
     ####################
 
-    def print_participant_schedule(self, participant_id):
-        data = self.api("GET", f"participants/get_participant/{participant_id}")
-        participant = data.get("participant") if data else None
-        if not participant:
-            print("Failed to retrieve participant schedule.")
-            input("Press Enter to continue...")
-            return
-        field_map = {
-            '1': 'first_name', '2': 'last_name', '3': 'unique_id', '4': 'on_study',
-            '5': 'phone_number', '6': 'ema_time', '7': 'ema_reminder_time',
-            '8': 'feedback_time', '9': 'feedback_reminder_time'
-        }
-        while True:
-            clear()
-            print(f"Participant ID {participant_id} Info:")
-            for k, f in sorted(field_map.items()):
-                print(f"{k}: {f.replace('_',' ').capitalize()}: {participant.get(f)}")
-            print("\nindex: select field, s: send survey, r: remove participant, m: send message, ENTER: back")
-
-            choice = input("Enter choice: ").strip()
-            if choice == '':
-                break
-            elif choice in field_map:
-                field = field_map[choice]
-                new_val = input(f"Enter new value for {field}: ")
-                if self.api("PUT", f"participants/update_participant/{participant_id}/{field}/{new_val}"):
-                    participant[field] = new_val
-                    print("Participant updated.")
-                else:
-                    print("Failed to update participant.")
-                input("Press Enter to continue...")
-            elif choice.lower() == 'r':
-                if input("Remove participant? (yes/no): ").strip().lower() == 'yes':
-                    if self.api("DELETE", f"participants/remove_participant/{participant_id}"):
-                        print("Participant removed.")
-                        input("Press Enter to continue...")
-                        break
-                    else:
-                        print("Failed to remove participant.")
-                        input("Press Enter to continue...")
-            elif choice.lower() == 's':
-                survey_type = input("Enter survey type (ema/feedback): ").strip().lower()
-                if survey_type in ['ema', 'feedback']:
-                    if self.api("POST", f"participants/send_survey/{participant_id}/{survey_type}"):
-                        print(f"{survey_type.capitalize()} survey sent.")
-                    else:
-                        print(f"Failed to send {survey_type} survey.")
-                else:
-                    print("Invalid survey type.")
-                input("Press Enter to continue...")
-            elif choice.lower() == 'm':
-                message = input("Enter message to send: ").strip()
-                if self.api("POST", f"participants/send_custom_sms/{participant_id}", json={"message": message}):
-                    print("Message sent.")
-                else:
-                    print("Failed to send message.")
-                input("Press Enter to continue...")
-            else:
-                print("Invalid choice.")
-                input("Press Enter to continue...")
-
     def add_participant(self):
         clear()
         print("Add New Participant")

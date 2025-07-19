@@ -230,8 +230,10 @@ def create_flask_app(app_instance):
     def study_announcement(require_on_study):
         data = request.get_json()
         if not data or 'message' not in data:
+            app_instance.add_to_transcript("Study announcement failed: message content is required", "ERROR")
             return jsonify({"error": "Message content is required"}), 400
         if not app_instance.participant_manager.participants:
+            app_instance.add_to_transcript("Study announcement failed: no participants found", "ERROR")
             return jsonify({"error": "No participants found"}), 404
         
         if require_on_study.lower() == 'yes':
@@ -240,6 +242,7 @@ def create_flask_app(app_instance):
             phone_numbers = [p['phone_number'] for p in app_instance.participant_manager.participants]
         
         if not phone_numbers:
+            app_instance.add_to_transcript("Study announcement failed: no participants on study", "ERROR")
             return jsonify({"error": "No participants on study"}), 404
         
         if app_instance.mode == "prod":
