@@ -3,6 +3,13 @@ import time
 from _helper import clear
 import random
 
+def error(message = "An unexpected error occurred."):
+        print(f"Error: {message}")
+        input("Press Enter to continue...")
+    
+def exit_menu():
+    input("Press Enter to continue...")
+
 def log_menu(self):
     while True:
         clear()
@@ -189,14 +196,6 @@ def add_participant_menu(self):
         input("Press Enter to continue...") 
 
 def system_check_menu(self):
-    def error():
-        print("PRISM not running or inaccessible.")
-        input("Press Enter to continue...")
-    
-    def exit_menu():
-        input("Press Enter to continue...")
-        return
-    
     clear()
     uptime_data = self.api("GET", "system/uptime")
     mode_data = self.api("GET", "system/get_mode")
@@ -206,7 +205,7 @@ def system_check_menu(self):
         print(f"PRISM Mode: {mode_data.get('mode', 'Unknown')}")
         exit_menu()
     else:
-        error()
+        error("PRISM not running or inaccessible.")
 
 def main_menu(self):
     while True:
