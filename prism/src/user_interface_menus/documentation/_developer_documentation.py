@@ -106,52 +106,62 @@ def developer_documentation(self):
                 break
 
     def prism_server_and_api_endpoints_documentation(self):
-        print_menu_header("PRISM Server and API Endpoints")
-        print("PRISM runs a Flask server served with Waitress with localhost tunneling through ngrok.")
-        print("PRISM has endpoints for system purposes and Qualtrics integration.")
-        print("Below is the documentation for the available endpoints:")
+        def system_endpoints(self):
+            print_menu_header("System Endpoints")
+            print("1. GET /system/get_mode - Returns the current mode of the application.")
+            print("2. GET /system/uptime - Returns the uptime of the application.")
+            print("3. GET /system/get_transcript/<num_lines> - Retrieves the last <num_lines> lines of the system transcript.")
+            print("4. GET /system/get_ema_log/<num_lines> - Retrieves the last <num_lines> lines of the EMA log.")
+            print("5. GET /system/get_feedback_log/<num_lines> - Retrieves the last <num_lines> lines of the feedback log.")
+            print("6. POST /system/shutdown - Initiates a system shutdown.")
+            print("7. GET /system/get_task_schedule - Retrieves the current system task schedule.")
+            print("8. GET /system/get_task_types - Retrieves the available task types.")
+            print("9. GET /system/get_r_script_tasks - Retrieves the R script tasks.")
+            print("10. POST /system/add_system_task/<task_type>/<task_time> - Adds a system task.")
+            print("11. DELETE /system/remove_system_task/<task_type>/<task_time> - Removes a system task.")
+            print("12. DELETE /system/clear_task_schedule - Clears the task schedule.")
+            print("13. POST /system/execute_task/<task_type> - Executes a specific task.")
+            print("14. POST /system/add_r_script_task/<r_script_path>/<task_time> - Adds an R script task.")
+            print("15. DELETE /system/remove_r_script_task/<r_script_path>/<task_time> - Removes an R script task.")
+            print("16. POST /system/execute_r_script_task/<r_script_path> - Executes an R script task.")
+            exit_menu()
 
-        print("\nSystem Endpoints:")
-        print("1. GET /system/get_mode - Returns the current mode of the application.")
-        print("2. GET /system/uptime - Returns the uptime of the application.")
-        print("3. GET /system/get_transcript/<num_lines> - Retrieves the last <num_lines> lines of the system transcript.")
-        print("4. GET /system/get_ema_log/<num_lines> - Retrieves the last <num_lines> lines of the EMA log.")
-        print("5. GET /system/get_feedback_log/<num_lines> - Retrieves the last <num_lines> lines of the feedback log.")
-        print("6. POST /system/shutdown - Initiates a system shutdown.")
-        print("7. GET /system/get_task_schedule - Retrieves the current system task schedule.")
-        print("8. GET /system/get_task_types - Retrieves the available task types.")
-        print("9. GET /system/get_r_script_tasks - Retrieves the R script tasks.")
-        print("10. POST /system/add_system_task/<task_type>/<task_time> - Adds a system task.")
-        print("11. DELETE /system/remove_system_task/<task_type>/<task_time> - Removes a system task.")
-        print("12. DELETE /system/clear_task_schedule - Clears the task schedule.")
-        print("13. POST /system/execute_task/<task_type> - Executes a specific task.")
-        print("14. POST /system/add_r_script_task/<r_script_path>/<task_time> - Adds an R script task.")
-        print("15. DELETE /system/remove_r_script_task/<r_script_path>/<task_time> - Removes an R script task.")
-        print("16. POST /system/execute_r_script_task/<r_script_path> - Executes an R script task.")
+        def participant_endpoints(self):
+            print_menu_header("Participant Endpoints")
+            print("1. GET /participants/get_participants - Retrieves the list of participants.")
+            print("2. GET /participants/get_participant_task_schedule - Retrieves the participant task schedule.")
+            print("3. POST /participants/refresh_participants - Refreshes the participant list.")
+            print("4. GET /participants/get_participant/<unique_id> - Retrieves information about a specific participant.")
+            print("5. POST /participants/add_participant - Adds a new participant.")
+            print("6. DELETE /participants/remove_participant/<unique_id> - Removes a participant.")
+            print("7. PUT /participants/update_participant/<unique_id>/<field>/<new_value> - Updates a participant's information.")
+            print("8. POST /participants/send_survey/<unique_id>/<survey_type> - Sends a survey to a participant.")
+            print("9. POST /participants/send_custom_sms/<unique_id> - Sends a custom SMS to a participant.")
+            print("10. POST /participants/study_announcement/<require_on_study> - Sends a study announcement to participants.")
+            exit_menu()
 
-        print("\nParticipant Endpoints:")
-        print("1. GET /participants/get_participants - Retrieves the list of participants.")
-        print("2. GET /participants/get_participant_task_schedule - Retrieves the participant task schedule.")
-        print("3. POST /participants/refresh_participants - Refreshes the participant list.")
-        print("4. GET /participants/get_participant/<unique_id> - Retrieves information about a specific participant.")
-        print("5. POST /participants/add_participant - Adds a new participant.")
-        print("6. DELETE /participants/remove_participant/<unique_id> - Removes a participant.")
-        print("7. PUT /participants/update_participant/<unique_id>/<field>/<new_value> - Updates a participant's information.")
-        print("8. POST /participants/send_survey/<unique_id>/<survey_type> - Sends a survey to a participant.")
-        print("9. POST /participants/send_custom_sms/<unique_id> - Sends a custom SMS to a participant.")
-        print("10. POST /participants/study_announcement/<require_on_study> - Sends a study announcement to participants.")
+        def qualtrics_endpoints(self):
+            print_menu_header("Qualtrics Endpoints")
+            print("1. GET /qualtrics/access_ema/<unique_id> - Provides access to the EMA survey for a participant.")
+            print("2. GET /qualtrics/request_coords/<unique_id> - Requests the coordinates of a participant.")
+            print("3. POST /qualtrics/submit_ema - Submits the EMA survey.")
+            print("4. GET /qualtrics/access_feedback/<unique_id> - Provides access to the feedback survey for a participant.")
+            print("5. POST /qualtrics/submit_feedback - Submits the feedback survey.")
+            exit_menu()
 
-        print("\nEMA Endpoints:")
-        print("1. GET /EMA/access_ema/<unique_id> - Provides access to the EMA survey for a participant.")
-        print("2. GET /EMA/request_coords/<unique_id> - Requests the coordinates of a participant.")
-        print("3. POST /EMA/submit_ema - Submits the EMA survey.")
-
-        print("\nFeedback Survey Endpoints:")
-        print("1. GET /feedback_survey/access_feedback/<unique_id> - Provides access to the feedback survey for a participant.")
-        print("2. POST /feedback_survey/submit_feedback - Submits the feedback survey.")
-        
-        print("\nNote: Replace <placeholders> in the endpoints with the appropriate values.")
-        exit_menu()
+        menu_options = {
+            'system': {'description': 'System Endpoints', 'menu_caller': system_endpoints},
+            'participants': {'description': 'Participant Endpoints', 'menu_caller': participant_endpoints},
+            'qualtrics': {'description': 'Qualtrics Endpoints', 'menu_caller': qualtrics_endpoints}
+        }
+        while True:
+            print_menu_header("PRISM Server and API Endpoints")
+            print("PRISM runs a Flask server served with Waitress with localhost tunneling through ngrok.")
+            print("PRISM has endpoints for system purposes and Qualtrics integration.")
+            print("Below is the documentation for the available endpoints:")
+            print()
+            if print_menu_options(self, menu_options, submenu = True):
+                break
 
     def prism_user_interface_documentation(self):
         print_menu_header("PRISM User Interface:")
