@@ -27,14 +27,7 @@ def log_menu(self):
 def participant_management_menu(self):
     while True:
         clear()
-        data = self.api("GET", "participants/get_participants")
-        participants = data.get("participants", []) if data else []
-        print("Participant List:")
-        if participants:
-            for i, p in enumerate(participants, 1):
-                print(f"{i}: {p['last_name']}, {p['first_name']} (ID: {p['unique_id']}) - On Study: {p['on_study']}")
-        else:
-            print("No participants found or failed to retrieve.")
+        participants = self.get_participants()
         print("\na: Add a Participant\ns: Get Participant Task Schedule\nr: Full Participants Refresh from CSV\nn: study announcement\n\nENTER: Back to Main Menu")
         choice = input("Enter index, 'a', 's', 'r', 'n', or ENTER: ").strip()
         if choice.isdigit():
