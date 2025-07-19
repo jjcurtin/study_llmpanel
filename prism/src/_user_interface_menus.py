@@ -188,13 +188,20 @@ def add_participant_menu(self):
 
 def system_check_menu(self):
     clear()
+    print("Requesting PRISM status...")
     uptime_data = self.api("GET", "system/uptime")
     mode_data = self.api("GET", "system/get_mode")
 
     if uptime_data and mode_data:
         print(f"PRISM Uptime: {uptime_data.get('uptime', 'Unknown')}")
         print(f"PRISM Mode: {mode_data.get('mode', 'Unknown')}")
-        exit_menu()
+        choice = input("Would you like to run system checks (CHECK_SYSTEM Task)? (yes/no): ").strip().lower()
+        if choice in ('yes', 'y'):
+            if self.api("POST", "system/execute_task/CHECK_SYSTEM"):
+                success("System checks complete. No issues found.")
+            else:
+                self.request_transcript(25, "get_transcript")
+                error("Failure detected. Please check the transcript for details.")
     else:
         error("PRISM not running or inaccessible.")
 
@@ -202,7 +209,7 @@ def main_menu(self):
     while True:
         clear()
         print("PRISM Interface Menu:")
-        print("1: View PRISM Status")
+        print("1: Get Status and Check System")
         print("2: Manage System Tasks")
         print("3: Manage Participants")
         print("4: View Logs")
