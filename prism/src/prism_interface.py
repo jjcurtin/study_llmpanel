@@ -32,21 +32,7 @@ class PRISMInterface:
             pass
         except Exception:
             pass
-        return None
-
-    def print_main_menu(self):
-        clear()
-        print("PRISM Interface Menu:")
-        print("1: Get PRISM Uptime and Mode")
-        print("2: Manage System Tasks")
-        print("3: Manage Participants")
-        print("4: View Logs")
-        print("5: Shutdown PRISM")
-        print("6: Exit")
-
-    ####################
-    #   System Tasks   #
-    ####################
+        return None        
 
     def add_system_task(self, task_type, task_time, r_script_path = None):
         if r_script_path:
