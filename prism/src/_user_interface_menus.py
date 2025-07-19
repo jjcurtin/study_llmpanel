@@ -190,7 +190,14 @@ def add_participant_menu(self):
 
 def main_menu(self):
     while True:
-        self.print_main_menu()
+        clear()
+        print("PRISM Interface Menu:")
+        print("1: Get PRISM Uptime and Mode")
+        print("2: Manage System Tasks")
+        print("3: Manage Participants")
+        print("4: View Logs")
+        print("5: Shutdown PRISM")
+        print("6: Exit")
         choice = input("Enter your choice: ").strip()
         
         # get mode and uptime
