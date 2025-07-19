@@ -259,32 +259,19 @@ def main_menu(self):
         print("5: Shutdown PRISM")
         print("6: Exit")
         choice = input("Enter your choice: ").strip()
-        
-        # get mode and uptime
         if choice == '1':
             system_check_menu(self)
-
-        # Manage System Tasks
         elif choice == '2':
             task_schedule_menu(self)
-
-        # Manage Participants
         elif choice == '3':
             participant_management_menu(self)
-
-        # View Logs
         elif choice == '4':
             log_menu(self)
-
-        # Shutdown PRISM
         elif choice == '5':
             shutdown_menu(self)
-
-        # Exit
         elif choice == '6':
             print("Exiting PRISM Interface.")
             break
-
         else:
             error("Invalid choice.")
 
