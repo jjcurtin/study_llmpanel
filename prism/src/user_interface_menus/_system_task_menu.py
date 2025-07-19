@@ -88,8 +88,35 @@ def system_task_menu(self):
                 error("Invalid index.")
         except Exception:
             error("Invalid input.")
+        
+    def execute_r_script_menu(self):
+        clear()
+        print("Execute R Script Task")
+        r_scripts = self.api("GET", "system/get_r_script_tasks")
+        if not r_scripts:
+            error("No R scripts available.")
+            return
+        print("Available R Scripts:")
+        for i, (name, script) in enumerate(r_scripts['r_script_tasks'].items(), 1):
+            print(f"{i}: {name}")
+        script_idx = input("Select R script index: ").strip()
+        r_script_dict = r_scripts['r_script_tasks']
+        script_names = list(r_script_dict.keys())
+
+        if not script_idx.isdigit() or not (1 <= int(script_idx) <= len(script_names)):
+            error("Invalid index.")
+            return
+        selected_script_name = script_names[int(script_idx) - 1]
+        r_script_path = f"{r_script_dict[selected_script_name]}.R"
+        print(f"Executing R script: {selected_script_name} at {r_script_path}")
+        if self.api("POST", f"system/execute_r_script_task/{r_script_path}"):
+            success(f"R script task {selected_script_name} executed.")
+        else:
+            error(f"Failed to execute R script task {selected_script_name}.")
 
     def execute_task_menu(self):
+        clear()
+        print("Execute System Task")
         task_types = self.get_task_types()
         if not task_types:
             error("No task types available.")
@@ -104,27 +131,7 @@ def system_task_menu(self):
         task_type = list(task_types.keys())[int(idx)-1]
 
         if task_type == 'RUN_R_SCRIPT':
-            r_scripts = self.api("GET", "system/get_r_script_tasks")
-            if not r_scripts:
-                error("No R scripts available.")
-                return
-            print("Available R Scripts:")
-            for i, (name, script) in enumerate(r_scripts['r_script_tasks'].items(), 1):
-                print(f"{i}: {name}")
-            script_idx = input("Select R script index: ").strip()
-            r_script_dict = r_scripts['r_script_tasks']
-            script_names = list(r_script_dict.keys())
-
-            if not script_idx.isdigit() or not (1 <= int(script_idx) <= len(script_names)):
-                error("Invalid index.")
-                return
-            selected_script_name = script_names[int(script_idx) - 1]
-            r_script_path = f"{r_script_dict[selected_script_name]}.R"
-            print(f"Executing R script: {selected_script_name} at {r_script_path}")
-            if self.api("POST", f"system/execute_r_script_task/{r_script_path}"):
-                success(f"R script task {selected_script_name} executed.")
-            else:
-                error(f"Failed to execute R script task {selected_script_name}.")
+            execute_r_script_menu(self)
         elif self.api("POST", f"system/execute_task/{task_type}"):
             success(f"Task {task_type} executed.")
         else:
