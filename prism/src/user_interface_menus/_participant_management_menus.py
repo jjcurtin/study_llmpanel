@@ -113,24 +113,25 @@ def individual_participant_menu(self, participant_id):
     }
     
     while True:
+        # menu options are redefined on each iteration to reflect current participant data
+        menu_options = {
+            '1': {'description': f'first_name: {participant.get('first_name')}', 'menu_caller': lambda self: update_field_menu(self, '1')},
+            '2': {'description': f'last_name: {participant.get('last_name')}', 'menu_caller': lambda self: update_field_menu(self, '2')},
+            '3': {'description': f'unique_id: {participant.get('unique_id')}', 'menu_caller': lambda self: update_field_menu(self, '3')},
+            '4': {'description': f'on_study: {participant.get('on_study')}', 'menu_caller': lambda self: update_field_menu(self, '4')},
+            '5': {'description': f'phone_number: {participant.get('phone_number')}', 'menu_caller': lambda self: update_field_menu(self, '5')},
+            '6': {'description': f'ema_time: {participant.get('ema_time')}', 'menu_caller': lambda self: update_field_menu(self, '6')},
+            '7': {'description': f'ema_reminder_time: {participant.get('ema_reminder_time')}', 'menu_caller': lambda self: update_field_menu(self, '7')},
+            '8': {'description': f'feedback_time: {participant.get('feedback_time')}', 'menu_caller': lambda self: update_field_menu(self, '8')},
+            '9': {'description': f'feedback_reminder_time: {participant.get('feedback_reminder_time')}', 'menu_caller': lambda self: update_field_menu(self, '9')},
+            'remove': {'description': 'Remove Participant', 'menu_caller': lambda self: remove_participant_menu(self)},
+            'survey': {'description': 'Send Survey', 'menu_caller': lambda self: send_survey_menu(self, participant_id)},
+            'message': {'description': 'Send Message', 'menu_caller': lambda self: send_message_menu(self, participant_id)}
+        }
         print_menu_header(f"Participant ID {participant_id} Info")
-        for k, f in sorted(field_map.items()):
-            print(f"{k}: {f.replace('_',' ').capitalize()}: {participant.get(f)}")
-        print("\nindex: select field, s: send survey, r: remove participant, m: send message, ENTER: back")
-
-        choice = input("Enter choice: ").strip()
-        if choice == '':
+        print("Enter an index to update a field, or, choose another option.")
+        if print_menu_options(self, menu_options, submenu = True):
             break
-        elif choice in field_map:
-            update_field_menu(self, choice)
-        elif choice.lower() == 'r':
-            remove_participant_menu(self)
-        elif choice.lower() == 's':
-            send_survey_menu(self, participant_id)
-        elif choice.lower() == 'm':
-            send_message_menu(self, participant_id)
-        else:
-            error("Invalid choice.")
 
 def add_participant_menu(self):
     print_menu_header("Add New Participant")
