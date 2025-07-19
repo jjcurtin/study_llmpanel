@@ -188,6 +188,20 @@ def add_participant_menu(self):
             print("Failed to add participant.")
         input("Press Enter to continue...") 
 
+def system_check_menu(self):
+    clear()
+    uptime_data = self.api("GET", "system/uptime")
+    if uptime_data:
+        print(f"PRISM Uptime: {uptime_data.get('uptime', 'Unknown')}")
+    else:
+        print("PRISM not running or inaccessible.")
+    mode_data = self.api("GET", "system/get_mode")
+    if mode_data:
+        print(f"PRISM Mode: {mode_data.get('mode', 'Unknown')}")
+    else:
+        print("PRISM not running or inaccessible.")
+    input("Press Enter to continue...")
+
 def main_menu(self):
     while True:
         clear()
@@ -202,18 +216,7 @@ def main_menu(self):
         
         # get mode and uptime
         if choice == '1':
-            clear()
-            uptime_data = self.api("GET", "system/uptime")
-            if uptime_data:
-                print(f"PRISM Uptime: {uptime_data.get('uptime', 'Unknown')}")
-            else:
-                print("PRISM not running or inaccessible.")
-            mode_data = self.api("GET", "system/get_mode")
-            if mode_data:
-                print(f"PRISM Mode: {mode_data.get('mode', 'Unknown')}")
-            else:
-                print("PRISM not running or inaccessible.")
-            input("Press Enter to continue...")
+            system_check_menu(self)
 
         # Manage System Tasks
         elif choice == '2':
