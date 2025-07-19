@@ -38,7 +38,6 @@ class PRISMInterface:
     def request_transcript(self, lines, log_type):
         data = self.api("GET", f"system/{log_type}/{lines}")
         if data and "transcript" in data:
-            print("Today's Transcript:")
             for entry in data["transcript"]:
                 print(f"{entry['timestamp']} - {entry['message']}")
         else:
