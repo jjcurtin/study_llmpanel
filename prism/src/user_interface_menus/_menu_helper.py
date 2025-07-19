@@ -5,8 +5,9 @@ def clear():
 
 def print_menu_header(title):
     clear()
+    padding = (60 - len(title)) // 2
     print("=" * 60)
-    print(" " * 20 + title)
+    print(" " * padding + title)
     print("=" * 60)
 
 def error(message = "An unexpected error occurred."):

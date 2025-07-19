@@ -36,10 +36,7 @@ def research_assistant_documentation(self):
         '5': {'description': 'Qualtrics Interface', 'menu_caller': qualtrics_interface_documentation},
     }
     while True:
-        clear()
-        print("=" * 60)
-        print(" " * 10 + "PRISM Research Assistant Documentation")
-        print("=" * 60)
+        print_menu_header("PRISM Research Assistant Documentation")
         for key, item in menu_options.items():
             print(f"{key:<20}{item['description']:<20}")
         print("\nENTER: Back to Help Menu")

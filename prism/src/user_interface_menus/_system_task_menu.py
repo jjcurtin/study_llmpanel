@@ -1,5 +1,5 @@
 import time
-from user_interface_menus._menu_helper import error, success, exit_menu, clear
+from user_interface_menus._menu_helper import *
 
 def system_task_menu(self):
     def print_task_schedule(self):
@@ -152,7 +152,7 @@ def system_task_menu(self):
     }
 
     while True:
-        clear()
+        print_menu_header("PRISM System Task Menu")
         print_task_schedule(self)
         print()
         for key, item in menu_options.items():

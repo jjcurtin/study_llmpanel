@@ -2,7 +2,7 @@ from user_interface_menus._menu_helper import *
 
 def log_menu(self):
     while True:
-        clear()
+        print_menu_header("PRISM Log Menu")
         print("View Logs\n1: Today's Transcript\n2: EMA log\n3: Feedback survey log\n\nENTER: Back to Main Menu")
         log_choice = input("Enter your choice: ").strip()
         if log_choice == '':

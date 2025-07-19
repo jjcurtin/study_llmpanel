@@ -12,8 +12,8 @@ def system_check_menu(self):
         else:
             exit_menu()
     
-    clear()
-    print("Requesting PRISM status...")
+    print_menu_header("PRISM System Check Menu")
+    print("Checking PRISM status and system uptime...")
     uptime_data = self.api("GET", "system/uptime")
     mode_data = self.api("GET", "system/get_mode")
 
