@@ -20,16 +20,14 @@ def log_menu(self):
         elif log_choice == '1' or log_choice == '2' or log_choice == '3':
             lines = input("Number of lines to display (default 10): ").strip() or '10'
             if not lines.isdigit():
-                print("Invalid number.")
-                input("Press Enter to continue...")
+                error("Invalid number of lines. Please enter a valid integer.")
                 continue
 
             log_type = "get_transcript" if log_choice == '1' else "get_ema_log" if log_choice == '2' else "get_feedback_log" if log_choice == '3' else None
             self.request_transcript(lines, log_type)
-            input("Press Enter to continue...")
+            exit_menu()
         else:
-            print("Invalid choice.")
-            input("Press Enter to continue...")
+            error("Invalid choice. Please try again.")
 
 def participant_management_menu(self):
     while True:
@@ -49,43 +47,41 @@ def participant_management_menu(self):
                 print("Participant Task Schedule:")
                 for task in tasks.get("tasks", []):
                     print(f"{task['participant_id']}: {task['task_type']} at {task['task_time']} - On Study: {task['on_study']}")
-                input("\nPress Enter to continue...")
+                exit_menu()
         elif choice.lower() == 'r':
             if input("Refresh participants from CSV? (yes/no): ").strip().lower() == 'yes':
                 if self.api("POST", "participants/refresh_participants"):
                     print("Participants refreshed from CSV.")
+                    exit_menu()
                 else:
-                    print(f"Failed to refresh participants. Error code: {self.api('POST', 'participants/refresh_participants').get('status_code', 'Unknown')}")
+                    error(f"Failed to refresh participants. Error code: {self.api('POST', 'participants/refresh_participants').get('status_code', 'Unknown')}")
             else:
                 print("Refresh cancelled.")
-            input("Press Enter to continue...")
+                exit_menu()
         elif choice.lower() == 'n':
             message = input("Enter study announcement message: ").strip()
             if not message:
-                print("Message cannot be empty.")
-                input("Press Enter to continue...")
+                error("Message cannot be empty. Please try again.")
                 continue
             require_on_study = input("Send to participants on study only? (yes/no): ").strip().lower()
             if require_on_study not in ('yes', 'y', 'no', 'n'):
-                input("Invalid input. Cancelling. Press Enter to continue...")
+                error("Invalid input. Cancelling. Press Enter to continue...")
                 continue
             if self.api("POST", f"participants/study_announcement/{require_on_study}", json = {"message": message}):
                 print("Study announcement sent.")
+                exit_menu()
             else:
-                print("No participants found or failed to retrieve.")
-            input("Press Enter to continue...")
+                error("No participants found or failed to retrieve.")
         elif choice == '':
             break
         else:
-            print("Invalid choice.")
-            input("Press Enter to continue...")
+            error("Invalid choice.")
 
 def individual_participant_menu(self, participant_id):
         data = self.api("GET", f"participants/get_participant/{participant_id}")
         participant = data.get("participant") if data else None
         if not participant:
-            print("Failed to retrieve participant schedule.")
-            input("Press Enter to continue...")
+            error("Failed to retrieve participant schedule.")
             return
         field_map = {
             '1': 'first_name', '2': 'last_name', '3': 'unique_id', '4': 'on_study',
@@ -108,51 +104,50 @@ def individual_participant_menu(self, participant_id):
                 if self.api("PUT", f"participants/update_participant/{participant_id}/{field}/{new_val}"):
                     participant[field] = new_val
                     print("Participant updated.")
+                    exit_menu()
                 else:
-                    print("Failed to update participant.")
-                input("Press Enter to continue...")
+                    error("Failed to update participant.")
             elif choice.lower() == 'r':
                 if input("Remove participant? (yes/no): ").strip().lower() == 'yes':
                     if self.api("DELETE", f"participants/remove_participant/{participant_id}"):
                         print("Participant removed.")
-                        input("Press Enter to continue...")
-                        break
+                        exit_menu()
+                        return
                     else:
-                        print("Failed to remove participant.")
-                        input("Press Enter to continue...")
+                        error("Failed to remove participant.")
             elif choice.lower() == 's':
                 survey_type = input("Enter survey type (ema/feedback): ").strip().lower()
                 if survey_type in ['ema', 'feedback']:
                     if self.api("POST", f"participants/send_survey/{participant_id}/{survey_type}"):
                         print(f"{survey_type.capitalize()} survey sent.")
+                        exit_menu()
                     else:
-                        print(f"Failed to send {survey_type} survey.")
+                        error(f"Failed to send {survey_type} survey.")
                 else:
-                    print("Invalid survey type.")
-                input("Press Enter to continue...")
+                    error("Invalid survey type.")
             elif choice.lower() == 'm':
                 message = input("Enter message to send: ").strip()
+                if not message:
+                    error("Message cannot be empty.")
+                    continue
                 if self.api("POST", f"participants/send_custom_sms/{participant_id}", json={"message": message}):
                     print("Message sent.")
+                    exit_menu()
                 else:
-                    print("Failed to send message.")
-                input("Press Enter to continue...")
+                    error("Failed to send message.")
             else:
-                print("Invalid choice.")
-                input("Press Enter to continue...")
+                error("Invalid choice.")
 
 def add_participant_menu(self):
         clear()
         print("Add New Participant")
         first_name = input("First name: ")
         if not first_name:
-            print("First name is required.")
-            input("Press Enter to continue...")
+            error("First name is required.")
             return
         last_name = input("Last name: ")
         if not last_name:
-            print("Last name is required.")
-            input("Press Enter to continue...")
+            error("Last name is required.")
             return
         unique_id = input("Unique ID: ")
         if not unique_id:
@@ -191,9 +186,9 @@ def add_participant_menu(self):
                        **times)
         if self.api("POST", "participants/add_participant", json = payload):
             print("Participant added.")
+            exit_menu()
         else:
-            print("Failed to add participant.")
-        input("Press Enter to continue...") 
+            error("Failed to add participant.")
 
 def system_check_menu(self):
     clear()
