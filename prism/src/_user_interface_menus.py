@@ -189,24 +189,30 @@ def add_participant_menu(self):
         input("Press Enter to continue...") 
 
 def system_check_menu(self):
+    def error():
+        print("PRISM not running or inaccessible.")
+        input("Press Enter to continue...")
+    
+    def exit_menu():
+        input("Press Enter to continue...")
+        return
+    
     clear()
     uptime_data = self.api("GET", "system/uptime")
-    if uptime_data:
-        print(f"PRISM Uptime: {uptime_data.get('uptime', 'Unknown')}")
-    else:
-        print("PRISM not running or inaccessible.")
     mode_data = self.api("GET", "system/get_mode")
-    if mode_data:
+
+    if uptime_data and mode_data:
+        print(f"PRISM Uptime: {uptime_data.get('uptime', 'Unknown')}")
         print(f"PRISM Mode: {mode_data.get('mode', 'Unknown')}")
+        exit_menu()
     else:
-        print("PRISM not running or inaccessible.")
-    input("Press Enter to continue...")
+        error()
 
 def main_menu(self):
     while True:
         clear()
         print("PRISM Interface Menu:")
-        print("1: Get PRISM Uptime and Mode")
+        print("1: View PRISM Status")
         print("2: Manage System Tasks")
         print("3: Manage Participants")
         print("4: View Logs")
