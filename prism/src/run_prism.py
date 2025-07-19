@@ -82,13 +82,13 @@ class PRISM():
         with open(file_path, 'a') as file:
             file.write(f"{datetime.now().strftime('%H:%M:%S')} - {transcript_message}\n")
 
-    def get_transcript(self, num_lines = 10):
+    def get_transcript(self, num_lines = 10, target = "transcript"):
         try:
             today_date = datetime.now().strftime('%Y-%m-%d')
             if self.mode == "test":
-                transcript_path = f'../logs/transcripts/test_transcript.txt'
+                transcript_path = f'../logs/{target}s/test_{target}.txt'
             else:
-                transcript_path = f'../logs/transcripts/{today_date}_transcript.txt'
+                transcript_path = f'../logs/{target}s/{today_date}_{target}.txt'
             with open(transcript_path, 'r') as f:
                 num_lines = int(num_lines)
                 content = f.read().splitlines()[-num_lines:]
@@ -96,7 +96,7 @@ class PRISM():
                     return None
                 return [{"timestamp": line.split(' - ')[0], "message": ' - '.join(line.split(' - ')[1:])} for line in content]
         except Exception as e:
-            self.add_to_transcript(f"Failed to read transcript: {e}", "ERROR")
+            self.add_to_transcript(f"Failed to read {target}: {e}", "ERROR")
             return None    
 
     def launch_web_app(self):
