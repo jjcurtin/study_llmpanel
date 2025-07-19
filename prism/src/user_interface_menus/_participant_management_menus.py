@@ -3,7 +3,7 @@ import random
 from user_interface_menus._menu_helper import *
 
 def participant_management_menu(self):
-    def print_task_schedule():
+    def print_task_schedule(self):
         tasks = self.api("GET", "participants/get_participant_task_schedule")
         if tasks:
             print("Participant Task Schedule:")
@@ -36,43 +36,43 @@ def participant_management_menu(self):
 
     while True:
         print_menu_header("PRISM Participant Management Menu")
+        menu_options = {}
+
+        # Fetch participants from the API
         data = self.api("GET", "participants/get_participants")
         participants = data.get("participants", []) if data else []
         print("Participant List:")
         if participants:
             for i, p in enumerate(participants, 1):
-                print(f"{i}: {p['last_name']}, {p['first_name']} (ID: {p['unique_id']}) - On Study: {p['on_study']}")
+                menu_options[str(i)] = {
+                    'description': f"{p['last_name']}, {p['first_name']} (ID: {p['unique_id']}) - On Study: {p['on_study']}",
+                    'menu_caller': lambda self, participant_id = p['unique_id']: individual_participant_menu(self, participant_id)
+                }
         else:
             print("No participants found or failed to retrieve.")
-        print("\na: Add a Participant\ns: Get Participant Task Schedule\nr: Full Participants Refresh from CSV\nn: study announcement\n\nENTER: Back to Main Menu")
-        choice = input("Enter index, 'a', 's', 'r', 'n', or ENTER: ").strip()
-        if choice.isdigit():
-            idx = int(choice)-1
-            if 0 <= idx < len(participants):
-                individual_participant_menu(self, participants[idx]['unique_id'])
-        elif choice.lower() == 'a':
-            add_participant_menu(self)
-        elif choice.lower() == 's':
-            print_task_schedule()
-        elif choice.lower() == 'r':
-            refresh_participants_menu(self)
-        elif choice.lower() == 'n':
-            send_announcement_menu(self)
-        elif choice == '':
+        menu_options['add'] = {'description': 'Add a Participant', 'menu_caller': add_participant_menu}
+        menu_options['schedule'] = {'description': 'Get Participant Task Schedule', 'menu_caller': print_task_schedule}
+        menu_options['refresh'] = {'description': 'Full Participants Refresh from CSV', 'menu_caller': refresh_participants_menu}
+        menu_options['announce'] = {'description': 'Send Study Announcement', 'menu_caller': send_announcement_menu}
+        if print_menu_options(self, menu_options, submenu = True):
             break
-        else:
-            error("Invalid choice.")
 
 def individual_participant_menu(self, participant_id):
     def remove_participant_menu(self):
         if input("Remove participant? (yes/no): ").strip().lower() == 'yes':
             if self.api("DELETE", f"participants/remove_participant/{participant_id}"):
                 success("Participant removed.")
-                return
+                return 1
             else:
                 error("Failed to remove participant.")
+                return 0
 
     def update_field_menu(self, choice):
+        field_map = {
+            '1': 'first_name', '2': 'last_name', '3': 'unique_id', '4': 'on_study',
+            '5': 'phone_number', '6': 'ema_time', '7': 'ema_reminder_time',
+            '8': 'feedback_time', '9': 'feedback_reminder_time'
+        }
         field = field_map[choice]
         new_val = input(f"Enter new value for {field}: ")
         if self.api("PUT", f"participants/update_participant/{participant_id}/{field}/{new_val}"):
@@ -106,11 +106,6 @@ def individual_participant_menu(self, participant_id):
     if not participant:
         error("Failed to retrieve participant schedule.")
         return
-    field_map = {
-        '1': 'first_name', '2': 'last_name', '3': 'unique_id', '4': 'on_study',
-        '5': 'phone_number', '6': 'ema_time', '7': 'ema_reminder_time',
-        '8': 'feedback_time', '9': 'feedback_reminder_time'
-    }
     
     while True:
         # menu options are redefined on each iteration to reflect current participant data

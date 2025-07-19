@@ -19,7 +19,8 @@ def print_menu_options(self, menu_options, submenu = False):
     selected = menu_options.get(choice)
     if selected:
         handler = selected['menu_caller']
-        handler(self)
+        if handler(self): # if the submenu indicates to exit
+            return 1
     elif choice == '' and submenu:
         return 1
     else:
