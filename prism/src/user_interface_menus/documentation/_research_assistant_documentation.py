@@ -2,30 +2,25 @@ from user_interface_menus._menu_helper import *
 
 def research_assistant_documentation(self):
     def getting_started(self):
-        clear()
-        print("Getting Started with PRISM for Research Assistants:")
+        print_menu_header("Getting Started with PRISM for Research Assistants")
         print("1. Ensure all API keys are correctly configured in the respective files.")
         print("2. Start the PRISM application using the command: python run_prism.py")
         exit_menu()
 
     def system_schedule_management_documentation(self):
-        clear()
-        print("Managing System Schedule:")
+        print_menu_header("Managing System Schedule:")
         exit_menu()
 
     def participant_management_documentation(self):
-        clear()
-        print("Managing Participants:")
+        print_menu_header("Managing Participants")
         exit_menu()
 
     def log_viewing_documentation(self):
-        clear()
-        print("Viewing Logs:")
+        print_menu_header("Viewing Logs")
         exit_menu()
 
     def qualtrics_interface_documentation(self):
-        clear()
-        print("Qualtrics Interface:")
+        print_menu_header("Qualtrics Interface")
         exit_menu()
 
     menu_options = {
