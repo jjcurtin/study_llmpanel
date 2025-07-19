@@ -32,19 +32,7 @@ class PRISMInterface:
             pass
         except Exception:
             pass
-        return None        
-
-    def add_system_task(self, task_type, task_time, r_script_path = None):
-        if r_script_path:
-            if self.api("POST", f"system/add_r_script_task/{r_script_path}/{task_time}"):
-                print(f"R script task {r_script_path} scheduled at {task_time}.")
-            else:
-                print(f"Failed to schedule R script task {task_type}.")
-        elif self.api("POST", f"system/add_system_task/{task_type}/{task_time}"):
-            print("Task added.")
-        else:
-            print("Failed to add task.")
-        input("Press Enter to continue...")
+        return None                
 
     def remove_system_task(self, task_type, task_time, r_script_path = None):
         if r_script_path:
