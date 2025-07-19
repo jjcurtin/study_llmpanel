@@ -11,7 +11,6 @@ import argparse
 
 from task_managers._system_task_manager import SystemTaskManager
 from task_managers._participant_manager import ParticipantManager
-from task_managers._qualtrics_api_manager import QualtricsAPIManager
 
 class PRISM():
     def __init__(self, mode = "test"):
@@ -28,7 +27,6 @@ class PRISM():
 
         self.system_task_manager = SystemTaskManager(self)
         self.participant_manager = ParticipantManager(self)
-        self.qualtrics_api_manager = QualtricsAPIManager(self)
 
         signal.signal(signal.SIGINT, self.handle_shutdown)
         signal.signal(signal.SIGTERM, self.handle_shutdown)
