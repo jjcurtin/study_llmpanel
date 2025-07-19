@@ -61,8 +61,44 @@ def developer_documentation(self):
             print("To allow PRISM to run R scripts, ensure that the Rscript command is available in your system's PATH and that all R scripts are placed in the ../../scripts directory.")
             exit_menu()
 
+        def task_managers(self):
+            print_menu_header("Task Managers")
+            print("PRISM uses task managers to handle the scheduling and execution of tasks.")
+            print("The TaskManager class is the base class for all task managers in PRISM.")
+            print("It provides common functionality for managing tasks, such as the task scheduling logic, task queue, and thread setup.")
+            print("Subclasses of TaskManager, such as SystemTaskManager and ParticipantManager, implement specific task management logic but can provide their own methods for added flexibility.")
+            print()
+            print("The SystemTaskManager is responsible for managing system tasks, which include scheduled tasks and R script tasks.")
+            print("It loads the task types from the system_tasks/ folder and the R script tasks from the scripts/ folder.")
+            print("The SystemTaskManager provides methods to add, remove, and execute tasks, as well as to retrieve the current task schedule.")
+            print("It also provides methods to clear the task schedule and to load the task schedule from the system_task_schedule.csv file.")
+            print("The task schedule is stored in a CSV file, which allows for easy editing and management of scheduled tasks.")
+            print()
+            print("The ParticipantManager is responsible for managing participants in the study.")
+            print("It provides methods to add, remove, and update participants, as well as to retrieve the current participant list.")
+            print("The ParticipantManager also provides methods to load and save the participant list from the study_participants.csv file.")
+            print("This allows for easy management of participants and their data, enabling PRISM to adapt to changes in the study participants without requiring a restart.")
+            exit_menu()
+        
+        def check_system(self):
+            print_menu_header("Check System")
+            print("PRISM includes a system check feature that verifies the status of the application and its components.")
+            print("This includes checking packages, the directory structure, required files, testing API connectivity, and some additional participant information fidelity logic.")
+            exit_menu()
+        
+        def data_management(self):
+            print_menu_header("Data Management")
+            print("PRISM supports data pull down from various sources, including Qualtrics and FollowMee.")
+            print("The data pull down feature allows PRISM to retrieve data from these sources and store it in the appropriate format for further processing.")
+            print("Data is output to the ../data/ directory after pulldown and processing.")
+            print("PRISM also supports mapping and pushing data to the Research Drive, which allows for easy access and secure management of study data.")
+            exit_menu()
+            
         menu_options = {
-            'tasks': {'description': 'Task Abstraction Format', 'menu_caller': lambda self: task_abstraction_format(self)}
+            'tasks': {'description': 'Task Abstraction Format', 'menu_caller': lambda self: task_abstraction_format(self)},
+            'task_managers': {'description': 'Task Managers', 'menu_caller': lambda self: task_managers(self)},
+            'check_system': {'description': 'Check System', 'menu_caller': lambda self: check_system(self)},
+            'data_management': {'description': 'Data Management', 'menu_caller': lambda self: data_management(self)}
         }
         while True:
             print_menu_header("PRISM Backend Logic")
