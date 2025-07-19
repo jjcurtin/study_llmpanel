@@ -205,6 +205,23 @@ def system_check_menu(self):
     else:
         error("PRISM not running or inaccessible.")
 
+def shutdown_menu(self):
+    if self.api("GET", "system/uptime") is not None:
+        if input("Shutdown PRISM? (yes/no): ").strip().lower() == 'yes':
+            try:
+                self.api("POST", "system/shutdown")
+                success("PRISM shut down.")
+                exit(0)
+            except requests.ConnectionError:
+                success("PRISM is already shut down.")
+                exit(0)
+            except Exception as e:
+                error(f"Error: {e}")
+        else:
+            success("Shutdown cancelled.")
+    else:
+        success("PRISM is already shut down.")
+
 def main_menu(self):
     while True:
         clear()
@@ -235,21 +252,7 @@ def main_menu(self):
 
         # Shutdown PRISM
         elif choice == '5':
-            if self.api("GET", "system/uptime") is not None:
-                if input("Shutdown PRISM? (yes/no): ").strip().lower() == 'yes':
-                    try:
-                        self.api("POST", "system/shutdown")
-                        success("PRISM shut down.")
-                        exit(0)
-                    except requests.ConnectionError:
-                        success("PRISM is already shut down.")
-                        exit(0)
-                    except Exception as e:
-                        error(f"Error: {e}")
-                else:
-                    success("Shutdown cancelled.")
-            else:
-                error("PRISM not running, cannot shutdown.")
+            shutdown_menu(self)
 
         # Exit
         elif choice == '6':
