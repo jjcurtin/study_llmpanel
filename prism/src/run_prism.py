@@ -114,7 +114,6 @@ class PRISM():
         self.add_to_transcript("Received shutdown signal. Stopping PRISM application...", "INFO")
         self.system_task_manager.stop()
         self.participant_manager.stop()
-        self.qualtrics_api_manager.stop()
         os._exit(0)
 
     def shutdown(self):

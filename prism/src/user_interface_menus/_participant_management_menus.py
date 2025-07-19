@@ -1,8 +1,6 @@
 import time
-from _helper import clear
 import random
-
-from user_interface_menus._menu_helper import error, success, exit_menu
+from user_interface_menus._menu_helper import *
 
 def participant_management_menu(self):
     def print_task_schedule():
