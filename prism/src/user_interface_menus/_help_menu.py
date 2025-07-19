@@ -20,15 +20,5 @@ def help_menu(self):
 
     while True:
         print_menu_header("PRISM Help Menu")
-        for key, item in menu_options.items():
-            print(f"{key:<20}{item['description']:<20}")
-        print("\nENTER: Back to Main Menu")
-        choice = input("Enter your choice: ").strip()
-        selected = menu_options.get(choice)
-        if selected:
-            handler = selected['menu_caller']
-            handler(self)
-        elif choice == '':
+        if print_menu_options(self, menu_options, submenu = True):
             break
-        else:
-            error("Invalid choice.")

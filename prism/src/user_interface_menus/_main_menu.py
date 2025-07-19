@@ -23,12 +23,4 @@ def main_menu(self):
 
     while True:
         print_menu_header("PRISM Interface Menu")
-        for key, item in menu_options.items():
-            print(f"{key:<20}{item['description']:<20}")
-        choice = input("\nEnter your choice: ").strip()
-        selected = menu_options.get(choice)
-        if selected:
-            handler = selected['menu_caller']
-            handler(self)
-        else:
-            error("Invalid choice.")
+        print_menu_options(self, menu_options)
