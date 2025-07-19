@@ -83,7 +83,18 @@ class PRISMInterface:
             for entry in data["transcript"]:
                 print(f"{entry['timestamp']} - {entry['message']}")
         else:
-            print("No transcript found or failed to retrieve.")      
+            print("No transcript found or failed to retrieve.")  
+
+    def get_participants(self):
+        data = self.api("GET", "participants/get_participants")
+        participants = data.get("participants", []) if data else []
+        print("Participant List:")
+        if participants:
+            for i, p in enumerate(participants, 1):
+                print(f"{i}: {p['last_name']}, {p['first_name']} (ID: {p['unique_id']}) - On Study: {p['on_study']}")
+        else:
+            print("No participants found or failed to retrieve.")
+        return participants    
 
 if __name__ == "__main__":
     PRISMInterface()
