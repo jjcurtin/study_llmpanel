@@ -26,9 +26,6 @@ class TaskManager():
         if participant_id is not None:
             task_dict['participant_id'] = participant_id
         self.tasks.append(task_dict)  
-
-    def remove_task(self, task_type, task_time = None, participant_id = None, r_script_path = None):
-        raise NotImplementedError("Subclasses must implement this method.")
     
     def save_to_csv(self, data, file_path):
         try:
