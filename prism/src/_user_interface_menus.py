@@ -290,6 +290,27 @@ def task_schedule_menu(self):
         else:
             error("Failed to retrieve task schedule or PRISM not running.")
 
+    def add_new_r_script_menu(self):
+        clear()
+        print("Add New R Script Task")
+        r_scripts = self.api("GET", "system/get_r_script_tasks")
+        if not r_scripts:
+            error("No R scripts available.")
+            return
+        print("Available R Scripts:")
+        for i, (name, script) in enumerate(r_scripts['r_script_tasks'].items(), 1):
+            print(f"{i}: {name}")
+        script_idx = input("Select R script index: ").strip()
+        r_script_dict = r_scripts['r_script_tasks']
+        script_names = list(r_script_dict.keys())
+
+        if not script_idx.isdigit() or not (1 <= int(script_idx) <= len(script_names)):
+            error("Invalid index.")
+            return
+        selected_script_name = script_names[int(script_idx) - 1]
+        r_script_path = f"{r_script_dict[selected_script_name]}.R"
+        return r_script_path
+
     def add_new_task_menu(self):
         clear()
         print("Add New System Task")
@@ -308,22 +329,7 @@ def task_schedule_menu(self):
         r_script_path = None
         
         if task_type == 'RUN_R_SCRIPT':
-            r_scripts = self.api("GET", "system/get_r_script_tasks")
-            if not r_scripts:
-                error("No R scripts available.")
-                return
-            print("Available R Scripts:")
-            for i, (name, script) in enumerate(r_scripts['r_script_tasks'].items(), 1):
-                print(f"{i}: {name}")
-            script_idx = input("Select R script index: ").strip()
-            r_script_dict = r_scripts['r_script_tasks']
-            script_names = list(r_script_dict.keys())
-
-            if not script_idx.isdigit() or not (1 <= int(script_idx) <= len(script_names)):
-                error("Invalid index.")
-                return
-            selected_script_name = script_names[int(script_idx) - 1]
-            r_script_path = f"{r_script_dict[selected_script_name]}.R"
+            r_script_path = add_new_r_script_menu(self)
 
         task_time = input("Task time (HH:MM:SS): ").strip()
         try:
