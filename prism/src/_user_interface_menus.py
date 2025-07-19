@@ -411,23 +411,23 @@ def task_schedule_menu(self):
 
     menu_options = {
         '1': {'description': 'Add New Task', 'menu_caller': add_new_task_menu},
-        '2': {'description': 'Remove Task', 'menu_caller': task_schedule_menu},
+        '2': {'description': 'Remove Task', 'menu_caller': remove_task_menu},
         '3': {'description': 'Execute Task Now', 'menu_caller': execute_task_menu},
     }
 
     while True:
         clear()
         print_task_schedule(self)
-        print("\n1: Add New Task\n2: Remove Task\n3: Execute Task Now\n\nENTER: Back to Main Menu")  
-        task_choice = input("Enter choice: ").strip()
-        if task_choice == '1':
-            add_new_task_menu(self)
-        elif task_choice == '2':
-            remove_task_menu(self)
-        elif task_choice == '3':
-            execute_task_menu(self)
-        elif task_choice == '':
-            return
+        print()
+        for key, item in menu_options.items():
+            print(f"{key}: {item['description']}")
+        print("\nENTER: Back to Main Menu")   
+        choice = input("Enter your choice: ").strip()
+        selected = menu_options.get(choice)
+        if selected:
+            handler = selected['menu_caller']
+            handler(self)
+        elif choice == '':
+            break
         else:
-            print("Invalid choice.")
-            input("Press Enter to continue...")
+            error("Invalid choice.")
