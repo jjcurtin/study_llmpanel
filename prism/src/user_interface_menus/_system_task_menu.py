@@ -5,13 +5,13 @@ from user_interface_menus._menu_helper import error, success, exit_menu
 
 def system_task_menu(self):
     def print_task_schedule(self):
-        print("System Task Schedule:")
+        print("System and R Script Task Schedule:")
         tasks = self.api("GET", "system/get_task_schedule")
         if tasks and "tasks" in tasks:
             self.scheduled_tasks = tasks["tasks"]
             if self.scheduled_tasks:
                 for i, t in enumerate(self.scheduled_tasks, 1):
-                    print(f"{i}. {t['task_type']} @ {t['task_time']}{f" {t['r_script_path']}" if t['r_script_path'] else ""} - Run Today: {t.get('run_today', False)}")
+                    print(f"{t['task_type']} @ {t['task_time']}{f" {t['r_script_path']}" if t['r_script_path'] else ""} - Run Today: {t.get('run_today', False)}")
             else:
                 print("No tasks scheduled.")
         else:
@@ -150,6 +150,7 @@ def system_task_menu(self):
         '2': {'description': 'Add New R Script Task', 'menu_caller': add_new_r_script_menu},
         '3': {'description': 'Remove Task', 'menu_caller': remove_task_menu},
         '4': {'description': 'Execute Task Now', 'menu_caller': execute_task_menu},
+        '5': {'description': 'Execute R Script Task Now', 'menu_caller': execute_r_script_menu},
     }
 
     while True:

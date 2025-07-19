@@ -14,7 +14,7 @@ def main_menu(self):
 
     menu_options = {
         '1': {'description': 'Get Status and Check System', 'menu_caller': system_check_menu},
-        '2': {'description': 'Manage System Tasks', 'menu_caller': system_task_menu},
+        '2': {'description': 'Manage System Tasks and R Scripts', 'menu_caller': system_task_menu},
         '3': {'description': 'Manage Participants', 'menu_caller': participant_management_menu},
         '4': {'description': 'View Logs', 'menu_caller': log_menu},
         '5': {'description': 'Shutdown PRISM', 'menu_caller': shutdown_menu},
