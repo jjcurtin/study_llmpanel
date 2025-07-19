@@ -29,11 +29,11 @@ def research_assistant_documentation(self):
         exit_menu()
 
     menu_options = {
-        '1': {'description': 'Getting Started', 'menu_caller': getting_started},
-        '2': {'description': 'Managing System Schedule', 'menu_caller': system_schedule_management_documentation},
-        '3': {'description': 'Managing Participants', 'menu_caller': participant_management_documentation},
-        '4': {'description': 'Viewing Logs', 'menu_caller': log_viewing_documentation},
-        '5': {'description': 'Qualtrics Interface', 'menu_caller': qualtrics_interface_documentation},
+        'start': {'description': 'Getting Started', 'menu_caller': getting_started},
+        'tasks': {'description': 'Managing System Task Schedule', 'menu_caller': system_schedule_management_documentation},
+        'participants': {'description': 'Managing Participants', 'menu_caller': participant_management_documentation},
+        'logs': {'description': 'Viewing Logs', 'menu_caller': log_viewing_documentation},
+        'qualtrics': {'description': 'Qualtrics Interface', 'menu_caller': qualtrics_interface_documentation},
     }
     while True:
         print_menu_header("PRISM Research Assistant Documentation")
