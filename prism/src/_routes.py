@@ -52,6 +52,20 @@ def create_flask_app(app_instance):
         if not transcript:
             return jsonify({"error": "Transcript not found"}), 404
         return jsonify({"transcript": transcript}), 200
+    
+    @flask_app.route('/system/get_ema_log/<num_lines>', methods = ['GET'])
+    def get_ema_log(num_lines):
+        transcript = app_instance.get_transcript(num_lines, "ema_log")
+        if not transcript:
+            return jsonify({"error": "Transcript not found"}), 404
+        return jsonify({"transcript": transcript}), 200
+    
+    @flask_app.route('/system/get_feedback_log/<num_lines>', methods = ['GET'])
+    def get_feedback_log(num_lines):
+        transcript = app_instance.get_transcript(num_lines, "feedback_log")
+        if not transcript:
+            return jsonify({"error": "Transcript not found"}), 404
+        return jsonify({"transcript": transcript}), 200
         
     @flask_app.route('/system/shutdown', methods = ['POST'])
     def shutdown():
@@ -295,6 +309,16 @@ def create_flask_app(app_instance):
             return jsonify({'subject_name': participant_name, 'status': status_message}), 200
         else:
             return jsonify({'error': 'Subject name not found'}), 404
+        
+    @flask_app.route('/EMA/request_coords/<unique_id>', methods = ['GET'])
+    def request_coords(unique_id):
+        app_instance.add_to_transcript(f"Coordinates requested for participant {unique_id}", "INFO")
+        coords = app_instance.participant_manager.get_coords(unique_id)
+        if not coords:
+            app_instance.add_to_transcript(f"Coordinates not found for participant {unique_id}", "ERROR")
+            return jsonify({'error': 'No coordinates found for this participant'}), 404
+        
+        return jsonify(coords), 200
 
     @flask_app.route('/EMA/submit_ema', methods=['POST'])
     def submit_ema():
@@ -304,7 +328,7 @@ def create_flask_app(app_instance):
         subject_name = data.get('subjectName')
 
         if participant_id and subject_name:
-            app_instance.add_to_transcript(f"{subject_name} #{participant_id} has finished their EMA survey at {time.strftime('%Y-%m-%d %H:%M:%S')}")
+            app_instance.add_to_transcript(f"#{participant_id} has finished their EMA survey at {time.strftime('%Y-%m-%d %H:%M:%S')}")
             if app_instance.mode == "prod":
                 current_date = datetime.now().strftime('%Y-%m-%d')
                 filepath = f"../logs/ema_logs/{current_date}_ema_log.txt"
