@@ -74,7 +74,16 @@ class PRISMInterface:
 
     def get_task_types(self):
         data = self.api("GET", "system/get_task_types")
-        return data.get("task_types", {}) if data else {}             
+        return data.get("task_types", {}) if data else {}      
+
+    def request_transcript(self, lines, log_type):
+        data = self.api("GET", f"system/{log_type}/{lines}")
+        if data and "transcript" in data:
+            print("Today's Transcript:")
+            for entry in data["transcript"]:
+                print(f"{entry['timestamp']} - {entry['message']}")
+        else:
+            print("No transcript found or failed to retrieve.")      
 
 if __name__ == "__main__":
     PRISMInterface()

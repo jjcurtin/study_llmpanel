@@ -18,14 +18,7 @@ def log_menu(self):
                 continue
 
             log_type = "get_transcript" if log_choice == '1' else "get_ema_log" if log_choice == '2' else "get_feedback_log" if log_choice == '3' else None
-
-            data = self.api("GET", f"system/{log_type}/{lines}")
-            if data and "transcript" in data:
-                print("Today's Transcript:")
-                for entry in data["transcript"]:
-                    print(f"{entry['timestamp']} - {entry['message']}")
-            else:
-                print("No transcript found or failed to retrieve.")
+            self.request_transcript(lines, log_type)
             input("Press Enter to continue...")
         else:
             print("Invalid choice.")
