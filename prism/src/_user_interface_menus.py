@@ -88,124 +88,125 @@ def participant_management_menu(self):
             error("Invalid choice.")
 
 def individual_participant_menu(self, participant_id):
-        def remove_participant_menu(self):
-            if input("Remove participant? (yes/no): ").strip().lower() == 'yes':
-                if self.api("DELETE", f"participants/remove_participant/{participant_id}"):
-                    success("Participant removed.")
-                    return
-                else:
-                    error("Failed to remove participant.")
-
-        def update_field_menu(self, choice):
-            field = field_map[choice]
-            new_val = input(f"Enter new value for {field}: ")
-            if self.api("PUT", f"participants/update_participant/{participant_id}/{field}/{new_val}"):
-                participant[field] = new_val
-                success("Participant updated.")
-            else:
-                error("Failed to update participant.")
-
-        def send_survey_menu(self, participant_id):
-            survey_type = input("Enter survey type (ema/feedback): ").strip().lower()
-            if survey_type in ['ema', 'feedback']:
-                if self.api("POST", f"participants/send_survey/{participant_id}/{survey_type}"):
-                    success(f"{survey_type.capitalize()} survey sent.")
-                else:
-                    error(f"Failed to send {survey_type} survey.")
-            else:
-                error("Invalid survey type.")
-
-        def send_message_menu(self, participant_id):
-            message = input("Enter message to send: ").strip()
-            if not message:
-                error("Message cannot be empty.")
+    def remove_participant_menu(self):
+        if input("Remove participant? (yes/no): ").strip().lower() == 'yes':
+            if self.api("DELETE", f"participants/remove_participant/{participant_id}"):
+                success("Participant removed.")
                 return
-            if self.api("POST", f"participants/send_custom_sms/{participant_id}", json={"message": message}):
-                success("Message sent.")
             else:
-                error("Failed to send message.")
+                error("Failed to remove participant.")
 
-        data = self.api("GET", f"participants/get_participant/{participant_id}")
-        participant = data.get("participant") if data else None
-        if not participant:
-            error("Failed to retrieve participant schedule.")
+    def update_field_menu(self, choice):
+        field = field_map[choice]
+        new_val = input(f"Enter new value for {field}: ")
+        if self.api("PUT", f"participants/update_participant/{participant_id}/{field}/{new_val}"):
+            participant[field] = new_val
+            success("Participant updated.")
+        else:
+            error("Failed to update participant.")
+
+    def send_survey_menu(self, participant_id):
+        survey_type = input("Enter survey type (ema/feedback): ").strip().lower()
+        if survey_type in ['ema', 'feedback']:
+            if self.api("POST", f"participants/send_survey/{participant_id}/{survey_type}"):
+                success(f"{survey_type.capitalize()} survey sent.")
+            else:
+                error(f"Failed to send {survey_type} survey.")
+        else:
+            error("Invalid survey type.")
+
+    def send_message_menu(self, participant_id):
+        message = input("Enter message to send: ").strip()
+        if not message:
+            error("Message cannot be empty.")
             return
-        field_map = {
-            '1': 'first_name', '2': 'last_name', '3': 'unique_id', '4': 'on_study',
-            '5': 'phone_number', '6': 'ema_time', '7': 'ema_reminder_time',
-            '8': 'feedback_time', '9': 'feedback_reminder_time'
-        }
-        while True:
-            clear()
-            print(f"Participant ID {participant_id} Info:")
-            for k, f in sorted(field_map.items()):
-                print(f"{k}: {f.replace('_',' ').capitalize()}: {participant.get(f)}")
-            print("\nindex: select field, s: send survey, r: remove participant, m: send message, ENTER: back")
+        if self.api("POST", f"participants/send_custom_sms/{participant_id}", json={"message": message}):
+            success("Message sent.")
+        else:
+            error("Failed to send message.")
 
-            choice = input("Enter choice: ").strip()
-            if choice == '':
-                break
-            elif choice in field_map:
-                update_field_menu(self, choice)
-            elif choice.lower() == 'r':
-                remove_participant_menu(self)
-            elif choice.lower() == 's':
-                send_survey_menu(self, participant_id)
-            elif choice.lower() == 'm':
-                send_message_menu(self, participant_id)
-            else:
-                error("Invalid choice.")
+    data = self.api("GET", f"participants/get_participant/{participant_id}")
+    participant = data.get("participant") if data else None
+    if not participant:
+        error("Failed to retrieve participant schedule.")
+        return
+    field_map = {
+        '1': 'first_name', '2': 'last_name', '3': 'unique_id', '4': 'on_study',
+        '5': 'phone_number', '6': 'ema_time', '7': 'ema_reminder_time',
+        '8': 'feedback_time', '9': 'feedback_reminder_time'
+    }
+    
+    while True:
+        clear()
+        print(f"Participant ID {participant_id} Info:")
+        for k, f in sorted(field_map.items()):
+            print(f"{k}: {f.replace('_',' ').capitalize()}: {participant.get(f)}")
+        print("\nindex: select field, s: send survey, r: remove participant, m: send message, ENTER: back")
+
+        choice = input("Enter choice: ").strip()
+        if choice == '':
+            break
+        elif choice in field_map:
+            update_field_menu(self, choice)
+        elif choice.lower() == 'r':
+            remove_participant_menu(self)
+        elif choice.lower() == 's':
+            send_survey_menu(self, participant_id)
+        elif choice.lower() == 'm':
+            send_message_menu(self, participant_id)
+        else:
+            error("Invalid choice.")
 
 def add_participant_menu(self):
-        clear()
-        print("Add New Participant")
-        first_name = input("First name: ")
-        if not first_name:
-            error("First name is required.")
-            return
-        last_name = input("Last name: ")
-        if not last_name:
-            error("Last name is required.")
-            return
-        unique_id = input("Unique ID: ")
-        if not unique_id:
-            unique_id = str(random.randint(100000000, 999999999))
-            print(f"Unique ID not provided. Generated: {unique_id}")
-        on_study = input("On study? (yes/no): ").strip().lower()
-        if on_study not in ('yes', 'y', 'no', 'n'):
-            print("Invalid input for on study. Defaulting to 'no'.")
-            on_study = 'no'
-        elif on_study == 'y': 
-            on_study = 'yes'
-        elif on_study == 'n':
-            on_study = 'no'
-        on_study = on_study == 'yes'
-        phone_number = input("Phone number (press enter to skip): ")
-        times = {}
-        default_times = {
-            'ema_time': '08:00:00',
-            'ema_reminder_time': '08:15:00',
-            'feedback_time': '18:00:00',
-            'feedback_reminder_time': '18:15:00'
-        }
-        for t in ['ema_time', 'ema_reminder_time', 'feedback_time', 'feedback_reminder_time']:
-            val = input(f"Enter {t.replace('_', ' ')} (HH:MM:SS) [default: {default_times[t]}]: ").strip() or default_times[t]
-            try:
-                time.strptime(val, '%H:%M:%S')
-                times[t] = val
-            except ValueError:
-                print(f"Invalid time format for {val}. Using default: {default_times[t]}.\nYou can change this later.")
-                times[t] = default_times[t]
-        payload = dict(first_name = first_name, 
-                       last_name = last_name, 
-                       unique_id = unique_id, 
-                       on_study = on_study, 
-                       phone_number = phone_number, 
-                       **times)
-        if self.api("POST", "participants/add_participant", json = payload):
-            success("Participant added.")
-        else:
-            error("Failed to add participant.")
+    clear()
+    print("Add New Participant")
+    first_name = input("First name: ")
+    if not first_name:
+        error("First name is required.")
+        return
+    last_name = input("Last name: ")
+    if not last_name:
+        error("Last name is required.")
+        return
+    unique_id = input("Unique ID: ")
+    if not unique_id:
+        unique_id = str(random.randint(100000000, 999999999))
+        print(f"Unique ID not provided. Generated: {unique_id}")
+    on_study = input("On study? (yes/no): ").strip().lower()
+    if on_study not in ('yes', 'y', 'no', 'n'):
+        print("Invalid input for on study. Defaulting to 'no'.")
+        on_study = 'no'
+    elif on_study == 'y': 
+        on_study = 'yes'
+    elif on_study == 'n':
+        on_study = 'no'
+    on_study = on_study == 'yes'
+    phone_number = input("Phone number (press enter to skip): ")
+    times = {}
+    default_times = {
+        'ema_time': '08:00:00',
+        'ema_reminder_time': '08:15:00',
+        'feedback_time': '18:00:00',
+        'feedback_reminder_time': '18:15:00'
+    }
+    for t in ['ema_time', 'ema_reminder_time', 'feedback_time', 'feedback_reminder_time']:
+        val = input(f"Enter {t.replace('_', ' ')} (HH:MM:SS) [default: {default_times[t]}]: ").strip() or default_times[t]
+        try:
+            time.strptime(val, '%H:%M:%S')
+            times[t] = val
+        except ValueError:
+            print(f"Invalid time format for {val}. Using default: {default_times[t]}.\nYou can change this later.")
+            times[t] = default_times[t]
+    payload = dict(first_name = first_name, 
+                    last_name = last_name, 
+                    unique_id = unique_id, 
+                    on_study = on_study, 
+                    phone_number = phone_number, 
+                    **times)
+    if self.api("POST", "participants/add_participant", json = payload):
+        success("Participant added.")
+    else:
+        error("Failed to add participant.")
 
 def system_check_menu(self):
     def prompt_system_check_menu(self):
@@ -218,7 +219,7 @@ def system_check_menu(self):
                 error("Failure detected. Please check the transcript for details.")
         else:
             exit_menu()
-
+    
     clear()
     print("Requesting PRISM status...")
     uptime_data = self.api("GET", "system/uptime")
@@ -249,29 +250,29 @@ def shutdown_menu(self):
         success("PRISM is already shut down.")
 
 def main_menu(self):
+    def exit_interface(self):
+        print("Exiting PRISM Interface.")
+        exit(0)
+
+    menu_options = {
+        '1': {'description': 'Get Status and Check System', 'menu_caller': system_check_menu},
+        '2': {'description': 'Manage System Tasks', 'menu_caller': task_schedule_menu},
+        '3': {'description': 'Manage Participants', 'menu_caller': participant_management_menu},
+        '4': {'description': 'View Logs', 'menu_caller': log_menu},
+        '5': {'description': 'Shutdown PRISM', 'menu_caller': shutdown_menu},
+        '6': {'description': 'Exit', 'menu_caller': exit_interface}
+    }
+
     while True:
         clear()
         print("PRISM Interface Menu:")
-        print("1: Get Status and Check System")
-        print("2: Manage System Tasks")
-        print("3: Manage Participants")
-        print("4: View Logs")
-        print("5: Shutdown PRISM")
-        print("6: Exit")
+        for key, item in menu_options.items():
+            print(f"{key}: {item['description']}")
         choice = input("Enter your choice: ").strip()
-        if choice == '1':
-            system_check_menu(self)
-        elif choice == '2':
-            task_schedule_menu(self)
-        elif choice == '3':
-            participant_management_menu(self)
-        elif choice == '4':
-            log_menu(self)
-        elif choice == '5':
-            shutdown_menu(self)
-        elif choice == '6':
-            print("Exiting PRISM Interface.")
-            break
+        selected = menu_options.get(choice)
+        if selected:
+            handler = selected['menu_caller']
+            handler(self)
         else:
             error("Invalid choice.")
 
