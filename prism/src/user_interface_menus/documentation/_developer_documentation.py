@@ -149,16 +149,28 @@ def developer_documentation(self):
         print("\nFeedback Survey Endpoints:")
         print("1. GET /feedback_survey/access_feedback/<unique_id> - Provides access to the feedback survey for a participant.")
         print("2. POST /feedback_survey/submit_feedback - Submits the feedback survey.")
-
+        
         print("\nNote: Replace <placeholders> in the endpoints with the appropriate values.")
         exit_menu()
 
     def prism_user_interface_documentation(self):
         print_menu_header("PRISM User Interface:")
+        print("The PRISM user interface is designed to provide easy access to the application's features.")
+        print("When PRISM is running, the user interface can also be run from the command line by executing the prism_interface.py file.")
+        print("The user interface communicates over localhost with the PRISM server (see server documentation).")
+        print()
+        print("prism_interface.py is the main entry point for the user interface.")
+        print("user_interface_menus/ contains the various menus for the application.")
+        print("user_interface_menus/documentation/ contains the documentation for the application (which is where the content you are viewing is loaded from).")
         exit_menu()
 
     def qualtrics_interface_documentation(self):
         print_menu_header("Qualtrics Interface")
+        print("The Qualtrics interface is used to manage and interact with Qualtrics surveys.")
+        print("The code that I have written for Qualtrics is in the ../qualtrics_js folder.")
+        print("Each script must be added to the appropriate survey question in the desired Qualtrics survey.")
+        print("Note: there are additional survey requirements for the Qualtrics interface to work correctly (e.g. layout and question types).")
+        print("Additionally, the interface requires PRISM to be running.")
         exit_menu()
 
     menu_options = {
