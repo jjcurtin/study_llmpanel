@@ -30,13 +30,21 @@ def system_task_menu(self):
         script_idx = input("Select R script index: ").strip()
         r_script_dict = r_scripts['r_script_tasks']
         script_names = list(r_script_dict.keys())
-
         if not script_idx.isdigit() or not (1 <= int(script_idx) <= len(script_names)):
             error("Invalid index.")
             return
         selected_script_name = script_names[int(script_idx) - 1]
         r_script_path = f"{r_script_dict[selected_script_name]}.R"
-        return r_script_path
+        task_time = input("Task time (HH:MM:SS): ").strip()
+        try:
+            time.strptime(task_time, '%H:%M:%S')
+        except ValueError:
+            error("Invalid time format.")
+            return
+        if self.api("POST", f"system/add_r_script_task/{r_script_path}/{task_time}"):
+            success(f"R script task {r_script_path} scheduled at {task_time}.")
+        else:
+            error(f"Failed to schedule R script task {selected_script_name}.")
 
     def add_new_task_menu(self):
         clear()
@@ -52,28 +60,22 @@ def system_task_menu(self):
         if not idx.isdigit() or not (1 <= int(idx) <= len(task_types)):
             error("Invalid index.")
             return
-        task_type = list(task_types.keys())[int(idx)-1]
-        r_script_path = None
         
+        task_type = list(task_types.keys())[int(idx)-1]
         if task_type == 'RUN_R_SCRIPT':
-            r_script_path = add_new_r_script_menu(self)
-
-        task_time = input("Task time (HH:MM:SS): ").strip()
-        try:
-            time.strptime(task_time, '%H:%M:%S')
-        except ValueError:
-            error("Invalid time format.")
-            return
-
-        if r_script_path:
-            if self.api("POST", f"system/add_r_script_task/{r_script_path}/{task_time}"):
-                success(f"R script task {r_script_path} scheduled at {task_time}.")
-            else:
-                error(f"Failed to schedule R script task {task_type}.")
-        elif self.api("POST", f"system/add_system_task/{task_type}/{task_time}"):
-            success("Task added.")
+            add_new_r_script_menu(self)
         else:
-            error("Failed to add task.")
+            task_time = input("Task time (HH:MM:SS): ").strip()
+            try:
+                time.strptime(task_time, '%H:%M:%S')
+            except ValueError:
+                error("Invalid time format.")
+                return
+
+            if self.api("POST", f"system/add_system_task/{task_type}/{task_time}"):
+                success("Task added.")
+            else:
+                error("Failed to add task.")
 
     def remove_task_menu(self):
         try:
@@ -145,8 +147,9 @@ def system_task_menu(self):
 
     menu_options = {
         '1': {'description': 'Add New Task', 'menu_caller': add_new_task_menu},
-        '2': {'description': 'Remove Task', 'menu_caller': remove_task_menu},
-        '3': {'description': 'Execute Task Now', 'menu_caller': execute_task_menu},
+        '2': {'description': 'Add New R Script Task', 'menu_caller': add_new_r_script_menu},
+        '3': {'description': 'Remove Task', 'menu_caller': remove_task_menu},
+        '4': {'description': 'Execute Task Now', 'menu_caller': execute_task_menu},
     }
 
     while True:
