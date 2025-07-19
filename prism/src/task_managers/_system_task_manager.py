@@ -51,6 +51,10 @@ class SystemTaskManager(TaskManager):
         except Exception as e:
             self.app.add_to_transcript(f"An error occurred while loading the task schedule: {e}", "ERROR")
     
+    def clear_schedule(self):
+        self.tasks.clear()
+        self.save_tasks()
+
     def get_task_schedule(self):
         try:
             return [

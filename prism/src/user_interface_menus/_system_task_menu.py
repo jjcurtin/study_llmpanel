@@ -12,7 +12,7 @@ def system_task_menu(self):
             else:
                 print("No tasks scheduled.")
         else:
-            error("Failed to retrieve task schedule or PRISM not running.")
+            print("No tasks found.")
 
     def add_new_r_script_menu(self):
         print_menu_header("Add New R Script Task")
@@ -145,12 +145,24 @@ def system_task_menu(self):
                 print("No transcript found or failed to retrieve.")
             error("Failed to execute task.")
 
+    def clear_task_schedule_menu(self):
+        choice = input("Are you sure you want to clear the task schedule? (yes/no): ").strip().lower()
+        if choice == 'yes' or choice == 'y':
+            if self.api("DELETE", "system/clear_task_schedule"):
+                success("Task schedule cleared.")
+            else:
+                error("Failed to clear task schedule.")
+        else:
+            print("Task schedule not cleared.")
+            exit_menu()
+
     menu_options = {
         'add': {'description': 'Add New Task', 'menu_caller': add_new_task_menu},
         'add -r': {'description': 'Add New R Script Task', 'menu_caller': add_new_r_script_menu},
         'remove': {'description': 'Remove Task', 'menu_caller': remove_task_menu},
         'execute': {'description': 'Execute Task Now', 'menu_caller': execute_task_menu},
         'execute -r': {'description': 'Execute R Script Task Now', 'menu_caller': execute_r_script_menu},
+        'clear': {'description': 'Clear Task Schedule', 'menu_caller': clear_task_schedule_menu},
     }
 
     while True:
