@@ -1,9 +1,6 @@
 import requests
-import time
-from _helper import clear
-import random
 
-from _user_interface_menus import main_menu
+from user_interface_menus._main_menu import main_menu
 
 class PRISMInterface:
     def __init__(self):
