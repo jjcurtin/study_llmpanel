@@ -75,10 +75,7 @@ def developer_documentation(self):
         'qualtrics': {'description': 'Qualtrics Interface', 'menu_caller': qualtrics_interface_documentation},
     }
     while True:
-        clear()
-        print("=" * 60)
-        print(" " * 15 + "PRISM Developer Documentation")
-        print("=" * 60)
+        print_menu_header("PRISM Developer Documentation")
         for key, item in menu_options.items():
             print(f"{key:<20}{item['description']:<20}")
         print("\nENTER: Back to Help Menu")

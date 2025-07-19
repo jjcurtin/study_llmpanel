@@ -19,10 +19,7 @@ def help_menu(self):
     }
 
     while True:
-        clear()
-        print("=" * 60)
-        print(" " * 20 + "PRISM Help Menu")
-        print("=" * 60)
+        print_menu_header("PRISM Help Menu")
         for key, item in menu_options.items():
             print(f"{key:<20}{item['description']:<20}")
         print("\nENTER: Back to Main Menu")

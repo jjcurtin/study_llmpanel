@@ -35,7 +35,7 @@ def participant_management_menu(self):
             error("No participants found or failed to retrieve.")
 
     while True:
-        clear()
+        print_menu_header("PRISM Participant Management Menu")
         data = self.api("GET", "participants/get_participants")
         participants = data.get("participants", []) if data else []
         print("Participant List:")
@@ -113,8 +113,7 @@ def individual_participant_menu(self, participant_id):
     }
     
     while True:
-        clear()
-        print(f"Participant ID {participant_id} Info:")
+        print_menu_header(f"Participant ID {participant_id} Info")
         for k, f in sorted(field_map.items()):
             print(f"{k}: {f.replace('_',' ').capitalize()}: {participant.get(f)}")
         print("\nindex: select field, s: send survey, r: remove participant, m: send message, ENTER: back")
@@ -134,8 +133,7 @@ def individual_participant_menu(self, participant_id):
             error("Invalid choice.")
 
 def add_participant_menu(self):
-    clear()
-    print("Add New Participant")
+    print_menu_header("Add New Participant")
     first_name = input("First name: ")
     if not first_name:
         error("First name is required.")
