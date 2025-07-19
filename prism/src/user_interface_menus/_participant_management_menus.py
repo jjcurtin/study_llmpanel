@@ -75,6 +75,22 @@ def individual_participant_menu(self, participant_id):
         }
         field = field_map[choice]
         new_val = input(f"Enter new value for {field}: ")
+
+        if field == 'on_study':
+            if new_val.lower() in ['true', 'True', 't', 'T']:
+                new_val = "True"
+            elif new_val.lower() in ['false', 'False', 'f', 'F']:
+                new_val = "False"
+            else:
+                error("Invalid input for on_study. Please enter 'True' or 'False'.")
+                return
+        elif field in ['ema_time', 'ema_reminder_time', 'feedback_time', 'feedback_reminder_time']:
+            try:
+                time.strptime(new_val, '%H:%M:%S')
+            except ValueError:
+                error(f"Invalid time format for {field}. Please use HH:MM:SS format.")
+                return
+
         if self.api("PUT", f"participants/update_participant/{participant_id}/{field}/{new_val}"):
             participant[field] = new_val
             success("Participant updated.")
