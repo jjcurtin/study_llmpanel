@@ -1,5 +1,4 @@
-from _helper import clear
-from user_interface_menus._menu_helper import error, success, exit_menu
+from user_interface_menus._menu_helper import *
 
 def log_menu(self):
     while True:

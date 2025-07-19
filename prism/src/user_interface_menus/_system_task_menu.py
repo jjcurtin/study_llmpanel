@@ -1,7 +1,5 @@
 import time
-
-from _helper import clear
-from user_interface_menus._menu_helper import error, success, exit_menu
+from user_interface_menus._menu_helper import error, success, exit_menu, clear
 
 def system_task_menu(self):
     def print_task_schedule(self):
