@@ -7,8 +7,11 @@ def system_task_menu(self):
         if tasks and "tasks" in tasks:
             self.scheduled_tasks = tasks["tasks"]
             if self.scheduled_tasks:
+                print("Scheduled Tasks")
+                print("-" * 60)
                 for i, t in enumerate(self.scheduled_tasks, 1):
                     print(f"{i}: {t['task_type']} @ {t['task_time']}{f" {t['r_script_path']}" if t['r_script_path'] else ""} - Run Today: {t.get('run_today', False)}")
+                print("-" * 60)
             else:
                 print("No tasks scheduled.")
         else:

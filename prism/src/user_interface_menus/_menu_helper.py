@@ -9,10 +9,21 @@ def print_menu_header(title):
     print("=" * 60)
     print(" " * padding + title)
     print("=" * 60)
+    print()
 
-def print_menu_options(self, menu_options, submenu = False):
-    for key, item in menu_options.items():
-        print(f"{key:<20}{item['description']:<20}")
+def print_menu_options(self, menu_options, submenu = False, index_and_text = False):
+    if index_and_text:
+        for key, item in menu_options.items():
+            if key.isdigit():
+                print(f"{key:<20}{item['description']:<20}")
+        print("-" * 60)
+        print()
+        for key, item in menu_options.items():
+            if not key.isdigit():
+                print(f"{key:<20}{item['description']:<20}")
+    else:
+        for key, item in menu_options.items():
+            print(f"{key:<20}{item['description']:<20}")
     if submenu:
         print("\nENTER: Back to Previous Menu")
     choice = input("\nEnter your choice: ").strip()

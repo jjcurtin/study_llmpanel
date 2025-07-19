@@ -41,7 +41,6 @@ def participant_management_menu(self):
         # Fetch participants from the API
         data = self.api("GET", "participants/get_participants")
         participants = data.get("participants", []) if data else []
-        print("Participant List:")
         if participants:
             for i, p in enumerate(participants, 1):
                 menu_options[str(i)] = {
@@ -54,7 +53,9 @@ def participant_management_menu(self):
         menu_options['schedule'] = {'description': 'Get Participant Task Schedule', 'menu_caller': print_task_schedule}
         menu_options['refresh'] = {'description': 'Full Participants Refresh from CSV', 'menu_caller': refresh_participants_menu}
         menu_options['announce'] = {'description': 'Send Study Announcement', 'menu_caller': send_announcement_menu}
-        if print_menu_options(self, menu_options, submenu = True):
+        print("Enter an index to select a participant, or, choose another option.")
+        print("-" * 60)
+        if print_menu_options(self, menu_options, submenu = True, index_and_text = True):
             break
 
 def individual_participant_menu(self, participant_id):
@@ -141,7 +142,8 @@ def individual_participant_menu(self, participant_id):
         }
         print_menu_header(f"Participant ID {participant_id} Info")
         print("Enter an index to update a field, or, choose another option.")
-        if print_menu_options(self, menu_options, submenu = True):
+        print("-" * 60)
+        if print_menu_options(self, menu_options, submenu = True, index_and_text = True):
             break
 
 def add_participant_menu(self):
