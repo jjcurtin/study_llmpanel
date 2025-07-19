@@ -6,6 +6,10 @@ import random
 def error(message = "An unexpected error occurred."):
         print(f"Error: {message}")
         input("Press Enter to continue...")
+
+def success(message = "Operation completed successfully."):
+    print(f"Success: {message}")
+    input("Press Enter to continue...")
     
 def exit_menu():
     input("Press Enter to continue...")
@@ -51,13 +55,11 @@ def participant_management_menu(self):
         elif choice.lower() == 'r':
             if input("Refresh participants from CSV? (yes/no): ").strip().lower() == 'yes':
                 if self.api("POST", "participants/refresh_participants"):
-                    print("Participants refreshed from CSV.")
-                    exit_menu()
+                    success("Participants refreshed from CSV.")
                 else:
                     error(f"Failed to refresh participants. Error code: {self.api('POST', 'participants/refresh_participants').get('status_code', 'Unknown')}")
             else:
-                print("Refresh cancelled.")
-                exit_menu()
+                success("Refresh cancelled.")
         elif choice.lower() == 'n':
             message = input("Enter study announcement message: ").strip()
             if not message:
@@ -68,8 +70,7 @@ def participant_management_menu(self):
                 error("Invalid input. Cancelling. Press Enter to continue...")
                 continue
             if self.api("POST", f"participants/study_announcement/{require_on_study}", json = {"message": message}):
-                print("Study announcement sent.")
-                exit_menu()
+                success("Study announcement sent.")
             else:
                 error("No participants found or failed to retrieve.")
         elif choice == '':
@@ -103,15 +104,13 @@ def individual_participant_menu(self, participant_id):
                 new_val = input(f"Enter new value for {field}: ")
                 if self.api("PUT", f"participants/update_participant/{participant_id}/{field}/{new_val}"):
                     participant[field] = new_val
-                    print("Participant updated.")
-                    exit_menu()
+                    success("Participant updated.")
                 else:
                     error("Failed to update participant.")
             elif choice.lower() == 'r':
                 if input("Remove participant? (yes/no): ").strip().lower() == 'yes':
                     if self.api("DELETE", f"participants/remove_participant/{participant_id}"):
-                        print("Participant removed.")
-                        exit_menu()
+                        success("Participant removed.")
                         return
                     else:
                         error("Failed to remove participant.")
@@ -119,8 +118,7 @@ def individual_participant_menu(self, participant_id):
                 survey_type = input("Enter survey type (ema/feedback): ").strip().lower()
                 if survey_type in ['ema', 'feedback']:
                     if self.api("POST", f"participants/send_survey/{participant_id}/{survey_type}"):
-                        print(f"{survey_type.capitalize()} survey sent.")
-                        exit_menu()
+                        success(f"{survey_type.capitalize()} survey sent.")
                     else:
                         error(f"Failed to send {survey_type} survey.")
                 else:
@@ -131,8 +129,7 @@ def individual_participant_menu(self, participant_id):
                     error("Message cannot be empty.")
                     continue
                 if self.api("POST", f"participants/send_custom_sms/{participant_id}", json={"message": message}):
-                    print("Message sent.")
-                    exit_menu()
+                    success("Message sent.")
                 else:
                     error("Failed to send message.")
             else:
@@ -185,8 +182,7 @@ def add_participant_menu(self):
                        phone_number = phone_number, 
                        **times)
         if self.api("POST", "participants/add_participant", json = payload):
-            print("Participant added.")
-            exit_menu()
+            success("Participant added.")
         else:
             error("Failed to add participant.")
 
@@ -236,18 +232,17 @@ def main_menu(self):
                 if input("Shutdown PRISM? (yes/no): ").strip().lower() == 'yes':
                     try:
                         self.api("POST", "system/shutdown")
-                        print("PRISM shut down.")
+                        success("PRISM shut down.")
                         exit(0)
                     except requests.ConnectionError:
-                        print("PRISM shut down.")
+                        success("PRISM is already shut down.")
                         exit(0)
                     except Exception as e:
-                        print(f"Error: {e}")
+                        error(f"Error: {e}")
                 else:
-                    print("Shutdown cancelled.")
+                    success("Shutdown cancelled.")
             else:
-                print("PRISM not running, cannot shutdown.")
-            input("Press Enter to continue...")
+                error("PRISM not running, cannot shutdown.")
 
         # Exit
         elif choice == '6':
@@ -255,8 +250,7 @@ def main_menu(self):
             break
 
         else:
-            print("Invalid choice.")
-            input("Press Enter to continue...")
+            error("Invalid choice.")
 
 def task_schedule_menu(self):
         while True:
