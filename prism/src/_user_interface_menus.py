@@ -3,6 +3,62 @@ import time
 from _helper import clear
 import random
 
+def participant_management_menu(self):
+    while True:
+        clear()
+        data = self.api("GET", "participants/get_participants")
+        participants = data.get("participants", []) if data else []
+        print("Participant List:")
+        if participants:
+            for i, p in enumerate(participants, 1):
+                print(f"{i}: {p['last_name']}, {p['first_name']} (ID: {p['unique_id']}) - On Study: {p['on_study']}")
+        else:
+            print("No participants found or failed to retrieve.")
+        print("\na: Add a Participant\ns: Get Participant Task Schedule\nr: Full Participants Refresh from CSV\nn: study announcement\n\nENTER: Back to Main Menu")
+        choice = input("Enter index, 'a', 's', 'r', 'n', or ENTER: ").strip()
+        if choice.isdigit():
+            idx = int(choice)-1
+            if 0 <= idx < len(participants):
+                individual_participant_menu(self, participants[idx]['unique_id'])
+        elif choice.lower() == 'a':
+            self.add_participant()
+        elif choice.lower() == 's':
+            tasks = self.api("GET", "participants/get_participant_task_schedule")
+            if tasks:
+                print("Participant Task Schedule:")
+                for task in tasks.get("tasks", []):
+                    print(f"{task['participant_id']}: {task['task_type']} at {task['task_time']} - On Study: {task['on_study']}")
+                input("\nPress Enter to continue...")
+        elif choice.lower() == 'r':
+            if input("Refresh participants from CSV? (yes/no): ").strip().lower() == 'yes':
+                if self.api("POST", "participants/refresh_participants"):
+                    print("Participants refreshed from CSV.")
+                else:
+                    print(f"Failed to refresh participants. Error code: {self.api('POST', 'participants/refresh_participants').get('status_code', 'Unknown')}")
+            else:
+                print("Refresh cancelled.")
+            input("Press Enter to continue...")
+        elif choice.lower() == 'n':
+            message = input("Enter study announcement message: ").strip()
+            if not message:
+                print("Message cannot be empty.")
+                input("Press Enter to continue...")
+                continue
+            require_on_study = input("Send to participants on study only? (yes/no): ").strip().lower()
+            if require_on_study not in ('yes', 'y', 'no', 'n'):
+                input("Invalid input. Cancelling. Press Enter to continue...")
+                continue
+            if self.api("POST", f"participants/study_announcement/{require_on_study}", json = {"message": message}):
+                print("Study announcement sent.")
+            else:
+                print("No participants found or failed to retrieve.")
+            input("Press Enter to continue...")
+        elif choice == '':
+            break
+        else:
+            print("Invalid choice.")
+            input("Press Enter to continue...")
+
 def individual_participant_menu(self, participant_id):
         data = self.api("GET", f"participants/get_participant/{participant_id}")
         participant = data.get("participant") if data else None
@@ -90,60 +146,7 @@ def main_menu(self):
 
         # Manage Participants
         elif choice == '3':
-            while True:
-                clear()
-                data = self.api("GET", "participants/get_participants")
-                participants = data.get("participants", []) if data else []
-                print("Participant List:")
-                if participants:
-                    for i, p in enumerate(participants, 1):
-                        print(f"{i}: {p['last_name']}, {p['first_name']} (ID: {p['unique_id']}) - On Study: {p['on_study']}")
-                else:
-                    print("No participants found or failed to retrieve.")
-                print("\na: Add a Participant\ns: Get Participant Task Schedule\nr: Full Participants Refresh from CSV\nn: study announcement\n\nENTER: Back to Main Menu")
-                choice = input("Enter index, 'a', 's', 'r', 'n', or ENTER: ").strip()
-                if choice.isdigit():
-                    idx = int(choice)-1
-                    if 0 <= idx < len(participants):
-                        individual_participant_menu(self, participants[idx]['unique_id'])
-                elif choice.lower() == 'a':
-                    self.add_participant()
-                elif choice.lower() == 's':
-                    tasks = self.api("GET", "participants/get_participant_task_schedule")
-                    if tasks:
-                        print("Participant Task Schedule:")
-                        for task in tasks.get("tasks", []):
-                            print(f"{task['participant_id']}: {task['task_type']} at {task['task_time']} - On Study: {task['on_study']}")
-                        input("\nPress Enter to continue...")
-                elif choice.lower() == 'r':
-                    if input("Refresh participants from CSV? (yes/no): ").strip().lower() == 'yes':
-                        if self.api("POST", "participants/refresh_participants"):
-                            print("Participants refreshed from CSV.")
-                        else:
-                            print(f"Failed to refresh participants. Error code: {self.api('POST', 'participants/refresh_participants').get('status_code', 'Unknown')}")
-                    else:
-                        print("Refresh cancelled.")
-                    input("Press Enter to continue...")
-                elif choice.lower() == 'n':
-                    message = input("Enter study announcement message: ").strip()
-                    if not message:
-                        print("Message cannot be empty.")
-                        input("Press Enter to continue...")
-                        continue
-                    require_on_study = input("Send to participants on study only? (yes/no): ").strip().lower()
-                    if require_on_study not in ('yes', 'y', 'no', 'n'):
-                        input("Invalid input. Cancelling. Press Enter to continue...")
-                        continue
-                    if self.api("POST", f"participants/study_announcement/{require_on_study}", json = {"message": message}):
-                        print("Study announcement sent.")
-                    else:
-                        print("No participants found or failed to retrieve.")
-                    input("Press Enter to continue...")
-                elif choice == '':
-                    break
-                else:
-                    print("Invalid choice.")
-                    input("Press Enter to continue...")
+            participant_management_menu(self)
 
         # View Logs
         elif choice == '4':
