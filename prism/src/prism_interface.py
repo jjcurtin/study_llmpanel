@@ -32,19 +32,7 @@ class PRISMInterface:
             pass
         except Exception:
             pass
-        return None                
-
-    def remove_system_task(self, task_type, task_time, r_script_path = None):
-        if r_script_path:
-            if self.api("DELETE", f"system/remove_r_script_task/{r_script_path}/{task_time}"):
-                print(f"R script task {task_type} at {task_time} removed.")
-            else:
-                print(f"Failed to remove R script task {task_type}.")
-        elif self.api("DELETE", f"system/remove_system_task/{task_type}/{task_time}"):
-            print("Task removed.")
-        else:
-            print("Failed to remove task.")
-        input("Press Enter to continue...")
+        return None                        
 
     def get_task_types(self):
         data = self.api("GET", "system/get_task_types")
