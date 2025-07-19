@@ -347,7 +347,10 @@ def task_schedule_menu(self):
             idx = int(input("Task index to remove: ")) - 1
             if 0 <= idx < len(self.scheduled_tasks):
                 t = self.scheduled_tasks[idx]
-                self.remove_system_task(t['task_type'], t['task_time'])
+                if self.api("DELETE", f"system/remove_system_task/{t['task_type']}/{t['task_time']}"):
+                    success("Task removed.")
+                else:
+                    error("Failed to remove task.")
             else:
                 error("Invalid index.")
         except Exception:
