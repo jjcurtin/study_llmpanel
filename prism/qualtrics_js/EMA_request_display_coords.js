@@ -1,7 +1,8 @@
+QUESTION_NUM = 0
+
 Qualtrics.SurveyEngine.addOnReady(function () {
     const participantID = "${e://Field/ParticipantID}";
     const container = this.getQuestionTextContainer();
-    const feedbackInputs = [];
 
     container.innerHTML = ""; // Clear default text
 
@@ -44,8 +45,9 @@ Qualtrics.SurveyEngine.addOnReady(function () {
                             lng: entry.longitude
                         }));
 
-                        Qualtrics.SurveyEngine.setEmbeddedData("CoordCount", coords.length);
-                        renderLeafletMaps(coords);
+                        Qualtrics.SurveyEngine.setEmbeddedData("NumCoords", coords.length);
+                        console.log("Number of coordinates received:", coords.length);
+                        renderLeafletMaps([coords[QUESTION_NUM]]);
                     } catch (err) {
                         console.error("Error parsing response:", err);
                         container.innerHTML = "<p>Error loading map coordinates. Please contact support.</p>";
@@ -74,15 +76,7 @@ Qualtrics.SurveyEngine.addOnReady(function () {
             mapDiv.style.height = "300px";
             group.appendChild(mapDiv);
 
-            const input = document.createElement("input");
-            input.type = "text";
-            input.placeholder = `Feedback for location ${index + 1}`;
-            input.style.width = "100%";
-            input.dataset.index = index;
-            group.appendChild(input);
-
             container.appendChild(group);
-            feedbackInputs.push(input);
 
             const map = L.map(mapDiv.id).setView([coord.lat, coord.lng], 13);
 
@@ -93,19 +87,4 @@ Qualtrics.SurveyEngine.addOnReady(function () {
             L.marker([coord.lat, coord.lng]).addTo(map);
         });
     }
-
-    this.questionclick = function (event, element) {
-        if (element.type === "NextButton") {
-            feedbackInputs.forEach((input, i) => {
-                // set the text entry input value to the responses for each feedback input
-                for (let j = 0; j < feedbackInputs.length; j++) {
-                    const inputValue = feedbackInputs[j].value.trim();
-                    if (inputValue) {
-                        jQuery('.QuestionBody').append((j + 1) + " " + inputValue + "<br>");
-                    }
-                }
-                Qualtrics.SurveyEngine.setEmbeddedData(`feedback${i + 1}`, input.value || "");
-            });
-        }
-    };
 });
