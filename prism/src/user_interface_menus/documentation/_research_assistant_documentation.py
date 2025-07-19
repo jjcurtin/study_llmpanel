@@ -37,15 +37,5 @@ def research_assistant_documentation(self):
     }
     while True:
         print_menu_header("PRISM Research Assistant Documentation")
-        for key, item in menu_options.items():
-            print(f"{key:<20}{item['description']:<20}")
-        print("\nENTER: Back to Help Menu")
-        choice = input("Enter your choice: ").strip()
-        selected = menu_options.get(choice)
-        if selected:
-            handler = selected['menu_caller']
-            handler(self)
-        elif choice == '':
+        if print_menu_options(self, menu_options, submenu = True):
             break
-        else:
-            error("Invalid choice.")

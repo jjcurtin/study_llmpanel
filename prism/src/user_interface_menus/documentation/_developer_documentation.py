@@ -30,22 +30,9 @@ def developer_documentation(self):
             'config': {'description': 'Config Setup', 'menu_caller': config_setup}
         }
         while True:
-            clear()
-            print("=" * 60)
-            print(" " * 15 + "Getting Started with PRISM")
-            print("=" * 60)
-            for key, item in menu_options.items():
-                print(f"{key:<20}{item['description']:<20}")
-            print("\nENTER: Back to Developer Documentation Menu")
-            choice = input("Enter your choice: ").strip()
-            selected = menu_options.get(choice)
-            if selected:
-                handler = selected['menu_caller']
-                handler(self)
-            elif choice == '':
+            print_menu_header("Getting Started with PRISM")
+            if print_menu_options(self, menu_options, submenu = True):
                 break
-            else:
-                error("Invalid choice.")
 
     def prism_backend_logic_documentation(self):
         clear()
@@ -76,15 +63,5 @@ def developer_documentation(self):
     }
     while True:
         print_menu_header("PRISM Developer Documentation")
-        for key, item in menu_options.items():
-            print(f"{key:<20}{item['description']:<20}")
-        print("\nENTER: Back to Help Menu")
-        choice = input("Enter your choice: ").strip()
-        selected = menu_options.get(choice)
-        if selected:
-            handler = selected['menu_caller']
-            handler(self)
-        elif choice == '':
+        if print_menu_options(self, menu_options, submenu = True):
             break
-        else:
-            error("Invalid choice.")
