@@ -88,6 +88,43 @@ def participant_management_menu(self):
             error("Invalid choice.")
 
 def individual_participant_menu(self, participant_id):
+        def remove_participant_menu(self):
+            if input("Remove participant? (yes/no): ").strip().lower() == 'yes':
+                if self.api("DELETE", f"participants/remove_participant/{participant_id}"):
+                    success("Participant removed.")
+                    return
+                else:
+                    error("Failed to remove participant.")
+
+        def update_field_menu(self, choice):
+            field = field_map[choice]
+            new_val = input(f"Enter new value for {field}: ")
+            if self.api("PUT", f"participants/update_participant/{participant_id}/{field}/{new_val}"):
+                participant[field] = new_val
+                success("Participant updated.")
+            else:
+                error("Failed to update participant.")
+
+        def send_survey_menu(self, participant_id):
+            survey_type = input("Enter survey type (ema/feedback): ").strip().lower()
+            if survey_type in ['ema', 'feedback']:
+                if self.api("POST", f"participants/send_survey/{participant_id}/{survey_type}"):
+                    success(f"{survey_type.capitalize()} survey sent.")
+                else:
+                    error(f"Failed to send {survey_type} survey.")
+            else:
+                error("Invalid survey type.")
+
+        def send_message_menu(self, participant_id):
+            message = input("Enter message to send: ").strip()
+            if not message:
+                error("Message cannot be empty.")
+                return
+            if self.api("POST", f"participants/send_custom_sms/{participant_id}", json={"message": message}):
+                success("Message sent.")
+            else:
+                error("Failed to send message.")
+
         data = self.api("GET", f"participants/get_participant/{participant_id}")
         participant = data.get("participant") if data else None
         if not participant:
@@ -109,38 +146,13 @@ def individual_participant_menu(self, participant_id):
             if choice == '':
                 break
             elif choice in field_map:
-                field = field_map[choice]
-                new_val = input(f"Enter new value for {field}: ")
-                if self.api("PUT", f"participants/update_participant/{participant_id}/{field}/{new_val}"):
-                    participant[field] = new_val
-                    success("Participant updated.")
-                else:
-                    error("Failed to update participant.")
+                update_field_menu(self, choice)
             elif choice.lower() == 'r':
-                if input("Remove participant? (yes/no): ").strip().lower() == 'yes':
-                    if self.api("DELETE", f"participants/remove_participant/{participant_id}"):
-                        success("Participant removed.")
-                        return
-                    else:
-                        error("Failed to remove participant.")
+                remove_participant_menu(self)
             elif choice.lower() == 's':
-                survey_type = input("Enter survey type (ema/feedback): ").strip().lower()
-                if survey_type in ['ema', 'feedback']:
-                    if self.api("POST", f"participants/send_survey/{participant_id}/{survey_type}"):
-                        success(f"{survey_type.capitalize()} survey sent.")
-                    else:
-                        error(f"Failed to send {survey_type} survey.")
-                else:
-                    error("Invalid survey type.")
+                send_survey_menu(self, participant_id)
             elif choice.lower() == 'm':
-                message = input("Enter message to send: ").strip()
-                if not message:
-                    error("Message cannot be empty.")
-                    continue
-                if self.api("POST", f"participants/send_custom_sms/{participant_id}", json={"message": message}):
-                    success("Message sent.")
-                else:
-                    error("Failed to send message.")
+                send_message_menu(self, participant_id)
             else:
                 error("Invalid choice.")
 
