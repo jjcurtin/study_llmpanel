@@ -48,8 +48,8 @@ class PRISMInterface:
 if __name__ == "__main__":
     while True:
         try:
-            load_menus()
             load_params()
+            load_menus()
             PRISMInterface()
         except KeyboardInterrupt:
             print("\nExiting PRISM Interface.")

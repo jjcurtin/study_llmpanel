@@ -69,9 +69,28 @@ def parameter_settings(self):
         if print_menu_options(self, menu_options, submenu = True):
             break
 
+def readme(self):
+    from user_interface_menus._menu_helper import SHOW_README
+    if SHOW_README:
+        print("PRISM Readme is currently enabled.")
+    else:
+        print("PRISM Readme is currently disabled.")
+    
+    choice = input("Show README on startup? (y/n): ").strip().lower()
+    if choice == 'y':
+        set_show_readme(True)
+        success("Readme will be shown on startup.")
+    elif choice == 'n':
+        set_show_readme(False)
+        success("Readme will not be shown on startup.")
+    else:
+        print("No changes made to Readme display setting.")
+        exit_menu()
+
 def system_settings(self):
     menu_options = {
         'parameters': {'description': 'Adjust system parameters', 'menu_caller': parameter_settings},
+        'readme': {'description': 'Toggle display of the PRISM Readme on startup', 'menu_caller': readme},
     }
 
     while True:
@@ -110,3 +129,6 @@ PARAM_RELATED_THRESHOLD = related_parameter
 
 global PARAM_ASSISTANT_TEMPERATURE
 PARAM_ASSISTANT_TEMPERATURE = temperature_parameter
+
+global READ_ME_SET
+READ_ME_SET = readme

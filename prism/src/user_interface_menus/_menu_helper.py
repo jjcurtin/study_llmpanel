@@ -17,6 +17,9 @@ RELATED_OPTIONS_THRESHOLD = 0.3
 global ASSISTANT_TEMPERATURE
 ASSISTANT_TEMPERATURE = 0.7
 
+global SHOW_README
+SHOW_README = True
+
 # ------------------------------------------------------------
 
 def clear():
@@ -50,6 +53,7 @@ def set_window_width(width):
         WINDOW_WIDTH = width
     else:
         error("Window width must be a positive integer.")
+    save_params()
 
 def toggle_right_align(self = None):
     global RIGHT_ALIGN
@@ -66,9 +70,15 @@ def set_assistant_temperature(temperature):
     ASSISTANT_TEMPERATURE = temperature
     save_params()
 
+def set_show_readme(show):
+    global SHOW_README
+    SHOW_README = show
+    save_params()
+
 # ------------------------------------------------------------
 
 def load_params():
+    clear()
     print("Now loading parameters...")
     file_path = "../config/uiconfig.txt"
     with open(file_path, 'r') as file:
@@ -80,6 +90,14 @@ def load_params():
                 if global_var == "RIGHT_ALIGN" and val == "False":
                     toggle_right_align()
                     print(global_var, val)
+                elif global_var == "WINDOW_WIDTH":
+                    try:
+                        if int(val) and int(val) > 0 and int(val) < 200:
+                            global WINDOW_WIDTH
+                            WINDOW_WIDTH = int(val)
+                            print(global_var, val)
+                    except Exception as e:
+                        print(global_var, "INVALID, please update")
                 elif global_var == "RELATED_OPTIONS_THRESHOLD":
                     try:
                         if float(val) > 1.0 or float(val) < 0.0:
@@ -100,7 +118,16 @@ def load_params():
                             print(global_var, val)
                     except Exception as e:
                         print(global_var, "INVALID, please update")
-
+                elif global_var == "SHOW_README":
+                    global SHOW_README
+                    if val == "True":
+                        SHOW_README = True
+                        print(global_var, val)
+                    elif val == "False":
+                        SHOW_README = False
+                        print(global_var, val)
+                    else:
+                        print(global_var, "INVALID, please update")
     save_params()
 
 def save_params():
@@ -110,6 +137,8 @@ def save_params():
         file.write(f"RIGHT_ALIGN={RIGHT_ALIGN}\n")
         file.write(f"RELATED_OPTIONS_THRESHOLD={RELATED_OPTIONS_THRESHOLD}\n")
         file.write(f"ASSISTANT_TEMPERATURE={ASSISTANT_TEMPERATURE}\n")
+        file.write(f"WINDOW_WIDTH={WINDOW_WIDTH}\n")
+        file.write(f"SHOW_README={SHOW_README}\n")
 
 def load_menus():
     clear()
@@ -123,6 +152,23 @@ def get_menu_options():
     if _menu_options is None:
         load_menus()
     return _menu_options
+
+def get_relevant_menu_options(query = None):
+    def sort(iterable):
+        global RELATED_OPTIONS_THRESHOLD
+        from difflib import get_close_matches
+        return get_close_matches(query, iterable, n = 5, cutoff = RELATED_OPTIONS_THRESHOLD)
+
+    menu_options = get_menu_options()
+    potential_local_choices = ', '.join(menu_options.keys())
+    potential_glocal_choices = ', '.join(_menu_options.keys())
+    combined_choices = potential_local_choices + ', ' + potential_glocal_choices
+
+    if query is not None:
+        combined_choices = ', '.join(sort(set(combined_choices.split(', '))))
+    
+    combined_choices = {choice: menu_options[choice] for choice in combined_choices.split(', ') if choice in menu_options}
+    return combined_choices
 
 def check_global_menu_options(query = None):
     if query is None:
@@ -153,11 +199,16 @@ def goto_menu(menu_caller, self):
         error(f"An error occurred while navigating to the menu: {e}")
         return False
     
-def print_global_command_menu(self):
-    print_menu_header("PRISM Global Command Menu")
-    menu_options = get_menu_options()
-    if print_menu_options(self, menu_options, submenu = True):
-        return
+def print_global_command_menu(self, query = None):
+    menu_options = get_relevant_menu_options(query)
+
+    while True:
+        print_menu_header("PRISM Global Command Menu")
+
+        if not menu_options:
+            print("No commands found matching your query.")
+        if print_menu_options(self, menu_options, submenu = True):
+            break
     
 # ------------------------------------------------------------
 
@@ -190,6 +241,11 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
         print_keys()
         choice = print_fixed_terminal_prompt()
     
+    if choice.split(" ")[0] == "command":
+        query = ' '.join(choice.split(" ")[1:]) if len(choice.split(" ")) > 1 else None
+        print_global_command_menu(self, query)
+        return 1
+
     selected = menu_options.get(choice)
     if selected:
         try:

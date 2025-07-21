@@ -1,5 +1,5 @@
 def init_commands():
-    from user_interface_menus._main_menu import main_menu
+    from user_interface_menus._main_menu import main_menu, README
         
     from user_interface_menus._system_check_menu import system_check_menu
 
@@ -18,7 +18,7 @@ def init_commands():
     from user_interface_menus.help_menu._help_menu import GENERAL_INFORMATION
 
     from user_interface_menus._settings_menu import settings_menu
-    from user_interface_menus._settings_menu import DISPLAY, WINDOW_WIDTH_SETTINGS, PARAM_RELATED_THRESHOLD, PARAM_ASSISTANT_TEMPERATURE, SYSTEM_SETTINGS, PARAMETER_SETTINGS
+    from user_interface_menus._settings_menu import DISPLAY, WINDOW_WIDTH_SETTINGS, PARAM_RELATED_THRESHOLD, PARAM_ASSISTANT_TEMPERATURE, SYSTEM_SETTINGS, PARAMETER_SETTINGS, READ_ME_SET
 
     from user_interface_menus.help_menu._developer_documentation import developer_documentation
     from user_interface_menus.help_menu._research_assistant_documentation import research_assistant_documentation
@@ -74,9 +74,11 @@ def init_commands():
         'display': {'description': 'Manage Display settings', 'menu_caller': lambda self: DISPLAY(self)},
         'display width': {'description': 'Adjust PRISM window width', 'menu_caller': lambda self: WINDOW_WIDTH_SETTINGS(self)},
         'display align': {'description': 'Toggle right alignment of menu options', 'menu_caller': toggle_right_align},
+        'readme': {'description': 'Display README', 'menu_caller': lambda self: README(self)},
+        'readme set': {'description': 'Set README display on startup', 'menu_caller': lambda self: READ_ME_SET(self)},
 
         'shutdown': {'description': 'Shutdown PRISM', 'menu_caller': shutdown_menu},
         
-        'command': {'description': 'Global Command Menu', 'menu_caller': print_global_command_menu}
+        'command': {'description': 'Global Command Menu; "command <query>" to search', 'menu_caller': print_global_command_menu}
     }
     return _menu_options
