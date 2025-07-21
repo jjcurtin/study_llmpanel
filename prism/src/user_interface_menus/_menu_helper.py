@@ -51,19 +51,65 @@ def set_window_width(width):
     else:
         error("Window width must be a positive integer.")
 
-def toggle_right_align(self):
+def toggle_right_align(self = None):
     global RIGHT_ALIGN
     RIGHT_ALIGN = not RIGHT_ALIGN
+    save_params()
 
 def set_related_options_threshold(new_threshold):
     global RELATED_OPTIONS_THRESHOLD
     RELATED_OPTIONS_THRESHOLD = new_threshold
+    save_params()
 
 def set_assistant_temperature(temperature):
     global ASSISTANT_TEMPERATURE
     ASSISTANT_TEMPERATURE = temperature
+    save_params()
 
 # ------------------------------------------------------------
+
+def load_params():
+    print("Now loading parameters...")
+    file_path = "../config/uiconfig.txt"
+    with open(file_path, 'r') as file:
+        lines = file.readlines()
+        for line in lines:
+            global_var = line.split("=")[0].strip()
+            val = line.split("=")[1].strip()
+            if global_var and val:
+                if global_var == "RIGHT_ALIGN" and val == "False":
+                    toggle_right_align()
+                    print(global_var, val)
+                elif global_var == "RELATED_OPTIONS_THRESHOLD":
+                    try:
+                        if float(val) > 1.0 or float(val) < 0.0:
+                            print(global_var, "INVALID, please update")
+                        else:
+                            global RELATED_OPTIONS_THRESHOLD
+                            RELATED_OPTIONS_THRESHOLD = float(val)
+                            print(global_var, val)
+                    except Exception as e:
+                        print(global_var, "INVALID, please update")
+                elif global_var == "ASSISTANT_TEMPERATURE":
+                    try:
+                        if float(val) > 1.0 or float(val) < 0.0:
+                            print(global_var, "INVALID, please update")
+                        else:
+                            global ASSISTANT_TEMPERATURE
+                            ASSISTANT_TEMPERATURE = float(val)
+                            print(global_var, val)
+                    except Exception as e:
+                        print(global_var, "INVALID, please update")
+
+    save_params()
+
+def save_params():
+    file_path = "../config/uiconfig.txt"
+    with open(file_path, 'w') as file:
+        global RIGHT_ALIGN, RELATED_OPTIONS_THRESHOLD, ASSISTANT_TEMPERATURE
+        file.write(f"RIGHT_ALIGN={RIGHT_ALIGN}\n")
+        file.write(f"RELATED_OPTIONS_THRESHOLD={RELATED_OPTIONS_THRESHOLD}\n")
+        file.write(f"ASSISTANT_TEMPERATURE={ASSISTANT_TEMPERATURE}\n")
 
 def load_menus():
     clear()

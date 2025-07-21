@@ -18,7 +18,7 @@ def window_width_settings(self):
 def display_settings(self):
     menu_options = {
         'width': {'description': 'Adjust PRISM window width', 'menu_caller': window_width_settings},
-        'align': {'description': 'Toggle right alignment of menu options', 'menu_caller': lambda self: toggle_right_align(self)}
+        'align': {'description': 'Toggle right alignment of menu options', 'menu_caller': toggle_right_align}
     }
 
     while True:

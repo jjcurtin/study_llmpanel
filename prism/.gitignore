@@ -1,5 +1,6 @@
 # prism files
 config/*.csv
+config/uiconfig.txt
 
 data/qualtrics/
 data/followmee/
