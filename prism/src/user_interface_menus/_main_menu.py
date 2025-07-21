@@ -5,6 +5,7 @@ from user_interface_menus._participant_management_menus import participant_manag
 from user_interface_menus._log_menu import log_menu
 from user_interface_menus._shutdown_menu import shutdown_menu
 from user_interface_menus.help_menu._help_menu import help_menu
+from user_interface_menus._settings_menu import settings_menu
 
 def main_menu(self):
     def exit_interface(self):
@@ -13,16 +14,15 @@ def main_menu(self):
 
     menu_options = {
         'help': {'description': 'Help', 'menu_caller': help_menu},
-        'commands': {'description': 'Global Command Menu', 'menu_caller': print_global_command_menu},
+        'command': {'description': 'Global Command Menu', 'menu_caller': print_global_command_menu},
         'check': {'description': 'System Status and Diagnostics', 'menu_caller': system_check_menu},
         'tasks': {'description': 'Manage System Tasks and R Scripts', 'menu_caller': system_task_menu},
         'participants': {'description': 'Manage Participants', 'menu_caller': participant_management_menu},
         'logs': {'description': 'View Logs', 'menu_caller': log_menu},
+        'settings': {'description': 'Settings', 'menu_caller': settings_menu},
         'shutdown': {'description': 'Shutdown PRISM', 'menu_caller': shutdown_menu},
         'exit': {'description': 'Exit PRISM User Interface', 'menu_caller': exit_interface}
     }
-
-    load_menus()
 
     while True:
         print_menu_header("PRISM Interface Menu")
