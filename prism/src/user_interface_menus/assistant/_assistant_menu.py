@@ -8,6 +8,11 @@ def assistant_menu(self):
         choice = ''
         if first_loop:
             api_key, endpoint = get_credentials()
+            print()
+            print_dashes()
+            global ASSISTANT_TEMPERATURE
+            print(f"Press ENTER to exit assistant. This is an experimental feature and not all information may be accurate. Temperature: {ASSISTANT_TEMPERATURE}")
+            print_dashes()
 
             from user_interface_menus._commands import init_commands
             menu_options = init_commands()
@@ -31,7 +36,6 @@ def assistant_menu(self):
                             if line.strip():
                                 print(f"{line:<{WINDOW_WIDTH - 2}}")                                     
                         print_dashes()
-                        print("Press ENTER to exit assistant. This is an experimental feature and not all information may be accurate.")
                         context.append(content)
                     else:
                         print("No content in response.")

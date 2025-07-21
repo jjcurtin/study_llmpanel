@@ -4,6 +4,7 @@ import pandas as pd
 
 def make_assistant_call(user_prompt, menu_options = None, api_key = None, endpoint = None, context = None):
     try:
+        from user_interface_menus._menu_helper import ASSISTANT_TEMPERATURE
         system_prompt = ""
         with open(os.path.join(os.path.dirname(__file__), 'system_prompt.txt'), 'r') as file:
             system_prompt = file.read().strip()
@@ -26,7 +27,7 @@ def make_assistant_call(user_prompt, menu_options = None, api_key = None, endpoi
             "model": "optimize-v2",
             "messages": messages,
             "max_tokens": 600,
-            "temperature": 0.7
+            "temperature": ASSISTANT_TEMPERATURE
         }
         response = requests.post(endpoint, headers = headers, json = payload)
         response.raise_for_status()
