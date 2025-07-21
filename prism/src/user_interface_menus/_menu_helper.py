@@ -26,6 +26,10 @@ def load_menus():
     from user_interface_menus.help_menu._research_assistant_documentation import research_assistant_documentation
     print("Modules loaded successfully. Now loading menus...")
 
+    help_menu(None, initialize = True)
+
+    from user_interface_menus.help_menu._help_menu import GENERAL_INFORMATION
+
     # Store menu options in module-level variable
     global _menu_options
     _menu_options = {
@@ -36,8 +40,9 @@ def load_menus():
         'logs': {'description': 'View Logs', 'menu_caller': log_menu},
         'shutdown': {'description': 'Shutdown PRISM', 'menu_caller': shutdown_menu},
         'help': {'description': 'Help', 'menu_caller': help_menu},
-        'dev': {'description': 'Developer Documentation', 'menu_caller': developer_documentation},
-        'ra': {'description': 'Research Assistant Documentation', 'menu_caller': research_assistant_documentation},
+        'help general': {'description': 'General Information', 'menu_caller': GENERAL_INFORMATION},
+        'help ra': {'description': 'Research Assistant Documentation', 'menu_caller': research_assistant_documentation},
+        'help dev': {'description': 'Developer Documentation', 'menu_caller': developer_documentation},
         'commands': {'description': 'Global Command Menu', 'menu_caller': print_global_command_menu}
     }
     print("Menus loaded successfully.")
