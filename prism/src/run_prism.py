@@ -79,8 +79,12 @@ class PRISM():
             file_path = f'../logs/transcripts/test_transcript.txt'
         else:
             file_path = f'../logs/transcripts/{current_date}_transcript.txt'
-        with open(file_path, 'a') as file:
-            file.write(f"{datetime.now().strftime('%H:%M:%S')} - {transcript_message}\n")
+        try:
+            with open(file_path, 'a') as file:
+                file.write(f"{datetime.now().strftime('%H:%M:%S')} - {transcript_message}\n")
+        except FileNotFoundError:
+            with open(file_path, 'w') as file:
+                file.write(f"{datetime.now().strftime('%H:%M:%S')} - {transcript_message}\n")
 
     def get_transcript(self, num_lines = 10, target = "transcript"):
         try:
