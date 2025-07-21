@@ -23,7 +23,7 @@ def init_commands():
     from user_interface_menus.help_menu._developer_documentation import developer_documentation
     from user_interface_menus.help_menu._research_assistant_documentation import research_assistant_documentation
 
-    from user_interface_menus._menu_helper import print_global_command_menu, toggle_right_align
+    from user_interface_menus._menu_helper import print_global_command_menu, toggle_right_align, exit_interface
 
     from user_interface_menus.assistant._assistant_menu import assistant_menu
 
@@ -79,6 +79,7 @@ def init_commands():
 
         'shutdown': {'description': 'Shutdown PRISM', 'menu_caller': shutdown_menu},
         
-        'command': {'description': 'Global Command Menu; "command <query>" to search', 'menu_caller': print_global_command_menu}
+        'command': {'description': 'Global Command Menu; "command <query>" to search', 'menu_caller': print_global_command_menu},
+        'exit': {'description': 'Exit PRISM User Interface', 'menu_caller': lambda self: exit_interface(self)},
     }
     return _menu_options

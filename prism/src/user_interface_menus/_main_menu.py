@@ -11,10 +11,6 @@ from user_interface_menus.assistant._assistant_menu import assistant_menu
 # ------------------------------------------------------------
 
 def main_menu(self):
-    def exit_interface(self):
-        print("Exiting PRISM Interface.")
-        exit(0)
-
     menu_options = {
         'help': {'description': 'Help', 'menu_caller': help_menu},
         'command': {'description': 'Global Command Menu; "command <query>" to search', 'menu_caller': print_global_command_menu},
@@ -37,22 +33,12 @@ def main_menu(self):
         print_menu_options(self, menu_options)
 
 def read_me(self):
-    print_menu_header("PRISM User Interface Readme")
-    print("Welcome to the PRISM User Interface!")
-    print("This interface allows you to manage and interact with the PRISM system.")
-    print("Use the following commands to navigate:")
-    print("- 'help': Access help documentation.")
-    print("- 'command': View global command menu.")
-    print("- 'assistant': Interact with the PRISM Assistant.")
-    print("- 'check': Perform system status checks and diagnostics.")
-    print("- 'tasks': Manage system tasks and R scripts.")
-    print("- 'participants': Manage study participants.")
-    print("- 'logs': View system logs.")
-    print("- 'settings': Adjust system settings.")
-    print("- 'shutdown': Safely shutdown the PRISM system.")
-    print("- 'exit': Exit the PRISM User Interface.\n")
-    
-    input("Press Enter to return to the main menu...")
+    print_menu_header("README")
+    print("I recommend looking through the help section and then looking through the commands.")
+    print("You can search for commands by typing 'command <query>' or '/<query>'.")
+    print("Most commands are globally accessible but some are only available in specific menus.")
+    print("\nENTER: Return\n")
+    input("prism> ")
 
 global README
 README = read_me
