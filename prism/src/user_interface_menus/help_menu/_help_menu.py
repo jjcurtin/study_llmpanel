@@ -1,6 +1,6 @@
 from user_interface_menus._menu_helper import *
-from user_interface_menus.documentation._developer_documentation import developer_documentation
-from user_interface_menus.documentation._research_assistant_documentation import research_assistant_documentation
+from user_interface_menus.help_menu._developer_documentation import developer_documentation
+from user_interface_menus.help_menu._research_assistant_documentation import research_assistant_documentation
 
 def help_menu(self):
     def general_information(self):
