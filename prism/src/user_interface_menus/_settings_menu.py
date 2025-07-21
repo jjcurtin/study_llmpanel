@@ -18,7 +18,8 @@ def window_width_settings(self):
 def display_settings(self):
     menu_options = {
         'width': {'description': 'Adjust PRISM window width', 'menu_caller': window_width_settings},
-        'align': {'description': 'Toggle right alignment of menu options', 'menu_caller': toggle_right_align}
+        'align': {'description': 'Toggle right alignment of menu options', 'menu_caller': toggle_right_align},
+        'color': {'description': 'Toggle color output in terminal', 'menu_caller': toggle_color_output},
     }
 
     while True:

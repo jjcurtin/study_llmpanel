@@ -3,7 +3,6 @@ import os
 # ------------------------------------------------------------
 
 _menu_options = None
-_previous_menu = None
 
 global WINDOW_WIDTH
 WINDOW_WIDTH = 155
@@ -23,6 +22,9 @@ ASSISTANT_TEMPERATURE = 0.7
 global SHOW_README
 SHOW_README = True
 
+global COLOR_ON
+COLOR_ON = True
+
 # ------------------------------------------------------------
 
 def clear():
@@ -36,12 +38,23 @@ def print_menu_header(title):
     print_equals()
     print()
 
+def toggle_color_output(self):
+    global COLOR_ON
+    COLOR_ON = not COLOR_ON
+    save_params()
+
 def print_fixed_terminal_prompt():
-    choice = input("\nprism> ").strip()
+    if COLOR_ON:
+        choice = input("\n\033[36mprism> \033[0m").strip()
+    else:
+        choice = input("\nprism> ").strip()
     return choice
 
 def print_assistant_terminal_prompt():
-    choice = input("\nassistant> ").strip()
+    if COLOR_ON:
+        choice = input("\n\033[31massistant> \033[0m").strip()
+    else:
+        choice = input("\nassistant> ").strip()
     return choice
 
 def print_dashes():
@@ -146,6 +159,16 @@ def load_params():
                         print(global_var, val)
                     else:
                         print(global_var, "INVALID, please update")
+                elif global_var == "COLOR_ON":
+                    global COLOR_ON
+                    if val == "True":
+                        COLOR_ON = True
+                        print(global_var, val)
+                    elif val == "False":
+                        COLOR_ON = False
+                        print(global_var, val)
+                    else:
+                        print(global_var, "INVALID, please update")
     save_params()
 
 def save_params():
@@ -158,6 +181,7 @@ def save_params():
         file.write(f"ASSISTANT_TEMPERATURE={ASSISTANT_TEMPERATURE}\n")
         file.write(f"WINDOW_WIDTH={WINDOW_WIDTH}\n")
         file.write(f"SHOW_README={SHOW_README}\n")
+        file.write(f"COLOR_ON={COLOR_ON}\n")
 
 def load_menus():
     clear()
@@ -226,7 +250,10 @@ def print_global_command_menu(self, query = None):
         print_menu_header("PRISM Global Command Menu")
 
         if not menu_options:
-            print("No commands found matching your query.")
+            if COLOR_ON:
+                print("\033[31mNo commands found matching your query.\033[0m")
+            else:
+                print("No commands found matching your query.")
         if print_menu_options(self, menu_options, submenu = True):
             break
     
@@ -236,9 +263,15 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
 
     def print_key_line(margin_width, key, item):
         if not RIGHT_ALIGN:
-            print(f"{key:<{int(margin_width)}} {item['description']:<{int(margin_width - 1)}}")
+            if COLOR_ON:
+                print(f"\033[33m{key:<{int(margin_width)}}\033[0m {item['description']:<{int(margin_width - 1)}}")
+            else:
+                print(f"{key:<{int(margin_width)}} {item['description']:<{int(margin_width - 1)}}")
         else:
-            print(f"{key:<{int(margin_width)}} {item['description']:>{int(margin_width - 1)}}")
+            if COLOR_ON:
+                print(f"\033[33m{key:<{int(margin_width)}}\033[0m {item['description']:>{int(margin_width - 1)}}")
+            else:
+                print(f"{key:<{int(margin_width)}} {item['description']:>{int(margin_width - 1)}}")
 
     def print_keys():
         margin_width = WINDOW_WIDTH / 2
@@ -255,7 +288,10 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
             for key, item in menu_options.items():
                 print_key_line(margin_width, key, item)
         if submenu:
-            print("\nENTER: Back to Previous Menu")
+            if COLOR_ON:
+                print("\n\033[33mENTER\033[0m: Back to Previous Menu")
+            else:
+                print("\nENTER: Back to Previous Menu")
 
     if choice is None:
         print_keys()
@@ -313,7 +349,10 @@ def invalid_choice_menu(self, menu_options, choice = None):
     combined_choices = potential_local_choices + ', ' + potential_glocal_choices
     combined_choices = ', '.join(sort(set(combined_choices.split(', '))))
 
-    diagnosis = "Invalid choice."
+    if COLOR_ON:
+        diagnosis = "\n\033[31mInvalid choice.\033[0m"
+    else:
+        diagnosis = "\nInvalid choice."
 
     if combined_choices == '':
         diagnosis += " Please use 'command' to see a list of commands or 'help' to view documentation."
@@ -329,16 +368,29 @@ def invalid_choice_menu(self, menu_options, choice = None):
 # ------------------------------------------------------------
 
 def error(message = "An unexpected error occurred."):
-    print(f"Error: {message}")
-    input("Press Enter to continue...")
+    if COLOR_ON:
+        print(f"\033[31mError\033[0m: {message}")
+        input("Press \033[33mENTER\033[0m to continue...")
+    else:
+        print(f"Error: {message}")
+        input("Press Enter to continue...")
 
 def success(message = "Operation completed successfully."):
-    print(f"Success: {message}")
-    input("Press Enter to continue...")
+    if COLOR_ON:
+        print(f"\033[32mSuccess\033[0m: {message}")
+        input("Press \033[33mENTER\033[0m to continue...")
+    else:
+        print(f"Success: {message}")
     
 def exit_menu():
-    input("Press Enter to continue...")
+    if COLOR_ON:
+        input("Press \033[33mENTER\033[0m to continue...")
+    else:
+        input("Press Enter to continue...")
 
 def exit_interface(self):
-    print("Exiting PRISM Interface.")
+    if COLOR_ON:
+        print(f"\033[32mExiting PRISM Interface.\033[0m")
+    else:
+        print("Exiting PRISM Interface.")
     exit(0)

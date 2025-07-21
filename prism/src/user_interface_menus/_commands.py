@@ -23,7 +23,7 @@ def init_commands():
     from user_interface_menus.help_menu._developer_documentation import developer_documentation
     from user_interface_menus.help_menu._research_assistant_documentation import research_assistant_documentation
 
-    from user_interface_menus._menu_helper import print_global_command_menu, toggle_right_align, exit_interface
+    from user_interface_menus._menu_helper import print_global_command_menu, toggle_right_align, exit_interface, toggle_color_output
 
     from user_interface_menus.assistant._assistant_menu import assistant_menu
 
@@ -75,6 +75,7 @@ def init_commands():
         'display': {'description': 'Manage Display settings', 'menu_caller': lambda self: DISPLAY(self)},
         'display width': {'description': 'Adjust PRISM window width', 'menu_caller': lambda self: WINDOW_WIDTH_SETTINGS(self)},
         'display align': {'description': 'Toggle right alignment of menu options', 'menu_caller': toggle_right_align},
+        'display color': {'description': 'Toggle color output in terminal', 'menu_caller': toggle_color_output},
         'readme': {'description': 'Display README', 'menu_caller': lambda self: README(self)},
         'readme set': {'description': 'Set README display on startup', 'menu_caller': lambda self: READ_ME_SET(self)},
 

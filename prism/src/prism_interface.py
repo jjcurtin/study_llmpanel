@@ -52,7 +52,11 @@ if __name__ == "__main__":
             load_menus()
             PRISMInterface()
         except KeyboardInterrupt:
-            print("\nExiting PRISM Interface.")
+            from user_interface_menus._menu_helper import COLOR_ON
+            if COLOR_ON:
+                print("\033[32m\nExiting PRISM Interface.\033[0m")
+            else:
+                print("\nExiting PRISM Interface.")
             break
         except Exception as e:
             print(f"An unexpected error occurred: {e}")
