@@ -34,7 +34,10 @@ def print_menu_header(title):
     clear()
     padding = (WINDOW_WIDTH - len(title)) // 2
     print_equals()
-    print(" " * padding + title)
+    if COLOR_ON:
+        print(" " * padding + f"\033[31m{title}\033[0m")
+    else:
+        print(" " * padding + title)
     print_equals()
     print()
 
@@ -355,38 +358,57 @@ def invalid_choice_menu(self, menu_options, choice = None):
         diagnosis = "\nInvalid choice."
 
     if combined_choices == '':
-        diagnosis += " Please use 'command' to see a list of commands or 'help' to view documentation."
+        if COLOR_ON:
+            diagnosis += " Please use \033[33mcommand\033[0m to see a list of commands or \033[33mhelp\033[0m to view documentation."
+        else:
+            diagnosis += " Please use 'command' to see a list of commands or 'help' to view documentation."
         print(diagnosis)
     else:    
         diagnosis += " Did you mean one of these?"
         print(diagnosis)
-        for potential_choice in combined_choices.split(', ')[:5]:
-            print(f"- {potential_choice}")
+        
+        if COLOR_ON:
+            for potential_choice in combined_choices.split(', ')[:5]:
+                print(f"- \033[33m{potential_choice}\033[0m")
+            print("\nEnter \033[33myes\033[0m to select the first command, or enter a \033[33mdifferent command\033[0m.")
+        else:
+            for potential_choice in combined_choices.split(', ')[:5]:
+                print(f"- {potential_choice}")
+            print("Enter 'yes' to select the first command, or enter a different command.")
+    
     choice = print_fixed_terminal_prompt()
-    print_menu_options(self, menu_options, submenu = False, index_and_text = False, choice = choice)
+    if choice.lower() == 'yes':
+        first_choice = combined_choices.split(', ')[0]
+        if first_choice in menu_options:
+            menu_caller = menu_options[first_choice]['menu_caller']
+            goto_menu(menu_caller, self)
+        elif first_choice in _menu_options:
+            menu_caller = _menu_options[first_choice]['menu_caller']
+            goto_menu(menu_caller, self)
+    else:
+        print_menu_options(self, menu_options, submenu = True, index_and_text = False, choice = choice)
 
 # ------------------------------------------------------------
 
 def error(message = "An unexpected error occurred."):
     if COLOR_ON:
         print(f"\033[31mError\033[0m: {message}")
-        input("Press \033[33mENTER\033[0m to continue...")
     else:
         print(f"Error: {message}")
-        input("Press Enter to continue...")
+    exit_menu()
 
 def success(message = "Operation completed successfully."):
     if COLOR_ON:
         print(f"\033[32mSuccess\033[0m: {message}")
-        input("Press \033[33mENTER\033[0m to continue...")
     else:
         print(f"Success: {message}")
+    exit_menu()
     
 def exit_menu():
     if COLOR_ON:
-        input("Press \033[33mENTER\033[0m to continue...")
+        input("\n\033[33mENTER to Continue> \033[0m")
     else:
-        input("Press Enter to continue...")
+        input("\nENTER to Continue> ")
 
 def exit_interface(self):
     if COLOR_ON:
