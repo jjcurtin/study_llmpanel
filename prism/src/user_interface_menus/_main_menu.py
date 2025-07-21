@@ -37,8 +37,8 @@ def read_me(self):
     print("I recommend looking through the help section and then looking through the commands.")
     print("You can search for commands by typing 'command <query>' or '/<query>'.")
     print("Most commands are globally accessible but some are only available in specific menus.")
-    print("\nENTER: Return\n")
-    input("prism> ")
+    print("\nENTER: Return")
+    print_fixed_terminal_prompt()
 
 global README
 README = read_me
