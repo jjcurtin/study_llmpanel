@@ -4,7 +4,7 @@ from user_interface_menus._system_task_menu import system_task_menu
 from user_interface_menus._participant_management_menus import participant_management_menu
 from user_interface_menus._log_menu import log_menu
 from user_interface_menus._shutdown_menu import shutdown_menu
-from user_interface_menus._help_menu import help_menu
+from user_interface_menus.help_menu._help_menu import help_menu
 
 def main_menu(self):
     def exit_interface(self):
