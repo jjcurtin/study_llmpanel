@@ -7,6 +7,13 @@ def research_assistant_documentation(self):
         print("2. Start the PRISM application using the command: python run_prism.py")
         exit_menu()
 
+    def navigation(self):
+        print_menu_header("Navigating PRISM")
+        print("Use the main menu to access different functionalities.")
+        print("You can use the command 'command <query>' or '/<query>' to search for specific commands.")
+        print("Most commands are globally accessible, but some are only available in specific menus.")
+        exit_menu()
+
     def system_schedule_management_documentation(self):
         print_menu_header("Managing System Schedule:")
         exit_menu()
@@ -25,6 +32,7 @@ def research_assistant_documentation(self):
 
     menu_options = {
         'start': {'description': 'Getting Started', 'menu_caller': getting_started},
+        'navigation': {'description': 'Navigating PRISM', 'menu_caller': navigation},
         'tasks': {'description': 'Managing System Task Schedule', 'menu_caller': system_schedule_management_documentation},
         'participants': {'description': 'Managing Participants', 'menu_caller': participant_management_documentation},
         'logs': {'description': 'Viewing Logs', 'menu_caller': log_viewing_documentation},

@@ -14,6 +14,9 @@ RIGHT_ALIGN = True
 global RELATED_OPTIONS_THRESHOLD
 RELATED_OPTIONS_THRESHOLD = 0.3
 
+global BEST_OPTIONS_THRESHOLD
+BEST_OPTIONS_THRESHOLD = 0.7
+
 global ASSISTANT_TEMPERATURE
 ASSISTANT_TEMPERATURE = 0.7
 
@@ -65,6 +68,11 @@ def set_related_options_threshold(new_threshold):
     RELATED_OPTIONS_THRESHOLD = new_threshold
     save_params()
 
+def set_best_options_threshold(new_threshold):
+    global BEST_OPTIONS_THRESHOLD
+    BEST_OPTIONS_THRESHOLD = new_threshold
+    save_params()
+
 def set_assistant_temperature(temperature):
     global ASSISTANT_TEMPERATURE
     ASSISTANT_TEMPERATURE = temperature
@@ -108,6 +116,16 @@ def load_params():
                             print(global_var, val)
                     except Exception as e:
                         print(global_var, "INVALID, please update")
+                elif global_var == "BEST_OPTIONS_THRESHOLD":
+                    try:
+                        if float(val) > 1.0 or float(val) < 0.0:
+                            print(global_var, "INVALID, please update")
+                        else:
+                            global BEST_OPTIONS_THRESHOLD
+                            BEST_OPTIONS_THRESHOLD = float(val)
+                            print(global_var, val)
+                    except Exception as e:
+                        print(global_var, "INVALID, please update")
                 elif global_var == "ASSISTANT_TEMPERATURE":
                     try:
                         if float(val) > 1.0 or float(val) < 0.0:
@@ -136,6 +154,7 @@ def save_params():
         global RIGHT_ALIGN, RELATED_OPTIONS_THRESHOLD, ASSISTANT_TEMPERATURE
         file.write(f"RIGHT_ALIGN={RIGHT_ALIGN}\n")
         file.write(f"RELATED_OPTIONS_THRESHOLD={RELATED_OPTIONS_THRESHOLD}\n")
+        file.write(f"BEST_OPTIONS_THRESHOLD={BEST_OPTIONS_THRESHOLD}\n")
         file.write(f"ASSISTANT_TEMPERATURE={ASSISTANT_TEMPERATURE}\n")
         file.write(f"WINDOW_WIDTH={WINDOW_WIDTH}\n")
         file.write(f"SHOW_README={SHOW_README}\n")
@@ -247,7 +266,9 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
         print_global_command_menu(self, query)
         return 1
     elif choice.startswith("/"):
-        query = choice[1:]
+        query = choice[1:].strip()
+        if query == '':
+            query = None
         print_global_command_menu(self, query)
         return 1
 
@@ -279,8 +300,13 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
 def invalid_choice_menu(self, menu_options, choice = None):
     def sort(iterable):
         global RELATED_OPTIONS_THRESHOLD
+        global BEST_OPTIONS_THRESHOLD
         from difflib import get_close_matches
-        return get_close_matches(choice, iterable, n = 5, cutoff = max(RELATED_OPTIONS_THRESHOLD, 0.1))
+        overall_matches = get_close_matches(choice, iterable, n = 5, cutoff = max(RELATED_OPTIONS_THRESHOLD, 0.1))
+        best_matches = get_close_matches(choice, iterable, n = 5, cutoff = BEST_OPTIONS_THRESHOLD)
+        if best_matches and RELATED_OPTIONS_THRESHOLD < BEST_OPTIONS_THRESHOLD:
+            return best_matches
+        return overall_matches
 
     potential_local_choices = ', '.join(menu_options.keys())
     potential_glocal_choices = ', '.join(_menu_options.keys())

@@ -29,7 +29,7 @@ def main_menu(self):
         read_me(self)
 
     while True:
-        print_menu_header("PRISM Interface Menu")
+        print_menu_header("PRISM Interface Main Menu")
         print_menu_options(self, menu_options)
 
 def read_me(self):

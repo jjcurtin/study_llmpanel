@@ -31,7 +31,7 @@ def display_settings(self):
 def related_parameter(self):
     from user_interface_menus._menu_helper import RELATED_OPTIONS_THRESHOLD
     print("Current threshold:", RELATED_OPTIONS_THRESHOLD)
-    new_threshold = input("Enter new threshold (default 0.3, ranges 0.0 to 1.0): ").strip()
+    new_threshold = input("Enter new threshold (ranges 0.0 to 1.0): ").strip()
     if new_threshold == '':
         return 0
     try:
@@ -42,6 +42,22 @@ def related_parameter(self):
         error("Invalid input. Please try again.")
         return 0
     set_related_options_threshold(float(new_threshold))
+
+
+def best_related_parameter(self):
+    from user_interface_menus._menu_helper import BEST_OPTIONS_THRESHOLD
+    print("Current threshold:", BEST_OPTIONS_THRESHOLD)
+    new_threshold = input("Enter new threshold (ranges 0.0 to 1.0): ").strip()
+    if new_threshold == '':
+        return 0
+    try:
+        if float(new_threshold) > 1.0 or float(new_threshold) < 0.0:
+            error("Threshold must be within the range 0.0 to 1.0.")
+            return 0
+    except Exception as e:
+        error("Invalid input. Please try again.")
+        return 0
+    set_best_options_threshold(float(new_threshold))
 
 def temperature_parameter(self):
     from user_interface_menus._menu_helper import ASSISTANT_TEMPERATURE
@@ -60,7 +76,8 @@ def temperature_parameter(self):
 
 def parameter_settings(self):
     menu_options = {
-        'related': {'description': 'Adjust the related command prediction tolerance for similarity', 'menu_caller': related_parameter},
+        'threshold': {'description': 'Adjust the related command prediction tolerance for similarity', 'menu_caller': related_parameter},
+        'best threshold': {'description': 'Adjust the "best" match threshold', 'menu_caller': best_related_parameter},
         'temperature': {'description': 'Adjust the temperature of the PRISM Assistant', 'menu_caller': temperature_parameter}
     }
 
@@ -89,7 +106,7 @@ def readme(self):
 
 def system_settings(self):
     menu_options = {
-        'parameters': {'description': 'Adjust system parameters', 'menu_caller': parameter_settings},
+        'params': {'description': 'Adjust system parameters', 'menu_caller': parameter_settings},
         'readme': {'description': 'Toggle display of the PRISM Readme on startup', 'menu_caller': readme},
     }
 
@@ -126,6 +143,9 @@ PARAMETER_SETTINGS = parameter_settings
 
 global PARAM_RELATED_THRESHOLD
 PARAM_RELATED_THRESHOLD = related_parameter
+
+global PARAM_BEST_OPTIONS_THRESHOLD
+PARAM_BEST_OPTIONS_THRESHOLD = best_related_parameter
 
 global PARAM_ASSISTANT_TEMPERATURE
 PARAM_ASSISTANT_TEMPERATURE = temperature_parameter
