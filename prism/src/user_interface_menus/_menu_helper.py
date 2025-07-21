@@ -12,10 +12,16 @@ def clear():
 def print_menu_header(title):
     clear()
     padding = (WINDOW_WIDTH - len(title)) // 2
-    print("=" * WINDOW_WIDTH)
+    print_equals()
     print(" " * padding + title)
-    print("=" * WINDOW_WIDTH)
+    print_equals()
     print()
+
+def print_dashes():
+    print("-" * WINDOW_WIDTH)
+
+def print_equals():
+    print("=" * WINDOW_WIDTH)
 
 def set_window_width(width):
     global WINDOW_WIDTH
@@ -122,7 +128,7 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
         for key, item in menu_options.items():
             if key.isdigit():
                 print(f"{key:<{int(margin_width)}} {item['description']:<{int(margin_width)}}")
-        print("-" * 60)
+        print_dashes()
         print()
         for key, item in menu_options.items():
             if not key.isdigit():

@@ -54,7 +54,7 @@ def participant_management_menu(self):
         menu_options['refresh'] = {'description': 'Full Participants Refresh from CSV', 'menu_caller': refresh_participants_menu}
         menu_options['announce'] = {'description': 'Send Study Announcement', 'menu_caller': send_announcement_menu}
         print("Enter an index to select a participant, or, choose another option.")
-        print("-" * 60)
+        print_dashes()
         if print_menu_options(self, menu_options, submenu = True, index_and_text = True):
             break
 
@@ -142,7 +142,7 @@ def individual_participant_menu(self, participant_id):
         }
         print_menu_header(f"Participant ID {participant_id} Info")
         print("Enter an index to update a field, or, choose another option.")
-        print("-" * 60)
+        print_dashes()
         if print_menu_options(self, menu_options, submenu = True, index_and_text = True):
             break
 
