@@ -1,5 +1,7 @@
 import os
 
+# ------------------------------------------------------------
+
 _menu_options = None
 _previous_menu = None
 
@@ -14,6 +16,8 @@ RELATED_OPTIONS_THRESHOLD = 0.3
 
 global ASSISTANT_TEMPERATURE
 ASSISTANT_TEMPERATURE = 0.7
+
+# ------------------------------------------------------------
 
 def clear():
     os.system('cls' if os.name == 'nt' else 'clear')
@@ -58,6 +62,8 @@ def set_related_options_threshold(new_threshold):
 def set_assistant_temperature(temperature):
     global ASSISTANT_TEMPERATURE
     ASSISTANT_TEMPERATURE = temperature
+
+# ------------------------------------------------------------
 
 def load_menus():
     clear()
@@ -106,6 +112,8 @@ def print_global_command_menu(self):
     menu_options = get_menu_options()
     if print_menu_options(self, menu_options, submenu = True):
         return
+    
+# ------------------------------------------------------------
 
 def print_menu_options(self, menu_options, submenu = False, index_and_text = False, choice = None):
 
@@ -188,6 +196,8 @@ def invalid_choice_menu(self, menu_options, choice = None):
             print(f"- {potential_choice}")
     choice = print_fixed_terminal_prompt()
     print_menu_options(self, menu_options, submenu = False, index_and_text = False, choice = choice)
+
+# ------------------------------------------------------------
 
 def error(message = "An unexpected error occurred."):
     print(f"Error: {message}")

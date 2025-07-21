@@ -1,6 +1,8 @@
 import requests
 from user_interface_menus._menu_helper import *
 
+# ------------------------------------------------------------
+
 def shutdown_menu(self):
     if self.api("GET", "system/uptime") is not None:
         if input("Shutdown PRISM? (yes/no): ").strip().lower() == 'yes':
