@@ -77,8 +77,8 @@ def temperature_parameter(self):
 
 def parameter_settings(self):
     menu_options = {
-        'threshold': {'description': 'Adjust the related command prediction tolerance for similarity', 'menu_caller': related_parameter},
-        'best threshold': {'description': 'Adjust the "best" match threshold', 'menu_caller': best_related_parameter},
+        'threshold': {'description': 'Adjust the minimum command prediction similarity tolerance', 'menu_caller': related_parameter},
+        'best threshold': {'description': 'Adjust the prioritized "best" command prediction similarity tolerance', 'menu_caller': best_related_parameter},
         'temperature': {'description': 'Adjust the temperature of the PRISM Assistant', 'menu_caller': temperature_parameter}
     }
 
