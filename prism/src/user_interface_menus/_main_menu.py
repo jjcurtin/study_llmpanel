@@ -12,7 +12,7 @@ def main_menu(self):
         exit(0)
 
     menu_options = {
-        'check': {'description': 'Get Status and Check System', 'menu_caller': system_check_menu},
+        'check': {'description': 'System Status and Diagnostics', 'menu_caller': system_check_menu},
         'tasks': {'description': 'Manage System Tasks and R Scripts', 'menu_caller': system_task_menu},
         'participants': {'description': 'Manage Participants', 'menu_caller': participant_management_menu},
         'logs': {'description': 'View Logs', 'menu_caller': log_menu},
