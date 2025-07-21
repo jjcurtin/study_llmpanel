@@ -1,5 +1,8 @@
 import time
 from user_interface_menus._menu_helper import *
+
+# ------------------------------------------------------------
+
 def print_task_schedule(self):
     tasks = self.api("GET", "system/get_task_schedule")
     if tasks and "tasks" in tasks:
@@ -14,6 +17,8 @@ def print_task_schedule(self):
             print("No tasks scheduled.")
     else:
         print("No tasks found.")
+
+# ------------------------------------------------------------
 
 def add_new_r_script_menu(self):
     print_menu_header("Add New R Script Task")
@@ -90,6 +95,8 @@ def add_task_menu(self):
         if print_menu_options(self, menu_options, submenu = True):
             break
 
+# ------------------------------------------------------------
+
 def remove_task_menu(self):
     print_menu_header("Remove System Task")
     print_task_schedule(self)
@@ -105,6 +112,8 @@ def remove_task_menu(self):
             error("Invalid index.")
     except Exception:
         error("Invalid input.")
+
+# ------------------------------------------------------------
     
 def execute_r_script_menu(self):
     print_menu_header("Execute R Script Task")
@@ -168,6 +177,8 @@ def execute_menu(self):
         if print_menu_options(self, menu_options, submenu = True):
             break
 
+# ------------------------------------------------------------
+
 def clear_task_schedule_menu(self):
     choice = input("Are you sure you want to clear the task schedule? (yes/no): ").strip().lower()
     if choice == 'yes' or choice == 'y':
@@ -178,6 +189,8 @@ def clear_task_schedule_menu(self):
     else:
         print("Task schedule not cleared.")
         exit_menu()
+
+# ------------------------------------------------------------
         
 def system_task_menu(self):
     menu_options = {
@@ -193,6 +206,8 @@ def system_task_menu(self):
         print()
         if print_menu_options(self, menu_options, submenu = True):
             break
+
+# ------------------------------------------------------------
 
 global ADD_TASK
 global ADD_SYSTEM_TASK

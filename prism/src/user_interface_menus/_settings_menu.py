@@ -34,8 +34,12 @@ def related_parameter(self):
     new_threshold = input("Enter new threshold (default 0.3, ranges 0.0 to 1.0): ").strip()
     if new_threshold == '':
         return 0
-    if float(new_threshold) > 1.0 or float(new_threshold) < 0.0:
-        error("Threshold must be within the range 0.0 to 1.0.")
+    try:
+        if float(new_threshold) > 1.0 or float(new_threshold) < 0.0:
+            error("Threshold must be within the range 0.0 to 1.0.")
+            return 0
+    except Exception as e:
+        error("Invalid input. Please try again.")
         return 0
     set_related_options_threshold(float(new_threshold))
 
@@ -45,8 +49,12 @@ def temperature_parameter(self):
     new_temperature = input("Enter new temperature (default 0.7, ranges 0.0 to 1.0): ").strip()
     if new_temperature == '':
         return 0
-    if float(new_temperature) > 1.0 or float(new_temperature) < 0.0:
-        error("Temperature must be within the range 0.0 to 1.0.")
+    try:
+        if float(new_temperature) > 1.0 or float(new_temperature) < 0.0:
+            error("Temperature must be within the range 0.0 to 1.0.")
+            return 0
+    except Exception as e:
+        error("Invalid input. Please try again.")
         return 0
     set_assistant_temperature(float(new_temperature))
 

@@ -2,6 +2,8 @@ import datetime
 
 from user_interface_menus._menu_helper import *
 
+# ------------------------------------------------------------
+
 def system_check_menu(self):
     def diagnostics(self):
         if self.api("POST", "system/execute_task/CHECK_SYSTEM"):

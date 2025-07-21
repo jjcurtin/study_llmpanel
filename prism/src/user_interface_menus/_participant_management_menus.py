@@ -2,6 +2,8 @@ import time
 import random
 from user_interface_menus._menu_helper import *
 
+# ------------------------------------------------------------
+
 def refresh_participants_menu(self):
     if input("Refresh participants from CSV? (yes/no): ").strip().lower() == 'yes':
         if self.api("POST", "participants/refresh_participants"):
@@ -24,6 +26,8 @@ def send_announcement_menu(self):
         success("Study announcement sent.")
     else:
         error("No participants found or failed to retrieve.")
+
+# ------------------------------------------------------------
 
 def participant_management_menu(self):
     def print_task_schedule(self):
@@ -57,6 +61,8 @@ def participant_management_menu(self):
         print_dashes()
         if print_menu_options(self, menu_options, submenu = True, index_and_text = True):
             break
+
+# ------------------------------------------------------------
 
 def individual_participant_menu(self, participant_id):
     def remove_participant_menu(self):
@@ -146,6 +152,8 @@ def individual_participant_menu(self, participant_id):
         if print_menu_options(self, menu_options, submenu = True, index_and_text = True):
             break
 
+# ------------------------------------------------------------
+
 def add_participant_menu(self):
     print_menu_header("Add New Participant")
     first_name = input("First name: ")
@@ -195,6 +203,8 @@ def add_participant_menu(self):
         success("Participant added.")
     else:
         error("Failed to add participant.")
+
+# ------------------------------------------------------------
 
 global ADD_PARTICIPANT
 ADD_PARTICIPANT = add_participant_menu
