@@ -103,7 +103,6 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
                 print_key_line(margin_width, key, item)
         if submenu:
             print("\nENTER: Back to Previous Menu")
-    
 
     if choice is None:
         print_keys()
