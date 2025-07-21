@@ -1,35 +1,55 @@
 def init_commands():
     from user_interface_menus._main_menu import main_menu, README
+
+    # ------------------------------------------------------------
         
-    from user_interface_menus._system_check_menu import system_check_menu
+    from user_interface_menus._system_check_menu import system_check_menu, DIAGNOSTICS
+
+    # ------------------------------------------------------------
 
     from user_interface_menus._system_task_menu import system_task_menu
     from user_interface_menus._system_task_menu import ADD_TASK, ADD_SYSTEM_TASK, ADD_R_SCRIPT, REMOVE_TASK, EXECUTE_TASK, EXECUTE_SYSTEM_TASK, EXECUTE_R_SCRIPT
 
+    # ------------------------------------------------------------
+
     from user_interface_menus._participant_management_menus import participant_management_menu
     from user_interface_menus._participant_management_menus import ADD_PARTICIPANT, PARTICIPANT_REFRESH, PARTICIPANT_ANNOUNCEMENT
+
+    # ------------------------------------------------------------
 
     from user_interface_menus._log_menu import log_menu
     from user_interface_menus._log_menu import PRINT_TRANSCRIPT
 
+    # ------------------------------------------------------------
+
     from user_interface_menus._shutdown_menu import shutdown_menu
+
+    # ------------------------------------------------------------
 
     from user_interface_menus.help_menu._help_menu import help_menu
     from user_interface_menus.help_menu._help_menu import GENERAL_INFORMATION
+    from user_interface_menus.help_menu._developer_documentation import developer_documentation
+    from user_interface_menus.help_menu._research_assistant_documentation import research_assistant_documentation
+
+    # ------------------------------------------------------------
 
     from user_interface_menus._settings_menu import settings_menu
     from user_interface_menus._settings_menu import DISPLAY, WINDOW_WIDTH_SETTINGS, PARAM_RELATED_THRESHOLD, PARAM_ASSISTANT_TEMPERATURE, SYSTEM_SETTINGS, PARAMETER_SETTINGS, READ_ME_SET, PARAM_BEST_OPTIONS_THRESHOLD
 
-    from user_interface_menus.help_menu._developer_documentation import developer_documentation
-    from user_interface_menus.help_menu._research_assistant_documentation import research_assistant_documentation
+    # ------------------------------------------------------------
 
     from user_interface_menus._menu_helper import print_global_command_menu, toggle_right_align, exit_interface, toggle_color_output
 
+    # ------------------------------------------------------------
+
     from user_interface_menus.assistant._assistant_menu import assistant_menu
+
+    # ------------------------------------------------------------
 
     _menu_options = {
         'main': {'description': 'Main Menu', 'menu_caller': main_menu},
         'check': {'description': 'System Status and Diagnostics', 'menu_caller': system_check_menu},
+        'diagnostics': {'description': 'Run System Diagnostics', 'menu_caller': lambda self: DIAGNOSTICS(self)},
 
         'help': {'description': 'Help', 'menu_caller': help_menu},
         'help general': {'description': 'General Information', 'menu_caller': GENERAL_INFORMATION},

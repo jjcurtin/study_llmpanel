@@ -6,7 +6,7 @@ def make_assistant_call(user_prompt, menu_options = None, api_key = None, endpoi
     try:
         from user_interface_menus._menu_helper import ASSISTANT_TEMPERATURE
         system_prompt = ""
-        with open(os.path.join(os.path.dirname(__file__), 'system_prompt.txt'), 'r') as file:
+        with open('../config/system_prompt.txt', 'r') as file:
             system_prompt = file.read().strip()
 
         for menu_option in menu_options.values():
