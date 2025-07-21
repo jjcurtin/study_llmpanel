@@ -4,7 +4,10 @@ _menu_options = None
 _previous_menu = None
 
 global WINDOW_WIDTH
-WINDOW_WIDTH = 80
+WINDOW_WIDTH = 155
+
+global RIGHT_ALIGN
+RIGHT_ALIGN = True
 
 def clear():
     os.system('cls' if os.name == 'nt' else 'clear')
@@ -21,6 +24,10 @@ def print_fixed_terminal_prompt():
     choice = input("\nprism> ").strip()
     return choice
 
+def print_assistant_terminal_prompt():
+    choice = input("\nassistant> ").strip()
+    return choice
+
 def print_dashes():
     print("-" * WINDOW_WIDTH)
 
@@ -33,6 +40,10 @@ def set_window_width(width):
         WINDOW_WIDTH = width
     else:
         error("Window width must be a positive integer.")
+
+def toggle_right_align(self):
+    global RIGHT_ALIGN
+    RIGHT_ALIGN = not RIGHT_ALIGN
 
 def load_menus():
     clear()
@@ -85,7 +96,10 @@ def print_global_command_menu(self):
 def print_menu_options(self, menu_options, submenu = False, index_and_text = False, choice = None):
 
     def print_key_line(margin_width, key, item):
-        print(f"{key:<{int(margin_width)}} {item['description']:>{int(margin_width - 1)}}")
+        if not RIGHT_ALIGN:
+            print(f"{key:<{int(margin_width)}} {item['description']:<{int(margin_width - 1)}}")
+        else:
+            print(f"{key:<{int(margin_width)}} {item['description']:>{int(margin_width - 1)}}")
 
     def print_keys():
         margin_width = WINDOW_WIDTH / 2

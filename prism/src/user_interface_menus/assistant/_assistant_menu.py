@@ -3,30 +3,36 @@ from user_interface_menus.assistant._prism_assistant import make_assistant_call,
 
 def assistant_menu(self):
     first_loop = True
+    context = []
     while True:
         choice = ''
         if first_loop:
             api_key, endpoint = get_credentials()
-            print_menu_header("PRISM Assistant")
-            print("Welcome to the PRISM Assistant. Type 'stop' to return to the main menu.")
-            print("You can ask questions here that will be answered with GPT 4o with knowledge of PRISM.")
-            print("Keep in mind that this feature is experimental and may not always provide accurate answers.")
-            print("This assistant only has access to the documentation, not data or the system itself.")
 
             from user_interface_menus._commands import init_commands
             menu_options = init_commands()
-        while not choice.strip():
-            choice = print_fixed_terminal_prompt()
-        if choice.lower() == 'stop':
+        choice = print_assistant_terminal_prompt()
+        if not choice.strip():
             return
         else:
             try:
-                response = make_assistant_call(choice, menu_options = menu_options, api_key = api_key, endpoint = endpoint)
+                response = make_assistant_call(choice, 
+                                               menu_options = menu_options, 
+                                               api_key = api_key, 
+                                               endpoint = endpoint,
+                                               context = context)
                 if response and 'choices' in response and len(response['choices']) > 0:
                     global WINDOW_WIDTH
                     if 'content' in response['choices'][0]['message']:
                         content = response['choices'][0]['message']['content'].replace('**', '')
-                        print(f"\n{content:>{WINDOW_WIDTH - 2}}")
+                        print()
+                        print_dashes()
+                        for line in content.split('\n'):
+                            if line.strip():
+                                print(f"{line:<{WINDOW_WIDTH - 2}}")                                     
+                        print_dashes()
+                        print("Press ENTER to exit assistant. This is an experimental feature and not all information may be accurate.")
+                        context.append(content)
                     else:
                         print("No content in response.")
                 else:

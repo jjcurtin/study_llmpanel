@@ -22,7 +22,9 @@ def init_commands():
     from user_interface_menus.help_menu._developer_documentation import developer_documentation
     from user_interface_menus.help_menu._research_assistant_documentation import research_assistant_documentation
 
-    from user_interface_menus._menu_helper import print_global_command_menu
+    from user_interface_menus._menu_helper import print_global_command_menu, toggle_right_align
+
+    from user_interface_menus.assistant._assistant_menu import assistant_menu
 
     _menu_options = {
         'main': {'description': 'Main Menu', 'menu_caller': main_menu},
@@ -32,6 +34,8 @@ def init_commands():
         'help general': {'description': 'General Information', 'menu_caller': GENERAL_INFORMATION},
         'help ra': {'description': 'Research Assistant Documentation', 'menu_caller': research_assistant_documentation},
         'help dev': {'description': 'Developer Documentation', 'menu_caller': developer_documentation},
+
+        'assistant': {'description': 'PRISM Assistant', 'menu_caller': lambda self: assistant_menu(self)},
 
         'tasks': {'description': 'Manage System Tasks and R Scripts', 'menu_caller': lambda self: system_task_menu(self)},
         'tasks add': {'description': 'Add New Task', 'menu_caller': lambda self: ADD_TASK(self)},
@@ -58,7 +62,8 @@ def init_commands():
         'settings display width': {'description': 'Adjust PRISM window width', 'menu_caller': lambda self: WINDOW_WIDTH_SETTINGS(self)},
         'display': {'description': 'Manage Display settings', 'menu_caller': lambda self: DISPLAY(self)},
         'display width': {'description': 'Adjust PRISM window width', 'menu_caller': lambda self: WINDOW_WIDTH_SETTINGS(self)},
-        
+        'display align': {'description': 'Toggle right alignment of menu options', 'menu_caller': lambda self: toggle_right_align(self)},
+
         'shutdown': {'description': 'Shutdown PRISM', 'menu_caller': shutdown_menu},
         
         'command': {'description': 'Global Command Menu', 'menu_caller': print_global_command_menu}

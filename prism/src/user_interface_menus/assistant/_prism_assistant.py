@@ -2,7 +2,7 @@ import requests
 import os
 import pandas as pd
 
-def make_assistant_call(user_prompt, menu_options = None, api_key = None, endpoint = None):
+def make_assistant_call(user_prompt, menu_options = None, api_key = None, endpoint = None, context = None):
     try:
         system_prompt = ""
         with open(os.path.join(os.path.dirname(__file__), 'system_prompt.txt'), 'r') as file:
@@ -10,6 +10,9 @@ def make_assistant_call(user_prompt, menu_options = None, api_key = None, endpoi
 
         for menu_option in menu_options.values():
             system_prompt += f"\n{menu_option['description']}"
+
+        for prev_message in context:
+            system_prompt += f"\nThe user has previously asked about {prev_message}"
             
         messages = []
         messages.append({"role": "system", "content": system_prompt})
