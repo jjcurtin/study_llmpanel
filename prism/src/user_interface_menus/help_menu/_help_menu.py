@@ -2,7 +2,7 @@ from user_interface_menus._menu_helper import *
 from user_interface_menus.help_menu._developer_documentation import developer_documentation
 from user_interface_menus.help_menu._research_assistant_documentation import research_assistant_documentation
 
-def help_menu(self):
+def help_menu(self, initialize = False):
     def general_information(self):
         print_menu_header("General Information")
         print("This application is designed to manage and monitor participants in a study.")
@@ -11,13 +11,17 @@ def help_menu(self):
         print("\nFor more detailed information, please refer to the appropriate documentation.")
         exit_menu()
 
+    global GENERAL_INFORMATION
+    GENERAL_INFORMATION = general_information
+
     menu_options = {
         'general': {'description': 'General Information', 'menu_caller': general_information},
         'ra': {'description': 'Research Assistant Documentation', 'menu_caller': research_assistant_documentation},
         'dev': {'description': 'Developer Documentation', 'menu_caller': developer_documentation}
     }
 
-    while True:
-        print_menu_header("PRISM Help Menu")
-        if print_menu_options(self, menu_options, submenu = True):
-            break
+    if not initialize:
+        while True:
+            print_menu_header("PRISM Help Menu")
+            if print_menu_options(self, menu_options, submenu = True):
+                break

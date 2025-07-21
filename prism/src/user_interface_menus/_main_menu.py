@@ -21,6 +21,8 @@ def main_menu(self):
         'exit': {'description': 'Exit PRISM User Interface', 'menu_caller': exit_interface}
     }
 
+    load_menus()
+
     while True:
         print_menu_header("PRISM Interface Menu")
         print_menu_options(self, menu_options)
