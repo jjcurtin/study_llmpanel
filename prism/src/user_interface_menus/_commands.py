@@ -73,7 +73,7 @@ def init_commands():
         'settings display width': {'description': 'Adjust PRISM window width', 'menu_caller': lambda self: WINDOW_WIDTH_SETTINGS(self)},
         'display': {'description': 'Manage Display settings', 'menu_caller': lambda self: DISPLAY(self)},
         'display width': {'description': 'Adjust PRISM window width', 'menu_caller': lambda self: WINDOW_WIDTH_SETTINGS(self)},
-        'display align': {'description': 'Toggle right alignment of menu options', 'menu_caller': lambda self: toggle_right_align(self)},
+        'display align': {'description': 'Toggle right alignment of menu options', 'menu_caller': toggle_right_align},
 
         'shutdown': {'description': 'Shutdown PRISM', 'menu_caller': shutdown_menu},
         

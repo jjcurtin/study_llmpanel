@@ -1,7 +1,7 @@
 import requests
 
 from user_interface_menus._main_menu import main_menu
-from user_interface_menus._menu_helper import load_menus, exit_menu
+from user_interface_menus._menu_helper import load_menus, exit_menu, load_params
 
 class PRISMInterface:
     def __init__(self):
@@ -49,6 +49,7 @@ if __name__ == "__main__":
     while True:
         try:
             load_menus()
+            load_params()
             PRISMInterface()
         except KeyboardInterrupt:
             print("\nExiting PRISM Interface.")
