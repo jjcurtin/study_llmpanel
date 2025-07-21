@@ -1,21 +1,20 @@
-import datetime
-
 from user_interface_menus._menu_helper import *
 
 # ------------------------------------------------------------
 
-def system_check_menu(self):
-    def diagnostics(self):
-        if self.api("POST", "system/execute_task/CHECK_SYSTEM"):
-            success("System checks complete. No issues found.")
-        else:
-            self.request_transcript(25, "get_transcript")
-            error("Failure detected. Please check the transcript for details.")
+def diagnostics(self):
+    if self.api("POST", "system/execute_task/CHECK_SYSTEM"):
+        success("System checks complete. No issues found.")
+    else:
+        self.request_transcript(25, "get_transcript")
+        error("Failure detected. Please check the transcript for details.")
 
+# ------------------------------------------------------------
+
+def system_check_menu(self):
     menu_options = {
         'diagnostics': {"description": "Run System Diagnostics", "menu_caller": diagnostics},
     }
-
     while True:
         print_menu_header("PRISM System Check Menu")
         print("Checking PRISM status and system uptime...")
@@ -36,3 +35,8 @@ def system_check_menu(self):
         print()
         if print_menu_options(self, menu_options, submenu = True):
             break
+
+# ------------------------------------------------------------
+
+global DIAGNOSTICS
+DIAGNOSTICS = diagnostics
