@@ -157,7 +157,8 @@ def get_relevant_menu_options(query = None):
     def sort(iterable):
         global RELATED_OPTIONS_THRESHOLD
         from difflib import get_close_matches
-        return get_close_matches(query, iterable, n = 5, cutoff = RELATED_OPTIONS_THRESHOLD)
+        threshold = max(RELATED_OPTIONS_THRESHOLD, 0.1)
+        return get_close_matches(query, iterable, n = 15, cutoff = threshold)
 
     menu_options = get_menu_options()
     potential_local_choices = ', '.join(menu_options.keys())
@@ -245,6 +246,10 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
         query = ' '.join(choice.split(" ")[1:]) if len(choice.split(" ")) > 1 else None
         print_global_command_menu(self, query)
         return 1
+    elif choice.startswith("/"):
+        query = choice[1:]
+        print_global_command_menu(self, query)
+        return 1
 
     selected = menu_options.get(choice)
     if selected:
@@ -255,10 +260,6 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
         except Exception as e:  
             error(f"Local menu option error: {e}")
             return 0
-    elif choice.lower() in ['exit']:
-        print("Exiting PRISM Interface.")
-        exit(0)
-
     elif check_global_menu_options(choice):
         try:
             description, menu_caller = check_global_menu_options(choice)
@@ -279,7 +280,7 @@ def invalid_choice_menu(self, menu_options, choice = None):
     def sort(iterable):
         global RELATED_OPTIONS_THRESHOLD
         from difflib import get_close_matches
-        return get_close_matches(choice, iterable, n = 5, cutoff = RELATED_OPTIONS_THRESHOLD)
+        return get_close_matches(choice, iterable, n = 5, cutoff = max(RELATED_OPTIONS_THRESHOLD, 0.1))
 
     potential_local_choices = ', '.join(menu_options.keys())
     potential_glocal_choices = ', '.join(_menu_options.keys())
@@ -311,3 +312,7 @@ def success(message = "Operation completed successfully."):
     
 def exit_menu():
     input("Press Enter to continue...")
+
+def exit_interface(self):
+    print("Exiting PRISM Interface.")
+    exit(0)
