@@ -1,0 +1,66 @@
+def init_commands():
+    from user_interface_menus._main_menu import main_menu
+        
+    from user_interface_menus._system_check_menu import system_check_menu
+
+    from user_interface_menus._system_task_menu import system_task_menu
+    from user_interface_menus._system_task_menu import ADD_TASK, ADD_SYSTEM_TASK, ADD_R_SCRIPT, REMOVE_TASK, EXECUTE_TASK, EXECUTE_SYSTEM_TASK, EXECUTE_R_SCRIPT
+
+    from user_interface_menus._participant_management_menus import participant_management_menu
+
+    from user_interface_menus._log_menu import log_menu
+    from user_interface_menus._log_menu import PRINT_TRANSCRIPT
+
+    from user_interface_menus._shutdown_menu import shutdown_menu
+
+    from user_interface_menus.help_menu._help_menu import help_menu
+    from user_interface_menus.help_menu._help_menu import GENERAL_INFORMATION
+
+    from user_interface_menus._settings_menu import settings_menu
+    from user_interface_menus._settings_menu import DISPLAY, WINDOW_WIDTH_SETTINGS
+
+    from user_interface_menus.help_menu._developer_documentation import developer_documentation
+    from user_interface_menus.help_menu._research_assistant_documentation import research_assistant_documentation
+
+    from user_interface_menus._menu_helper import print_global_command_menu
+
+    _menu_options = {
+        'main': {'description': 'Main Menu', 'menu_caller': main_menu},
+        'check': {'description': 'System Status and Diagnostics', 'menu_caller': system_check_menu},
+
+        'help': {'description': 'Help', 'menu_caller': help_menu},
+        'help general': {'description': 'General Information', 'menu_caller': GENERAL_INFORMATION},
+        'help ra': {'description': 'Research Assistant Documentation', 'menu_caller': research_assistant_documentation},
+        'help dev': {'description': 'Developer Documentation', 'menu_caller': developer_documentation},
+
+        'tasks': {'description': 'Manage System Tasks and R Scripts', 'menu_caller': lambda self: system_task_menu(self)},
+        'tasks add': {'description': 'Add New Task', 'menu_caller': lambda self: ADD_TASK(self)},
+        'tasks add system' : {'description': 'Add New Task', 'menu_caller': lambda self: ADD_SYSTEM_TASK(self)},
+        'tasks add rscript': {'description': 'Add New R Script Task', 'menu_caller': lambda self: ADD_R_SCRIPT(self)},
+        'tasks remove': {'description': 'Remove Task', 'menu_caller': lambda self: REMOVE_TASK(self)},
+        'tasks execute': {'description': 'Execute Task Now', 'menu_caller': lambda self: EXECUTE_TASK(self)},
+        'tasks execute system': {'description': 'Execute System Task Now', 'menu_caller': lambda self: EXECUTE_SYSTEM_TASK(self)},
+        'tasks execute rscript': {'description': 'Execute R Script Task Now', 'menu_caller': lambda self: EXECUTE_R_SCRIPT(self)},
+        
+        'participants': {'description': 'Manage Participants', 'menu_caller': participant_management_menu},
+        
+        'logs': {'description': 'View Logs', 'menu_caller': log_menu},
+        'logs transcript': {'description': 'View Today\'s Transcript', 'menu_caller': lambda self: PRINT_TRANSCRIPT(self, 'get_transcript')},
+        'transcript': {'description': 'View Today\'s Transcript', 'menu_caller': lambda self: PRINT_TRANSCRIPT(self, 'get_transcript')},
+        'transcript log': {'description': 'View Today\'s Transcript', 'menu_caller': lambda self: PRINT_TRANSCRIPT(self, 'get_transcript')},
+        'ema log': {'description': 'View EMA Transcript', 'menu_caller': lambda self: PRINT_TRANSCRIPT(self, 'get_ema_log')},
+        'logs ema': {'description': 'View EMA Transcript', 'menu_caller': lambda self: PRINT_TRANSCRIPT(self, 'get_ema_log')},
+        'logs feedback': {'description': 'View Feedback Survey Log', 'menu_caller': lambda self: PRINT_TRANSCRIPT(self, 'get_feedback_log')},
+        'feedback log': {'description': 'View Feedback Survey Log', 'menu_caller': lambda self: PRINT_TRANSCRIPT(self, 'get_feedback_log')},
+
+        'settings': {'description': 'Settings', 'menu_caller': settings_menu},  
+        'settings display': {'description': 'Manage Display settings', 'menu_caller': lambda self: DISPLAY(self)},
+        'settings display width': {'description': 'Adjust PRISM window width', 'menu_caller': lambda self: WINDOW_WIDTH_SETTINGS(self)},
+        'display': {'description': 'Manage Display settings', 'menu_caller': lambda self: DISPLAY(self)},
+        'display width': {'description': 'Adjust PRISM window width', 'menu_caller': lambda self: WINDOW_WIDTH_SETTINGS(self)},
+        
+        'shutdown': {'description': 'Shutdown PRISM', 'menu_caller': shutdown_menu},
+        
+        'command': {'description': 'Global Command Menu', 'menu_caller': print_global_command_menu}
+    }
+    return _menu_options
