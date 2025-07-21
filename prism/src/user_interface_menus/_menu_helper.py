@@ -34,6 +34,8 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
             return 1
     elif choice == '' and submenu:
         return 1
+    elif choice == '' and not submenu:
+        pass
     else:
         error("Invalid choice.")
     return 0
