@@ -9,6 +9,12 @@ WINDOW_WIDTH = 155
 global RIGHT_ALIGN
 RIGHT_ALIGN = True
 
+global RELATED_OPTIONS_THRESHOLD
+RELATED_OPTIONS_THRESHOLD = 0.3
+
+global ASSISTANT_TEMPERATURE
+ASSISTANT_TEMPERATURE = 0.7
+
 def clear():
     os.system('cls' if os.name == 'nt' else 'clear')
 
@@ -44,6 +50,14 @@ def set_window_width(width):
 def toggle_right_align(self):
     global RIGHT_ALIGN
     RIGHT_ALIGN = not RIGHT_ALIGN
+
+def set_related_options_threshold(new_threshold):
+    global RELATED_OPTIONS_THRESHOLD
+    RELATED_OPTIONS_THRESHOLD = new_threshold
+
+def set_assistant_temperature(temperature):
+    global ASSISTANT_TEMPERATURE
+    ASSISTANT_TEMPERATURE = temperature
 
 def load_menus():
     clear()
@@ -153,8 +167,9 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
 
 def invalid_choice_menu(self, menu_options, choice = None):
     def sort(iterable):
+        global RELATED_OPTIONS_THRESHOLD
         from difflib import get_close_matches
-        return get_close_matches(choice, iterable, n = 5, cutoff = 0.3)
+        return get_close_matches(choice, iterable, n = 5, cutoff = RELATED_OPTIONS_THRESHOLD)
 
     potential_local_choices = ', '.join(menu_options.keys())
     potential_glocal_choices = ', '.join(_menu_options.keys())

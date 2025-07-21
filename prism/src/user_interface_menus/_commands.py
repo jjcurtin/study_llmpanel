@@ -7,6 +7,7 @@ def init_commands():
     from user_interface_menus._system_task_menu import ADD_TASK, ADD_SYSTEM_TASK, ADD_R_SCRIPT, REMOVE_TASK, EXECUTE_TASK, EXECUTE_SYSTEM_TASK, EXECUTE_R_SCRIPT
 
     from user_interface_menus._participant_management_menus import participant_management_menu
+    from user_interface_menus._participant_management_menus import ADD_PARTICIPANT, PARTICIPANT_REFRESH, PARTICIPANT_ANNOUNCEMENT
 
     from user_interface_menus._log_menu import log_menu
     from user_interface_menus._log_menu import PRINT_TRANSCRIPT
@@ -17,7 +18,7 @@ def init_commands():
     from user_interface_menus.help_menu._help_menu import GENERAL_INFORMATION
 
     from user_interface_menus._settings_menu import settings_menu
-    from user_interface_menus._settings_menu import DISPLAY, WINDOW_WIDTH_SETTINGS
+    from user_interface_menus._settings_menu import DISPLAY, WINDOW_WIDTH_SETTINGS, PARAM_RELATED_THRESHOLD, PARAM_ASSISTANT_TEMPERATURE, SYSTEM_SETTINGS, PARAMETER_SETTINGS
 
     from user_interface_menus.help_menu._developer_documentation import developer_documentation
     from user_interface_menus.help_menu._research_assistant_documentation import research_assistant_documentation
@@ -47,6 +48,9 @@ def init_commands():
         'tasks execute rscript': {'description': 'Execute R Script Task Now', 'menu_caller': lambda self: EXECUTE_R_SCRIPT(self)},
         
         'participants': {'description': 'Manage Participants', 'menu_caller': participant_management_menu},
+        'participants add': {'description': 'Add New Participant', 'menu_caller': lambda self: ADD_PARTICIPANT(self)},
+        'participants refresh': {'description': 'Refresh Participants from CSV', 'menu_caller': lambda self: PARTICIPANT_REFRESH(self)},
+        'participants announcement': {'description': 'Send Study Announcement', 'menu_caller': lambda self: PARTICIPANT_ANNOUNCEMENT(self)},
         
         'logs': {'description': 'View Logs', 'menu_caller': log_menu},
         'logs transcript': {'description': 'View Today\'s Transcript', 'menu_caller': lambda self: PRINT_TRANSCRIPT(self, 'get_transcript')},
@@ -58,6 +62,13 @@ def init_commands():
         'feedback log': {'description': 'View Feedback Survey Log', 'menu_caller': lambda self: PRINT_TRANSCRIPT(self, 'get_feedback_log')},
 
         'settings': {'description': 'Settings', 'menu_caller': settings_menu},  
+        'settings system': {'description': 'System Settings', 'menu_caller': lambda self: SYSTEM_SETTINGS(self)},
+        'system settings': {'description': 'System Settings', 'menu_caller': lambda self: SYSTEM_SETTINGS(self)},
+        'settings system parameters': {'description': 'Manage System Parameters (advanced)', 'menu_caller': lambda self: PARAMETER_SETTINGS(self)},
+        'params': {'description': 'Manage System Parameters (advanced)', 'menu_caller': lambda self: PARAMETER_SETTINGS(self)},
+        'params threshold': {'description': 'Manage similarity tolerance for command suggestions', 'menu_caller': lambda self: PARAM_RELATED_THRESHOLD(self)},
+        'params temperature': {'description': 'Manage model temperature for PRISM Assistant', 'menu_caller': lambda self: PARAM_ASSISTANT_TEMPERATURE(self)},
+
         'settings display': {'description': 'Manage Display settings', 'menu_caller': lambda self: DISPLAY(self)},
         'settings display width': {'description': 'Adjust PRISM window width', 'menu_caller': lambda self: WINDOW_WIDTH_SETTINGS(self)},
         'display': {'description': 'Manage Display settings', 'menu_caller': lambda self: DISPLAY(self)},

@@ -2,6 +2,29 @@ import time
 import random
 from user_interface_menus._menu_helper import *
 
+def refresh_participants_menu(self):
+    if input("Refresh participants from CSV? (yes/no): ").strip().lower() == 'yes':
+        if self.api("POST", "participants/refresh_participants"):
+            success("Participants refreshed from CSV.")
+        else:
+            error(f"Failed to refresh participants. Error code: {self.api('POST', 'participants/refresh_participants').get('status_code', 'Unknown')}")
+    else:
+        success("Refresh cancelled.")
+
+def send_announcement_menu(self):
+    message = input("Enter study announcement message: ").strip()
+    if not message:
+        error("Message cannot be empty. Please try again.")
+        return
+    require_on_study = input("Send to participants on study only? (yes/no): ").strip().lower()
+    if require_on_study not in ('yes', 'y', 'no', 'n'):
+        error("Invalid input. Cancelling. Press Enter to continue...")
+        return
+    if self.api("POST", f"participants/study_announcement/{require_on_study}", json = {"message": message}):
+        success("Study announcement sent.")
+    else:
+        error("No participants found or failed to retrieve.")
+
 def participant_management_menu(self):
     def print_task_schedule(self):
         tasks = self.api("GET", "participants/get_participant_task_schedule")
@@ -10,29 +33,6 @@ def participant_management_menu(self):
             for task in tasks.get("tasks", []):
                 print(f"{task['participant_id']}: {task['task_type']} at {task['task_time']} - On Study: {task['on_study']}")
             exit_menu()
-
-    def refresh_participants_menu(self):
-        if input("Refresh participants from CSV? (yes/no): ").strip().lower() == 'yes':
-            if self.api("POST", "participants/refresh_participants"):
-                success("Participants refreshed from CSV.")
-            else:
-                error(f"Failed to refresh participants. Error code: {self.api('POST', 'participants/refresh_participants').get('status_code', 'Unknown')}")
-        else:
-            success("Refresh cancelled.")
-
-    def send_announcement_menu(self):
-        message = input("Enter study announcement message: ").strip()
-        if not message:
-            error("Message cannot be empty. Please try again.")
-            return
-        require_on_study = input("Send to participants on study only? (yes/no): ").strip().lower()
-        if require_on_study not in ('yes', 'y', 'no', 'n'):
-            error("Invalid input. Cancelling. Press Enter to continue...")
-            return
-        if self.api("POST", f"participants/study_announcement/{require_on_study}", json = {"message": message}):
-            success("Study announcement sent.")
-        else:
-            error("No participants found or failed to retrieve.")
 
     while True:
         print_menu_header("PRISM Participant Management Menu")
@@ -195,3 +195,12 @@ def add_participant_menu(self):
         success("Participant added.")
     else:
         error("Failed to add participant.")
+
+global ADD_PARTICIPANT
+ADD_PARTICIPANT = add_participant_menu
+
+global PARTICIPANT_REFRESH
+PARTICIPANT_REFRESH = refresh_participants_menu
+
+global PARTICIPANT_ANNOUNCEMENT
+PARTICIPANT_ANNOUNCEMENT = send_announcement_menu
