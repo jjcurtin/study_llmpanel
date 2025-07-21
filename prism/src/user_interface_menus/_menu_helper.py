@@ -1,6 +1,7 @@
 import os
 
 _menu_options = None
+_previous_menu = None
 
 def clear():
     os.system('cls' if os.name == 'nt' else 'clear')
@@ -99,15 +100,13 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
         handler = selected['menu_caller']
         if handler(self): # if the submenu indicates to exit
             return 1
+    elif choice.lower() in ['exit']:
+        print("Exiting PRISM Interface.")
+        exit(0)
     elif check_global_menu_options(choice):
         description, menu_caller = check_global_menu_options(choice)
         if goto_menu(menu_caller, self):
             return 1
-    elif choice.lower() in ['exit', 'quit', 'q']:
-        if not submenu:
-            exit_menu()
-            exit(0)
-        return 1
     elif choice == '' and submenu:
         return 1
     elif choice == '' and not submenu:
