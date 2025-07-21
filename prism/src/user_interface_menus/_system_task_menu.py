@@ -82,6 +82,16 @@ def system_task_menu(self):
             else:
                 error("Failed to add task.")
 
+    def add_task_menu(self):
+        menu_options = {
+            'system': {'description': 'Add New System Task', 'menu_caller': add_new_task_menu},
+            'rscript': {'description': 'Add New R Script Task', 'menu_caller': add_new_r_script_menu},
+        }
+        while True:
+            print_menu_header("Add New Task")
+            if print_menu_options(self, menu_options, submenu = True):
+                break
+
     def remove_task_menu(self):
         try:
             idx = int(input("Task index to remove: ")) - 1
@@ -148,6 +158,16 @@ def system_task_menu(self):
                 print("No transcript found or failed to retrieve.")
             error("Failed to execute task.")
 
+    def execute_menu(self):
+        menu_options = {
+            'system': {'description': 'Execute System Task', 'menu_caller': execute_task_menu},
+            'rscript': {'description': 'Execute R Script Task', 'menu_caller': execute_r_script_menu},
+        }
+        while True:
+            print_menu_header("Execute Task")
+            if print_menu_options(self, menu_options, submenu = True):
+                break
+
     def clear_task_schedule_menu(self):
         choice = input("Are you sure you want to clear the task schedule? (yes/no): ").strip().lower()
         if choice == 'yes' or choice == 'y':
@@ -160,11 +180,9 @@ def system_task_menu(self):
             exit_menu()
 
     menu_options = {
-        'add': {'description': 'Add New Task', 'menu_caller': add_new_task_menu},
-        'add -r': {'description': 'Add New R Script Task', 'menu_caller': add_new_r_script_menu},
+        'add': {'description': 'Add New Task', 'menu_caller': add_task_menu},
         'remove': {'description': 'Remove Task', 'menu_caller': remove_task_menu},
-        'execute': {'description': 'Execute Task Now', 'menu_caller': execute_task_menu},
-        'execute -r': {'description': 'Execute R Script Task Now', 'menu_caller': execute_r_script_menu},
+        'execute': {'description': 'Execute Task Now', 'menu_caller': execute_menu},
         'clear': {'description': 'Clear Task Schedule', 'menu_caller': clear_task_schedule_menu},
     }
 
