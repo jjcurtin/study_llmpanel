@@ -36,7 +36,8 @@ def load_menus():
         'shutdown': {'description': 'Shutdown PRISM', 'menu_caller': shutdown_menu},
         'help': {'description': 'Help', 'menu_caller': help_menu},
         'dev': {'description': 'Developer Documentation', 'menu_caller': developer_documentation},
-        'ra': {'description': 'Research Assistant Documentation', 'menu_caller': research_assistant_documentation}
+        'ra': {'description': 'Research Assistant Documentation', 'menu_caller': research_assistant_documentation},
+        'commands': {'description': 'Global Command Menu', 'menu_caller': print_global_command_menu}
     }
     print("Menus loaded successfully.")
 
@@ -70,6 +71,12 @@ def goto_menu(menu_caller, self):
     else:
         error("Invalid menu caller.")
         return False
+    
+def print_global_command_menu(self):
+    print_menu_header("PRISM Global Command Menu")
+    menu_options = get_menu_options()
+    if print_menu_options(None, menu_options, submenu = True):
+        return
 
 def print_menu_options(self, menu_options, submenu = False, index_and_text = False):
     if index_and_text:
