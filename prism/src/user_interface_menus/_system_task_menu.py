@@ -16,7 +16,11 @@ def print_task_schedule(self):
         else:
             print("No tasks scheduled.")
     else:
-        print("No tasks found.")
+        from user_interface_menus._menu_helper import COLOR_ON
+        if COLOR_ON:
+            print("\033[31mNo tasks scheduled.\033[0m")
+        else:
+            print("No tasks scheduled.")
 
 # ------------------------------------------------------------
 
@@ -59,8 +63,14 @@ def add_new_task_menu(self):
         error("No task types available.")
         return
     print("Available Tasks:")
-    for i, (k,v) in enumerate(task_types.items(),1):
-        print(f"{i}: {v} ({k})")
+
+    from user_interface_menus._menu_helper import COLOR_ON
+    if COLOR_ON:
+        for i, (k,v) in enumerate(task_types.items(),1):
+            print(f"{f"\033[33m{i}\033[0m"}: {v} ({k})")
+    else:
+        for i, (k,v) in enumerate(task_types.items(),1):
+            print(f"{i}: {v} ({k})")
     idx = input("Task index to add: ").strip()
     if not idx.isdigit() or not (1 <= int(idx) <= len(task_types)):
         error("Invalid index.")
