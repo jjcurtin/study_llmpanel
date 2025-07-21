@@ -89,12 +89,16 @@ class PRISM():
                 transcript_path = f'../logs/{target}s/test_{target}.txt'
             else:
                 transcript_path = f'../logs/{target}s/{today_date}_{target}.txt'
-            with open(transcript_path, 'r') as f:
-                num_lines = int(num_lines)
-                content = f.read().splitlines()[-num_lines:]
-                if not content:
-                    return None
-                return [{"timestamp": line.split(' - ')[0], "message": ' - '.join(line.split(' - ')[1:])} for line in content]
+            try:
+                with open(transcript_path, 'r') as f:
+                    num_lines = int(num_lines)
+                    content = f.read().splitlines()[-num_lines:]
+                    if not content:
+                        return None
+                    return [{"timestamp": line.split(' - ')[0], "message": ' - '.join(line.split(' - ')[1:])} for line in content]
+            except FileNotFoundError:
+                with open(transcript_path, 'w') as f:
+                    f.write(f"{datetime.now().strftime('%H:%M:%S')} - {target} file created.\n")
         except Exception as e:
             self.add_to_transcript(f"Failed to read {target}: {e}", "ERROR")
             return None    
