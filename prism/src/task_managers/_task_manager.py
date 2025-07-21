@@ -39,7 +39,7 @@ class TaskManager():
 
     def check_tasks(self):
         current_time = datetime.now().time()
-        if current_time.hour == 0 and current_time.minute == 0:
+        if current_time.hour == 0 and current_time.minute == 0 and current_time.second == 0:
             for task in self.tasks:
                 task['run_today'] = False
         for task in self.tasks:

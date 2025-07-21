@@ -4,6 +4,7 @@ from user_interface_menus.assistant._prism_assistant import make_assistant_call,
 def assistant_menu(self):
     first_loop = True
     while True:
+        choice = ''
         if first_loop:
             api_key, endpoint = get_credentials()
             print_menu_header("PRISM Assistant")
@@ -14,13 +15,10 @@ def assistant_menu(self):
 
             from user_interface_menus._commands import init_commands
             menu_options = init_commands()
-        
-        choice = print_fixed_terminal_prompt()
+        while not choice.strip():
+            choice = print_fixed_terminal_prompt()
         if choice.lower() == 'stop':
             return
-        while not choice.strip():
-            if first_loop:
-                choice = print_fixed_terminal_prompt()
         else:
             try:
                 response = make_assistant_call(choice, menu_options = menu_options, api_key = api_key, endpoint = endpoint)
