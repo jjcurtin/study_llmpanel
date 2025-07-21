@@ -37,10 +37,14 @@ def read_me(self):
     print_menu_header("README")
     print("I recommend looking through the help section and then looking through the commands.")
     if COLOR_ON:
-        print("You can search for commands by typing \033[33mcommand <query>\033[0m or \033[33m/<query>\033[0m. Leave query empty to search for all commands.")
+        print("You can search for commands by typing \033[33mcommand <query>\033[0m or \033[33m/<query>\033[0m. Leave \033[33m<query>\033[0m empty to search for all commands.")
+        print("Most commands are globally accessible but some are only available in specific menus and are specified in \033[33myellow\033[0m.")
+        print("To stop this message from displaying on startup use the command \033[33mreadme set\033[0m.")
     else:
-        print("You can search for commands by typing 'command <query>' or '/<query>'. Leave query empty to search for all commands.")
-    print("Most commands are globally accessible but some are only available in specific menus.")
+        print("You can search for commands by typing 'command <query>' or '/<query>'. Leave '<query>' empty to search for all commands.")
+        print("Most commands are globally accessible but some are only available in specific menus and are specified in 'yellow' when color mode is on.")
+        print("To turn color mode on, use the command 'display color'.")
+        print("To stop this message from displaying on startup use the command 'readme set'.")
     exit_menu()
 
 global README

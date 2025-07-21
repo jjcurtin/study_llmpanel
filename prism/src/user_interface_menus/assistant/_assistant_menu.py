@@ -10,8 +10,7 @@ def assistant_menu(self):
             api_key, endpoint = get_credentials()
             print()
             print_dashes()
-            global ASSISTANT_TEMPERATURE
-            print(f"Press ENTER to exit assistant. This is an experimental feature and not all information may be accurate. Temperature: {ASSISTANT_TEMPERATURE}")
+            print(f"Press ENTER to exit assistant. This is an experimental feature and not all information may be accurate.")
             print_dashes()
 
             from user_interface_menus._commands import init_commands
