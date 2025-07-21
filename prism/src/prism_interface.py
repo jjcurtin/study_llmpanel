@@ -44,4 +44,9 @@ class PRISMInterface:
             print("No transcript found or failed to retrieve.")  
 
 if __name__ == "__main__":
-    PRISMInterface()
+    try:
+        PRISMInterface()
+    except KeyboardInterrupt:
+        print("\nExiting PRISM Interface.")
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
