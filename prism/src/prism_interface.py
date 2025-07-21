@@ -8,6 +8,7 @@ class PRISMInterface:
         self.base_url = "http://localhost:5000/"
         if self.api("GET", "system/uptime") is None:
             print("PRISM instance is not running or is not accessible. Please start the PRISM server first.")
+            exit(0)
         main_menu(self)
 
     def api(self, method, endpoint, json=None):
