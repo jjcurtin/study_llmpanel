@@ -47,6 +47,9 @@ def load_menus():
     from user_interface_menus.help_menu._help_menu import help_menu
     from user_interface_menus.help_menu._help_menu import GENERAL_INFORMATION
 
+    from user_interface_menus._settings_menu import settings_menu
+    from user_interface_menus._settings_menu import DISPLAY, WINDOW_WIDTH_SETTINGS
+
     from user_interface_menus.help_menu._developer_documentation import developer_documentation
     from user_interface_menus.help_menu._research_assistant_documentation import research_assistant_documentation
     clear()
@@ -75,6 +78,10 @@ def load_menus():
         'participants': {'description': 'Manage Participants', 'menu_caller': participant_management_menu},
         
         'logs': {'description': 'View Logs', 'menu_caller': log_menu},
+
+        'settings': {'description': 'Settings', 'menu_caller': settings_menu},  
+        'settings display': {'description': 'Manage Display settings', 'menu_caller': lambda self: DISPLAY(self)},
+        'settings display width': {'description': 'Adjust PRISM window width', 'menu_caller': lambda self: WINDOW_WIDTH_SETTINGS(self)},
         
         'shutdown': {'description': 'Shutdown PRISM', 'menu_caller': shutdown_menu},
         
