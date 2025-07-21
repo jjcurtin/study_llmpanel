@@ -20,7 +20,7 @@ def display_settings(self):
 
 def settings_menu(self):
     menu_options = {
-        'display': {'description': 'View Today\'s Transcript', 'menu_caller': display_settings}
+        'display': {'description': 'Manage Display settings', 'menu_caller': display_settings}
     }
 
     while True:
