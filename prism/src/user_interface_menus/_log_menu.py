@@ -19,4 +19,3 @@ def log_menu(self):
         print_menu_header("PRISM Log Menu")
         if print_menu_options(self, menu_options, submenu = True):
             break
-        exit_menu()
