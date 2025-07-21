@@ -26,7 +26,7 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
             print(f"{key:<20}{item['description']:<20}")
     if submenu:
         print("\nENTER: Back to Previous Menu")
-    choice = input("\nEnter your choice: ").strip()
+    choice = input("\nprism> ").strip()
     selected = menu_options.get(choice)
     if selected:
         handler = selected['menu_caller']
