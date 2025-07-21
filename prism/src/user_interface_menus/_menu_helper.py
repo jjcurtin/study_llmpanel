@@ -111,8 +111,8 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
     selected = menu_options.get(choice)
     if selected:
         try:
-            handler = selected['menu_caller']
-            if handler(self): # if the submenu indicates to exit
+            menu_caller = selected['menu_caller']
+            if goto_menu(menu_caller, self):
                 return 1
         except Exception as e:  
             error(f"Local menu option error: {e}")

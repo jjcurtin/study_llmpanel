@@ -5,13 +5,13 @@ def window_width_settings(self):
     print("Current PRISM window width:", WINDOW_WIDTH)
     new_width = input("Enter new width (default 80): ").strip()
     if not new_width.isdigit():
-        new_width = '80'
+        error("Window width must be an integer.")
+        return 0
     if int(new_width) > 200:
         error("Window width cannot exceed 200 characters.")
-        return
+        return 0
         
     set_window_width(int(new_width))
-    print("PRISM window width set to:", WINDOW_WIDTH)
 
 def display_settings(self):
     menu_options = {
