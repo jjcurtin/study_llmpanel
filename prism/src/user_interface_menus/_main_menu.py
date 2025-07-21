@@ -33,12 +33,15 @@ def main_menu(self):
         print_menu_options(self, menu_options)
 
 def read_me(self):
+    from user_interface_menus._menu_helper import COLOR_ON
     print_menu_header("README")
     print("I recommend looking through the help section and then looking through the commands.")
-    print("You can search for commands by typing 'command <query>' or '/<query>'.")
+    if COLOR_ON:
+        print("You can search for commands by typing \033[33mcommand <query>\033[0m or \033[33m/<query>\033[0m. Leave query empty to search for all commands.")
+    else:
+        print("You can search for commands by typing 'command <query>' or '/<query>'. Leave query empty to search for all commands.")
     print("Most commands are globally accessible but some are only available in specific menus.")
-    print("\nENTER: Return")
-    print_fixed_terminal_prompt()
+    exit_menu()
 
 global README
 README = read_me
