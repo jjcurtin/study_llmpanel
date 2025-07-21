@@ -13,6 +13,7 @@ def main_menu(self):
 
     menu_options = {
         'help': {'description': 'Help', 'menu_caller': help_menu},
+        'commands': {'description': 'Global Command Menu', 'menu_caller': print_global_command_menu},
         'check': {'description': 'System Status and Diagnostics', 'menu_caller': system_check_menu},
         'tasks': {'description': 'Manage System Tasks and R Scripts', 'menu_caller': system_task_menu},
         'participants': {'description': 'Manage Participants', 'menu_caller': participant_management_menu},

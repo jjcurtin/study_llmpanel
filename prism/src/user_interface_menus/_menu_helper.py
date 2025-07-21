@@ -3,32 +3,47 @@ import os
 _menu_options = None
 _previous_menu = None
 
+global WINDOW_WIDTH
+WINDOW_WIDTH = 80
+
 def clear():
     os.system('cls' if os.name == 'nt' else 'clear')
 
 def print_menu_header(title):
     clear()
-    padding = (60 - len(title)) // 2
-    print("=" * 60)
+    padding = (WINDOW_WIDTH - len(title)) // 2
+    print("=" * WINDOW_WIDTH)
     print(" " * padding + title)
-    print("=" * 60)
+    print("=" * WINDOW_WIDTH)
     print()
+
+def set_window_width(width):
+    global WINDOW_WIDTH
+    if isinstance(width, int) and width > 0:
+        WINDOW_WIDTH = width
+    else:
+        error("Window width must be a positive integer.")
 
 def load_menus():
     from user_interface_menus._main_menu import main_menu
+    
     from user_interface_menus._system_check_menu import system_check_menu
+
     from user_interface_menus._system_task_menu import system_task_menu
+    from user_interface_menus._system_task_menu import ADD_TASK, ADD_SYSTEM_TASK, ADD_R_SCRIPT, REMOVE_TASK, EXECUTE_TASK, EXECUTE_SYSTEM_TASK, EXECUTE_R_SCRIPT
+    
     from user_interface_menus._participant_management_menus import participant_management_menu
+    
     from user_interface_menus._log_menu import log_menu
+    
     from user_interface_menus._shutdown_menu import shutdown_menu
+
     from user_interface_menus.help_menu._help_menu import help_menu
+    from user_interface_menus.help_menu._help_menu import GENERAL_INFORMATION
+
     from user_interface_menus.help_menu._developer_documentation import developer_documentation
     from user_interface_menus.help_menu._research_assistant_documentation import research_assistant_documentation
     print("Modules loaded successfully. Now loading menus...")
-
-    help_menu(None, initialize = True)
-
-    from user_interface_menus.help_menu._help_menu import GENERAL_INFORMATION
 
     # Store menu options in module-level variable
     global _menu_options
@@ -36,6 +51,13 @@ def load_menus():
         'main': {'description': 'Main Menu', 'menu_caller': main_menu},
         'check': {'description': 'System Status and Diagnostics', 'menu_caller': system_check_menu},
         'tasks': {'description': 'Manage System Tasks and R Scripts', 'menu_caller': system_task_menu},
+        'tasks add': {'description': 'Add New Task', 'menu_caller': lambda self: ADD_TASK(self)},
+        'tasks add system' : {'description': 'Add New Task', 'menu_caller': lambda self: ADD_SYSTEM_TASK(self)},
+        'tasks add rscript': {'description': 'Add New R Script Task', 'menu_caller': lambda self: ADD_R_SCRIPT(self)},
+        'tasks remove': {'description': 'Remove Task', 'menu_caller': lambda self: REMOVE_TASK(self)},
+        'tasks execute': {'description': 'Execute Task Now', 'menu_caller': lambda self: EXECUTE_TASK(self)},
+        'tasks execute system': {'description': 'Execute System Task Now', 'menu_caller': lambda self: EXECUTE_SYSTEM_TASK(self)},
+        'tasks execute rscript': {'description': 'Execute R Script Task Now', 'menu_caller': lambda self: EXECUTE_R_SCRIPT(self)},
         'participants': {'description': 'Manage Participants', 'menu_caller': participant_management_menu},
         'logs': {'description': 'View Logs', 'menu_caller': log_menu},
         'shutdown': {'description': 'Shutdown PRISM', 'menu_caller': shutdown_menu},
@@ -85,18 +107,19 @@ def print_global_command_menu(self):
         return
 
 def print_menu_options(self, menu_options, submenu = False, index_and_text = False):
+    margin_width = WINDOW_WIDTH / 2
     if index_and_text:
         for key, item in menu_options.items():
             if key.isdigit():
-                print(f"{key:<20}{item['description']:<20}")
+                print(f"{key:<{int(margin_width)}} {item['description']:<{int(margin_width)}}")
         print("-" * 60)
         print()
         for key, item in menu_options.items():
             if not key.isdigit():
-                print(f"{key:<20}{item['description']:<20}")
+                print(f"{key:<{int(margin_width)}} {item['description']:<{int(margin_width)}}")
     else:
         for key, item in menu_options.items():
-            print(f"{key:<20}{item['description']:<20}")
+            print(f"{key:<{int(margin_width)}} {item['description']:<{int(margin_width)}}")
     if submenu:
         print("\nENTER: Back to Previous Menu")
     choice = input("\nprism> ").strip()
