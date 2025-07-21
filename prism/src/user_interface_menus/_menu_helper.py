@@ -43,14 +43,21 @@ def load_menus():
 
     from user_interface_menus.help_menu._developer_documentation import developer_documentation
     from user_interface_menus.help_menu._research_assistant_documentation import research_assistant_documentation
-    print("Modules loaded successfully. Now loading menus...")
+    clear()
+    print("Now loading menus...")
 
     # Store menu options in module-level variable
     global _menu_options
     _menu_options = {
         'main': {'description': 'Main Menu', 'menu_caller': main_menu},
         'check': {'description': 'System Status and Diagnostics', 'menu_caller': system_check_menu},
-        'tasks': {'description': 'Manage System Tasks and R Scripts', 'menu_caller': system_task_menu},
+
+        'help': {'description': 'Help', 'menu_caller': help_menu},
+        'help general': {'description': 'General Information', 'menu_caller': GENERAL_INFORMATION},
+        'help ra': {'description': 'Research Assistant Documentation', 'menu_caller': research_assistant_documentation},
+        'help dev': {'description': 'Developer Documentation', 'menu_caller': developer_documentation},
+
+        'tasks': {'description': 'Manage System Tasks and R Scripts', 'menu_caller': lambda self: system_task_menu(self)},
         'tasks add': {'description': 'Add New Task', 'menu_caller': lambda self: ADD_TASK(self)},
         'tasks add system' : {'description': 'Add New Task', 'menu_caller': lambda self: ADD_SYSTEM_TASK(self)},
         'tasks add rscript': {'description': 'Add New R Script Task', 'menu_caller': lambda self: ADD_R_SCRIPT(self)},
@@ -58,16 +65,15 @@ def load_menus():
         'tasks execute': {'description': 'Execute Task Now', 'menu_caller': lambda self: EXECUTE_TASK(self)},
         'tasks execute system': {'description': 'Execute System Task Now', 'menu_caller': lambda self: EXECUTE_SYSTEM_TASK(self)},
         'tasks execute rscript': {'description': 'Execute R Script Task Now', 'menu_caller': lambda self: EXECUTE_R_SCRIPT(self)},
+        
         'participants': {'description': 'Manage Participants', 'menu_caller': participant_management_menu},
+        
         'logs': {'description': 'View Logs', 'menu_caller': log_menu},
+        
         'shutdown': {'description': 'Shutdown PRISM', 'menu_caller': shutdown_menu},
-        'help': {'description': 'Help', 'menu_caller': help_menu},
-        'help general': {'description': 'General Information', 'menu_caller': GENERAL_INFORMATION},
-        'help ra': {'description': 'Research Assistant Documentation', 'menu_caller': research_assistant_documentation},
-        'help dev': {'description': 'Developer Documentation', 'menu_caller': developer_documentation},
-        'commands': {'description': 'Global Command Menu', 'menu_caller': print_global_command_menu}
+        
+        'command': {'description': 'Global Command Menu', 'menu_caller': print_global_command_menu}
     }
-    print("Menus loaded successfully.")
 
 def get_menu_options():
     global _menu_options
@@ -86,24 +92,28 @@ def check_global_menu_options(query = None):
     return result['description'], result['menu_caller']
 
 def goto_menu(menu_caller, self):
-    if callable(menu_caller):
-        return menu_caller(self)
-    elif isinstance(menu_caller, str):
-        result = check_global_menu_options(menu_caller)
-        if result:
-            description, caller = result
-            return caller(self)
+    try:
+        if callable(menu_caller):
+            return menu_caller(self)
+        elif isinstance(menu_caller, str):
+            result = check_global_menu_options(menu_caller)
+            if result:
+                description, caller = result
+                return caller(self)
+            else:
+                error(f"Menu '{menu_caller}' not found.")
+                return False
         else:
-            error(f"Menu '{menu_caller}' not found.")
+            error("Invalid menu caller.")
             return False
-    else:
-        error("Invalid menu caller.")
+    except Exception as e:
+        error(f"An error occurred while navigating to the menu: {e}")
         return False
     
 def print_global_command_menu(self):
     print_menu_header("PRISM Global Command Menu")
     menu_options = get_menu_options()
-    if print_menu_options(None, menu_options, submenu = True):
+    if print_menu_options(self, menu_options, submenu = True):
         return
 
 def print_menu_options(self, menu_options, submenu = False, index_and_text = False):
@@ -123,18 +133,28 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
     if submenu:
         print("\nENTER: Back to Previous Menu")
     choice = input("\nprism> ").strip()
+    
     selected = menu_options.get(choice)
     if selected:
-        handler = selected['menu_caller']
-        if handler(self): # if the submenu indicates to exit
-            return 1
+        try:
+            handler = selected['menu_caller']
+            if handler(self): # if the submenu indicates to exit
+                return 1
+        except Exception as e:  
+            error(f"Local menu option error: {e}")
+            return 0
     elif choice.lower() in ['exit']:
         print("Exiting PRISM Interface.")
         exit(0)
+
     elif check_global_menu_options(choice):
-        description, menu_caller = check_global_menu_options(choice)
-        if goto_menu(menu_caller, self):
-            return 1
+        try:
+            description, menu_caller = check_global_menu_options(choice)
+            if goto_menu(menu_caller, self):
+                return 1
+        except Exception as e:
+            error(f"Global menu option error: {e}")
+            return 0
     elif choice == '' and submenu:
         return 1
     elif choice == '' and not submenu:

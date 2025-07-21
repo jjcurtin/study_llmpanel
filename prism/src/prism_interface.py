@@ -1,6 +1,7 @@
 import requests
 
 from user_interface_menus._main_menu import main_menu
+from user_interface_menus._menu_helper import load_menus, exit_menu
 
 class PRISMInterface:
     def __init__(self):
@@ -44,9 +45,13 @@ class PRISMInterface:
             print("No transcript found or failed to retrieve.")  
 
 if __name__ == "__main__":
-    try:
-        PRISMInterface()
-    except KeyboardInterrupt:
-        print("\nExiting PRISM Interface.")
-    except Exception as e:
-        print(f"An unexpected error occurred: {e}")
+    while True:
+        try:
+            load_menus()
+            PRISMInterface()
+        except KeyboardInterrupt:
+            print("\nExiting PRISM Interface.")
+            break
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+            exit_menu()
