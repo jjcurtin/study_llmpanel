@@ -27,10 +27,10 @@ def system_check_menu(self):
             error("PRISM not running or inaccessible.")
             return
         print_menu_header("PRISM System Check Menu")
-        print("-" * 60)
+        print_dashes()
         print("Mode:", mode)
         print(f"As of last check, PRISM has been up for {start_time}.")
-        print("-" * 60)
+        print_dashes()
         print()
         if print_menu_options(self, menu_options, submenu = True):
             break
