@@ -40,7 +40,7 @@ def participant_management_menu(self):
             exit_menu()
 
     while True:
-        print_menu_header("PRISM Participant Management Menu")
+        print_menu_header("participants")
         menu_options = {}
 
         # Fetch participants from the API
@@ -156,7 +156,7 @@ def individual_participant_menu(self, participant_id):
 # ------------------------------------------------------------
 
 def add_participant_menu(self):
-    print_menu_header("Add New Participant")
+    print_menu_header("participants add")
     first_name = input("First name: ")
     if not first_name:
         error("First name is required.")

@@ -25,7 +25,7 @@ def print_task_schedule(self):
 # ------------------------------------------------------------
 
 def add_new_r_script_menu(self):
-    print_menu_header("Add New R Script Task")
+    print_menu_header("tasks add rscript")
     r_scripts = self.api("GET", "system/get_r_script_tasks")
     if not r_scripts:
         error("No R scripts available.")
@@ -57,7 +57,7 @@ def add_new_r_script_menu(self):
         error(f"Failed to schedule R script task {selected_script_name}.")
 
 def add_new_task_menu(self):
-    print_menu_header("Add New System Task")
+    print_menu_header("tasks add system")
     task_types = self.get_task_types()
     if not task_types:
         error("No task types available.")
@@ -101,14 +101,14 @@ def add_task_menu(self):
         'rscript': {'description': 'Add New R Script Task', 'menu_caller': add_new_r_script_menu},
     }
     while True:
-        print_menu_header("Add New Task")
+        print_menu_header("tasks add")
         if print_menu_options(self, menu_options, submenu = True):
             break
 
 # ------------------------------------------------------------
 
 def remove_task_menu(self):
-    print_menu_header("Remove System Task")
+    print_menu_header("tasks remove")
     print_task_schedule(self)
     try:
         idx = int(input("Task index to remove: ")) - 1
@@ -126,7 +126,7 @@ def remove_task_menu(self):
 # ------------------------------------------------------------
     
 def execute_r_script_menu(self):
-    print_menu_header("Execute R Script Task")
+    print_menu_header("tasks execute rscript")
     r_scripts = self.api("GET", "system/get_r_script_tasks")
     if not r_scripts:
         error("No R scripts available.")
@@ -155,7 +155,7 @@ def execute_r_script_menu(self):
         error(f"Failed to execute R script task {selected_script_name}.")
 
 def execute_task_menu(self):
-    print_menu_header("Execute System Task")
+    print_menu_header("tasks execute system")
     task_types = self.get_task_types()
     if not task_types:
         error("No task types available.")
@@ -193,7 +193,7 @@ def execute_menu(self):
         'rscript': {'description': 'Execute R Script Task', 'menu_caller': execute_r_script_menu},
     }
     while True:
-        print_menu_header("Execute Task")
+        print_menu_header("tasks execute")
         if print_menu_options(self, menu_options, submenu = True):
             break
 
@@ -221,7 +221,7 @@ def system_task_menu(self):
     }
 
     while True:
-        print_menu_header("PRISM System Task Menu")
+        print_menu_header("tasks")
         print_task_schedule(self)
         print()
         if print_menu_options(self, menu_options, submenu = True):

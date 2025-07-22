@@ -23,7 +23,7 @@ def display_settings(self):
     }
 
     while True:
-        print_menu_header("PRISM Display Settings")
+        print_menu_header("settings display")
         if print_menu_options(self, menu_options, submenu = True):
             break
 
@@ -83,7 +83,7 @@ def parameter_settings(self):
     }
 
     while True:
-        print_menu_header("PRISM System Settings")
+        print_menu_header("settings system params")
         if print_menu_options(self, menu_options, submenu = True):
             break
 
@@ -112,7 +112,7 @@ def system_settings(self):
     }
 
     while True:
-        print_menu_header("PRISM System Settings")
+        print_menu_header("settings system")
         if print_menu_options(self, menu_options, submenu = True):
             break
 
@@ -125,7 +125,7 @@ def settings_menu(self):
     }
 
     while True:
-        print_menu_header("PRISM Settings Menu")
+        print_menu_header("settings")
         if print_menu_options(self, menu_options, submenu = True):
             break
 

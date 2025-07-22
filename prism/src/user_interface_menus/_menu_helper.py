@@ -260,7 +260,7 @@ def print_global_command_menu(self, query = None):
         menu_options = {k: v for k, v in sorted(menu_options.items(), key=lambda item: item[0])}
 
     while True:
-        print_menu_header("PRISM Global Command Menu")
+        print_menu_header("command")
 
         if not menu_options:
             if COLOR_ON:
