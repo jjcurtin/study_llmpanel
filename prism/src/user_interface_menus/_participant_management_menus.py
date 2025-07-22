@@ -14,14 +14,15 @@ def refresh_participants_menu(self):
         success("Refresh cancelled.")
 
 def send_announcement_menu(self):
-    message = input("Enter study announcement message: ").strip()
-    if not message:
-        error("Message cannot be empty. Please try again.")
-        return
     require_on_study = input("Send to participants on study only? (yes/no): ").strip().lower()
     if require_on_study not in ('yes', 'y', 'no', 'n'):
         error("Invalid input. Cancelling. Press Enter to continue...")
         return
+    message = print_twilio_terminal_prompt()
+    if not message:
+        error("Message cannot be empty. Please try again.")
+        return
+    
     if self.api("POST", f"participants/study_announcement/{require_on_study}", json = {"message": message}):
         success("Study announcement sent.")
     else:
@@ -56,7 +57,7 @@ def participant_management_menu(self):
         menu_options['add'] = {'description': 'Add a Participant', 'menu_caller': add_participant_menu}
         menu_options['schedule'] = {'description': 'Get Participant Task Schedule', 'menu_caller': print_task_schedule}
         menu_options['refresh'] = {'description': 'Full Participants Refresh from CSV', 'menu_caller': refresh_participants_menu}
-        menu_options['announce'] = {'description': 'Send Study Announcement', 'menu_caller': send_announcement_menu}
+        menu_options['announcement'] = {'description': 'Send Study Announcement', 'menu_caller': send_announcement_menu}
         print("Enter an index to select a participant, or, choose another option.")
         print_dashes()
         if print_menu_options(self, menu_options, submenu = True, index_and_text = True):
@@ -115,7 +116,7 @@ def individual_participant_menu(self, participant_id):
             error("Invalid survey type.")
 
     def send_message_menu(self, participant_id):
-        message = input("Enter message to send: ").strip()
+        message = print_twilio_terminal_prompt()
         if not message:
             error("Message cannot be empty.")
             return
