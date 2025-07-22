@@ -1,6 +1,6 @@
 import requests
 
-from user_interface_menus._main_menu import main_menu
+from user_interface_menus._main_menu import main_menu, read_me
 from user_interface_menus._menu_helper import load_menus, exit_menu, load_params
 
 class PRISMInterface:
@@ -9,6 +9,10 @@ class PRISMInterface:
         if self.api("GET", "system/uptime") is None:
             print("PRISM instance is not running or is not accessible. Please start the PRISM server first.")
             exit(0)
+            
+        from user_interface_menus._menu_helper import SHOW_README
+        if SHOW_README == True:
+            read_me(self)
         main_menu(self)
 
     def api(self, method, endpoint, json=None):
