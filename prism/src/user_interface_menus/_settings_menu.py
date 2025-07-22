@@ -63,7 +63,7 @@ def best_related_parameter(self):
 def temperature_parameter(self):
     from user_interface_menus._menu_helper import ASSISTANT_TEMPERATURE
     print("Current assistant temperature:", ASSISTANT_TEMPERATURE)
-    new_temperature = input("Enter new temperature (default 0.7, ranges 0.0 to 1.0): ").strip()
+    new_temperature = input("Enter new temperature (ranges 0.0 to 1.0): ").strip()
     if new_temperature == '':
         return 0
     try:
@@ -75,11 +75,26 @@ def temperature_parameter(self):
         return 0
     set_assistant_temperature(float(new_temperature))
 
+def tokens_parameter(self):
+    from user_interface_menus._menu_helper import ASSISTANT_TOKENS
+    print("Current assistant max tokens:", ASSISTANT_TOKENS)
+    new_tokens = input("Enter new max tokens (must be a positive integer): ").strip()
+    if new_tokens == '':
+        return 0
+    try:
+        if int(new_tokens) <= 0:
+            error("Max tokens must be a positive integer.")
+            return 0
+    except Exception as e:
+        error("Invalid input. Please try again.")
+    set_assistant_tokens(int(new_tokens))
+
 def parameter_settings(self):
     menu_options = {
         'threshold': {'description': 'Adjust the minimum command prediction similarity tolerance', 'menu_caller': related_parameter},
         'best threshold': {'description': 'Adjust the prioritized "best" command prediction similarity tolerance', 'menu_caller': best_related_parameter},
-        'temperature': {'description': 'Adjust the temperature of the PRISM Assistant', 'menu_caller': temperature_parameter}
+        'temperature': {'description': 'Adjust the temperature of the PRISM Assistant', 'menu_caller': temperature_parameter},
+        'tokens': {'description': 'Adjust the maximum tokens for the PRISM Assistant', 'menu_caller': tokens_parameter}
     }
 
     while True:
@@ -150,6 +165,9 @@ PARAM_BEST_OPTIONS_THRESHOLD = best_related_parameter
 
 global PARAM_ASSISTANT_TEMPERATURE
 PARAM_ASSISTANT_TEMPERATURE = temperature_parameter
+
+global PARAM_ASSISTANT_TOKENS
+PARAM_ASSISTANT_TOKENS = tokens_parameter
 
 global READ_ME_SET
 READ_ME_SET = readme

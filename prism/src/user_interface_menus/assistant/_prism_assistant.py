@@ -4,7 +4,7 @@ import pandas as pd
 
 def make_assistant_call(user_prompt, menu_options = None, api_key = None, endpoint = None, context = None):
     try:
-        from user_interface_menus._menu_helper import ASSISTANT_TEMPERATURE
+        from user_interface_menus._menu_helper import ASSISTANT_TEMPERATURE, ASSISTANT_TOKENS
         system_prompt = ""
         with open('../config/system_prompt.txt', 'r') as file:
             system_prompt = file.read().strip()
@@ -33,7 +33,7 @@ def make_assistant_call(user_prompt, menu_options = None, api_key = None, endpoi
         payload = {
             "model": "optimize-v2",
             "messages": messages,
-            "max_tokens": 600,
+            "max_tokens": ASSISTANT_TOKENS,
             "temperature": ASSISTANT_TEMPERATURE
         }
         response = requests.post(endpoint, headers = headers, json = payload)
