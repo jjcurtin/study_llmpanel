@@ -67,7 +67,7 @@ class QuestionHandler:
                 headers=self.headers, 
                 params={"blockId": description_block_id},
                 json={
-                    "QuestionText": f'Imagine you are an individual in recovery from alcohol use disorder (AUD) with a risk of lapsing that is {lapse_risk} and that has been {lapse_risk_change} over the last week.<br><br>The following page contains messages that are tailored to this user\'s context. Please read the messages and provide feedback on their helpfulness and whether you like them or not.',
+                    "QuestionText": f'For the following messages, imagine that you have a {lapse_risk} risk of drinking that day and that your daily risk for drinking has been {lapse_risk_change} over the past two weeks. Please rate how helpful you would find each support message in this scenario.',
                     "QuestionType": "DB",
                     "Selector": "TB",
                     "DataExportTag": f" "
