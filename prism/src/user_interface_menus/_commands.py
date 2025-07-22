@@ -8,7 +8,9 @@ def init_commands():
     # ------------------------------------------------------------
 
     from user_interface_menus._system_task_menu import system_task_menu
-    from user_interface_menus._system_task_menu import ADD_TASK, ADD_SYSTEM_TASK, ADD_R_SCRIPT, REMOVE_TASK, EXECUTE_TASK, EXECUTE_SYSTEM_TASK, EXECUTE_R_SCRIPT
+    from user_interface_menus._system_task_menu import ADD_TASK, ADD_SYSTEM_TASK, ADD_R_SCRIPT
+    from user_interface_menus._system_task_menu import REMOVE_TASK, CLEAR_TASKS
+    from user_interface_menus._system_task_menu import EXECUTE_TASK, EXECUTE_SYSTEM_TASK, EXECUTE_R_SCRIPT
 
     # ------------------------------------------------------------
 
@@ -60,17 +62,25 @@ def init_commands():
 
         'tasks': {'description': 'Manage System Tasks and R Scripts', 'menu_caller': lambda self: system_task_menu(self)},
         'tasks add': {'description': 'Add New Task', 'menu_caller': lambda self: ADD_TASK(self)},
+        'add task': {'description': 'Add New Task', 'menu_caller': lambda self: ADD_TASK(self)},
         'tasks add system' : {'description': 'Add New Task', 'menu_caller': lambda self: ADD_SYSTEM_TASK(self)},
+        'add system': {'description': 'Add New System Task', 'menu_caller': lambda self: ADD_SYSTEM_TASK(self)},
         'tasks add rscript': {'description': 'Add New R Script Task', 'menu_caller': lambda self: ADD_R_SCRIPT(self)},
+        'add rscript': {'description': 'Add New R Script Task', 'menu_caller': lambda self: ADD_R_SCRIPT(self)},
         'tasks remove': {'description': 'Remove Task', 'menu_caller': lambda self: REMOVE_TASK(self)},
         'tasks execute': {'description': 'Execute Task Now', 'menu_caller': lambda self: EXECUTE_TASK(self)},
         'tasks execute system': {'description': 'Execute System Task Now', 'menu_caller': lambda self: EXECUTE_SYSTEM_TASK(self)},
         'tasks execute rscript': {'description': 'Execute R Script Task Now', 'menu_caller': lambda self: EXECUTE_R_SCRIPT(self)},
+        'execute task': {'description': 'Execute Task Now', 'menu_caller': lambda self: EXECUTE_TASK(self)},
+        'execute system': {'description': 'Execute System Task Now', 'menu_caller': lambda self: EXECUTE_SYSTEM_TASK(self)},
+        'execute rscript': {'description': 'Execute R Script Task Now', 'menu_caller': lambda self: EXECUTE_R_SCRIPT(self)},
+        'tasks clear': {'description': 'Clear Task Schedule', 'menu_caller': lambda self: CLEAR_TASKS(self)},
         
         'participants': {'description': 'Manage Participants', 'menu_caller': participant_management_menu},
         'participants add': {'description': 'Add New Participant', 'menu_caller': lambda self: ADD_PARTICIPANT(self)},
         'participants refresh': {'description': 'Refresh Participants from CSV', 'menu_caller': lambda self: PARTICIPANT_REFRESH(self)},
         'participants announcement': {'description': 'Send Study Announcement', 'menu_caller': lambda self: PARTICIPANT_ANNOUNCEMENT(self)},
+        'announcement': {'description': 'Send Study Announcement', 'menu_caller': lambda self: PARTICIPANT_ANNOUNCEMENT(self)},
         
         'logs': {'description': 'View Logs', 'menu_caller': log_menu},
         'logs transcript': {'description': 'View Today\'s Transcript', 'menu_caller': lambda self: PRINT_TRANSCRIPT(self, 'get_transcript')},
