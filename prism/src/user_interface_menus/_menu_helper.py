@@ -19,6 +19,9 @@ BEST_OPTIONS_THRESHOLD = 0.7
 global ASSISTANT_TEMPERATURE
 ASSISTANT_TEMPERATURE = 0.7
 
+global ASSISTANT_TOKENS
+ASSISTANT_TOKENS = 600
+
 global SHOW_README
 SHOW_README = True
 
@@ -103,6 +106,11 @@ def set_best_options_threshold(new_threshold):
 def set_assistant_temperature(temperature):
     global ASSISTANT_TEMPERATURE
     ASSISTANT_TEMPERATURE = temperature
+    save_params()
+
+def set_assistant_tokens(tokens):
+    global ASSISTANT_TOKENS
+    ASSISTANT_TOKENS = tokens
     save_params()
 
 def set_show_readme(show):
@@ -205,6 +213,18 @@ def load_params():
                         print(global_var, val)
                     else:
                         print(global_var, "INVALID, please update")
+                elif global_var == "ASSISTANT_TOKENS":
+                    try:
+                        if int(val) <= 0:
+                            print(global_var, "INVALID, please update")
+                        else:
+                            global ASSISTANT_TOKENS
+                            ASSISTANT_TOKENS = int(val)
+                            print(global_var, val)
+                    except Exception as e:
+                        print(global_var, "INVALID, please update")
+    import time
+    time.sleep(1)
     save_params()
 
 def save_params():
@@ -215,6 +235,7 @@ def save_params():
         file.write(f"RELATED_OPTIONS_THRESHOLD={RELATED_OPTIONS_THRESHOLD}\n")
         file.write(f"BEST_OPTIONS_THRESHOLD={BEST_OPTIONS_THRESHOLD}\n")
         file.write(f"ASSISTANT_TEMPERATURE={ASSISTANT_TEMPERATURE}\n")
+        file.write(f"ASSISTANT_TOKENS={ASSISTANT_TOKENS}\n")
         file.write(f"WINDOW_WIDTH={WINDOW_WIDTH}\n")
         file.write(f"SHOW_README={SHOW_README}\n")
         file.write(f"COLOR_ON={COLOR_ON}\n")
