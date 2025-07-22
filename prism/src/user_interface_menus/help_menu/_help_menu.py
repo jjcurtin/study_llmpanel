@@ -10,13 +10,13 @@ def help_menu(self):
     }
 
     while True:
-        print_menu_header("PRISM Help Menu")
+        print_menu_header("help")
         if print_menu_options(self, menu_options, submenu = True):
             break
 
 def general_information(self):
         from user_interface_menus._menu_helper import COLOR_ON
-        print_menu_header("General Information")
+        print_menu_header("help general")
         print("This application is designed to manage and monitor participants in a study.")
         print("It includes features for system checks, task management, participant management, and logging.")
         print("It is designed to incorporate data collection, data processing, and communication with participants in a single system.")

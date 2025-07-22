@@ -29,12 +29,12 @@ def main_menu(self):
         read_me(self)
 
     while True:
-        print_menu_header("PRISM Interface Main Menu")
+        print_menu_header("main")
         print_menu_options(self, menu_options)
 
 def read_me(self):
     from user_interface_menus._menu_helper import COLOR_ON
-    print_menu_header("README")
+    print_menu_header("readme")
     print("I recommend looking through the help section and then looking through the commands.")
     if COLOR_ON:
         print("You can search for commands by typing \033[33mcommand <query>\033[0m or \033[33m/<query>\033[0m. Leave \033[33m<query>\033[0m empty to search for all commands.")

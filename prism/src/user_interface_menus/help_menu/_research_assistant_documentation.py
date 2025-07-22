@@ -2,32 +2,32 @@ from user_interface_menus._menu_helper import *
 
 def research_assistant_documentation(self):
     def getting_started(self):
-        print_menu_header("Getting Started with PRISM for Research Assistants")
+        print_menu_header("help ra start")
         print("1. Ensure all API keys are correctly configured in the respective files.")
         print("2. Start the PRISM application using the command: python run_prism.py")
         exit_menu()
 
     def navigation(self):
-        print_menu_header("Navigating PRISM")
+        print_menu_header("help ra navigation")
         print("Use the main menu to access different functionalities.")
         print("You can use the command 'command <query>' or '/<query>' to search for specific commands.")
         print("Most commands are globally accessible, but some are only available in specific menus.")
         exit_menu()
 
     def system_schedule_management_documentation(self):
-        print_menu_header("Managing System Schedule:")
+        print_menu_header("help ra tasks")
         exit_menu()
 
     def participant_management_documentation(self):
-        print_menu_header("Managing Participants")
+        print_menu_header("help ra participants")
         exit_menu()
 
     def log_viewing_documentation(self):
-        print_menu_header("Viewing Logs")
+        print_menu_header("help ra logs")
         exit_menu()
 
     def qualtrics_interface_documentation(self):
-        print_menu_header("Qualtrics Interface")
+        print_menu_header("help ra qualtrics")
         exit_menu()
 
     menu_options = {
@@ -39,6 +39,6 @@ def research_assistant_documentation(self):
         'qualtrics': {'description': 'Qualtrics Interface', 'menu_caller': qualtrics_interface_documentation},
     }
     while True:
-        print_menu_header("PRISM Research Assistant Documentation")
+        print_menu_header("help ra")
         if print_menu_options(self, menu_options, submenu = True):
             break
