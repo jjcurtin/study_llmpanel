@@ -25,6 +25,9 @@ SHOW_README = True
 global COLOR_ON
 COLOR_ON = True
 
+global RECENT_COMMANDS
+RECENT_COMMANDS = []
+
 # ------------------------------------------------------------
 
 def clear():
@@ -106,6 +109,27 @@ def set_show_readme(show):
     global SHOW_README
     SHOW_README = show
     save_params()
+
+def add_recent_command(command):
+    global RECENT_COMMANDS
+    RECENT_COMMANDS.append(command)
+    if len(RECENT_COMMANDS) > 10:
+        RECENT_COMMANDS.pop(0)
+
+def print_recent_commands(self):
+    global RECENT_COMMANDS
+    if not RECENT_COMMANDS:
+        print("No recent commands found.")
+        exit_menu()
+        return
+    print_menu_header("Recent Commands")
+    for i, command in enumerate(RECENT_COMMANDS, 1):
+        if COLOR_ON:
+            print(f"\033[33m{i}\033[0m: {command}")
+        else:
+            print(f"{i}: {command}")
+    print_dashes()
+    exit_menu()
 
 # ------------------------------------------------------------
 
@@ -320,6 +344,8 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
             query = None
         print_global_command_menu(self, query)
         return 1
+    elif choice != 'recent' and choice.strip() != '':
+        add_recent_command(choice)
 
     selected = menu_options.get(choice)
     if selected:
@@ -389,6 +415,8 @@ def invalid_choice_menu(self, menu_options, choice = None):
     choice = print_fixed_terminal_prompt()
     if choice.lower() == 'yes':
         first_choice = combined_choices.split(', ')[0]
+        if first_choice != 'recent' and first_choice != 'command':
+            add_recent_command(first_choice)
         if first_choice in menu_options:
             menu_caller = menu_options[first_choice]['menu_caller']
             goto_menu(menu_caller, self)

@@ -40,7 +40,7 @@ def init_commands():
 
     # ------------------------------------------------------------
 
-    from user_interface_menus._menu_helper import print_global_command_menu, toggle_right_align, exit_interface, toggle_color_output
+    from user_interface_menus._menu_helper import print_global_command_menu, toggle_right_align, exit_interface, toggle_color_output, print_recent_commands
 
     # ------------------------------------------------------------
 
@@ -115,6 +115,7 @@ def init_commands():
         'shutdown': {'description': 'Shutdown PRISM', 'menu_caller': shutdown_menu},
         
         'command': {'description': 'Global Command Menu; "command <query>" to search', 'menu_caller': print_global_command_menu},
+        'recent': {'description': 'View Recent Commands', 'menu_caller': lambda self: print_recent_commands(self)},
         'exit': {'description': 'Exit PRISM User Interface', 'menu_caller': lambda self: exit_interface(self)},
     }
     return _menu_options
