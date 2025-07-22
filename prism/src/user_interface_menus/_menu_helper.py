@@ -112,9 +112,10 @@ def set_show_readme(show):
 
 def add_recent_command(command):
     global RECENT_COMMANDS
-    RECENT_COMMANDS.append(command)
-    if len(RECENT_COMMANDS) > 10:
-        RECENT_COMMANDS.pop(0)
+    if command != 'recent' and command != 'command':
+        RECENT_COMMANDS.append(command)
+        if len(RECENT_COMMANDS) > 10:
+            RECENT_COMMANDS.pop(0)
 
 def print_recent_commands(self):
     global RECENT_COMMANDS
@@ -344,13 +345,12 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
             query = None
         print_global_command_menu(self, query)
         return 1
-    elif choice != 'recent' and choice.strip() != '':
-        add_recent_command(choice)
 
     selected = menu_options.get(choice)
     if selected:
         try:
             menu_caller = selected['menu_caller']
+            add_recent_command(choice)
             if goto_menu(menu_caller, self):
                 return 1
         except Exception as e:  
@@ -359,6 +359,7 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
     elif check_global_menu_options(choice):
         try:
             description, menu_caller = check_global_menu_options(choice)
+            add_recent_command(choice)
             if goto_menu(menu_caller, self):
                 return 1
         except Exception as e:
@@ -415,8 +416,7 @@ def invalid_choice_menu(self, menu_options, choice = None):
     choice = print_fixed_terminal_prompt()
     if choice.lower() == 'yes':
         first_choice = combined_choices.split(', ')[0]
-        if first_choice != 'recent' and first_choice != 'command':
-            add_recent_command(first_choice)
+        add_recent_command(first_choice)
         if first_choice in menu_options:
             menu_caller = menu_options[first_choice]['menu_caller']
             goto_menu(menu_caller, self)
