@@ -68,6 +68,7 @@ def init_commands():
         'tasks add rscript': {'description': 'Add New R Script Task', 'menu_caller': lambda self: ADD_R_SCRIPT(self)},
         'add rscript': {'description': 'Add New R Script Task', 'menu_caller': lambda self: ADD_R_SCRIPT(self)},
         'tasks remove': {'description': 'Remove Task', 'menu_caller': lambda self: REMOVE_TASK(self)},
+        'remove task': {'description': 'Remove Task', 'menu_caller': lambda self: REMOVE_TASK(self)},
         'tasks execute': {'description': 'Execute Task Now', 'menu_caller': lambda self: EXECUTE_TASK(self)},
         'tasks execute system': {'description': 'Execute System Task Now', 'menu_caller': lambda self: EXECUTE_SYSTEM_TASK(self)},
         'tasks execute rscript': {'description': 'Execute R Script Task Now', 'menu_caller': lambda self: EXECUTE_R_SCRIPT(self)},
@@ -78,7 +79,9 @@ def init_commands():
         
         'participants': {'description': 'Manage Participants', 'menu_caller': participant_management_menu},
         'participants add': {'description': 'Add New Participant', 'menu_caller': lambda self: ADD_PARTICIPANT(self)},
+        'add participant': {'description': 'Add New Participant', 'menu_caller': lambda self: ADD_PARTICIPANT(self)},
         'participants refresh': {'description': 'Refresh Participants from CSV', 'menu_caller': lambda self: PARTICIPANT_REFRESH(self)},
+        'refresh participants': {'description': 'Refresh Participants from CSV', 'menu_caller': lambda self: PARTICIPANT_REFRESH(self)},
         'participants announcement': {'description': 'Send Study Announcement', 'menu_caller': lambda self: PARTICIPANT_ANNOUNCEMENT(self)},
         'announcement': {'description': 'Send Study Announcement', 'menu_caller': lambda self: PARTICIPANT_ANNOUNCEMENT(self)},
         
