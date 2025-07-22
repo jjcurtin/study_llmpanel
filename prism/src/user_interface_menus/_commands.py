@@ -36,7 +36,8 @@ def init_commands():
     # ------------------------------------------------------------
 
     from user_interface_menus._settings_menu import settings_menu
-    from user_interface_menus._settings_menu import DISPLAY, WINDOW_WIDTH_SETTINGS, PARAM_RELATED_THRESHOLD, PARAM_ASSISTANT_TEMPERATURE, SYSTEM_SETTINGS, PARAMETER_SETTINGS, READ_ME_SET, PARAM_BEST_OPTIONS_THRESHOLD, PARAM_ASSISTANT_TOKENS
+    from user_interface_menus._settings_menu import DISPLAY, WINDOW_WIDTH_SETTINGS, PARAM_RELATED_THRESHOLD, PARAM_ASSISTANT_TEMPERATURE, SYSTEM_SETTINGS, \
+                                                    PARAMETER_SETTINGS, READ_ME_SET, PARAM_BEST_OPTIONS_THRESHOLD, PARAM_ASSISTANT_TOKENS, print_params
 
     # ------------------------------------------------------------
 
@@ -103,6 +104,7 @@ def init_commands():
         'params best threshold': {'description': 'Manage similarity tolerance for best command suggestions', 'menu_caller': lambda self: PARAM_BEST_OPTIONS_THRESHOLD(self)},
         'params temperature': {'description': 'Manage model temperature for PRISM Assistant', 'menu_caller': lambda self: PARAM_ASSISTANT_TEMPERATURE(self)},
         'params tokens': {'description': 'Manage max tokens for PRISM Assistant', 'menu_caller': lambda self: PARAM_ASSISTANT_TOKENS(self)},
+        'params print': {'description': 'Print current system parameters', 'menu_caller': lambda self: print_params(self)},
 
         'settings display': {'description': 'Manage Display settings', 'menu_caller': lambda self: DISPLAY(self)},
         'settings display width': {'description': 'Adjust PRISM window width', 'menu_caller': lambda self: WINDOW_WIDTH_SETTINGS(self)},

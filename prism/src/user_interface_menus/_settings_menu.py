@@ -89,8 +89,20 @@ def tokens_parameter(self):
         error("Invalid input. Please try again.")
     set_assistant_tokens(int(new_tokens))
 
+def print_params(self):
+    from user_interface_menus._menu_helper import RELATED_OPTIONS_THRESHOLD, BEST_OPTIONS_THRESHOLD, \
+                                                  ASSISTANT_TEMPERATURE, ASSISTANT_TOKENS, \
+                                                  WINDOW_WIDTH
+    print(f"RELATED_OPTIONS_THRESHOLD: {RELATED_OPTIONS_THRESHOLD}")
+    print(f"BEST_OPTIONS_THRESHOLD: {BEST_OPTIONS_THRESHOLD}")
+    print(f"ASSISTANT_TEMPERATURE: {ASSISTANT_TEMPERATURE}")
+    print(f"ASSISTANT_TOKENS: {ASSISTANT_TOKENS}")
+    print(f"WINDOW_WIDTH: {WINDOW_WIDTH}")
+    exit_menu()
+
 def parameter_settings(self):
     menu_options = {
+        'print': {'description': 'Print current system parameters', 'menu_caller': print_params},
         'threshold': {'description': 'Adjust the minimum command prediction similarity tolerance', 'menu_caller': related_parameter},
         'best threshold': {'description': 'Adjust the prioritized "best" command prediction similarity tolerance', 'menu_caller': best_related_parameter},
         'temperature': {'description': 'Adjust the temperature of the PRISM Assistant', 'menu_caller': temperature_parameter},
