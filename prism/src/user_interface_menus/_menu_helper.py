@@ -118,28 +118,6 @@ def set_show_readme(show):
     SHOW_README = show
     save_params()
 
-def add_recent_command(command):
-    global RECENT_COMMANDS
-    if command != 'recent' and command != 'command':
-        RECENT_COMMANDS.append(command)
-        if len(RECENT_COMMANDS) > 10:
-            RECENT_COMMANDS.pop(0)
-
-def print_recent_commands(self):
-    global RECENT_COMMANDS
-    if not RECENT_COMMANDS:
-        print("No recent commands found.")
-        exit_menu()
-        return
-    print_menu_header("Recent Commands")
-    for i, command in enumerate(RECENT_COMMANDS, 1):
-        if COLOR_ON:
-            print(f"\033[33m{i}\033[0m: {command}")
-        else:
-            print(f"{i}: {command}")
-    print_dashes()
-    exit_menu()
-
 # ------------------------------------------------------------
 
 def load_params():
@@ -247,6 +225,8 @@ def load_menus():
     from user_interface_menus._commands import init_commands
     _menu_options = init_commands()
 
+# ------------------------------------------------------------
+
 def get_menu_options():
     global _menu_options
     if _menu_options is None:
@@ -304,17 +284,37 @@ def print_global_command_menu(self, query = None):
     menu_options = get_relevant_menu_options(query)
     if query is None:
         menu_options = {k: v for k, v in sorted(menu_options.items(), key=lambda item: item[0])}
+    print_menu_header("command")
+    if not menu_options:
+        if COLOR_ON:
+            print("\033[31mNo commands found matching your query.\033[0m")
+        else:
+            print("No commands found matching your query.")
+    if print_menu_options(self, menu_options, submenu = True):
+        return
 
-    while True:
-        print_menu_header("command")
+def add_recent_command(command):
+    global RECENT_COMMANDS
+    if command != 'recent' and command != 'command' and command not in RECENT_COMMANDS:
+        RECENT_COMMANDS.append(command)
+        if len(RECENT_COMMANDS) > 10:
+            RECENT_COMMANDS.pop(0)
 
-        if not menu_options:
-            if COLOR_ON:
-                print("\033[31mNo commands found matching your query.\033[0m")
-            else:
-                print("No commands found matching your query.")
-        if print_menu_options(self, menu_options, submenu = True):
-            break
+def print_recent_commands(self):
+    global RECENT_COMMANDS
+    if not RECENT_COMMANDS:
+        print("No recent commands found.")
+        exit_menu()
+        return
+    menu_options = {}
+    for command in RECENT_COMMANDS:
+        menu_options[command] = {
+            'description': f"",
+            'menu_caller': lambda self, cmd = command: goto_menu(cmd, self)
+        }
+    print_menu_header("recent")
+    if print_menu_options(self, menu_options, submenu = True):
+        return
     
 # ------------------------------------------------------------
 
