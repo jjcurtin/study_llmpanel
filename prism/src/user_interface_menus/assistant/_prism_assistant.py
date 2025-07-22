@@ -9,8 +9,9 @@ def make_assistant_call(user_prompt, menu_options = None, api_key = None, endpoi
         with open('../config/system_prompt.txt', 'r') as file:
             system_prompt = file.read().strip()
 
-        for menu_option in menu_options.values():
-            system_prompt += f"\n{menu_option['description']}"
+        system_prompt += "List of available commands:\n"
+        for key, menu_option in menu_options.items():
+            system_prompt += f"\n{key}: {menu_option['description']}"
 
         for prev_message in context:
             system_prompt += f"\nThe user has previously asked about {prev_message}"

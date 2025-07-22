@@ -132,8 +132,13 @@ def execute_r_script_menu(self):
         error("No R scripts available.")
         return
     print("Available R Scripts:")
-    for i, (name, script) in enumerate(r_scripts['r_script_tasks'].items(), 1):
-        print(f"{i}: {name}")
+    from user_interface_menus._menu_helper import COLOR_ON
+    if COLOR_ON:
+        for i, (name, script) in enumerate(r_scripts['r_script_tasks'].items(), 1):
+            print(f"{f"\033[33m{i}\033[0m"}: {name}")
+    else:
+        for i, (name, script) in enumerate(r_scripts['r_script_tasks'].items(), 1):
+            print(f"{i}: {name}")
     script_idx = input("Select R script index: ").strip()
     r_script_dict = r_scripts['r_script_tasks']
     script_names = list(r_script_dict.keys())
@@ -156,8 +161,13 @@ def execute_task_menu(self):
         error("No task types available.")
         return
     print("Available Tasks:")
-    for i, (k,v) in enumerate(task_types.items(),1):
-        print(f"{i}: {v} ({k})")
+    from user_interface_menus._menu_helper import COLOR_ON
+    if COLOR_ON:
+        for i, (k,v) in enumerate(task_types.items(),1):
+            print(f"{f"\033[33m{i}\033[0m"}: {v} ({k})")
+    else:
+        for i, (k,v) in enumerate(task_types.items(),1):
+            print(f"{i}: {v} ({k})")
     idx = input("Task index to execute: ").strip()
     if not idx.isdigit() or not (1 <= int(idx) <= len(task_types)):
         error("Invalid index.")
@@ -226,6 +236,7 @@ global REMOVE_TASK
 global EXECUTE_TASK
 global EXECUTE_SYSTEM_TASK
 global EXECUTE_R_SCRIPT
+global CLEAR_TASKS
 
 ADD_TASK = add_task_menu
 ADD_SYSTEM_TASK = add_new_task_menu
@@ -234,3 +245,4 @@ REMOVE_TASK = remove_task_menu
 EXECUTE_TASK = execute_menu
 EXECUTE_SYSTEM_TASK = execute_task_menu
 EXECUTE_R_SCRIPT = execute_r_script_menu
+CLEAR_TASKS = clear_task_schedule_menu
