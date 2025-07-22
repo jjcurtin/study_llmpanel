@@ -60,6 +60,14 @@ def print_assistant_terminal_prompt():
         choice = input("\nassistant> ").strip()
     return choice
 
+def print_twilio_terminal_prompt():
+    print("Please enter your message below. Press ENTER to send.")
+    if COLOR_ON:
+        choice = input("\n\033[32mtwilio> \033[0m").strip()
+    else:
+        choice = input("\ntwilio> ").strip()
+    return choice
+
 def print_dashes():
     print("-" * WINDOW_WIDTH)
 
