@@ -36,12 +36,18 @@ def init_commands():
     # ------------------------------------------------------------
 
     from user_interface_menus.settings._settings_menu import settings_menu
-    from user_interface_menus.settings._settings_menu import DISPLAY, WINDOW_WIDTH_SETTINGS, PARAM_RELATED_THRESHOLD, PARAM_ASSISTANT_TEMPERATURE, SYSTEM_SETTINGS, \
-                                                    PARAMETER_SETTINGS, READ_ME_SET, PARAM_BEST_OPTIONS_THRESHOLD, PARAM_ASSISTANT_TOKENS, print_params
+    from user_interface_menus.settings._settings_menu import DISPLAY, WINDOW_WIDTH_SETTINGS, PARAM_RELATED_THRESHOLD, \
+                                                             PARAM_ASSISTANT_TEMPERATURE, SYSTEM_SETTINGS, \
+                                                             PARAMETER_SETTINGS, READ_ME_SET, PARAM_BEST_OPTIONS_THRESHOLD, \
+                                                             PARAM_ASSISTANT_TOKENS, print_params
 
     # ------------------------------------------------------------
 
-    from user_interface_menus._menu_helper import print_global_command_menu, toggle_right_align, exit_interface, toggle_color_output, print_recent_commands
+    from user_interface_menus._menu_helper import toggle_right_align, exit_interface, toggle_color_output
+
+    # ------------------------------------------------------------
+
+    from user_interface_menus.utils._menu_display import print_recent_commands, print_global_command_menu
 
     # ------------------------------------------------------------
 

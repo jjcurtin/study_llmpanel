@@ -1,10 +1,13 @@
+from difflib import get_close_matches
+
 from user_interface_menus.utils._display import *
+from user_interface_menus.utils._menu_navigation import *
 
 # ------------------------------------------------------------
 
 def print_menu_options(self, menu_options, submenu = False, index_and_text = False, choice = None):
-    from user_interface_menus._menu_helper import COLOR_ON, RIGHT_ALIGN, WINDOW_WIDTH
-    from user_interface_menus._menu_helper import goto_menu, add_recent_command, check_global_menu_options
+    from user_interface_menus._menu_helper import COLOR_ON, RIGHT_ALIGN, WINDOW_WIDTH, \
+                                                  add_recent_command
 
     def print_key_line(margin_width, key, item):
         if not RIGHT_ALIGN:
@@ -84,7 +87,6 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
 
 def print_global_command_menu(self, query = None):
     from user_interface_menus._menu_helper import COLOR_ON
-    from user_interface_menus._menu_helper import get_relevant_menu_options
     menu_options = get_relevant_menu_options(query)
     if query is None:
         menu_options = {k: v for k, v in sorted(menu_options.items(), key=lambda item: item[0])}
@@ -99,7 +101,6 @@ def print_global_command_menu(self, query = None):
 
 def print_recent_commands(self):
     from user_interface_menus._menu_helper import RECENT_COMMANDS
-    from user_interface_menus._menu_helper import goto_menu
     if not RECENT_COMMANDS:
         print("No recent commands found.")
         exit_menu()
@@ -118,11 +119,10 @@ def print_recent_commands(self):
 
 def invalid_choice_menu(self, menu_options, choice = None):
     from user_interface_menus._menu_helper import COLOR_ON, RELATED_OPTIONS_THRESHOLD, \
-                                                  BEST_OPTIONS_THRESHOLD, _menu_options
-    from user_interface_menus._menu_helper import add_recent_command, goto_menu
+                                                  BEST_OPTIONS_THRESHOLD, _menu_options, \
+                                                  add_recent_command
     
     def sort(iterable):
-        from difflib import get_close_matches
         overall_matches = get_close_matches(choice, iterable, n = 5, cutoff = max(RELATED_OPTIONS_THRESHOLD, 0.1))
         best_matches = get_close_matches(choice, iterable, n = 5, cutoff = BEST_OPTIONS_THRESHOLD)
         if best_matches and RELATED_OPTIONS_THRESHOLD < BEST_OPTIONS_THRESHOLD:
