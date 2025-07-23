@@ -105,6 +105,7 @@ def init_commands():
         'params temperature': {'description': 'Manage model temperature for PRISM Assistant', 'menu_caller': lambda self: PARAM_ASSISTANT_TEMPERATURE(self)},
         'params tokens': {'description': 'Manage max tokens for PRISM Assistant', 'menu_caller': lambda self: PARAM_ASSISTANT_TOKENS(self)},
         'params print': {'description': 'Print current system parameters', 'menu_caller': lambda self: print_params(self)},
+        'print params': {'description': 'Print current system parameters', 'menu_caller': lambda self: print_params(self)},
 
         'settings display': {'description': 'Manage Display settings', 'menu_caller': lambda self: DISPLAY(self)},
         'settings display width': {'description': 'Adjust PRISM window width', 'menu_caller': lambda self: WINDOW_WIDTH_SETTINGS(self)},
