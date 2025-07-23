@@ -1,4 +1,5 @@
 from user_interface_menus.utils._display import *
+from user_interface_menus.utils._menu_display import *
 
 # ------------------------------------------------------------
 
@@ -164,9 +165,11 @@ def load_params():
     save_params()
 
 def save_params():
+    global RIGHT_ALIGN, RELATED_OPTIONS_THRESHOLD, ASSISTANT_TEMPERATURE, \
+           BEST_OPTIONS_THRESHOLD, ASSISTANT_TOKENS, WINDOW_WIDTH, SHOW_README, COLOR_ON
+
     file_path = "../config/uiconfig.txt"
     with open(file_path, 'w') as file:
-        global RIGHT_ALIGN, RELATED_OPTIONS_THRESHOLD, ASSISTANT_TEMPERATURE
         file.write(f"RIGHT_ALIGN={RIGHT_ALIGN}\n")
         file.write(f"RELATED_OPTIONS_THRESHOLD={RELATED_OPTIONS_THRESHOLD}\n")
         file.write(f"BEST_OPTIONS_THRESHOLD={BEST_OPTIONS_THRESHOLD}\n")
@@ -177,9 +180,10 @@ def save_params():
         file.write(f"COLOR_ON={COLOR_ON}\n")
 
 def load_menus():
+    global _menu_options
+
     clear()
     print("Now loading menus...")
-    global _menu_options
     from user_interface_menus._commands import init_commands
     _menu_options = init_commands()
 
@@ -237,19 +241,6 @@ def goto_menu(menu_caller, self):
     except Exception as e:
         error(f"An error occurred while navigating to the menu: {e}")
         return False
-    
-def print_global_command_menu(self, query = None):
-    menu_options = get_relevant_menu_options(query)
-    if query is None:
-        menu_options = {k: v for k, v in sorted(menu_options.items(), key=lambda item: item[0])}
-    print_menu_header("command")
-    if not menu_options:
-        if COLOR_ON:
-            print("\033[31mNo commands found matching your query.\033[0m")
-        else:
-            print("No commands found matching your query.")
-    if print_menu_options(self, menu_options, submenu = True):
-        return
 
 def add_recent_command(command):
     global RECENT_COMMANDS
@@ -257,150 +248,3 @@ def add_recent_command(command):
         RECENT_COMMANDS.append(command)
         if len(RECENT_COMMANDS) > 10:
             RECENT_COMMANDS.pop(0)
-
-def print_recent_commands(self):
-    global RECENT_COMMANDS
-    if not RECENT_COMMANDS:
-        print("No recent commands found.")
-        exit_menu()
-        return
-    menu_options = {}
-    for command in RECENT_COMMANDS:
-        menu_options[command] = {
-            'description': f"",
-            'menu_caller': lambda self, cmd = command: goto_menu(cmd, self)
-        }
-    print_menu_header("recent")
-    if print_menu_options(self, menu_options, submenu = True):
-        return
-    
-# ------------------------------------------------------------
-
-def print_menu_options(self, menu_options, submenu = False, index_and_text = False, choice = None):
-
-    def print_key_line(margin_width, key, item):
-        if not RIGHT_ALIGN:
-            if COLOR_ON:
-                print(f"\033[33m{key:<{int(margin_width)}}\033[0m {item['description']:<{int(margin_width - 1)}}")
-            else:
-                print(f"{key:<{int(margin_width)}} {item['description']:<{int(margin_width - 1)}}")
-        else:
-            if COLOR_ON:
-                print(f"\033[33m{key:<{int(margin_width)}}\033[0m {item['description']:>{int(margin_width - 1)}}")
-            else:
-                print(f"{key:<{int(margin_width)}} {item['description']:>{int(margin_width - 1)}}")
-
-    def print_keys():
-        margin_width = WINDOW_WIDTH / 2
-        if index_and_text:
-            for key, item in menu_options.items():
-                if key.isdigit():
-                    print_key_line(margin_width, key, item)
-            print_dashes()
-            print()
-            for key, item in menu_options.items():
-                if not key.isdigit():
-                    print_key_line(margin_width, key, item)
-        else:
-            for key, item in menu_options.items():
-                print_key_line(margin_width, key, item)
-        if submenu:
-            if COLOR_ON:
-                print("\n\033[33mENTER\033[0m: Back to Previous Menu")
-            else:
-                print("\nENTER: Back to Previous Menu")
-
-    if choice is None:
-        print_keys()
-        choice = print_fixed_terminal_prompt()
-    
-    if choice.split(" ")[0] == "command":
-        query = ' '.join(choice.split(" ")[1:]) if len(choice.split(" ")) > 1 else None
-        print_global_command_menu(self, query)
-        return 1
-    elif choice.startswith("/"):
-        query = choice[1:].strip()
-        if query == '':
-            query = None
-        print_global_command_menu(self, query)
-        return 1
-
-    selected = menu_options.get(choice)
-    if selected:
-        try:
-            menu_caller = selected['menu_caller']
-            add_recent_command(choice)
-            if goto_menu(menu_caller, self):
-                return 1
-        except Exception as e:  
-            error(f"Local menu option error: {e}")
-            return 0
-    elif check_global_menu_options(choice):
-        try:
-            description, menu_caller = check_global_menu_options(choice)
-            add_recent_command(choice)
-            if goto_menu(menu_caller, self):
-                return 1
-        except Exception as e:
-            error(f"Global menu option error: {e}")
-            return 0
-    elif choice == '' and submenu:
-        return 1
-    elif choice == '' and not submenu:
-        pass
-    else:
-        invalid_choice_menu(self, menu_options, choice)
-    return 0
-
-def invalid_choice_menu(self, menu_options, choice = None):
-    def sort(iterable):
-        global RELATED_OPTIONS_THRESHOLD
-        global BEST_OPTIONS_THRESHOLD
-        from difflib import get_close_matches
-        overall_matches = get_close_matches(choice, iterable, n = 5, cutoff = max(RELATED_OPTIONS_THRESHOLD, 0.1))
-        best_matches = get_close_matches(choice, iterable, n = 5, cutoff = BEST_OPTIONS_THRESHOLD)
-        if best_matches and RELATED_OPTIONS_THRESHOLD < BEST_OPTIONS_THRESHOLD:
-            return best_matches
-        return overall_matches
-
-    potential_local_choices = ', '.join(menu_options.keys())
-    potential_glocal_choices = ', '.join(_menu_options.keys())
-    combined_choices = potential_local_choices + ', ' + potential_glocal_choices
-    combined_choices = ', '.join(sort(set(combined_choices.split(', '))))
-
-    if COLOR_ON:
-        diagnosis = "\n\033[31mInvalid choice.\033[0m"
-    else:
-        diagnosis = "\nInvalid choice."
-
-    if combined_choices == '':
-        if COLOR_ON:
-            diagnosis += " Please use \033[33mcommand\033[0m to see a list of commands or \033[33mhelp\033[0m to view documentation."
-        else:
-            diagnosis += " Please use 'command' to see a list of commands or 'help' to view documentation."
-        print(diagnosis)
-    else:    
-        diagnosis += " Did you mean one of these?"
-        print(diagnosis)
-        
-        if COLOR_ON:
-            for potential_choice in combined_choices.split(', ')[:5]:
-                print(f"- \033[33m{potential_choice}\033[0m")
-            print("\nEnter \033[33myes\033[0m to select the first command, or enter a \033[33mdifferent command\033[0m.")
-        else:
-            for potential_choice in combined_choices.split(', ')[:5]:
-                print(f"- {potential_choice}")
-            print("Enter 'yes' to select the first command, or enter a different command.")
-    
-    choice = print_fixed_terminal_prompt()
-    if choice.lower() == 'yes':
-        first_choice = combined_choices.split(', ')[0]
-        add_recent_command(first_choice)
-        if first_choice in menu_options:
-            menu_caller = menu_options[first_choice]['menu_caller']
-            goto_menu(menu_caller, self)
-        elif first_choice in _menu_options:
-            menu_caller = _menu_options[first_choice]['menu_caller']
-            goto_menu(menu_caller, self)
-    else:
-        print_menu_options(self, menu_options, submenu = True, index_and_text = False, choice = choice)
