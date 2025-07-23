@@ -14,8 +14,8 @@ def init_commands():
 
     # ------------------------------------------------------------
 
-    from user_interface_menus._participant_management_menus import participant_management_menu
-    from user_interface_menus._participant_management_menus import ADD_PARTICIPANT, PARTICIPANT_REFRESH, PARTICIPANT_ANNOUNCEMENT
+    from user_interface_menus.participants._participant_management_menus import participant_management_menu
+    from user_interface_menus.participants._participant_management_menus import ADD_PARTICIPANT, PARTICIPANT_REFRESH, PARTICIPANT_ANNOUNCEMENT
 
     # ------------------------------------------------------------
 
