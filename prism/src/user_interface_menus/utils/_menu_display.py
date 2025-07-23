@@ -15,7 +15,7 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
         if index_and_text:
             for key, item in menu_options.items():
                 if key.isdigit():
-                    print_key_line(key, item)
+                    print(f"{yellow(key)}: {item['description']}")
             print_dashes()
             print()
             for key, item in menu_options.items():
