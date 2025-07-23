@@ -3,8 +3,12 @@ from user_interface_menus._menu_helper import *
 def research_assistant_documentation(self):
     def getting_started(self):
         print_menu_header("help ra start")
-        print("1. Ensure all API keys are correctly configured in the respective files.")
-        print("2. Start the PRISM application using the command: python run_prism.py")
+        print("The following API keys are required to be in the api/ folder and have the described format for PRISM to function correctly:")
+        print(f'1. {green("qualtrics.api")}: "api_token","datacenter","ema_survey_id","feedback_survey_id"')
+        print(f'2. {green("followmee.api")}: "username","api_token"')
+        print(f'3. {green("twilio.api")}: "account_sid","auth_token","from_number"')
+        print(f'4. {green("research_drive.api")}: "destination_path","drive_letter","network_domain","network_username","wisc_netid","wisc_password"')
+        print(f'5. {green("ngrok.api")}: "auth_token","domain"')
         exit_menu()
 
     def navigation(self):
