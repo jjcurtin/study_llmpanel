@@ -22,6 +22,9 @@ def research_assistant_documentation(self):
         print(f"You can use most global commands from any menu, but keep in mind that local commands take priority.")
         print(f"Additionally, most local commands are only available in the menu they are defined in.")
         print(f"Local commands are the ones you see on any given screen besides the command menu, which is accessed by {yellow("command")}.")
+        print(f"Some actions are mapped to multiple commands; this is to allow for flexibility.")
+        print(f"For example, you can use {yellow('tasks add rscript')} or {yellow('add rscript')} to schedule an R script.")
+        print(f"The first shows the menus you need to go through, while the second is more intuitive.")
         exit_menu()
 
     def terminals(self):
