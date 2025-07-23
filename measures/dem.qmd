@@ -1,0 +1,81 @@
+## Demographics
+* Participant characteristics
+* Covariates
+* Measured at baseline
+
+### Items & Response Scale
+
+We will first ask you some questions about your basic demographic information. We need this information so that we can describe the participants in our study. We also use this information to make certain that the technologies that we are developing are fair, effective, and useful for everyone regardless of their identities. Your responses are strictly confidential and will be used for research purposes only.
+
+
+1. What is your AGE (in years)? _______
+
+
+2. What was your SEX AT BIRTH
+
+  - Female
+  - Male
+
+
+3. What is your CURRENT GENDER IDENTITY? _________
+Note: For some people, their gender identity matches their sex at birth, but for others, it may differ and/or include identities other than male/female.
+
+
+4. What is your current SEXUAL ORIENTATION?
+
+- Asexual
+- Bisexual/Pansexual
+- Heterosexual/Straight
+- Lesbian/Gay
+- None of the above work for me, let me explain: [text entry]
+
+
+5. What is your RACE and/or ETHNICITY (check all that apply)?  
+
+  - American Indian/Alaska Native
+  - Asian
+  - Hispanic, Latino, or Spanish origin? 
+  - Native Hawaiian or Other Pacific Islander
+  - Black/African-American
+  - White/Caucasian
+  - Other: ________
+
+  
+6. Select your highest level of EDUCATION completed.  
+
+  - Less than high school or GED degree
+  - High school or GED
+  - Some college
+  - 2-year degree
+  - 4-year degree
+  - Advanced degree
+
+
+7. Please indicate your approximate gross (prior to deducting taxes) yearly HOUSEHOLD INCOME 
+
+  - Less than $25,000
+  - $25,000 - $37,499
+  - $37,500 - $49,999
+  - $50,000 - $74,999
+  - $75,000 - $99,999
+  - $100,000 - $149,999
+  - $150,000 - $199,999
+  - $200,000 or more
+
+
+8. What is your current MARITAL STATUS?  
+
+  - Married
+  - Widowed
+  - Divorced
+  - Separated
+  - Never Married
+
+
+9. How many people live in your household including yourself?  _________
+
+
+10. Would you or others consider you to be part of a minoritized and/or marginalized group based on any of the above information or other information that we did not collect from you.
+
+- No
+- Yes
