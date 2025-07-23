@@ -1,3 +1,5 @@
+# menu for accessing logs
+
 from user_interface_menus._menu_helper import *
 
 # ------------------------------------------------------------

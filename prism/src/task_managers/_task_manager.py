@@ -1,3 +1,5 @@
+# base class for task managers
+
 import queue
 import threading
 from datetime import datetime

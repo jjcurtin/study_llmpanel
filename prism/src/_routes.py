@@ -1,3 +1,6 @@
+# This file contains every Flask route for the PRISM application.
+# These routes are accessed by the ui or the Qualtrics interface (surveys)
+
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_limiter import Limiter

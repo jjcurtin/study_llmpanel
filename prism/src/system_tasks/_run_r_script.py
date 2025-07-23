@@ -1,3 +1,5 @@
+# task for running an R script within the PRISM framework
+
 import subprocess, os
 from system_tasks._system_task import SystemTask
 

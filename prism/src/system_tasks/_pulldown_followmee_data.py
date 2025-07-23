@@ -1,3 +1,5 @@
+# script to get data from FollowMee and process it
+
 import pandas as pd
 import json
 from datetime import datetime

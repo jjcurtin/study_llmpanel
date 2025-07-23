@@ -1,3 +1,5 @@
+# system settings for the user interface
+
 from user_interface_menus._menu_helper import *
 
 # ------------------------------------------------------------

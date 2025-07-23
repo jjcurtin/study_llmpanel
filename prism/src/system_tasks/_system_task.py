@@ -1,3 +1,5 @@
+# extend this class to create system tasks
+
 import random
 from datetime import datetime
 from _helper import send_sms

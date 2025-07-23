@@ -1,3 +1,5 @@
+# menu display api most text based methods are in _display.py
+
 from difflib import get_close_matches
 
 from user_interface_menus.utils._display import *

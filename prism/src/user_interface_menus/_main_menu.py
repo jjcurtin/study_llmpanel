@@ -1,3 +1,5 @@
+# first menu shown on startup of the user interface
+
 from user_interface_menus._menu_helper import *
 from user_interface_menus.check._system_check_menu import system_check_menu
 from user_interface_menus.tasks._system_task_menu import system_task_menu
