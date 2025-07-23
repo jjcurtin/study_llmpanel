@@ -8,25 +8,26 @@ from user_interface_menus.utils._menu_navigation import *
 def print_menu_options(self, menu_options, submenu = False, index_and_text = False, choice = None):
     from user_interface_menus._menu_helper import RIGHT_ALIGN, WINDOW_WIDTH, \
                                                   add_recent_command
+    
+    margin_width = WINDOW_WIDTH / 2
 
-    def print_key_line(margin_width, key, item):
+    def print_key_line(key, item):
         alignment = ">" if RIGHT_ALIGN else "<"
-        print(f"{(f"{yellow(key):<{int(margin_width)}}")} {item['description']:{alignment}{int(margin_width - 1)}}")
+        print(f"{yellow(key):<{int(margin_width)}} {item['description']:{alignment}{int(margin_width - 1)}}")
 
     def print_keys():
-        margin_width = WINDOW_WIDTH / 2
         if index_and_text:
             for key, item in menu_options.items():
                 if key.isdigit():
-                    print_key_line(margin_width, key, item)
+                    print_key_line(key, item)
             print_dashes()
             print()
             for key, item in menu_options.items():
                 if not key.isdigit():
-                    print_key_line(margin_width, key, item)
+                    print_key_line(key, item)
         else:
             for key, item in menu_options.items():
-                print_key_line(margin_width, key, item)
+                print_key_line(key, item)
         if submenu:
             print(f"\n{yellow("ENTER")}: Back to Previous Menu")
 
