@@ -12,35 +12,48 @@ def research_assistant_documentation(self):
         exit_menu()
 
     def navigation(self):
-        print_menu_header("help ra navigation")
-        print("Use the main menu to access different functionalities.")
-        print("You can use the command 'command <query>' or '/<query>' to search for specific commands.")
-        print("Most commands are globally accessible, but some are only available in specific menus.")
+        print_menu_header("help ra commands")
+        print(f"PRISM is designed to be navigated through commands. You can use {yellow('command <query>')} or {yellow('/<query>')} to search for commands.")
+        print(f"You can look at all of the commands by typing {yellow('command')} or {yellow('/')} with no arguments.")
+        print(f"I apologize if the documentation is a bit sparse; for this purpose I have added an {yellow("assistant")} to help.")
+        print(f"This menu is accessed {yellow("commands")} instead of {yellow("command")} since {yellow("command")} has the highest priority.")
+        print(f"You can use most global commands from any menu, but keep in mind that local commands take priority.")
+        print(f"Additionally, most local commands are only available in the menu they are defined in.")
+        print(f"Local commands are the ones you see on any given screen besides the command menu, which is accessed by {yellow("command")}.")
         exit_menu()
 
-    def system_schedule_management_documentation(self):
+    def terminals(self):
+        print_menu_header("help ra terminals")
+        print(f"PRISM currently has four terminal prompts:")
+        print(f"{cyan('prism> ')}: The main prompt for PRISM. You can use this to run commands.")
+        print(f"{red('assistant> ')}: The prompt for the PRISM Assistant. You can use this to ask questions in natural language.")
+        print(f"{green('twilio> ')}: The prompt for the Twilio interface. Input from this is sent as a text message.")
+        print(f"{yellow('ENTER to Continue> ')}: This prompt is used to continue after displaying a message. No commands can be run.")
+        exit_menu()
+
+    def task_management(self):
         print_menu_header("help ra tasks")
+        print(f"PRISM has a task management system that allows you to run R scripts and other tasks.")
+        print(f"I set up the Python tasks in a specific way to allow for easy management and execution.")
+        print(f"For information on how to set up one of these, refer to {yellow('help dev')}.")
+        print(f"R scripts are much easier; put it in the scripts/ folder and it will be automatically detected by the system.")
+        print(f"You can use the {yellow('tasks')} command to manage tasks.")
         exit_menu()
 
-    def participant_management_documentation(self):
+    def participants(self):
         print_menu_header("help ra participants")
-        exit_menu()
-
-    def log_viewing_documentation(self):
-        print_menu_header("help ra logs")
-        exit_menu()
-
-    def qualtrics_interface_documentation(self):
-        print_menu_header("help ra qualtrics")
+        print(f"PRISM has a participant management system that allows you to manage participants in a study.")
+        print(f"You can use the {yellow('participants')} command to manage participants.")
+        print(f"You can add, remove, and view participants, as well as manage their data.")
+        print(f"Participants are stored in config/study_participants.csv.")
         exit_menu()
 
     menu_options = {
         'start': {'description': 'Getting Started', 'menu_caller': getting_started},
-        'navigation': {'description': 'Navigating PRISM', 'menu_caller': navigation},
-        'tasks': {'description': 'Managing System Task Schedule', 'menu_caller': system_schedule_management_documentation},
-        'participants': {'description': 'Managing Participants', 'menu_caller': participant_management_documentation},
-        'logs': {'description': 'Viewing Logs', 'menu_caller': log_viewing_documentation},
-        'qualtrics': {'description': 'Qualtrics Interface', 'menu_caller': qualtrics_interface_documentation},
+        'commands': {'description': 'Navigating PRISM through Commands', 'menu_caller': navigation},
+        'terminals': {'description': 'Terminal Prompts', 'menu_caller': terminals},
+        'tasks': {'description': 'Task Management', 'menu_caller': task_management},
+        'participants': {'description': 'Participant Management', 'menu_caller': participants}
     }
     while True:
         print_menu_header("help ra")
