@@ -5,7 +5,7 @@ from user_interface_menus._menu_helper import *
 
 def shutdown_menu(self):
     if self.api("GET", "system/uptime") is not None:
-        if input("Shutdown PRISM? (yes/no): ").strip().lower() == 'yes':
+        if input(f"{red("Shutdown PRISM?")} (yes/no): ").strip().lower() == 'yes':
             try:
                 self.api("POST", "system/shutdown")
                 success("PRISM shut down.")
@@ -16,6 +16,6 @@ def shutdown_menu(self):
             except Exception as e:
                 error(f"Error: {e}")
         else:
-            success("Shutdown cancelled.")
+            print("Shutdown cancelled.")
     else:
         success("PRISM is already shut down.")
