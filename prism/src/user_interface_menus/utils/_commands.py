@@ -7,10 +7,10 @@ def init_commands():
 
     # ------------------------------------------------------------
 
-    from user_interface_menus._system_task_menu import system_task_menu
-    from user_interface_menus._system_task_menu import ADD_TASK, ADD_SYSTEM_TASK, ADD_R_SCRIPT
-    from user_interface_menus._system_task_menu import REMOVE_TASK, CLEAR_TASKS
-    from user_interface_menus._system_task_menu import EXECUTE_TASK, EXECUTE_SYSTEM_TASK, EXECUTE_R_SCRIPT
+    from user_interface_menus.tasks._system_task_menu import system_task_menu
+    from user_interface_menus.tasks._system_task_menu import ADD_TASK, ADD_SYSTEM_TASK, ADD_R_SCRIPT
+    from user_interface_menus.tasks._system_task_menu import REMOVE_TASK, CLEAR_TASKS
+    from user_interface_menus.tasks._system_task_menu import EXECUTE_TASK, EXECUTE_SYSTEM_TASK, EXECUTE_R_SCRIPT
 
     # ------------------------------------------------------------
 
