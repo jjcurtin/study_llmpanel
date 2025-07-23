@@ -28,15 +28,15 @@ def init_commands():
 
     # ------------------------------------------------------------
 
-    from user_interface_menus.help_menu._help_menu import help_menu
-    from user_interface_menus.help_menu._help_menu import GENERAL_INFORMATION
-    from user_interface_menus.help_menu._developer_documentation import developer_documentation
-    from user_interface_menus.help_menu._research_assistant_documentation import research_assistant_documentation
+    from user_interface_menus.help._help_menu import help_menu
+    from user_interface_menus.help._help_menu import GENERAL_INFORMATION
+    from user_interface_menus.help._developer_documentation import developer_documentation
+    from user_interface_menus.help._research_assistant_documentation import research_assistant_documentation
 
     # ------------------------------------------------------------
 
-    from user_interface_menus._settings_menu import settings_menu
-    from user_interface_menus._settings_menu import DISPLAY, WINDOW_WIDTH_SETTINGS, PARAM_RELATED_THRESHOLD, PARAM_ASSISTANT_TEMPERATURE, SYSTEM_SETTINGS, \
+    from user_interface_menus.settings._settings_menu import settings_menu
+    from user_interface_menus.settings._settings_menu import DISPLAY, WINDOW_WIDTH_SETTINGS, PARAM_RELATED_THRESHOLD, PARAM_ASSISTANT_TEMPERATURE, SYSTEM_SETTINGS, \
                                                     PARAMETER_SETTINGS, READ_ME_SET, PARAM_BEST_OPTIONS_THRESHOLD, PARAM_ASSISTANT_TOKENS, print_params
 
     # ------------------------------------------------------------
