@@ -1,5 +1,7 @@
 from user_interface_menus.utils._display import *
 
+# ------------------------------------------------------------
+
 def print_menu_options(self, menu_options, submenu = False, index_and_text = False, choice = None):
     from user_interface_menus._menu_helper import COLOR_ON, RIGHT_ALIGN, WINDOW_WIDTH
     from user_interface_menus._menu_helper import goto_menu, add_recent_command, check_global_menu_options
@@ -78,6 +80,42 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
         invalid_choice_menu(self, menu_options, choice)
     return 0
 
+# ------------------------------------------------------------
+
+def print_global_command_menu(self, query = None):
+    from user_interface_menus._menu_helper import COLOR_ON
+    from user_interface_menus._menu_helper import get_relevant_menu_options
+    menu_options = get_relevant_menu_options(query)
+    if query is None:
+        menu_options = {k: v for k, v in sorted(menu_options.items(), key=lambda item: item[0])}
+    print_menu_header("command")
+    if not menu_options:
+        if COLOR_ON:
+            print("\033[31mNo commands found matching your query.\033[0m")
+        else:
+            print("No commands found matching your query.")
+    if print_menu_options(self, menu_options, submenu = True):
+        return
+
+def print_recent_commands(self):
+    from user_interface_menus._menu_helper import RECENT_COMMANDS
+    from user_interface_menus._menu_helper import goto_menu
+    if not RECENT_COMMANDS:
+        print("No recent commands found.")
+        exit_menu()
+        return
+    menu_options = {}
+    for command in RECENT_COMMANDS:
+        menu_options[command] = {
+            'description': f"",
+            'menu_caller': lambda self, cmd = command: goto_menu(cmd, self)
+        }
+    print_menu_header("recent")
+    if print_menu_options(self, menu_options, submenu = True):
+        return
+
+# ------------------------------------------------------------
+
 def invalid_choice_menu(self, menu_options, choice = None):
     from user_interface_menus._menu_helper import COLOR_ON, RELATED_OPTIONS_THRESHOLD, \
                                                   BEST_OPTIONS_THRESHOLD, _menu_options
@@ -132,35 +170,3 @@ def invalid_choice_menu(self, menu_options, choice = None):
             goto_menu(menu_caller, self)
     else:
         print_menu_options(self, menu_options, submenu = True, index_and_text = False, choice = choice)
-
-def print_recent_commands(self):
-    from user_interface_menus._menu_helper import RECENT_COMMANDS
-    from user_interface_menus._menu_helper import goto_menu
-    if not RECENT_COMMANDS:
-        print("No recent commands found.")
-        exit_menu()
-        return
-    menu_options = {}
-    for command in RECENT_COMMANDS:
-        menu_options[command] = {
-            'description': f"",
-            'menu_caller': lambda self, cmd = command: goto_menu(cmd, self)
-        }
-    print_menu_header("recent")
-    if print_menu_options(self, menu_options, submenu = True):
-        return
-    
-def print_global_command_menu(self, query = None):
-    from user_interface_menus._menu_helper import COLOR_ON
-    from user_interface_menus._menu_helper import get_relevant_menu_options
-    menu_options = get_relevant_menu_options(query)
-    if query is None:
-        menu_options = {k: v for k, v in sorted(menu_options.items(), key=lambda item: item[0])}
-    print_menu_header("command")
-    if not menu_options:
-        if COLOR_ON:
-            print("\033[31mNo commands found matching your query.\033[0m")
-        else:
-            print("No commands found matching your query.")
-    if print_menu_options(self, menu_options, submenu = True):
-        return
