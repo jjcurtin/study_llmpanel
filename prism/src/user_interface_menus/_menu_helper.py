@@ -77,9 +77,19 @@ def set_show_readme(show):
     SHOW_README = show
     save_params()
 
+def add_recent_command(command):
+    global RECENT_COMMANDS
+    if command != 'recent' and command != 'command' and command not in RECENT_COMMANDS:
+        RECENT_COMMANDS.append(command)
+        if len(RECENT_COMMANDS) > 10:
+            RECENT_COMMANDS.pop(0)
+
 # ------------------------------------------------------------
 
 def load_params():
+    global RIGHT_ALIGN, RELATED_OPTIONS_THRESHOLD, ASSISTANT_TEMPERATURE, \
+           BEST_OPTIONS_THRESHOLD, ASSISTANT_TOKENS, WINDOW_WIDTH, SHOW_README, COLOR_ON
+
     clear()
     print("Now loading parameters...")
     file_path = "../config/uiconfig.txt"
@@ -95,7 +105,6 @@ def load_params():
                 elif global_var == "WINDOW_WIDTH":
                     try:
                         if int(val) and int(val) > 0 and int(val) < 200:
-                            global WINDOW_WIDTH
                             WINDOW_WIDTH = int(val)
                             print(global_var, val)
                     except Exception as e:
@@ -105,7 +114,6 @@ def load_params():
                         if float(val) > 1.0 or float(val) < 0.0:
                             print(global_var, "INVALID, please update")
                         else:
-                            global RELATED_OPTIONS_THRESHOLD
                             RELATED_OPTIONS_THRESHOLD = float(val)
                             print(global_var, val)
                     except Exception as e:
@@ -115,7 +123,6 @@ def load_params():
                         if float(val) > 1.0 or float(val) < 0.0:
                             print(global_var, "INVALID, please update")
                         else:
-                            global BEST_OPTIONS_THRESHOLD
                             BEST_OPTIONS_THRESHOLD = float(val)
                             print(global_var, val)
                     except Exception as e:
@@ -125,13 +132,11 @@ def load_params():
                         if float(val) > 1.0 or float(val) < 0.0:
                             print(global_var, "INVALID, please update")
                         else:
-                            global ASSISTANT_TEMPERATURE
                             ASSISTANT_TEMPERATURE = float(val)
                             print(global_var, val)
                     except Exception as e:
                         print(global_var, "INVALID, please update")
                 elif global_var == "SHOW_README":
-                    global SHOW_README
                     if val == "True":
                         SHOW_README = True
                         print(global_var, val)
@@ -141,7 +146,6 @@ def load_params():
                     else:
                         print(global_var, "INVALID, please update")
                 elif global_var == "COLOR_ON":
-                    global COLOR_ON
                     if val == "True":
                         COLOR_ON = True
                         print(global_var, val)
@@ -155,7 +159,6 @@ def load_params():
                         if int(val) <= 0:
                             print(global_var, "INVALID, please update")
                         else:
-                            global ASSISTANT_TOKENS
                             ASSISTANT_TOKENS = int(val)
                             print(global_var, val)
                     except Exception as e:
@@ -196,8 +199,8 @@ def get_menu_options():
     return _menu_options
 
 def get_relevant_menu_options(query = None):
+    global RELATED_OPTIONS_THRESHOLD
     def sort(iterable):
-        global RELATED_OPTIONS_THRESHOLD
         from difflib import get_close_matches
         threshold = max(RELATED_OPTIONS_THRESHOLD, 0.1)
         return get_close_matches(query, iterable, n = 15, cutoff = threshold)
@@ -241,10 +244,3 @@ def goto_menu(menu_caller, self):
     except Exception as e:
         error(f"An error occurred while navigating to the menu: {e}")
         return False
-
-def add_recent_command(command):
-    global RECENT_COMMANDS
-    if command != 'recent' and command != 'command' and command not in RECENT_COMMANDS:
-        RECENT_COMMANDS.append(command)
-        if len(RECENT_COMMANDS) > 10:
-            RECENT_COMMANDS.pop(0)
