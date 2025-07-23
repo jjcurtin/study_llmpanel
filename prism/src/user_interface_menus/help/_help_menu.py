@@ -15,7 +15,6 @@ def help_menu(self):
             break
 
 def general_information(self):
-        from user_interface_menus._menu_helper import COLOR_ON
         print_menu_header("help general")
         print("This application is designed to manage and monitor participants in a study.")
         print("It includes features for system checks, task management, participant management, and logging.")

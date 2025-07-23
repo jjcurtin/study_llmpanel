@@ -183,8 +183,24 @@ def developer_documentation(self):
         print("Additionally, the interface requires PRISM to be running.")
         exit_menu()
 
+    def architecture_overview(self):
+        print_menu_header("help dev architecture")
+        print(f"PRISM is designed with many components that work together.")
+        print(f"\nThere is the backend which is initiated by the {green("run_prism.py")} file.")
+        print(f"The backend is responsible for managing the system, tasks, participants, and data.")
+        print(f"The backend communicates with the other components through a web server using Flask (check out {green("routes.py")}).")
+        print(f"The code for this lies in the {green("system_tasks/")} and {green("task_managers/")} folders and {green("_helper.py")} and {green("_routes.py")}.")
+        print(f"\nThere is also this user interface, which is initiated by the {green("prism_interface.py")} file.")
+        print(f"The code for this lies in the {green("user_interface_menus/")} folder.")
+        print(f"\nThere is also a Qualtrics interface, which the code for is in the {green("qualtrics_js/")} folder.")
+        print(f"There are a few things that need to be set up in Qualtrics for this to work (namely the right question/survey setup).")
+        print(f"\nFeel free to contact me directly for any questions.")
+        print(f"The {yellow("assistant")} may also be able to help with some questions.")
+        exit_menu()
+
     menu_options = {
         'start': {'description': 'Getting Started', 'menu_caller': getting_started},
+        'architecture': {'description': 'PRISM Architecture Overview', 'menu_caller': architecture_overview},
         'backend': {'description': 'PRISM Backend Logic', 'menu_caller': prism_backend_logic_documentation},
         'server': {'description': 'PRISM Server and API Endpoints', 'menu_caller': prism_server_and_api_endpoints_documentation},
         'ui': {'description': 'PRISM User Interface', 'menu_caller': prism_user_interface_documentation},
