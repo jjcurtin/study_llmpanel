@@ -20,11 +20,7 @@ def general_information(self):
         print("This application is designed to manage and monitor participants in a study.")
         print("It includes features for system checks, task management, participant management, and logging.")
         print("It is designed to incorporate data collection, data processing, and communication with participants in a single system.")
-        
-        if COLOR_ON:
-            print("\nTo see a list of user interface commands, type \033[33mcommand\033[0m.")
-        else:
-            print("\nTo see a list of user interface commands, type 'command'.")
+        print(f"\nTo see a list of user interface commands, type {yellow("command")}.")
         print("\nFor more detailed information, please refer to the appropriate documentation.")
         exit_menu()
 

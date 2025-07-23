@@ -14,13 +14,9 @@ def print_task_schedule(self):
                 print(f"{i}: {t['task_type']} @ {t['task_time']}{f" {t['r_script_path']}" if t['r_script_path'] else ""} - Run Today: {t.get('run_today', False)}")
             print_dashes()
         else:
-            print("No tasks scheduled.")
+            print(f"{red("No tasks scheduled.")}")
     else:
-        from user_interface_menus._menu_helper import COLOR_ON
-        if COLOR_ON:
-            print("\033[31mNo tasks scheduled.\033[0m")
-        else:
-            print("No tasks scheduled.")
+        print(f"{red("No tasks scheduled.")}")
 
 # ------------------------------------------------------------
 
@@ -64,13 +60,8 @@ def add_new_task_menu(self):
         return
     print("Available Tasks:")
 
-    from user_interface_menus._menu_helper import COLOR_ON
-    if COLOR_ON:
-        for i, (k,v) in enumerate(task_types.items(),1):
-            print(f"{f"\033[33m{i}\033[0m"}: {v} ({k})")
-    else:
-        for i, (k,v) in enumerate(task_types.items(),1):
-            print(f"{i}: {v} ({k})")
+    for i, (k,v) in enumerate(task_types.items(),1):
+        print(f"{yellow(i)}: {v} ({k})")
     idx = input("Task index to add: ").strip()
     if not idx.isdigit() or not (1 <= int(idx) <= len(task_types)):
         error("Invalid index.")
@@ -132,13 +123,8 @@ def execute_r_script_menu(self):
         error("No R scripts available.")
         return
     print("Available R Scripts:")
-    from user_interface_menus._menu_helper import COLOR_ON
-    if COLOR_ON:
-        for i, (name, script) in enumerate(r_scripts['r_script_tasks'].items(), 1):
-            print(f"{f"\033[33m{i}\033[0m"}: {name}")
-    else:
-        for i, (name, script) in enumerate(r_scripts['r_script_tasks'].items(), 1):
-            print(f"{i}: {name}")
+    for i, (name, script) in enumerate(r_scripts['r_script_tasks'].items(), 1):
+        print(f"{yellow(i)}: {name}")
     script_idx = input("Select R script index: ").strip()
     r_script_dict = r_scripts['r_script_tasks']
     script_names = list(r_script_dict.keys())
@@ -161,13 +147,8 @@ def execute_task_menu(self):
         error("No task types available.")
         return
     print("Available Tasks:")
-    from user_interface_menus._menu_helper import COLOR_ON
-    if COLOR_ON:
-        for i, (k,v) in enumerate(task_types.items(),1):
-            print(f"{f"\033[33m{i}\033[0m"}: {v} ({k})")
-    else:
-        for i, (k,v) in enumerate(task_types.items(),1):
-            print(f"{i}: {v} ({k})")
+    for i, (k,v) in enumerate(task_types.items(),1):
+        print(f"{yellow(i)}: {v} ({k})")
     idx = input("Task index to execute: ").strip()
     if not idx.isdigit() or not (1 <= int(idx) <= len(task_types)):
         error("Invalid index.")
