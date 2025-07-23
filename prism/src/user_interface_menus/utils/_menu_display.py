@@ -75,15 +75,12 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
 # ------------------------------------------------------------
 
 def print_global_command_menu(self, query = None):
-    from user_interface_menus._menu_helper import COLOR_ON
-    red, color_end = ("\033[31m", "\033[0m") if COLOR_ON else ("", "")
-
     menu_options = get_relevant_menu_options(query)
     if query is None:
         menu_options = {k: v for k, v in sorted(menu_options.items(), key=lambda item: item[0])}
     print_menu_header("command")
     if not menu_options:
-        print(f"{red}No commands found matching your query.{color_end}")
+        print(f"{red("No commands found matching your query.")}")
     if print_menu_options(self, menu_options, submenu = True):
         return
 
@@ -106,11 +103,9 @@ def print_recent_commands(self):
 # ------------------------------------------------------------
 
 def invalid_choice_menu(self, menu_options, choice = None):
-    from user_interface_menus._menu_helper import COLOR_ON, RELATED_OPTIONS_THRESHOLD, \
+    from user_interface_menus._menu_helper import RELATED_OPTIONS_THRESHOLD, \
                                                   BEST_OPTIONS_THRESHOLD, _menu_options, \
                                                   add_recent_command
-    
-    red, yellow, color_end = ("\033[31m", "\033[33m", "\033[0m") if COLOR_ON else ("", "", "")
     
     def sort(iterable):
         overall_matches = get_close_matches(choice, iterable, n = 5, cutoff = max(RELATED_OPTIONS_THRESHOLD, 0.1))
@@ -124,18 +119,18 @@ def invalid_choice_menu(self, menu_options, choice = None):
     combined_choices = potential_local_choices + ', ' + potential_glocal_choices
     combined_choices = ', '.join(sort(set(combined_choices.split(', '))))
 
-    diagnosis = f"\n{red}Invalid choice.{color_end}"
+    diagnosis = f"\n{red("Invalid choice.")}"
 
     if combined_choices == '':
-        diagnosis += f" Please use {yellow}command{color_end} to see a list of commands or {yellow}help{color_end} to view documentation."
+        diagnosis += f" Please use {yellow("command")} to see a list of commands or {yellow("help")} to view documentation."
         print(diagnosis)
     else:    
         diagnosis += " Did you mean one of these?"
         print(diagnosis)
         
         for potential_choice in combined_choices.split(', ')[:5]:
-            print(f"- {yellow}{potential_choice}{color_end}")
-        print(f"\nEnter {yellow}yes{color_end} to select the first command, or enter a {yellow}different command{color_end}.")
+            print(f"- {yellow(potential_choice)}")
+        print(f"\nEnter {yellow("yes")} to select the first command, or enter a {yellow("different command")}.")
     
     choice = print_fixed_terminal_prompt()
     if choice.lower() == 'yes' and combined_choices != '':
