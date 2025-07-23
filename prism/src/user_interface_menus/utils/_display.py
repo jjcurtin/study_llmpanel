@@ -27,6 +27,19 @@ def cyan(message = None):
     cyan, color_end = ("\033[36m", "\033[0m") if COLOR_ON else ("", "")
     return f"{cyan}{message}{color_end}"
 
+# ------------------------------------------------------------
+
+def left_align(text):
+    from user_interface_menus._menu_helper import WINDOW_WIDTH
+    return f"{text:<{int(WINDOW_WIDTH / 2)}}"
+
+def align(text):
+    from user_interface_menus._menu_helper import RIGHT_ALIGN, WINDOW_WIDTH
+    alignment = ">" if RIGHT_ALIGN else "<"
+    return f"{text:{alignment}{int(WINDOW_WIDTH / 2 - 1)}}"
+
+# ------------------------------------------------------------
+
 def error(message = "An unexpected error occurred."):
     print(f"{red("Error")}: {message}")
     exit_menu()
