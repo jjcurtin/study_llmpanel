@@ -30,9 +30,10 @@ def main_menu(self):
 
 def read_me(self):
     print_menu_header("readme")
-    print("I recommend looking through the help section and then looking through the commands.")
+    print(f"I recommend looking through the {yellow("help")} section and then looking through the commands.")
     print(f"You can search for commands by typing {yellow("command <query>")} or {yellow("<query>")}. Leave {yellow("<query>")} empty to search for all commands.")
-    print(f"Most commands are globally accessible but some are only available in specific menus and are specified in {yellow("yellow")}.")
+    print(f"Most commands are globally accessible but some are only available in specific menus.")
+    print(f"Commands are specified in {yellow("yellow")}.")
     print(f"To toggle color mode, use the command {yellow("display color")}.")
     print(f"To stop this message from displaying on startup use the command {yellow("readme set")}.")
     exit_menu()

@@ -9,17 +9,17 @@ def clear():
 
 def green(message = None):
     from user_interface_menus._menu_helper import COLOR_ON
-    green, color_end = ("\033[32m", "\033[0m") if COLOR_ON else ("", "")
+    green, color_end = ("\033[32m", "\033[0m") if COLOR_ON else ("\033[1m", "\033[0m")
     return f"{green}{message}{color_end}"
 
 def red(message = None):
     from user_interface_menus._menu_helper import COLOR_ON
-    red, color_end = ("\033[31m", "\033[0m") if COLOR_ON else ("", "")
+    red, color_end = ("\033[31m", "\033[0m") if COLOR_ON else ("\033[1m", "\033[0m")
     return f"{red}{message}{color_end}"
 
 def yellow(message = None):
     from user_interface_menus._menu_helper import COLOR_ON
-    yellow, color_end = ("\033[33m", "\033[0m") if COLOR_ON else ("", "")
+    yellow, color_end = ("\033[33m", "\033[0m") if COLOR_ON else ("\033[4m", "\033[0m")
     return f"{yellow}{message}{color_end}"
 
 def cyan(message = None):
@@ -36,7 +36,7 @@ def success(message = "Operation completed successfully."):
     exit_menu()
     
 def exit_menu():
-    input(f"\n{yellow("ENTER to Continue> ")}")
+    input(f"\n{yellow("ENTER to Continue>")} ")
 
 def exit_interface(self):
     print(green("Exiting PRISM Interface."))

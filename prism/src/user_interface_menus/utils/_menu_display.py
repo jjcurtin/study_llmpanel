@@ -11,7 +11,7 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
 
     def print_key_line(margin_width, key, item):
         alignment = ">" if RIGHT_ALIGN else "<"
-        print(f"{yellow(f"{key:<{int(margin_width)}}")} {item['description']:{alignment}{int(margin_width - 1)}}")
+        print(f"{(f"{yellow(key):<{int(margin_width)}}")} {item['description']:{alignment}{int(margin_width - 1)}}")
 
     def print_keys():
         margin_width = WINDOW_WIDTH / 2
