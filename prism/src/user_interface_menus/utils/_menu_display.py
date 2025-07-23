@@ -6,14 +6,12 @@ from user_interface_menus.utils._menu_navigation import *
 # ------------------------------------------------------------
 
 def print_menu_options(self, menu_options, submenu = False, index_and_text = False, choice = None):
-    from user_interface_menus._menu_helper import COLOR_ON, RIGHT_ALIGN, WINDOW_WIDTH, \
+    from user_interface_menus._menu_helper import RIGHT_ALIGN, WINDOW_WIDTH, \
                                                   add_recent_command
-
-    yellow, color_end = ("\033[33m", "\033[0m") if COLOR_ON else ("", "")
 
     def print_key_line(margin_width, key, item):
         alignment = ">" if RIGHT_ALIGN else "<"
-        print(f"{yellow}{key:<{int(margin_width)}}{color_end} {item['description']:{alignment}{int(margin_width - 1)}}")
+        print(f"{yellow(f"{key:<{int(margin_width)}}")} {item['description']:{alignment}{int(margin_width - 1)}}")
 
     def print_keys():
         margin_width = WINDOW_WIDTH / 2
@@ -30,7 +28,7 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
             for key, item in menu_options.items():
                 print_key_line(margin_width, key, item)
         if submenu:
-            print(f"\n{yellow}ENTER{color_end}: Back to Previous Menu")
+            print(f"\n{yellow("ENTER")}: Back to Previous Menu")
 
     if choice is None:
         print_keys()
