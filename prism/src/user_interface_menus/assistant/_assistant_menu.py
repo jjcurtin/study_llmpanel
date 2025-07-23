@@ -13,7 +13,7 @@ def assistant_menu(self):
             print(f"Press ENTER to exit assistant. This is an experimental feature and not all information may be accurate.")
             print_dashes()
 
-            from user_interface_menus._commands import init_commands
+            from user_interface_menus.utils._commands import init_commands
             menu_options = init_commands()
         choice = print_assistant_terminal_prompt()
         if not choice.strip():

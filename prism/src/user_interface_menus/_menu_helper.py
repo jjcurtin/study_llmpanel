@@ -187,7 +187,7 @@ def load_menus():
 
     clear()
     print("Now loading menus...")
-    from user_interface_menus._commands import init_commands
+    from user_interface_menus.utils._commands import init_commands
     _menu_options = init_commands()
 
 # ------------------------------------------------------------
