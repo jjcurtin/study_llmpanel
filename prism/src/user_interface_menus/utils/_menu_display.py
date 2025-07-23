@@ -6,14 +6,10 @@ from user_interface_menus.utils._menu_navigation import *
 # ------------------------------------------------------------
 
 def print_menu_options(self, menu_options, submenu = False, index_and_text = False, choice = None):
-    from user_interface_menus._menu_helper import RIGHT_ALIGN, WINDOW_WIDTH, \
-                                                  add_recent_command
+    from user_interface_menus._menu_helper import add_recent_command
     
-    margin_width = WINDOW_WIDTH / 2
-
     def print_key_line(key, item):
-        alignment = ">" if RIGHT_ALIGN else "<"
-        print(f"{yellow(key):<{int(margin_width)}} {item['description']:{alignment}{int(margin_width - 1)}}")
+        print(f"{yellow(left_align(key))} {align(item['description'])}")
 
     def print_keys():
         if index_and_text:
