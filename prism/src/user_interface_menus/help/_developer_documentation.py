@@ -5,11 +5,11 @@ def developer_documentation(self):
         def api_key_setup(self):
             print_menu_header("help dev start api")
             print("The following API keys are required to be in the api/ folder and have the described format for PRISM to function correctly:")
-            print('1. qualtrics.api: "api_token","datacenter","ema_survey_id","feedback_survey_id"')
-            print('2. followmee.api: "username","api_token"')
-            print('3. twilio.api: "account_sid","auth_token","from_number"')
-            print('4. research_drive.api: "destination_path","drive_letter","network_domain","network_username","wisc_netid","wisc_password"')
-            print('5. ngrok.api: "auth_token","domain"')
+            print(f'1. {green("qualtrics.api")}: "api_token","datacenter","ema_survey_id","feedback_survey_id"')
+            print(f'2. {green("followmee.api")}: "username","api_token"')
+            print(f'3. {green("twilio.api")}: "account_sid","auth_token","from_number"')
+            print(f'4. {green("research_drive.api")}: "destination_path","drive_letter","network_domain","network_username","wisc_netid","wisc_password"')
+            print(f'5. {green("ngrok.api")}: "auth_token","domain"')
             exit_menu()
 
         def config_setup(self):
