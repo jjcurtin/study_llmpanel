@@ -1,5 +1,5 @@
 from user_interface_menus._menu_helper import *
-from user_interface_menus._system_check_menu import system_check_menu
+from user_interface_menus.check._system_check_menu import system_check_menu
 from user_interface_menus.tasks._system_task_menu import system_task_menu
 from user_interface_menus.participants._participant_management_menus import participant_management_menu
 from user_interface_menus.logs._log_menu import log_menu
