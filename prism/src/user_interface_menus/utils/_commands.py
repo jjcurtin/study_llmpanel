@@ -19,8 +19,8 @@ def init_commands():
 
     # ------------------------------------------------------------
 
-    from user_interface_menus._log_menu import log_menu
-    from user_interface_menus._log_menu import PRINT_TRANSCRIPT
+    from user_interface_menus.logs._log_menu import log_menu
+    from user_interface_menus.logs._log_menu import PRINT_TRANSCRIPT
 
     # ------------------------------------------------------------
 
