@@ -1,3 +1,5 @@
+# documentation entry point
+
 from user_interface_menus._menu_helper import *
 from user_interface_menus.help._developer_documentation import developer_documentation
 from user_interface_menus.help._research_assistant_documentation import research_assistant_documentation

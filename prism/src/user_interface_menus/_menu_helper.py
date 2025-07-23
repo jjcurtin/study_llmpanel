@@ -1,3 +1,5 @@
+# globals and global editing functions
+
 from user_interface_menus.utils._display import *
 from user_interface_menus.utils._menu_display import *
 

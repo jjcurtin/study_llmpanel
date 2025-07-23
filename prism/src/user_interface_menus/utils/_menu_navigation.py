@@ -1,3 +1,5 @@
+# menu navigation logic
+
 from user_interface_menus.utils._display import *
 
 def get_menu_options():

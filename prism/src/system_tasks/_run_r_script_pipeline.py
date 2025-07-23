@@ -1,3 +1,5 @@
+# r script pipeline runner; makes more sense to run each individually most of the time
+
 import subprocess
 import os
 import pandas as pd

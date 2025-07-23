@@ -1,3 +1,5 @@
+# prism assistant logic which calls 4o through azure api
+
 import requests
 import os
 import pandas as pd

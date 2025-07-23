@@ -1,3 +1,5 @@
+# Main runner for the PRISM application
+
 import os
 from datetime import datetime
 from _routes import create_flask_app

@@ -1,3 +1,5 @@
+# system check menu; basically just runs _check_system.py
+
 from user_interface_menus._menu_helper import *
 
 # ------------------------------------------------------------
