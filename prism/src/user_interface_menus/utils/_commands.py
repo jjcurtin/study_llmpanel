@@ -3,7 +3,7 @@ def init_commands():
 
     # ------------------------------------------------------------
         
-    from user_interface_menus._system_check_menu import system_check_menu, DIAGNOSTICS
+    from user_interface_menus.check._system_check_menu import system_check_menu, DIAGNOSTICS
 
     # ------------------------------------------------------------
 
