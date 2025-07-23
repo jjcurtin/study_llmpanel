@@ -4,8 +4,8 @@ from user_interface_menus._system_task_menu import system_task_menu
 from user_interface_menus._participant_management_menus import participant_management_menu
 from user_interface_menus.logs._log_menu import log_menu
 from user_interface_menus._shutdown_menu import shutdown_menu
-from user_interface_menus.help_menu._help_menu import help_menu
-from user_interface_menus._settings_menu import settings_menu
+from user_interface_menus.help._help_menu import help_menu
+from user_interface_menus.settings._settings_menu import settings_menu
 from user_interface_menus.assistant._assistant_menu import assistant_menu
 
 # ------------------------------------------------------------
