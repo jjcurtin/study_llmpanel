@@ -53,3 +53,32 @@ def goto_menu(menu_caller, self):
     except Exception as e:
         error(f"An error occurred while navigating to the menu: {e}")
         return False
+    
+def get_input(prompt = None, default_value = None, input_override = None):
+    if input_override is not None:
+        return input_override
+    
+    if prompt is None:
+        prompt = "Input: "
+    prompt += f"[default = {default_value}]: " if default_value else ": "
+    
+    user_input = input(prompt).strip()
+    if not user_input and default_value is not None:
+        return default_value
+    return user_input
+
+# /command?input/command/command?input?input 
+def execute_command_string(command_string, self):
+    commands = command_string.split('/')
+    inputs = self.inputs_queue
+    for command in commands:
+        command = command.strip()
+        if not command:
+            continue
+        if '?' in command:
+            command, input_value = command.split('?')
+            input_values = input_value.split('?')
+            for value in input_values:
+                inputs.put(value.strip())
+        if goto_menu(command, self):
+            return 1
