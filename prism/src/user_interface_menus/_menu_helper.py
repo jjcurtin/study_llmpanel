@@ -96,7 +96,10 @@ def add_user_defined_global_command(identifier, command_string, description = No
     global _menu_options
     if _menu_options is None:
         _menu_options = {}
-    if identifier not in _menu_options:
+
+    banned_identifiers = ['yes']
+    
+    if identifier not in _menu_options and identifier not in banned_identifiers:
         _menu_options[identifier] = {
             'description': description,
             'menu_caller': lambda self, cmd = command_string: execute_command_string(cmd, self)
