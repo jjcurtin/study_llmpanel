@@ -75,6 +75,19 @@ def get_input(self, prompt = None, default_value = None):
         return default_value
     return user_input
 
+def clear_inputs_queue(self):
+    from queue import Empty
+    inputs_queue = self.inputs_queue
+    if inputs_queue is None:
+        error("Inputs queue is not available.")
+        return
+    
+    try:
+        while True:
+            inputs_queue.get_nowait()
+    except Empty:
+        pass
+
 # /command?input/command/command?input?input 
 def execute_command_string(command_string, self):
     commands = command_string.split('/')
@@ -91,4 +104,5 @@ def execute_command_string(command_string, self):
             for value in input_values:
                 inputs.put(value.strip())
         if goto_menu(command, self):
-            return 1
+            pass
+        clear_inputs_queue(self)

@@ -6,7 +6,7 @@ from user_interface_menus.utils._menu_display import *
 
 def individual_participant_menu(self, participant_id):
     def remove_participant_menu(self):
-        if input("Remove participant? (yes/no): ").strip().lower() == 'yes':
+        if get_input(self, prompt = "Remove participant? (yes/no): ").lower() == 'yes':
             if self.api("DELETE", f"participants/remove_participant/{participant_id}"):
                 success("Participant removed.")
                 return 1
@@ -21,7 +21,7 @@ def individual_participant_menu(self, participant_id):
             '8': 'feedback_time', '9': 'feedback_reminder_time'
         }
         field = field_map[choice]
-        new_val = input(f"Enter new value for {field}: ")
+        new_val = get_input(self, prompt = f"Enter new value for {field}: ")
 
         if field == 'on_study':
             if new_val.lower() in ['true', 'True', 't', 'T']:
@@ -45,7 +45,7 @@ def individual_participant_menu(self, participant_id):
             error("Failed to update participant.")
 
     def send_survey_menu(self, participant_id):
-        survey_type = input("Enter survey type (ema/feedback): ").strip().lower()
+        survey_type = get_input(self, prompt = "Enter survey type (ema/feedback): ").lower()
         if survey_type in ['ema', 'feedback']:
             if self.api("POST", f"participants/send_survey/{participant_id}/{survey_type}"):
                 success(f"{survey_type.capitalize()} survey sent.")
