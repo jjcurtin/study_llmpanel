@@ -67,7 +67,7 @@ def get_input(self, prompt = None, default_value = None):
     
     if prompt is None:
         prompt = "Input: "
-    prompt += f"[default = {default_value}]: " if default_value else ": "
+    prompt += f"[default = {default_value}]: " if default_value else ""
     
     user_input = input(prompt).strip()
     if not user_input and default_value is not None:
