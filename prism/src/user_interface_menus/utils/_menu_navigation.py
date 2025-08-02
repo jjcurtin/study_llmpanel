@@ -54,9 +54,16 @@ def goto_menu(menu_caller, self):
         error(f"An error occurred while navigating to the menu: {e}")
         return False
     
-def get_input(prompt = None, default_value = None, input_override = None):
-    if input_override is not None:
-        return input_override
+def get_input(self, prompt = None, default_value = None):
+    inputs_queue = self.inputs_queue
+    if inputs_queue is None:
+        error("Inputs queue is not available.")
+        return
+    
+    if inputs_queue and not inputs_queue.empty():
+        input_override = inputs_queue.get()
+        if input_override is not None:
+            return input_override
     
     if prompt is None:
         prompt = "Input: "

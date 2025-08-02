@@ -7,12 +7,7 @@ from user_interface_menus._menu_helper import *
 def window_width_settings(self):
     from user_interface_menus._menu_helper import WINDOW_WIDTH
     print("Current PRISM window width:", WINDOW_WIDTH)
-    inputs_queue = self.inputs_queue
-    if inputs_queue is None:
-        error("Inputs queue is not available.")
-        return
-    
-    new_width = get_input("Enter new width: ", default_value = "80", input_override = inputs_queue.get() if not inputs_queue.empty() else None)
+    new_width = get_input(self, prompt = "Enter new width: ", default_value = "80")
     if not new_width.isdigit():
         error("Window width must be an integer.")
         return 0
