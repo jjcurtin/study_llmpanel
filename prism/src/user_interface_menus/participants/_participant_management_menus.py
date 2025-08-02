@@ -7,7 +7,7 @@ from user_interface_menus.participants._add_participant_menu import add_particip
 # ------------------------------------------------------------
 
 def refresh_participants_menu(self):
-    if input("Refresh participants from CSV? (yes/no): ").strip().lower() == 'yes':
+    if get_input(self, prompt = "Refresh participants from CSV? (yes/no): ").lower() == 'yes':
         if self.api("POST", "participants/refresh_participants"):
             success("Participants refreshed from CSV.")
         else:
@@ -16,7 +16,7 @@ def refresh_participants_menu(self):
         success("Refresh cancelled.")
 
 def send_announcement_menu(self):
-    require_on_study = input("Send to participants on study only? (yes/no): ").strip().lower()
+    require_on_study = get_input(self, prompt = "Send to participants on study only? (yes/no): ").lower()
     if require_on_study not in ('yes', 'y', 'no', 'n'):
         error("Invalid input. Cancelling. Press Enter to continue...")
         return
