@@ -9,7 +9,7 @@ def execute_r_script_menu(self):
     print("Available R Scripts:")
     for i, (name, script) in enumerate(r_scripts['r_script_tasks'].items(), 1):
         print(f"{yellow(i)}: {name}")
-    script_idx = input("Select R script index: ").strip()
+    script_idx = get_input(self, prompt = "Select R script index: ")
     r_script_dict = r_scripts['r_script_tasks']
     script_names = list(r_script_dict.keys())
 
@@ -33,7 +33,7 @@ def execute_task_menu(self):
     print("Available Tasks:")
     for i, (k,v) in enumerate(task_types.items(),1):
         print(f"{yellow(i)}: {v} ({k})")
-    idx = input("Task index to execute: ").strip()
+    idx = get_input(self, prompt = "Task index to execute: ")
     if not idx.isdigit() or not (1 <= int(idx) <= len(task_types)):
         error("Invalid index.")
         return
