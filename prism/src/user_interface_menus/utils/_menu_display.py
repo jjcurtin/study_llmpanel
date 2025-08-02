@@ -8,7 +8,9 @@ from user_interface_menus.utils._menu_navigation import *
 # ------------------------------------------------------------
 
 def print_menu_options(self, menu_options, submenu = False, index_and_text = False, choice = None):
-    from user_interface_menus._menu_helper import add_recent_command
+    from user_interface_menus._menu_helper import add_recent_command, set_local_menu_options
+
+    set_local_menu_options("debug", menu_options)
     
     def print_key_line(key, item):
         print(f"{yellow(left_align(key))} {align(item['description'])}")
@@ -72,6 +74,18 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
     return 0
 
 # ------------------------------------------------------------
+
+def print_register_command_menu(self):
+    identifier = input("Enter the command identifier (e.g., 'my_command'): ")
+    command_string = input("Enter the command string (e.g., '/command1?input'): ")
+    description = input("Enter a description for the command (optional): ")
+    if not identifier or not command_string:
+        error("Identifier and command string cannot be empty.")
+        return
+    if not description:
+        description = f"Custom command, no description provided."
+    from user_interface_menus._menu_helper import add_user_defined_global_command
+    add_user_defined_global_command(identifier, command_string, description)
 
 def print_global_command_menu(self, query = None):
     menu_options = get_relevant_menu_options(query)

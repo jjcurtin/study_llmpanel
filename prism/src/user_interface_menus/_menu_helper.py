@@ -7,6 +7,12 @@ from user_interface_menus.utils._menu_display import *
 
 _menu_options = None
 
+global local_menu_options
+local_menu_options = {}
+
+global current_menu
+current_menu = None
+
 global WINDOW_WIDTH
 WINDOW_WIDTH = 155
 
@@ -85,6 +91,27 @@ def add_recent_command(command):
         RECENT_COMMANDS.append(command)
         if len(RECENT_COMMANDS) > 10:
             RECENT_COMMANDS.pop(0)
+
+def add_user_defined_global_command(identifier, command_string, description = None):
+    global _menu_options
+    if _menu_options is None:
+        _menu_options = {}
+    if identifier not in _menu_options:
+        _menu_options[identifier] = {
+            'description': description,
+            'menu_caller': lambda self, cmd = command_string: execute_command_string(cmd, self)
+        }
+    else:
+        error(f"Command '{identifier}' already exists.")
+
+def set_local_menu_options(menu_name, menu_options):
+    global current_menu, local_menu_options
+    current_menu = menu_name
+    local_menu_options = menu_options
+
+def get_local_menu_options():
+    global local_menu_options
+    return local_menu_options
 
 # ------------------------------------------------------------
 
