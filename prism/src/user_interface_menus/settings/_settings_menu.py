@@ -34,7 +34,7 @@ def display_settings(self):
 def related_parameter(self):
     from user_interface_menus._menu_helper import RELATED_OPTIONS_THRESHOLD
     print("Current threshold:", RELATED_OPTIONS_THRESHOLD)
-    new_threshold = input("Enter new threshold (ranges 0.0 to 1.0): ").strip()
+    new_threshold = get_input(self, prompt = "Enter new threshold (ranges 0.0 to 1.0): ")
     if new_threshold == '':
         return 0
     try:
@@ -50,7 +50,7 @@ def related_parameter(self):
 def best_related_parameter(self):
     from user_interface_menus._menu_helper import BEST_OPTIONS_THRESHOLD
     print("Current threshold:", BEST_OPTIONS_THRESHOLD)
-    new_threshold = input("Enter new threshold (ranges 0.0 to 1.0): ").strip()
+    new_threshold = get_input(self, prompt = "Enter new threshold (ranges 0.0 to 1.0): ")
     if new_threshold == '':
         return 0
     try:
@@ -65,7 +65,7 @@ def best_related_parameter(self):
 def temperature_parameter(self):
     from user_interface_menus._menu_helper import ASSISTANT_TEMPERATURE
     print("Current assistant temperature:", ASSISTANT_TEMPERATURE)
-    new_temperature = input("Enter new temperature (ranges 0.0 to 1.0): ").strip()
+    new_temperature = get_input(self, prompt = "Enter new temperature (ranges 0.0 to 1.0): ")
     if new_temperature == '':
         return 0
     try:
@@ -80,7 +80,7 @@ def temperature_parameter(self):
 def tokens_parameter(self):
     from user_interface_menus._menu_helper import ASSISTANT_TOKENS
     print("Current assistant max tokens:", ASSISTANT_TOKENS)
-    new_tokens = input("Enter new max tokens (must be a positive integer): ").strip()
+    new_tokens = get_input(self, prompt = "Enter new max tokens (must be a positive integer): ")
     if new_tokens == '':
         return 0
     try:
@@ -123,7 +123,7 @@ def readme(self):
     else:
         print("PRISM Readme is currently disabled.")
     
-    choice = input("Show README on startup? (y/n): ").strip().lower()
+    choice = get_input(self, prompt = "Show README on startup? (y/n): ").lower()
     if choice == 'y':
         set_show_readme(True)
         success("Readme will be shown on startup.")
