@@ -19,7 +19,7 @@ def log_menu(self):
 # ------------------------------------------------------------
 
 def print_transcript(self, log_type):
-    num_lines = input("Enter number of lines to view (default 10): ").strip()
+    num_lines = get_input(self, prompt = "Enter number of lines to view: ", default_value = "10")
     if not num_lines.isdigit():
         num_lines = '10'
     print_menu_header(f"logs {log_type.split('_')[1]}")

@@ -7,19 +7,19 @@ from user_interface_menus.utils._menu_display import *
 
 def add_participant_menu(self):
     print_menu_header("participants add")
-    first_name = input("First name: ")
+    first_name = get_input(self, prompt = "First name: ")
     if not first_name:
         error("First name is required.")
         return
-    last_name = input("Last name: ")
+    last_name = get_input(self, prompt = "Last name: ")
     if not last_name:
         error("Last name is required.")
         return
-    unique_id = input("Unique ID: ")
+    unique_id = get_input(self, prompt = "Unique ID: ")
     if not unique_id:
         unique_id = str(random.randint(100000000, 999999999))
         print(f"Unique ID not provided. Generated: {unique_id}")
-    on_study = input("On study? (yes/no): ").strip().lower()
+    on_study = get_input(self, prompt = "On study? (yes/no): ").lower()
     if on_study not in ('yes', 'y', 'no', 'n'):
         print("Invalid input for on study. Defaulting to 'no'.")
         on_study = 'no'
@@ -28,7 +28,7 @@ def add_participant_menu(self):
     elif on_study == 'n':
         on_study = 'no'
     on_study = on_study == 'yes'
-    phone_number = input("Phone number (press enter to skip): ")
+    phone_number = get_input(self, prompt = "Phone number (press enter to skip): ")
     times = {}
     default_times = {
         'ema_time': '08:00:00',
@@ -37,7 +37,7 @@ def add_participant_menu(self):
         'feedback_reminder_time': '18:15:00'
     }
     for t in ['ema_time', 'ema_reminder_time', 'feedback_time', 'feedback_reminder_time']:
-        val = input(f"Enter {t.replace('_', ' ')} (HH:MM:SS) [default: {default_times[t]}]: ").strip() or default_times[t]
+        val = get_input(self, prompt = f"Enter {t.replace('_', ' ')} (HH:MM:SS) ", default_value = default_times[t]) or default_times[t]
         try:
             time.strptime(val, '%H:%M:%S')
             times[t] = val
