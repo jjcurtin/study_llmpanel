@@ -63,6 +63,7 @@ def get_input(self, prompt = None, default_value = None):
     if inputs_queue and not inputs_queue.empty():
         input_override = inputs_queue.get()
         if input_override is not None:
+            print(f"{prompt}{input_override}")
             return input_override
     
     if prompt is None:
@@ -83,7 +84,9 @@ def execute_command_string(command_string, self):
         if not command:
             continue
         if '?' in command:
-            command, input_value = command.split('?')
+            parts = command.split('?', 1)
+            command = parts[0]
+            input_value = parts[1] if len(parts) > 1 else ""
             input_values = input_value.split('?')
             for value in input_values:
                 inputs.put(value.strip())
