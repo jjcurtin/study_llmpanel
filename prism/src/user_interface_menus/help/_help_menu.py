@@ -19,19 +19,9 @@ def help_menu(self):
 
 def read_me(self):
     print_menu_header("readme")
-    print(f"I recommend looking through the {yellow('help')} section and then looking through the commands.")
-    print(f"\nYou can search for commands by typing {yellow('command <query>')} or {yellow('?<query>')}. Leave {yellow('<query>')} empty to search for all commands.")
-    print(f"Most commands are globally accessible but some are only available in specific menus.")
-    print(f"Commands are specified in {yellow('yellow')}.")
-    print(f"Example: To toggle color mode, use the command {yellow('display color')}.")
-    print(f"\nThere is also a command chaining feature that allows you to chain commands together using the {yellow('/')} character for commands and {yellow('?')} for user inputs.")
-    print(f"Example, to schedule the second available R script at midnight, you can use the command chain {yellow('/tasks/add/rscript?2?00:00:00')}")
-    print(f"To avoid the somewhat cumbersome action of typing the same command multiple times, you can use the {yellow('register')} command to save a command chain and then use it later.")
-    print(f"You can also use the command of the form {yellow('$<identifier> = <command_chain>')} to register a command chain.")
-
-    print(f"\nTL;DR: You can navigate the entire user interface using what you see on the screen, but you can use commands to access features more quickly.")
-    print(f"Command chaining is done with {yellow('/')}, but regular commands do not require this prefix.")
-    print(f"\nTo stop this message from displaying on startup use the command {yellow('readme set')}.")
+    global read_me_lines
+    for line in read_me_lines:
+        print(line)
     exit_menu()
 
 def general_information(self):
@@ -48,3 +38,19 @@ GENERAL_INFORMATION = general_information
 
 global README
 README = read_me
+
+global read_me_lines
+read_me_lines = [
+    f"I recommend looking through the {yellow('help')} section and then looking through the commands.",
+    f"\nYou can search for commands by typing {yellow('command <query>')} or {yellow('?<query>')}. Leave {yellow('<query>')} empty to search for all commands.",
+    f"Most commands are globally accessible but some are only available in specific menus.",
+    f"Commands are specified in {yellow('yellow')}.",
+    f"Example: To toggle color mode, use the command {yellow('display color')}.",
+    f"\nThere is also a command chaining feature that allows you to chain commands together using the {yellow('/')} character for commands and {yellow('?')} for user inputs.",
+    f"Example, to schedule the second available R script at midnight, you can use the command chain {yellow('/tasks/add/rscript?2?00:00:00')}",
+    f"To avoid the somewhat cumbersome action of typing the same command multiple times, you can use the {yellow('register')} command to save a command chain and then use it later.",
+    f"You can also use the command of the form {yellow('$<identifier> = <command_chain>')} to register a command chain.",
+    f"\nTL;DR: You can navigate the entire user interface using what you see on the screen, but you can use commands to access features more quickly.",
+    f"Command chaining is done with {yellow('/')}, but regular commands do not require this prefix.",
+    f"\nTo stop this message from displaying on startup use the command {yellow('readme set')}."
+]
