@@ -45,7 +45,7 @@ def align(text):
 def error(message = "An unexpected error occurred.", self = None):
     from user_interface_menus.utils._menu_navigation import clear_commands_queue
 
-    print(f"{red("Error")}: {message}")
+    print(f"{red('Error')}: {message}")
     try:
         with open("../logs/interface_logs/test_interface_log.txt", "a") as file:
             file.write(f"Error: {message}\n")
@@ -58,7 +58,7 @@ def error(message = "An unexpected error occurred.", self = None):
     exit_menu()
 
 def success(message = "Operation completed successfully.", self = None):
-    print(f"{green("Success")}: {message}")
+    print(f"{green('Success')}: {message}")
     try:
         with open("../logs/interface_logs/test_interface_log.txt", "a") as file:
             file.write(f"Success: {message}\n")
@@ -98,11 +98,11 @@ def print_equals():
 # ------------------------------------------------------------
 
 def print_fixed_terminal_prompt():
-    return input(f"\n{cyan("prism> ")}").strip()
+    return input(f"\n{cyan('prism> ')}").strip()
 
 def print_assistant_terminal_prompt():
-    return input(f"\n{red("assistant> ")}").strip()
+    return input(f"\n{red('assistant> ')}").strip()
 
 def print_twilio_terminal_prompt():
     print("Please enter your message below. Press ENTER to send.")
-    return input(f"\n{green("twilio> ")}").strip()
+    return input(f"\n{green('twilio> ')}").strip()
