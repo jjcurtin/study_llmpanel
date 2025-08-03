@@ -55,16 +55,16 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
     if choice is None:
         if self.commands_queue is not None and not self.commands_queue.empty():
             return process_chained_command(self)
-        else:
-            print_keys()
-            choice = print_fixed_terminal_prompt()
+        print_keys()
+        choice = print_fixed_terminal_prompt()
 
-    if check_for_special_commands(choice):
+    if choice == '':
+        return 1 if submenu else 0
+    elif check_for_special_commands(choice):
         return 1
-
-    selected = menu_options.get(choice)
-    if selected:
+    elif menu_options.get(choice):
         try:
+            selected = menu_options.get(choice)
             menu_caller = selected['menu_caller']
             add_recent_command(choice)
             if goto_menu(menu_caller, self):
@@ -81,10 +81,6 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
         except Exception as e:
             error(f"Global menu option error: {e}")
             return 0
-    elif choice == '' and submenu:
-        return 1
-    elif choice == '' and not submenu:
-        pass
     else:
         invalid_choice_menu(self, menu_options, choice)
     return 0
