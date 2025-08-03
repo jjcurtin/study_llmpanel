@@ -10,7 +10,8 @@ from user_interface_menus.utils._menu_navigation import *
 def print_menu_options(self, menu_options, submenu = False, index_and_text = False, choice = None):
     from user_interface_menus._menu_helper import add_recent_command, set_local_menu_options
 
-    set_local_menu_options("debug", menu_options)
+    if submenu:
+        set_local_menu_options("debug", menu_options)
     
     def print_key_line(key, item):
         print(f"{yellow(left_align(key))} {align(item['description'])}")
