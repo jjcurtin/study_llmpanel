@@ -15,6 +15,12 @@ def make_assistant_call(user_prompt, menu_options = None, api_key = None, endpoi
         for key, menu_option in menu_options.items():
             system_prompt += f"\n{key}: {menu_option['description']}"
 
+        from user_interface_menus.help._help_menu import read_me_lines
+        if read_me_lines:
+            system_prompt += "\n\nReadme lines:\n"
+            for line in read_me_lines:
+                system_prompt += f"- {line}\n"
+
         from user_interface_menus._menu_helper import RECENT_COMMANDS
         if RECENT_COMMANDS and len(RECENT_COMMANDS) > 0:
             system_prompt += "\nThe user has most recently used the following commands:\n"
