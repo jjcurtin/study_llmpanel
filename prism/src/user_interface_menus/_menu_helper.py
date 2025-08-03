@@ -112,6 +112,15 @@ def set_local_menu_options(menu_name, menu_options):
     current_menu = menu_name
     local_menu_options = menu_options
 
+def print_local_menu_options(self = None):
+    global local_menu_options
+    if not local_menu_options:
+        print("No local menu options available.")
+        return
+    for key, value in local_menu_options.items():
+        print(f"{key}")
+    print()
+
 def get_local_menu_options():
     global local_menu_options
     return local_menu_options
