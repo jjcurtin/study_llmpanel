@@ -8,7 +8,7 @@ from user_interface_menus.utils._menu_navigation import *
 # ------------------------------------------------------------
 
 def print_menu_options(self, menu_options, submenu = False, index_and_text = False, choice = None):
-    from user_interface_menus._menu_helper import add_recent_command, set_local_menu_options
+    from user_interface_menus._menu_helper import add_recent_command, set_local_menu_options, add_user_defined_global_command
 
     if submenu:
         set_local_menu_options("debug", menu_options)
@@ -49,6 +49,12 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
     elif choice.startswith("?"):
         query = choice[1:] if len(choice) > 1 else None
         print_global_command_menu(self, query)
+        return 1
+    elif choice.startswith("$"):
+        identifier = choice.split("=")[0][1:].strip()
+        command_string = choice.split("=")[1].strip() if '=' in choice else None
+        print(f"Registering {identifier} as {command_string}")
+        add_user_defined_global_command(identifier, command_string, self = self)
         return 1
 
     selected = menu_options.get(choice)
