@@ -114,6 +114,21 @@ def add_recent_command(command):
         if len(RECENT_COMMANDS) > 10:
             RECENT_COMMANDS.pop(0)
 
+def load_saved_macros(self):
+    with open("../config/saved_macros.txt", 'r') as file:
+        lines = file.readlines()
+        for line in lines:
+            if line.strip():
+                identifier, command_string, description = line.strip().split('|')
+                add_user_defined_global_command(identifier, command_string, description, self)
+
+def save_macro(self, identifier, command_string, description = None):
+    with open("../config/saved_macros.txt", 'a') as file:
+        if description is None:
+            description = command_string
+        file.write(f"{identifier}|{command_string}|{description}\n")
+    success("Macro saved successfully.")
+
 def add_user_defined_global_command(identifier, command_string, description = None, self = None):
     global _menu_options
     if _menu_options is None:

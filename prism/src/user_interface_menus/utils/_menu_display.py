@@ -8,7 +8,7 @@ from user_interface_menus.utils._menu_navigation import *
 # ------------------------------------------------------------
 
 def print_menu_options(self, menu_options, submenu = False, index_and_text = False, choice = None):
-    from user_interface_menus._menu_helper import add_recent_command, set_local_menu_options, add_user_defined_global_command
+    from user_interface_menus._menu_helper import add_recent_command, set_local_menu_options, add_user_defined_global_command, save_macro
 
     if submenu:
         set_local_menu_options("debug", menu_options)
@@ -49,6 +49,7 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
             command_string = choice.split("=")[1].strip() if '=' in choice else None
             print(f"Registering {identifier} as {command_string}")
             add_user_defined_global_command(identifier, command_string, self = self)
+            save_macro(self, identifier, command_string)
             return True
         return False
 
@@ -88,7 +89,7 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
 # ------------------------------------------------------------
 
 def print_register_command_menu(self):
-    from user_interface_menus._menu_helper import add_user_defined_global_command
+    from user_interface_menus._menu_helper import add_user_defined_global_command, save_macro
     identifier = get_input(self, prompt = "Enter the command identifier (e.g., 'my_command'): ")
     command_string = get_input(self, prompt = "Enter the command string (e.g., '/command1?input'): ")
     description = get_input(self, prompt = "Enter a description for the command (optional): ")
@@ -98,6 +99,7 @@ def print_register_command_menu(self):
     if description == '':
         description = None
     add_user_defined_global_command(identifier, command_string, description, self)
+    save_macro(self, identifier, command_string, description)
 
 def print_global_command_menu(self, query = None):
     menu_options = get_relevant_menu_options(query)
