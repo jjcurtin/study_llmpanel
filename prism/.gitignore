@@ -13,3 +13,4 @@ scripts/*.R
 logs/ema_logs/
 logs/feedback_logs/
 logs/transcripts/
+logs/interface_logs/
