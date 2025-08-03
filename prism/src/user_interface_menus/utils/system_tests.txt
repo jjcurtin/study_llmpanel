@@ -1,0 +1,5 @@
+test|/test_participants|Test all
+
+test_participants|/test_participants_add/test_participants_remove/participants|Test participant menus
+test_participants_add|/participants add?TestFirstName?TestLastName?TestUniqueID?y?1?1?1?1?1/participants|Test adding a participant
+test_participants_remove|/participants/remove?TestUniqueID?yes/participants|Test removing a participantant
