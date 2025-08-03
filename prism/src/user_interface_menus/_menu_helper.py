@@ -124,7 +124,7 @@ def add_user_defined_global_command(identifier, command_string, description = No
     if identifier not in _menu_options and identifier not in banned_identifiers:
         _menu_options[identifier] = {
             'description': command_string if description is None else description,
-            'menu_caller': lambda self, cmd = command_string: parse_command_string(cmd, self)
+            'menu_caller': CommandInjector(command_string)
         }
     else:
         error(f"Command '{identifier}' already exists.", self if self else None)
