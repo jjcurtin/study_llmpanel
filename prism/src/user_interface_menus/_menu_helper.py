@@ -246,7 +246,7 @@ def load_params():
                             print(global_var, val)
                     except Exception as e:
                         print(global_var, "INVALID, please update")
-    time.sleep(MENU_DELAY)
+    time.sleep(MENU_DELAY * 2)
     save_params()
 
 def save_params():

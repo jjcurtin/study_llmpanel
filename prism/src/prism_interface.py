@@ -21,26 +21,29 @@ class PRISMInterface:
         main_menu(self)
 
     def api(self, method, endpoint, json=None):
+        from user_interface_menus._menu_helper import TIMEOUT
         try:
             url = f"{self.base_url}/{endpoint}"
             if method == "GET":
-                r = requests.get(url)
+                r = requests.get(url, timeout = TIMEOUT)
             elif method == "POST":
-                r = requests.post(url, json=json)
+                r = requests.post(url, json = json, timeout = TIMEOUT)
             elif method == "PUT":
-                r = requests.put(url)
+                r = requests.put(url, timeout = TIMEOUT)
             elif method == "DELETE":
-                r = requests.delete(url)
+                r = requests.delete(url, timeout = TIMEOUT)
             else:
                 raise ValueError("Invalid HTTP method")
 
             if r.status_code == 200:
                 return r.json()
         except requests.ConnectionError:
-            pass
-        except Exception:
-            pass
-        return None                        
+            print("Connection error occurred while trying to reach the PRISM server.")
+        except requests.Timeout:
+            print("Request timed out. Please check the PRISM server or increase the timeout value.")
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+        return None
 
     def get_task_types(self):
         data = self.api("GET", "system/get_task_types")
