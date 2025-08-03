@@ -53,7 +53,7 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
         return False
 
     if choice is None:
-        if self.commands_queue is not None and not self.commands_queue.empty():
+        if self.commands_queue:
             return process_chained_command(self)
         print_keys()
         choice = print_fixed_terminal_prompt()
