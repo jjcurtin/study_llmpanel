@@ -43,7 +43,7 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
         print_global_command_menu(self, query)
         return 1
     elif choice.startswith("/"):
-        execute_command_string(choice, self)
+        parse_command_string(choice, self)
         return 1
     elif choice.startswith("?"):
         query = choice[1:] if len(choice) > 1 else None

@@ -40,7 +40,7 @@ def check_global_menu_options(query = None):
 # ------------------------------------------------------------
 
 def goto_menu(menu_caller, self):
-    from user_interface_menus._menu_helper import get_local_menu_options
+    from user_interface_menus._menu_helper import get_local_menu_options, print_local_menu_options
     try:
         if callable(menu_caller):
             return menu_caller(self)
@@ -58,11 +58,13 @@ def goto_menu(menu_caller, self):
                     return menu_caller(self)
                 elif isinstance(menu_caller, str):
                     return goto_menu(menu_caller, self)
-
-            error(f"Menu '{menu_caller}' not found.")
-            while not self.commands_queue.empty():
-                self.commands_queue.get()
-            return False
+            else:
+                print("\nAvailable local menu options at this point in execution:\n")
+                print_local_menu_options()
+                error(f"Menu '{menu_caller}' not found.")
+                while not self.commands_queue.empty():
+                    self.commands_queue.get()
+                return False
         else:
             error("Invalid menu caller.")
             return False
@@ -108,7 +110,7 @@ def clear_inputs_queue(self):
 
 # ------------------------------------------------------------
 
-def execute_command_string(command_string, self):
+def parse_command_string(command_string, self):
     tokens = command_string.split('/')
     commands_to_chain = self.commands_queue
     for token in tokens:
