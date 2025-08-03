@@ -27,7 +27,7 @@ class PRISMInterface:
     def api(self, method, endpoint, json=None):
         from user_interface_menus._menu_helper import TIMEOUT
         try:
-            url = f"{self.base_url}/{endpoint}"
+            url = f'{self.base_url}/{endpoint}'
             if method == "GET":
                 r = requests.get(url, timeout = TIMEOUT)
             elif method == "POST":
