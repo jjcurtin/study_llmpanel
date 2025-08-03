@@ -38,3 +38,6 @@ def general_information(self):
 
 global GENERAL_INFORMATION
 GENERAL_INFORMATION = general_information
+
+global README
+README = read_me
