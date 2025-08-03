@@ -121,6 +121,12 @@ def load_saved_macros(self):
             if line.strip():
                 identifier, command_string, description = line.strip().split('|')
                 add_user_defined_global_command(identifier, command_string, description, self)
+    with open("user_interface_menus/utils/system_tests.txt", 'r') as file:
+        lines = file.readlines()
+        for line in lines:
+            if line.strip():
+                identifier, command_string, description = line.strip().split('|')
+                add_user_defined_global_command(identifier, command_string, description, self)
 
 def save_macro(self, identifier, command_string, description = None):
     with open("../config/saved_macros.txt", 'a') as file:
