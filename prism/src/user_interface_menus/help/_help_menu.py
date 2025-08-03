@@ -30,6 +30,7 @@ def general_information(self):
     print("It includes features for system checks, task management, participant management, and logging.")
     print("It is designed to incorporate data collection, data processing, and communication with participants in a single system.")
     print(f"\nTo see a list of user interface commands, type {yellow('command')}.")
+    print(f"To chain commands together, use the {yellow('/')} character for commands and {yellow('?')} for user inputs.")
     print("\nFor more detailed information, please refer to the appropriate documentation.")
     exit_menu()
 
