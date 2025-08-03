@@ -32,7 +32,7 @@ def system_check_menu(self):
         print_menu_header("check")
         print_dashes()
         print("Mode:", mode)
-        print(f"As of last check, PRISM has been up for {start_time}.")
+        print(f"As of last check, PRISM has been up for {green(start_time)}.")
         print_dashes()
         print()
         if print_menu_options(self, menu_options, submenu = True):
