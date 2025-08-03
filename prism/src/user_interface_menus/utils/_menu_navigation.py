@@ -123,11 +123,27 @@ def clear_commands_queue(self):
 
 # ------------------------------------------------------------
 
-def parse_command_string(command_string, self, mode = "FIFO"):
+class CommandInjector:
+    def __init__(self, command_string):
+        self.command_string = command_string
+
+    def __call__(self, self_ref):
+        tokens = self.command_string.split('/')
+        for token in reversed(tokens):
+            stripped = token.strip()
+            if stripped:
+                self_ref.commands_queue.appendleft(stripped)
+        return True
+
+    def __repr__(self):
+        return f"<CommandInjector: {self.command_string}>"
+
+def parse_command_string(command_string, self, mode = "IN_PLACE"):
     tokens = command_string.split('/')
     commands_to_chain = self.commands_queue
 
     # strictly FIFO /1/2/3 = /1/2/3/a/b/c
+    # deprecated, use IN_PLACE instead for macro expansion
     if mode == "FIFO":
         for token in tokens:
             stripped_token = token.strip()
@@ -136,7 +152,20 @@ def parse_command_string(command_string, self, mode = "FIFO"):
 
     # in place macro expansion /1/2/3 = /1/a/2/b/3/c
     elif mode == "IN_PLACE":
-        pass
+        for token in tokens:
+            stripped_token = token.strip()
+            if stripped_token:
+                match = check_global_menu_options(stripped_token)
+                if match:
+                    description, menu_caller = match
+                    if isinstance(menu_caller, CommandInjector):
+                        print(f"Recursive command detected: {stripped_token}")
+                        exit_menu()
+                        commands_to_chain.appendleft(stripped_token)
+                    else:
+                        commands_to_chain.append(stripped_token)
+                else:
+                    commands_to_chain.append(stripped_token)
 
     else:
         error(f"Unknown mode '{mode}' for command parsing.", self)
