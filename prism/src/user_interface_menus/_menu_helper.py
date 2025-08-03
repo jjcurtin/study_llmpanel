@@ -40,6 +40,12 @@ COLOR_ON = True
 global RECENT_COMMANDS
 RECENT_COMMANDS = []
 
+global MENU_DELAY
+MENU_DELAY = 0.5
+
+global TIMEOUT
+TIMEOUT = 10
+
 # ------------------------------------------------------------
 
 def toggle_color_output(self):
@@ -78,6 +84,22 @@ def set_assistant_temperature(temperature):
 def set_assistant_tokens(tokens):
     global ASSISTANT_TOKENS
     ASSISTANT_TOKENS = tokens
+    save_params()
+
+def set_menu_delay(delay):
+    global MENU_DELAY
+    if isinstance(delay, (int, float)) and delay >= 0:
+        MENU_DELAY = delay
+    else:
+        error("Menu delay must be a non-negative number.")
+    save_params()
+
+def set_timeout(timeout):
+    global TIMEOUT
+    if isinstance(timeout, int) and timeout > 0:
+        TIMEOUT = timeout
+    else:
+        error("Timeout must be a positive integer.")
     save_params()
 
 def set_show_readme(show):
@@ -128,8 +150,10 @@ def get_local_menu_options():
 # ------------------------------------------------------------
 
 def load_params():
+    import time
     global RIGHT_ALIGN, RELATED_OPTIONS_THRESHOLD, ASSISTANT_TEMPERATURE, \
-           BEST_OPTIONS_THRESHOLD, ASSISTANT_TOKENS, WINDOW_WIDTH, SHOW_README, COLOR_ON
+           BEST_OPTIONS_THRESHOLD, ASSISTANT_TOKENS, WINDOW_WIDTH, SHOW_README, COLOR_ON, \
+           MENU_DELAY, TIMEOUT
 
     clear()
     print("Now loading parameters...")
@@ -204,13 +228,31 @@ def load_params():
                             print(global_var, val)
                     except Exception as e:
                         print(global_var, "INVALID, please update")
-    import time
-    time.sleep(1)
+                elif global_var == "MENU_DELAY":
+                    try:
+                        if float(val) < 0:
+                            print(global_var, "INVALID, please update")
+                        else:
+                            MENU_DELAY = float(val)
+                            print(global_var, val)
+                    except Exception as e:
+                        print(global_var, "INVALID, please update")
+                elif global_var == "TIMEOUT":
+                    try:
+                        if int(val) <= 0:
+                            print(global_var, "INVALID, please update")
+                        else:
+                            TIMEOUT = int(val)
+                            print(global_var, val)
+                    except Exception as e:
+                        print(global_var, "INVALID, please update")
+    time.sleep(MENU_DELAY)
     save_params()
 
 def save_params():
     global RIGHT_ALIGN, RELATED_OPTIONS_THRESHOLD, ASSISTANT_TEMPERATURE, \
-           BEST_OPTIONS_THRESHOLD, ASSISTANT_TOKENS, WINDOW_WIDTH, SHOW_README, COLOR_ON
+           BEST_OPTIONS_THRESHOLD, ASSISTANT_TOKENS, WINDOW_WIDTH, SHOW_README, COLOR_ON, \
+           MENU_DELAY, TIMEOUT
 
     file_path = "../config/uiconfig.txt"
     with open(file_path, 'w') as file:
@@ -222,6 +264,8 @@ def save_params():
         file.write(f"WINDOW_WIDTH={WINDOW_WIDTH}\n")
         file.write(f"SHOW_README={SHOW_README}\n")
         file.write(f"COLOR_ON={COLOR_ON}\n")
+        file.write(f"MENU_DELAY={MENU_DELAY}\n")
+        file.write(f"TIMEOUT={TIMEOUT}\n")
 
 def load_menus():
     global _menu_options
