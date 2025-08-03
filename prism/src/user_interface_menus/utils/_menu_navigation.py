@@ -61,9 +61,8 @@ def goto_menu(menu_caller, self):
             else:
                 print("\nAvailable local menu options at this point in execution:\n")
                 print_local_menu_options()
+                clear_commands_queue(self)
                 error(f"Menu '{menu_caller}' not found.")
-                while not self.commands_queue.empty():
-                    self.commands_queue.get()
                 return False
         else:
             error("Invalid menu caller.")
@@ -105,6 +104,19 @@ def clear_inputs_queue(self):
     try:
         while True:
             inputs_queue.get_nowait()
+    except Empty:
+        pass
+    
+def clear_commands_queue(self):
+    from queue import Empty
+    commands_queue = self.commands_queue
+    if commands_queue is None:
+        error("Commands queue is not available.")
+        return
+    
+    try:
+        while True:
+            commands_queue.get_nowait()
     except Empty:
         pass
 
