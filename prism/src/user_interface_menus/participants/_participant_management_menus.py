@@ -35,12 +35,13 @@ def remove_participant_menu(self):
     if not participant_id or participant_id.strip() == '':
         error("Participant ID cannot be empty.")
         return 0
-    if self.api("DELETE", f"participants/remove_participant/{participant_id}"):
-        success("Participant removed.", self)
-        return 1
-    else:
-        error("Failed to remove participant. Unique ID not found", self)
-        return 0
+    if get_input(self, prompt = f"Are you sure you want to remove participant with ID '{participant_id}'? (yes/no): ").lower() == 'yes':
+        if self.api("DELETE", f"participants/remove_participant/{participant_id}"):
+            success("Participant removed.", self)
+            return 1
+        else:
+            error("Failed to remove participant. Unique ID not found", self)
+            return 0
 
 # ------------------------------------------------------------
 
