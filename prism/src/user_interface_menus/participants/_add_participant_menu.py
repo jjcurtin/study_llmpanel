@@ -19,6 +19,13 @@ def add_participant_menu(self):
     if not unique_id:
         unique_id = str(random.randint(100000000, 999999999))
         print(f"Unique ID not provided. Generated: {unique_id}")
+    existing_participants = self.api("GET", "participants/get_participants")
+    if existing_participants:
+        for participant in existing_participants.get("participants", []):
+            if participant.get("unique_id") == unique_id:
+                new_unique_id = str(random.randint(100000000, 999999999))
+                print(f"Unique ID '{unique_id}' already exists. Generated a new one: {new_unique_id}")
+                unique_id = new_unique_id
     on_study = get_input(self, prompt = "On study? (yes/no): ").lower()
     if on_study not in ('yes', 'y', 'no', 'n'):
         print("Invalid input for on study. Defaulting to 'no'.")
