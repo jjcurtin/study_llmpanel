@@ -64,14 +64,13 @@ def goto_menu(menu_caller, self):
             else:
                 print("\nAvailable local menu options at this point in execution:\n")
                 print_local_menu_options()
-                clear_commands_queue(self)
-                error(f"Menu '{menu_caller}' not found.")
+                error(f"Menu '{menu_caller}' not found.", self)
                 return False
         else:
-            error("Invalid menu caller.")
+            error("Invalid menu caller.", self)
             return False
     except Exception as e:
-        error(f"An error occurred while navigating to the menu: {e}")
+        error(f"An error occurred while navigating to the menu: {e}", self)
         return False
     
 # ------------------------------------------------------------
@@ -79,7 +78,7 @@ def goto_menu(menu_caller, self):
 def get_input(self, prompt = None, default_value = None):
     inputs_queue = self.inputs_queue
     if inputs_queue is None:
-        error("Inputs queue is not available.")
+        error("Inputs queue is not available.", self)
         return
     
     if inputs_queue and not inputs_queue.empty():
@@ -101,7 +100,7 @@ def clear_inputs_queue(self):
     from queue import Empty
     inputs_queue = self.inputs_queue
     if inputs_queue is None:
-        error("Inputs queue is not available.")
+        error("Inputs queue is not available.", self)
         return
     
     try:
@@ -141,7 +140,7 @@ def parse_command_string(command_string, self, mode = "FIFO"):
         pass
 
     else:
-        error(f"Unknown mode '{mode}' for command parsing.")
+        error(f"Unknown mode '{mode}' for command parsing.", self)
         return
 
 def process_chained_command(self):
@@ -166,7 +165,7 @@ def process_chained_command(self):
         if goto_menu(command, self):
             return 1
     except Exception as e:
-        error(f"Error processing command '{command}': {e}")
+        error(f"Error processing command '{command}': {e}", self)
     finally:
         clear_inputs_queue(self)
         return 1

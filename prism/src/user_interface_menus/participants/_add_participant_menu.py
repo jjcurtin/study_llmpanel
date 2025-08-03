@@ -9,11 +9,11 @@ def add_participant_menu(self):
     print_menu_header("participants add")
     first_name = get_input(self, prompt = "First name: ")
     if not first_name:
-        error("First name is required.")
+        error("First name is required.", self)
         return
     last_name = get_input(self, prompt = "Last name: ")
     if not last_name:
-        error("Last name is required.")
+        error("Last name is required.", self)
         return
     unique_id = get_input(self, prompt = "Unique ID: ")
     if not unique_id:
@@ -51,6 +51,6 @@ def add_participant_menu(self):
                     phone_number = phone_number, 
                     **times)
     if self.api("POST", "participants/add_participant", json = payload):
-        success("Participant added.")
+        success("Participant added.", self)
     else:
-        error("Failed to add participant.")
+        error("Failed to add participant.", self)
