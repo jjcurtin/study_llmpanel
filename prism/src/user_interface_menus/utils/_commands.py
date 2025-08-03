@@ -1,7 +1,7 @@
 # global commands for prism user interface
 
 def init_commands():
-    from user_interface_menus._main_menu import main_menu, README
+    from user_interface_menus._main_menu import main_menu
 
     # ------------------------------------------------------------
         
@@ -30,8 +30,7 @@ def init_commands():
 
     # ------------------------------------------------------------
 
-    from user_interface_menus.help._help_menu import help_menu
-    from user_interface_menus.help._help_menu import GENERAL_INFORMATION
+    from user_interface_menus.help._help_menu import help_menu, GENERAL_INFORMATION, README
     from user_interface_menus.help._developer_documentation import developer_documentation
     from user_interface_menus.help._research_assistant_documentation import research_assistant_documentation
 

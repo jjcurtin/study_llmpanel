@@ -29,7 +29,3 @@ def main_menu(self):
     while True:
         print_menu_header("main")
         print_menu_options(self, menu_options)
-
-global README
-from user_interface_menus.help._help_menu import read_me
-README = read_me

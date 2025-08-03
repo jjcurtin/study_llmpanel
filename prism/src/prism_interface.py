@@ -3,7 +3,8 @@
 import requests, queue
 from collections import deque
 
-from user_interface_menus._main_menu import main_menu, read_me
+from user_interface_menus._main_menu import main_menu
+from user_interface_menus.help._help_menu import README
 from user_interface_menus._menu_helper import load_menus, exit_menu, load_params, load_saved_macros
 
 class PRISMInterface:
@@ -20,7 +21,7 @@ class PRISMInterface:
             
         from user_interface_menus._menu_helper import SHOW_README
         if SHOW_README == True:
-            read_me(self)
+            README(self)
         main_menu(self)
 
     def api(self, method, endpoint, json=None):
