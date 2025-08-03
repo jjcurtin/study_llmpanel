@@ -40,7 +40,10 @@ def check_global_menu_options(query = None):
 # ------------------------------------------------------------
 
 def goto_menu(menu_caller, self):
+    import time
+    from user_interface_menus._menu_helper import MENU_DELAY
     from user_interface_menus._menu_helper import get_local_menu_options, print_local_menu_options
+    time.sleep(MENU_DELAY)
     try:
         if callable(menu_caller):
             return menu_caller(self)
