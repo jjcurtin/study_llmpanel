@@ -90,7 +90,7 @@ def print_register_command_menu(self):
         return
     if description == '':
         description = None
-    add_user_defined_global_command(identifier, command_string, description)
+    add_user_defined_global_command(identifier, command_string, description, self)
 
 def print_global_command_menu(self, query = None):
     menu_options = get_relevant_menu_options(query)

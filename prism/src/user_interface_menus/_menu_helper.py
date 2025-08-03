@@ -114,7 +114,7 @@ def add_recent_command(command):
         if len(RECENT_COMMANDS) > 10:
             RECENT_COMMANDS.pop(0)
 
-def add_user_defined_global_command(identifier, command_string, description = None):
+def add_user_defined_global_command(identifier, command_string, description = None, self = None):
     global _menu_options
     if _menu_options is None:
         _menu_options = {}
@@ -127,7 +127,7 @@ def add_user_defined_global_command(identifier, command_string, description = No
             'menu_caller': lambda self, cmd = command_string: parse_command_string(cmd, self)
         }
     else:
-        error(f"Command '{identifier}' already exists.")
+        error(f"Command '{identifier}' already exists.", self if self else None)
 
 def set_local_menu_options(menu_name, menu_options):
     global current_menu, local_menu_options
