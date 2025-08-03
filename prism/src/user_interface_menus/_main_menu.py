@@ -15,7 +15,7 @@ from user_interface_menus.assistant._assistant_menu import assistant_menu
 def main_menu(self):
     menu_options = {
         'help': {'description': 'Help', 'menu_caller': help_menu},
-        'command': {'description': 'Global Command Menu; "command <query>" to search', 'menu_caller': print_global_command_menu},
+        'command': {'description': 'Global Command Menu; "?<query>" to search', 'menu_caller': print_global_command_menu},
         'assistant': {'description': 'PRISM Assistant', 'menu_caller': assistant_menu},
         'check': {'description': 'System Status and Diagnostics', 'menu_caller': system_check_menu},
         'tasks': {'description': 'Manage System Tasks and R Scripts', 'menu_caller': system_task_menu},
@@ -33,7 +33,7 @@ def main_menu(self):
 def read_me(self):
     print_menu_header("readme")
     print(f"I recommend looking through the {yellow("help")} section and then looking through the commands.")
-    print(f"You can search for commands by typing {yellow("command <query>")} or {yellow("<query>")}. Leave {yellow("<query>")} empty to search for all commands.")
+    print(f"You can search for commands by typing {yellow("command <query>")} or {yellow("?<query>")}. Leave {yellow("<query>")} empty to search for all commands.")
     print(f"Most commands are globally accessible but some are only available in specific menus.")
     print(f"Commands are specified in {yellow("yellow")}.")
     print(f"To toggle color mode, use the command {yellow("display color")}.")
