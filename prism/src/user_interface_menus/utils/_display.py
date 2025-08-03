@@ -42,13 +42,17 @@ def align(text):
 
 # ------------------------------------------------------------
 
-def error(message = "An unexpected error occurred."):
+def error(message = "An unexpected error occurred.", self = None):
+    from user_interface_menus.utils._menu_navigation import clear_commands_queue
+
     print(f"{red("Error")}: {message}")
     try:
         with open("../logs/interface_logs/test_interface_log.txt", "a") as file:
             file.write(f"Error: {message}\n")
     except Exception as e:
         print(f"Error: Could not write to log file: {e}")
+    if self is not None:
+        clear_commands_queue(self)
     exit_menu()
 
 def success(message = "Operation completed successfully."):

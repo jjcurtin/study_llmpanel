@@ -125,13 +125,24 @@ def clear_commands_queue(self):
 
 # ------------------------------------------------------------
 
-def parse_command_string(command_string, self):
+def parse_command_string(command_string, self, mode = "FIFO"):
     tokens = command_string.split('/')
     commands_to_chain = self.commands_queue
-    for token in tokens:
-        stripped_token = token.strip()
-        if stripped_token:
-            commands_to_chain.put(stripped_token)
+
+    # strictly FIFO /1/2/3 = /1/2/3/a/b/c
+    if mode == "FIFO":
+        for token in tokens:
+            stripped_token = token.strip()
+            if stripped_token:
+                commands_to_chain.put(stripped_token)
+
+    # in place macro expansion /1/2/3 = /1/a/2/b/3/c
+    elif mode == "IN_PLACE":
+        pass
+
+    else:
+        error(f"Unknown mode '{mode}' for command parsing.")
+        return
 
 def process_chained_command(self):
     import time
