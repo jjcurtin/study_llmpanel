@@ -131,11 +131,14 @@ def parse_command_string(command_string, self):
             commands_to_chain.put(stripped_token)
 
 def process_chained_command(self):
+    import time
     commands = self.commands_queue
     inputs = self.inputs_queue
     try:
         command = commands.get()
         print(f"Executing command: {command}")
+        from user_interface_menus._menu_helper import MENU_DELAY
+        time.sleep(MENU_DELAY)
         if not command:
             raise ValueError("Command cannot be empty.")
         if '?' in command:

@@ -91,15 +91,47 @@ def tokens_parameter(self):
         error("Invalid input. Please try again.")
     set_assistant_tokens(int(new_tokens))
 
+def menu_delay_parameter(self):
+    from user_interface_menus._menu_helper import MENU_DELAY
+    print("Current menu delay:", MENU_DELAY)
+    new_delay = get_input(self, prompt = "Enter new menu delay (must be a non-negative number): ")
+    if new_delay == '':
+        return 0
+    try:
+        if float(new_delay) < 0:
+            error("Menu delay must be a non-negative number.")
+            return 0
+    except Exception as e:
+        error("Invalid input. Please try again.")
+        return 0
+    set_menu_delay(float(new_delay))
+
+def timeout_parameter(self):
+    from user_interface_menus._menu_helper import TIMEOUT
+    print("Current timeout:", TIMEOUT)
+    new_timeout = get_input(self, prompt = "Enter new timeout (must be a positive integer): ")
+    if new_timeout == '':
+        return 0
+    try:
+        if int(new_timeout) <= 0:
+            error("Timeout must be a positive integer.")
+            return 0
+    except Exception as e:
+        error("Invalid input. Please try again.")
+        return 0
+    set_timeout(int(new_timeout))
+
 def print_params(self):
     from user_interface_menus._menu_helper import RELATED_OPTIONS_THRESHOLD, BEST_OPTIONS_THRESHOLD, \
                                                   ASSISTANT_TEMPERATURE, ASSISTANT_TOKENS, \
-                                                  WINDOW_WIDTH
+                                                  WINDOW_WIDTH, MENU_DELAY, TIMEOUT
     print(f"RELATED_OPTIONS_THRESHOLD: {RELATED_OPTIONS_THRESHOLD}")
     print(f"BEST_OPTIONS_THRESHOLD: {BEST_OPTIONS_THRESHOLD}")
     print(f"ASSISTANT_TEMPERATURE: {ASSISTANT_TEMPERATURE}")
     print(f"ASSISTANT_TOKENS: {ASSISTANT_TOKENS}")
     print(f"WINDOW_WIDTH: {WINDOW_WIDTH}")
+    print(f"MENU_DELAY: {MENU_DELAY}")
+    print(f"TIMEOUT: {TIMEOUT}")
     exit_menu()
 
 def parameter_settings(self):
@@ -108,7 +140,9 @@ def parameter_settings(self):
         'threshold': {'description': 'Adjust the minimum command prediction similarity tolerance', 'menu_caller': related_parameter},
         'best threshold': {'description': 'Adjust the prioritized "best" command prediction similarity tolerance', 'menu_caller': best_related_parameter},
         'temperature': {'description': 'Adjust the temperature of the PRISM Assistant', 'menu_caller': temperature_parameter},
-        'tokens': {'description': 'Adjust the maximum tokens for the PRISM Assistant', 'menu_caller': tokens_parameter}
+        'tokens': {'description': 'Adjust the maximum tokens for the PRISM Assistant', 'menu_caller': tokens_parameter},
+        'delay': {'description': 'Adjust the delay between menu displays', 'menu_caller': menu_delay_parameter}, 
+        'timeout': {'description': 'Adjust the user interface timeout for API calls', 'menu_caller': timeout_parameter},
     }
 
     while True:
@@ -185,3 +219,12 @@ PARAM_ASSISTANT_TOKENS = tokens_parameter
 
 global READ_ME_SET
 READ_ME_SET = readme
+
+global PARAM_MENU_DELAY
+PARAM_MENU_DELAY = menu_delay_parameter
+
+global PRINT_PARAMS
+PRINT_PARAMS = print_params
+
+global PARAM_TIMEOUT
+PARAM_TIMEOUT = timeout_parameter
