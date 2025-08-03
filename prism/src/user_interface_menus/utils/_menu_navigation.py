@@ -110,7 +110,6 @@ def clear_inputs_queue(self):
         pass
     
 def clear_commands_queue(self):
-    from queue import Empty
     commands_queue = self.commands_queue
     if commands_queue is None:
         error("Commands queue is not available.")
@@ -118,9 +117,9 @@ def clear_commands_queue(self):
     
     try:
         while True:
-            commands_queue.get_nowait()
-    except Empty:
-        pass
+            commands_queue.popleft()
+    except IndexError:
+        pass  # empty
 
 # ------------------------------------------------------------
 
@@ -133,7 +132,7 @@ def parse_command_string(command_string, self, mode = "FIFO"):
         for token in tokens:
             stripped_token = token.strip()
             if stripped_token:
-                commands_to_chain.put(stripped_token)
+                commands_to_chain.append(stripped_token)
 
     # in place macro expansion /1/2/3 = /1/a/2/b/3/c
     elif mode == "IN_PLACE":
@@ -148,7 +147,7 @@ def process_chained_command(self):
     commands = self.commands_queue
     inputs = self.inputs_queue
     try:
-        command = commands.get()
+        command = commands.popleft()
         print(f"Executing command: {command}")
         from user_interface_menus._menu_helper import MENU_DELAY
         time.sleep(MENU_DELAY)

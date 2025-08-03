@@ -1,6 +1,7 @@
 # Main runner for the RA PRISM interface
 
 import requests, queue
+from collections import deque
 
 from user_interface_menus._main_menu import main_menu, read_me
 from user_interface_menus._menu_helper import load_menus, exit_menu, load_params
@@ -13,7 +14,7 @@ class PRISMInterface:
             exit(0)
 
         self.inputs_queue = queue.Queue()
-        self.commands_queue = queue.Queue()
+        self.commands_queue = deque()
             
         from user_interface_menus._menu_helper import SHOW_README
         if SHOW_README == True:

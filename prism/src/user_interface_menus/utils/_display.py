@@ -66,7 +66,7 @@ def success(message = "Operation completed successfully.", self = None):
         error(f"Could not write to log file: {e}")
 
     # skip exit menu
-    if self is None or self.commands_queue is None or self.commands_queue.empty():
+    if self is None or not self.commands_queue:
         exit_menu()
     
 def exit_menu():
