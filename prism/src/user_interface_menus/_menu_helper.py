@@ -127,7 +127,7 @@ def save_macro(self, identifier, command_string, description = None):
         if description is None:
             description = command_string
         file.write(f"{identifier}|{command_string}|{description}\n")
-    success("Macro saved successfully.")
+    print("Macro saved successfully.")
 
 def add_user_defined_global_command(identifier, command_string, description = None, self = None):
     global _menu_options
