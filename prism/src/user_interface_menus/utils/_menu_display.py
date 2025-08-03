@@ -32,29 +32,34 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
         if submenu:
             print(f"\n{yellow("ENTER")}: Back to Previous Menu")
 
+    def check_for_special_commands(choice):
+        if choice.split(" ")[0] == "command":
+            query = ' '.join(choice.split(" ")[1:]) if len(choice.split(" ")) > 1 else None
+            print_global_command_menu(self, query)
+            return True
+        elif choice.startswith("/"):
+            parse_command_string(choice, self)
+            return True
+        elif choice.startswith("?"):
+            query = choice[1:] if len(choice) > 1 else None
+            print_global_command_menu(self, query)
+            return True
+        elif choice.startswith("$"):
+            identifier = choice.split("=")[0][1:].strip()
+            command_string = choice.split("=")[1].strip() if '=' in choice else None
+            print(f"Registering {identifier} as {command_string}")
+            add_user_defined_global_command(identifier, command_string, self = self)
+            return True
+        return False
+
     if choice is None:
         if self.commands_queue is not None and not self.commands_queue.empty():
             return process_chained_command(self)
         else:
             print_keys()
             choice = print_fixed_terminal_prompt()
-    
-    if choice.split(" ")[0] == "command":
-        query = ' '.join(choice.split(" ")[1:]) if len(choice.split(" ")) > 1 else None
-        print_global_command_menu(self, query)
-        return 1
-    elif choice.startswith("/"):
-        parse_command_string(choice, self)
-        return 1
-    elif choice.startswith("?"):
-        query = choice[1:] if len(choice) > 1 else None
-        print_global_command_menu(self, query)
-        return 1
-    elif choice.startswith("$"):
-        identifier = choice.split("=")[0][1:].strip()
-        command_string = choice.split("=")[1].strip() if '=' in choice else None
-        print(f"Registering {identifier} as {command_string}")
-        add_user_defined_global_command(identifier, command_string, self = self)
+
+    if check_for_special_commands(choice):
         return 1
 
     selected = menu_options.get(choice)
