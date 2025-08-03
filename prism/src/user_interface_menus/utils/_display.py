@@ -51,18 +51,23 @@ def error(message = "An unexpected error occurred.", self = None):
             file.write(f"Error: {message}\n")
     except Exception as e:
         print(f"Error: Could not write to log file: {e}")
+
+    # stop processing commands, error
     if self is not None:
         clear_commands_queue(self)
     exit_menu()
 
-def success(message = "Operation completed successfully."):
+def success(message = "Operation completed successfully.", self = None):
     print(f"{green("Success")}: {message}")
     try:
         with open("../logs/interface_logs/test_interface_log.txt", "a") as file:
             file.write(f"Success: {message}\n")
     except Exception as e:
         error(f"Could not write to log file: {e}")
-    exit_menu()
+
+    # skip exit menu
+    if self is None or self.commands_queue is None or self.commands_queue.empty():
+        exit_menu()
     
 def exit_menu():
     input(f"\n{yellow("ENTER to Continue>")} ")
