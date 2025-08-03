@@ -2,6 +2,8 @@
 
 from user_interface_menus.utils._display import *
 
+# ------------------------------------------------------------
+
 def get_menu_options():
     from user_interface_menus._menu_helper import _menu_options
     return _menu_options
@@ -35,6 +37,8 @@ def check_global_menu_options(query = None):
         return None
     return result['description'], result['menu_caller']
 
+# ------------------------------------------------------------
+
 def goto_menu(menu_caller, self):
     from user_interface_menus._menu_helper import get_local_menu_options
     try:
@@ -56,6 +60,8 @@ def goto_menu(menu_caller, self):
                     return goto_menu(menu_caller, self)
 
             error(f"Menu '{menu_caller}' not found.")
+            while not self.commands_queue.empty():
+                self.commands_queue.get()
             return False
         else:
             error("Invalid menu caller.")
@@ -64,6 +70,8 @@ def goto_menu(menu_caller, self):
         error(f"An error occurred while navigating to the menu: {e}")
         return False
     
+# ------------------------------------------------------------
+
 def get_input(self, prompt = None, default_value = None):
     inputs_queue = self.inputs_queue
     if inputs_queue is None:
@@ -98,7 +106,8 @@ def clear_inputs_queue(self):
     except Empty:
         pass
 
-# /command?input/command/command?input?input 
+# ------------------------------------------------------------
+
 def execute_command_string(command_string, self):
     tokens = command_string.split('/')
     commands_to_chain = self.commands_queue
