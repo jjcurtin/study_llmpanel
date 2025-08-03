@@ -36,6 +36,7 @@ def check_global_menu_options(query = None):
     return result['description'], result['menu_caller']
 
 def goto_menu(menu_caller, self):
+    from user_interface_menus._menu_helper import get_local_menu_options
     try:
         if callable(menu_caller):
             return menu_caller(self)
@@ -44,9 +45,18 @@ def goto_menu(menu_caller, self):
             if result:
                 description, caller = result
                 return caller(self)
-            else:
-                error(f"Menu '{menu_caller}' not found.")
-                return False
+            
+            local_results = get_local_menu_options()
+            result = local_results.get(menu_caller)
+            if result:
+                menu_caller = result['menu_caller']
+                if callable(menu_caller):
+                    return menu_caller(self)
+                elif isinstance(menu_caller, str):
+                    return goto_menu(menu_caller, self)
+
+            error(f"Menu '{menu_caller}' not found.")
+            return False
         else:
             error("Invalid menu caller.")
             return False
@@ -90,19 +100,33 @@ def clear_inputs_queue(self):
 
 # /command?input/command/command?input?input 
 def execute_command_string(command_string, self):
-    commands = command_string.split('/')
+    tokens = command_string.split('/')
+    commands_to_chain = self.commands_queue
+    for token in tokens:
+        stripped_token = token.strip()
+        if stripped_token:
+            commands_to_chain.put(stripped_token)
+
+def process_chained_command(self):
+    commands = self.commands_queue
     inputs = self.inputs_queue
-    for command in commands:
-        command = command.strip()
+    try:
+        command = commands.get()
+        print(f"Executing command: {command}")
         if not command:
-            continue
+            raise ValueError("Command cannot be empty.")
         if '?' in command:
             parts = command.split('?', 1)
+            print(f"Command parts: {parts}")
             command = parts[0]
             input_value = parts[1] if len(parts) > 1 else ""
             input_values = input_value.split('?')
             for value in input_values:
                 inputs.put(value.strip())
         if goto_menu(command, self):
-            pass
+            return 1
+    except Exception as e:
+        error(f"Error processing command '{command}': {e}")
+    finally:
         clear_inputs_queue(self)
+        return 1

@@ -32,18 +32,18 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
             print(f"\n{yellow("ENTER")}: Back to Previous Menu")
 
     if choice is None:
-        print_keys()
-        choice = print_fixed_terminal_prompt()
+        if self.commands_queue is not None and not self.commands_queue.empty():
+            return process_chained_command(self)
+        else:
+            print_keys()
+            choice = print_fixed_terminal_prompt()
     
     if choice.split(" ")[0] == "command":
         query = ' '.join(choice.split(" ")[1:]) if len(choice.split(" ")) > 1 else None
         print_global_command_menu(self, query)
         return 1
     elif choice.startswith("/"):
-        query = choice[1:].strip()
-        if query == '':
-            query = None
-        print_global_command_menu(self, query)
+        execute_command_string(choice, self)
         return 1
 
     selected = menu_options.get(choice)
@@ -77,9 +77,9 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
 
 def print_register_command_menu(self):
     from user_interface_menus._menu_helper import add_user_defined_global_command
-    identifier = input("Enter the command identifier (e.g., 'my_command'): ")
-    command_string = input("Enter the command string (e.g., '/command1?input'): ")
-    description = input("Enter a description for the command (optional): ")
+    identifier = get_input(self, prompt = "Enter the command identifier (e.g., 'my_command'): ")
+    command_string = get_input(self, prompt = "Enter the command string (e.g., '/command1?input'): ")
+    description = get_input(self, prompt = "Enter a description for the command (optional): ")
     if not identifier or not command_string:
         error("Identifier and command string cannot be empty.")
         return
