@@ -13,6 +13,7 @@ class PRISMInterface:
             exit(0)
 
         self.inputs_queue = queue.Queue()
+        self.commands_queue = queue.Queue()
             
         from user_interface_menus._menu_helper import SHOW_README
         if SHOW_README == True:
