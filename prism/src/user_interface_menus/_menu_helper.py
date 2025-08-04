@@ -150,12 +150,16 @@ def add_user_defined_global_command(identifier, command_string, description = No
     if _menu_options is None:
         _menu_options = {}
 
+    banned_characters = ['/', '?']
     banned_identifiers = ['yes', 'y', 'no', 'n']
     banned_identifiers.extend(map(str, range(0, 1000)))
     
     if identifier not in _menu_options:
         if identifier in banned_identifiers:
             error(f"Identifier '{identifier}' is reserved and cannot be used.", self)
+            return False
+        if any(char in identifier for char in banned_characters):
+            error(f"Identifier '{identifier}' contains a banned character and cannot be used.", self)
             return False
         _menu_options[identifier] = {
             'description': command_string if description is None else description,
