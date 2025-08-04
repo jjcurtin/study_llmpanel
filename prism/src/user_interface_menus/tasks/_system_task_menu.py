@@ -42,8 +42,7 @@ def remove_task_menu(self):
 # ------------------------------------------------------------
 
 def clear_task_schedule_menu(self):
-    choice = get_input(self, prompt = "Are you sure you want to clear the task schedule? (yes/no): ").lower()
-    if choice == 'yes' or choice == 'y':
+    if prompt_confirmation(self, prompt = "Are you sure you want to clear the task schedule?"):
         if self.api("DELETE", "system/clear_task_schedule"):
             success("Task schedule cleared.", self)
         else:
