@@ -178,10 +178,11 @@ def process_chained_command(self):
             raise ValueError("Command cannot be empty.")
         if '?' in command:
             parts = command.split('?', 1)
-            print(f"Executing command: {parts[0]}\nInput: {parts[1] if len(parts) > 1 else ''}")
+            print(f"Executing command: {parts[0]}")
             command = parts[0]
             input_value = parts[1] if len(parts) > 1 else ""
             input_values = input_value.split('?')
+            print(f"Input values: {input_values}")
             for value in input_values:
                 inputs.put(value.strip())
         else:
