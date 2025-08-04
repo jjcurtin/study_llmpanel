@@ -67,6 +67,7 @@ def participant_management_menu(self):
             exit_menu()
 
     while True:
+        index_and_text = True
         print_menu_header("participants")
         menu_options = {}
 
@@ -79,17 +80,20 @@ def participant_management_menu(self):
                     'description': f"{p['last_name']}, {p['first_name']} (ID: {p['unique_id']}) - On Study: {p['on_study']}",
                     'menu_caller': lambda self, participant_id = p['unique_id']: individual_participant_menu(self, participant_id)
                 }
+            print("Enter an index to select a participant, or, choose another option.")
+            print_dashes()
         else:
-            print("No participants found or failed to retrieve.")
+            print(f"{red('No participants found or failed to retrieve.')}")
+            print()
+            index_and_text = False
         menu_options['add'] = {'description': 'Add a Participant', 'menu_caller': add_participant_menu}
         menu_options['schedule'] = {'description': 'Get Participant Task Schedule', 'menu_caller': print_task_schedule}
         menu_options['refresh'] = {'description': 'Full Participants Refresh from CSV', 'menu_caller': refresh_participants_menu}
         menu_options['announcement'] = {'description': 'Send Study Announcement', 'menu_caller': send_announcement_menu}
         menu_options['remove'] = {'description': 'Remove a Participant', 'menu_caller': remove_participant_menu}
         menu_options['access'] = {'description': 'Access Participant Data', 'menu_caller': access_specific_participant_menu}
-        print("Enter an index to select a participant, or, choose another option.")
-        print_dashes()
-        if print_menu_options(self, menu_options, submenu = True, index_and_text = True):
+        
+        if print_menu_options(self, menu_options, submenu = True, index_and_text = index_and_text):
             break
 
 # ------------------------------------------------------------
