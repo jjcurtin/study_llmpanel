@@ -150,7 +150,7 @@ def add_user_defined_global_command(identifier, command_string, description = No
     if _menu_options is None:
         _menu_options = {}
 
-    banned_identifiers = ['yes']
+    banned_identifiers = ['yes', 'y', 'no', 'n']
     
     if identifier not in _menu_options and identifier not in banned_identifiers:
         _menu_options[identifier] = {

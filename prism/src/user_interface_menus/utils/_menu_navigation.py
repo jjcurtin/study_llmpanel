@@ -96,6 +96,16 @@ def get_input(self, prompt = None, default_value = None):
         return default_value
     return user_input
 
+def prompt_confirmation(self, prompt = "Are you sure?", default_value = "n"):
+    confirmation = get_input(self, prompt + ' (y/n): ', default_value)
+    if confirmation.lower() in ['y', 'yes']:
+        return True
+    elif confirmation.lower() in ['n', 'no']:
+        return False
+    else:
+        error("Invalid confirmation input. Please enter 'y' or 'n'.", self)
+        return False
+
 def clear_inputs_queue(self):
     from queue import Empty
     inputs_queue = self.inputs_queue
