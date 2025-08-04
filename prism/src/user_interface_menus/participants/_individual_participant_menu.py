@@ -6,7 +6,7 @@ from user_interface_menus.utils._menu_display import *
 
 def individual_participant_menu(self, participant_id):
     def remove_participant_menu(self):
-        if get_input(self, prompt = "Remove participant? (yes/no): ").lower() == 'yes':
+        if prompt_confirmation(self, prompt = "Remove participant?"):
             if self.api("DELETE", f"participants/remove_participant/{participant_id}"):
                 success("Participant removed.", self)
                 return 1
