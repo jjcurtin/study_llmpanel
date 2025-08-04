@@ -25,7 +25,7 @@ def print_transcript(self, log_type):
         num_lines = '10'
     print_menu_header(f"logs {log_type.split('_')[1]}")
     self.request_transcript(num_lines, log_type)
-    exit_menu()
+    success(f"{log_type.replace('_', ' ').title()} log retrieved.", self)
 
 def print_interface_log(self):
     print_menu_header("logs interface")
