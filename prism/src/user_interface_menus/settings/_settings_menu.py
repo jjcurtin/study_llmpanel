@@ -157,16 +157,9 @@ def readme(self):
     else:
         print("PRISM Readme is currently disabled.")
     
-    choice = get_input(self, prompt = "Show README on startup? (y/n): ").lower()
-    if choice == 'y':
-        set_show_readme(True)
-        success("Readme will be shown on startup.")
-    elif choice == 'n':
-        set_show_readme(False)
-        success("Readme will not be shown on startup.")
-    else:
-        print("No changes made to Readme display setting.")
-        exit_menu()
+    show_on_startup = prompt_confirmation(self, prompt = "Show README on startup?")
+    set_show_readme(show_on_startup)
+    success(f"PRISM Readme on startup {'enabled' if show_on_startup else 'disabled'}.", self)
 
 def system_settings(self):
     menu_options = {
