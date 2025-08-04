@@ -106,6 +106,8 @@ def prompt_confirmation(self, prompt = "Are you sure?", default_value = "n"):
         print(f"Invalid confirmation input. Defaulting to {default_value}.")
         return default_value.lower() in ['y', 'yes']
 
+# ------------------------------------------------------------
+
 def clear_inputs_queue(self):
     from queue import Empty
     inputs_queue = self.inputs_queue
@@ -147,24 +149,6 @@ class CommandInjector:
 
     def __repr__(self):
         return f"<CommandInjector: {self.command_string}>"
-
-def parse_command_string(command_string, self):
-    tokens = command_string.split('/')
-    commands_to_chain = self.commands_queue
-    for token in tokens:
-        stripped_token = token.strip()
-        if stripped_token:
-            match = check_global_menu_options(stripped_token)
-            if match:
-                description, menu_caller = match
-                if isinstance(menu_caller, CommandInjector):
-                    print(f"Recursive command detected: {stripped_token}")
-                    exit_menu()
-                    commands_to_chain.appendleft(stripped_token)
-                else:
-                    commands_to_chain.append(stripped_token)
-            else:
-                commands_to_chain.append(stripped_token)
 
 def process_chained_command(self):
     import time
