@@ -48,8 +48,8 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
             identifier = choice.split("=")[0][1:].strip()
             command_string = choice.split("=")[1].strip() if '=' in choice else None
             print(f"Registering {identifier} as {command_string}")
-            add_user_defined_global_command(identifier, command_string, self = self)
-            save_macro(self, identifier, command_string)
+            if add_user_defined_global_command(identifier, command_string, self = self):
+                save_macro(self, identifier, command_string)
             return True
         return False
 
@@ -98,8 +98,8 @@ def print_register_command_menu(self):
         return
     if description == '':
         description = None
-    add_user_defined_global_command(identifier, command_string, description, self)
-    save_macro(self, identifier, command_string, description)
+    if add_user_defined_global_command(identifier, command_string, description, self):
+        save_macro(self, identifier, command_string, description)
 
 def print_global_command_menu(self, query = None):
     menu_options = get_relevant_menu_options(query)
