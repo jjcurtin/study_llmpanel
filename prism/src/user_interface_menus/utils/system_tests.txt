@@ -1,5 +1,10 @@
-test|/test_participants|Test all
+test|/test_participants/test_tasks|Test all
 
 test_participants|/test_participants_add/test_participants_remove/participants|Test participant menus
 test_participants_add|/participants add?TestFirstName?TestLastName?TestUniqueID?y?1?1?1?1?1/participants|Test adding a participant
-test_participants_remove|/participants/remove?TestUniqueID?yes/participants|Test removing a participantant
+test_participants_remove|/participants/remove?TestUniqueID?yes/participants|Test removing a participant
+
+test_tasks|/test_tasks_add_system/test_tasks_add_rscript/test_tasks_remove/test_tasks_remove/tasks|Test task menus
+test_tasks_add_system|/tasks/add/system?1?1|Test adding a system task
+test_tasks_add_rscript|/tasks/add/rscript?2?1|Test adding a rscript task
+test_tasks_remove|/tasks/remove?1|Test removing the first queued task
