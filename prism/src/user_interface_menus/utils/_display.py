@@ -44,11 +44,11 @@ def align(text):
 
 def error(message = "An unexpected error occurred.", self = None):
     from user_interface_menus.utils._menu_navigation import clear_commands_queue
+    from user_interface_menus._menu_helper import write_to_interface_log
 
     print(f"{red('Error')}: {message}")
     try:
-        with open("../logs/interface_logs/test_interface_log.txt", "a") as file:
-            file.write(f"Error: {message}\n")
+        write_to_interface_log(f"Error: {message}")
     except Exception as e:
         print(f"Error: Could not write to log file: {e}")
 
@@ -59,9 +59,9 @@ def error(message = "An unexpected error occurred.", self = None):
 
 def success(message = "Operation completed successfully.", self = None):
     print(f"{green('Success')}: {message}")
+    from user_interface_menus._menu_helper import write_to_interface_log
     try:
-        with open("../logs/interface_logs/test_interface_log.txt", "a") as file:
-            file.write(f"Success: {message}\n")
+        write_to_interface_log(f"Success: {message}")
     except Exception as e:
         error(f"Could not write to log file: {e}")
 
