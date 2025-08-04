@@ -103,8 +103,8 @@ def prompt_confirmation(self, prompt = "Are you sure?", default_value = "n"):
     elif confirmation.lower() in ['n', 'no']:
         return False
     else:
-        print("Invalid confirmation input. Defaulting to 'no'.")
-        return False
+        print(f"Invalid confirmation input. Defaulting to {default_value}.")
+        return default_value.lower() in ['y', 'yes']
 
 def clear_inputs_queue(self):
     from queue import Empty
