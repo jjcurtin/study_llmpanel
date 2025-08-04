@@ -7,7 +7,7 @@ from user_interface_menus.participants._add_participant_menu import add_particip
 # ------------------------------------------------------------
 
 def refresh_participants_menu(self):
-    if get_input(self, prompt = "Refresh participants from CSV? (yes/no): ").lower() == 'yes':
+    if prompt_confirmation(self, prompt = "Refresh participants from CSV?"):
         if self.api("POST", "participants/refresh_participants"):
             success("Participants refreshed from CSV.")
         else:
@@ -16,10 +16,8 @@ def refresh_participants_menu(self):
         success("Refresh cancelled.")
 
 def send_announcement_menu(self):
-    require_on_study = get_input(self, prompt = "Send to participants on study only? (yes/no): ").lower()
-    if require_on_study not in ('yes', 'y', 'no', 'n'):
-        error("Invalid input. Cancelling. Press Enter to continue...")
-        return
+    require_on_study = prompt_confirmation(self, prompt = "Send to participants on study only?", default_value = "y")
+    print("Sending to participants on study only." if require_on_study else "Sending to all participants.")
     message = print_twilio_terminal_prompt()
     if not message:
         error("Message cannot be empty. Please try again.")
@@ -35,7 +33,7 @@ def remove_participant_menu(self):
     if not participant_id or participant_id.strip() == '':
         error("Participant ID cannot be empty.")
         return 0
-    if get_input(self, prompt = f"Are you sure you want to remove participant with ID '{participant_id}'? (yes/no): ").lower() == 'yes':
+    if prompt_confirmation(self, prompt = f"Are you sure you want to remove participant with ID '{participant_id}'?"):
         if self.api("DELETE", f"participants/remove_participant/{participant_id}"):
             success("Participant removed.", self)
             return 1
