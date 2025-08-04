@@ -26,15 +26,7 @@ def add_participant_menu(self):
                 new_unique_id = str(random.randint(100000000, 999999999))
                 print(f"Unique ID '{unique_id}' already exists. Generated a new one: {new_unique_id}")
                 unique_id = new_unique_id
-    on_study = get_input(self, prompt = "On study? (yes/no): ").lower()
-    if on_study not in ('yes', 'y', 'no', 'n'):
-        print("Invalid input for on study. Defaulting to 'no'.")
-        on_study = 'no'
-    elif on_study == 'y': 
-        on_study = 'yes'
-    elif on_study == 'n':
-        on_study = 'no'
-    on_study = on_study == 'yes'
+    on_study = prompt_confirmation(self, prompt = "On study?")
     phone_number = get_input(self, prompt = "Phone number (press enter to skip): ")
     times = {}
     default_times = {
