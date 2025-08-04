@@ -28,10 +28,13 @@ def print_transcript(self, log_type):
     success(f"{log_type.replace('_', ' ').title()} log retrieved.", self)
 
 def print_interface_log(self):
+    from user_interface_menus._menu_helper import read_from_interface_log
     print_menu_header("logs interface")
     try:
-        with open("../logs/interface_logs/test_interface_log.txt", "r") as file:
-            content = file.read()
+        content = read_from_interface_log()
+        if content is None or content == "":
+            error("No content found in the interface log.")
+            return
 
         num_lines = get_input(self, prompt = "Enter number of lines to view: ", default_value = "10")
         if not num_lines.isdigit():

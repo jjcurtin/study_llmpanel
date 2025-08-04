@@ -315,3 +315,22 @@ def load_menus():
     print("Now loading menus...")
     from user_interface_menus.utils._commands import init_commands
     _menu_options = init_commands()
+
+def write_to_interface_log(message):
+    try:
+        with open("../logs/interface_logs/test_interface_log.txt", "a") as file:
+            file.write(f"{message}\n")
+    except Exception as e:
+        print(f"Error: Could not write to log file: {e}")
+
+def read_from_interface_log():
+    try:
+        with open("../logs/interface_logs/test_interface_log.txt", "r") as file:
+            content = file.read()
+        return content
+    except FileNotFoundError:
+        print("Interface log file not found.")
+        return ""
+    except Exception as e:
+        print(f"An unexpected error occurred while reading the interface log: {e}")
+        return ""
