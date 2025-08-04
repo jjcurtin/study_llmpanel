@@ -42,6 +42,18 @@ def remove_participant_menu(self):
         else:
             error("Failed to remove participant. Unique ID not found", self)
             return 0
+        
+def access_specific_participant_menu(self):
+    participant_id = get_input(self, prompt = "Please enter the unique ID of the participant that you would like to access: ")
+    if not participant_id or participant_id.strip() == '':
+        error("Participant ID cannot be empty.")
+        return 0
+    data = self.api("GET", f"participants/get_participant/{participant_id}")
+    if data:
+        individual_participant_menu(self, participant_id)
+    else:
+        error("Failed to retrieve participant data. Unique ID not found.", self)
+        return 0
 
 # ------------------------------------------------------------
 
@@ -74,6 +86,7 @@ def participant_management_menu(self):
         menu_options['refresh'] = {'description': 'Full Participants Refresh from CSV', 'menu_caller': refresh_participants_menu}
         menu_options['announcement'] = {'description': 'Send Study Announcement', 'menu_caller': send_announcement_menu}
         menu_options['remove'] = {'description': 'Remove a Participant', 'menu_caller': remove_participant_menu}
+        menu_options['access'] = {'description': 'Access Participant Data', 'menu_caller': access_specific_participant_menu}
         print("Enter an index to select a participant, or, choose another option.")
         print_dashes()
         if print_menu_options(self, menu_options, submenu = True, index_and_text = True):
