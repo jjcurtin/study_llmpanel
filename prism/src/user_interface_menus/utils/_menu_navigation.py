@@ -148,38 +148,23 @@ class CommandInjector:
     def __repr__(self):
         return f"<CommandInjector: {self.command_string}>"
 
-def parse_command_string(command_string, self, mode = "IN_PLACE"):
+def parse_command_string(command_string, self):
     tokens = command_string.split('/')
     commands_to_chain = self.commands_queue
-
-    # strictly FIFO /1/2/3 = /1/2/3/a/b/c
-    # deprecated, use IN_PLACE instead for macro expansion
-    if mode == "FIFO":
-        for token in tokens:
-            stripped_token = token.strip()
-            if stripped_token:
-                commands_to_chain.append(stripped_token)
-
-    # in place macro expansion /1/2/3 = /1/a/2/b/3/c
-    elif mode == "IN_PLACE":
-        for token in tokens:
-            stripped_token = token.strip()
-            if stripped_token:
-                match = check_global_menu_options(stripped_token)
-                if match:
-                    description, menu_caller = match
-                    if isinstance(menu_caller, CommandInjector):
-                        print(f"Recursive command detected: {stripped_token}")
-                        exit_menu()
-                        commands_to_chain.appendleft(stripped_token)
-                    else:
-                        commands_to_chain.append(stripped_token)
+    for token in tokens:
+        stripped_token = token.strip()
+        if stripped_token:
+            match = check_global_menu_options(stripped_token)
+            if match:
+                description, menu_caller = match
+                if isinstance(menu_caller, CommandInjector):
+                    print(f"Recursive command detected: {stripped_token}")
+                    exit_menu()
+                    commands_to_chain.appendleft(stripped_token)
                 else:
                     commands_to_chain.append(stripped_token)
-
-    else:
-        error(f"Unknown mode '{mode}' for command parsing.", self)
-        return
+            else:
+                commands_to_chain.append(stripped_token)
 
 def process_chained_command(self):
     import time
@@ -187,19 +172,20 @@ def process_chained_command(self):
     inputs = self.inputs_queue
     try:
         command = commands.popleft()
-        print(f"Executing command: {command}")
         from user_interface_menus._menu_helper import MENU_DELAY
         time.sleep(MENU_DELAY)
         if not command:
             raise ValueError("Command cannot be empty.")
         if '?' in command:
             parts = command.split('?', 1)
-            print(f"Command parts: {parts}")
+            print(f"Executing command: {parts[0]}\nInput: {parts[1] if len(parts) > 1 else ''}")
             command = parts[0]
             input_value = parts[1] if len(parts) > 1 else ""
             input_values = input_value.split('?')
             for value in input_values:
                 inputs.put(value.strip())
+        else:
+            print(f"Executing command: {command}")
         if goto_menu(command, self):
             return 1
     except Exception as e:
