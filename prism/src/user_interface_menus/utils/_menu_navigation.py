@@ -9,23 +9,35 @@ def get_menu_options():
     return _menu_options
 
 def get_relevant_menu_options(query = None):
-    from user_interface_menus._menu_helper import _menu_options, RELATED_OPTIONS_THRESHOLD
+    from user_interface_menus._menu_helper import RELATED_OPTIONS_THRESHOLD
+    from difflib import get_close_matches
 
     def sort(iterable):
-        from difflib import get_close_matches
         threshold = max(RELATED_OPTIONS_THRESHOLD, 0.1)
         return get_close_matches(query, iterable, n = 15, cutoff = threshold)
+    
+    def find_subset_matches(iterable):
+        matches = []
+        for item in iterable:
+            if query in item:
+                matches.append(item)
+        return matches
 
     menu_options = get_menu_options()
-    potential_local_choices = ', '.join(menu_options.keys())
-    potential_glocal_choices = ', '.join(_menu_options.keys())
-    combined_choices = potential_local_choices + ', ' + potential_glocal_choices
+    potential_global_choices = ', '.join(menu_options.keys())
+    if query is None:
+        choices = potential_global_choices
 
     if query is not None:
-        combined_choices = ', '.join(sort(set(combined_choices.split(', '))))
+        choices = ', '.join(
+            sorted(
+            set(sort(set(potential_global_choices.split(', ')))) | 
+            set(find_subset_matches(potential_global_choices.split(', ')))
+            )
+        )
     
-    combined_choices = {choice: menu_options[choice] for choice in combined_choices.split(', ') if choice in menu_options}
-    return combined_choices
+    choices = {choice: menu_options[choice] for choice in choices.split(', ') if choice in menu_options}
+    return choices
 
 def check_global_menu_options(query = None):
     if query is None:
