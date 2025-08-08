@@ -7,6 +7,12 @@ from user_interface_menus.utils._menu_display import *
 
 _menu_options = None
 
+global local_menu_options
+local_menu_options = {}
+
+global current_menu
+current_menu = None
+
 global WINDOW_WIDTH
 WINDOW_WIDTH = 155
 
@@ -33,6 +39,12 @@ COLOR_ON = True
 
 global RECENT_COMMANDS
 RECENT_COMMANDS = []
+
+global MENU_DELAY
+MENU_DELAY = 0.5
+
+global TIMEOUT
+TIMEOUT = 10
 
 # ------------------------------------------------------------
 
@@ -74,6 +86,22 @@ def set_assistant_tokens(tokens):
     ASSISTANT_TOKENS = tokens
     save_params()
 
+def set_menu_delay(delay):
+    global MENU_DELAY
+    if isinstance(delay, (int, float)) and delay >= 0:
+        MENU_DELAY = delay
+    else:
+        error("Menu delay must be a non-negative number.")
+    save_params()
+
+def set_timeout(timeout):
+    global TIMEOUT
+    if isinstance(timeout, int) and timeout > 0:
+        TIMEOUT = timeout
+    else:
+        error("Timeout must be a positive integer.")
+    save_params()
+
 def set_show_readme(show):
     global SHOW_README
     SHOW_README = show
@@ -86,11 +114,87 @@ def add_recent_command(command):
         if len(RECENT_COMMANDS) > 10:
             RECENT_COMMANDS.pop(0)
 
+def load_saved_macros(self):
+    try:
+        with open("../config/saved_macros.txt", 'r') as file:
+            lines = file.readlines()
+            for line in lines:
+                if line.strip():
+                    identifier, command_string, description = line.strip().split('|')
+                    add_user_defined_global_command(identifier, command_string, description, self)
+    except FileNotFoundError:
+        print("No saved macros found. Please run the system tests to create macros.")
+    except Exception as e:
+        error(f"Error loading saved macros: {e}", self)
+    try:
+        with open("user_interface_menus/utils/system_tests.txt", 'r') as file:
+            lines = file.readlines()
+            for line in lines:
+                if line.strip():
+                    identifier, command_string, description = line.strip().split('|')
+                    add_user_defined_global_command(identifier, command_string, description, self)
+    except FileNotFoundError:
+        print("No system tests found. Please run the system tests to create macros.")
+    except Exception as e:
+        error(f"Error loading system tests: {e}", self)
+
+def save_macro(self, identifier, command_string, description = None):
+    with open("../config/saved_macros.txt", 'a') as file:
+        if description is None:
+            description = command_string
+        file.write(f"{identifier}|{command_string}|{description}\n")
+    print("Macro saved successfully.")
+
+def add_user_defined_global_command(identifier, command_string, description = None, self = None):
+    global _menu_options
+    if _menu_options is None:
+        _menu_options = {}
+
+    banned_characters = ['/', '?']
+    banned_identifiers = ['yes', 'y', 'no', 'n']
+    banned_identifiers.extend(map(str, range(0, 1000)))
+    
+    if identifier not in _menu_options:
+        if identifier in banned_identifiers:
+            error(f"Identifier '{identifier}' is reserved and cannot be used.", self)
+            return False
+        if any(char in identifier for char in banned_characters):
+            error(f"Identifier '{identifier}' contains a banned character and cannot be used.", self)
+            return False
+        _menu_options[identifier] = {
+            'description': command_string if description is None else description,
+            'menu_caller': CommandInjector(command_string)
+        }
+        return True
+    else:
+        error(f"Command '{identifier}' already exists.", self if self else None)
+        return False
+
+def set_local_menu_options(menu_name, menu_options):
+    global current_menu, local_menu_options
+    current_menu = menu_name
+    local_menu_options = menu_options
+
+def print_local_menu_options(self = None):
+    global local_menu_options
+    if not local_menu_options:
+        print("No local menu options available.")
+        return
+    for key, value in local_menu_options.items():
+        print(f"{key}")
+    print()
+
+def get_local_menu_options():
+    global local_menu_options
+    return local_menu_options
+
 # ------------------------------------------------------------
 
 def load_params():
+    import time
     global RIGHT_ALIGN, RELATED_OPTIONS_THRESHOLD, ASSISTANT_TEMPERATURE, \
-           BEST_OPTIONS_THRESHOLD, ASSISTANT_TOKENS, WINDOW_WIDTH, SHOW_README, COLOR_ON
+           BEST_OPTIONS_THRESHOLD, ASSISTANT_TOKENS, WINDOW_WIDTH, SHOW_README, COLOR_ON, \
+           MENU_DELAY, TIMEOUT
 
     clear()
     print("Now loading parameters...")
@@ -165,13 +269,31 @@ def load_params():
                             print(global_var, val)
                     except Exception as e:
                         print(global_var, "INVALID, please update")
-    import time
-    time.sleep(1)
+                elif global_var == "MENU_DELAY":
+                    try:
+                        if float(val) < 0:
+                            print(global_var, "INVALID, please update")
+                        else:
+                            MENU_DELAY = float(val)
+                            print(global_var, val)
+                    except Exception as e:
+                        print(global_var, "INVALID, please update")
+                elif global_var == "TIMEOUT":
+                    try:
+                        if int(val) <= 0:
+                            print(global_var, "INVALID, please update")
+                        else:
+                            TIMEOUT = int(val)
+                            print(global_var, val)
+                    except Exception as e:
+                        print(global_var, "INVALID, please update")
+    time.sleep(MENU_DELAY * 2)
     save_params()
 
 def save_params():
     global RIGHT_ALIGN, RELATED_OPTIONS_THRESHOLD, ASSISTANT_TEMPERATURE, \
-           BEST_OPTIONS_THRESHOLD, ASSISTANT_TOKENS, WINDOW_WIDTH, SHOW_README, COLOR_ON
+           BEST_OPTIONS_THRESHOLD, ASSISTANT_TOKENS, WINDOW_WIDTH, SHOW_README, COLOR_ON, \
+           MENU_DELAY, TIMEOUT
 
     file_path = "../config/uiconfig.txt"
     with open(file_path, 'w') as file:
@@ -183,6 +305,8 @@ def save_params():
         file.write(f"WINDOW_WIDTH={WINDOW_WIDTH}\n")
         file.write(f"SHOW_README={SHOW_README}\n")
         file.write(f"COLOR_ON={COLOR_ON}\n")
+        file.write(f"MENU_DELAY={MENU_DELAY}\n")
+        file.write(f"TIMEOUT={TIMEOUT}\n")
 
 def load_menus():
     global _menu_options
@@ -191,3 +315,22 @@ def load_menus():
     print("Now loading menus...")
     from user_interface_menus.utils._commands import init_commands
     _menu_options = init_commands()
+
+def write_to_interface_log(message):
+    try:
+        with open("../logs/interface_logs/test_interface_log.txt", "a") as file:
+            file.write(f"{message}\n")
+    except Exception as e:
+        print(f"Error: Could not write to log file: {e}")
+
+def read_from_interface_log():
+    try:
+        with open("../logs/interface_logs/test_interface_log.txt", "r") as file:
+            content = file.read()
+        return content
+    except FileNotFoundError:
+        print("Interface log file not found.")
+        return ""
+    except Exception as e:
+        print(f"An unexpected error occurred while reading the interface log: {e}")
+        return ""

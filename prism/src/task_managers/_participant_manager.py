@@ -26,9 +26,9 @@ class ParticipantManager(TaskManager):
                     if line.strip():
                         parts = line.strip().split(',')
                         participant = {
-                            'unique_id': parts[0].strip('"'),
+                            'first_name': parts[0].strip('"'),
                             'last_name': parts[1].strip('"'),
-                            'first_name': parts[2].strip('"'),
+                            'unique_id': parts[2].strip('"'),
                             'on_study': parts[3].strip('"').lower() == 'true',
                             'phone_number': parts[4].strip('"'),
                             'ema_time': parts[5].strip('"'),
@@ -101,7 +101,14 @@ class ParticipantManager(TaskManager):
             return None
         
     def save_participants(self):
-        self.save_to_csv(self.participants, self.file_path)
+        try:
+            with open(self.file_path, 'w') as file:
+                file.write('"first_name","last_name","unique_id","on_study","phone_number","ema_time","ema_reminder_time","feedback_time","feedback_reminder_time"\n')
+                for participant in self.participants:
+                    file.write(f'"{participant["first_name"]}","{participant["last_name"]}","{participant["unique_id"]}","{str(participant["on_study"]).lower()}","{participant["phone_number"]}","{participant["ema_time"]}","{participant["ema_reminder_time"]}","{participant["feedback_time"]}","{participant["feedback_reminder_time"]}"\n')
+        except Exception as e:
+            self.app.add_to_transcript(f"Failed to save participants to CSV: {e}", "ERROR")
+            return 1
         
     def update_participant(self, unique_id, field, value):
         try:

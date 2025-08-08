@@ -1,0 +1,20 @@
+test|/test_participants/test_tasks|Test all
+
+test_participants|/test_participants_add/test_participants_update/test_participants_remove/participants|Test participant menus
+test_participants_add|/participants add?TestFirstName?TestLastName?TestUniqueID?y?1?1?1?1?1/participants|Test adding a participant
+test_participants_update|/participants/access?TestUniqueID/1?TestFirstNameUPDATED/participants/access?TestUniqueID|Test updating a field
+test_participants_remove|/participants/remove?TestUniqueID?yes/participants|Test removing a participant
+
+test_util_participants_remove|/participants/1/remove?yes/participants|Remove the first index participant
+test_util_participants_remove5|/test_util_participants_remove/test_util_participants_remove/test_util_participants_remove/test_util_participants_remove/test_util_participants_remove/participants|Remove 5
+
+test_tasks|/test_tasks_add_system/test_tasks_add_rscript/test_tasks_remove/test_tasks_remove/tasks|Test task menus
+test_tasks_add_system|/tasks/add/system?1?1|Test adding a system task
+test_tasks_add_rscript|/tasks/add/rscript?2?1|Test adding a rscript task
+test_tasks_remove|/tasks/remove?1|Test removing the first queued task
+
+test_logs|/test_transcript/test_ema_log/test_feedback_log/test_interface_log|Test log retrieval functionality
+test_transcript|/logs/transcript?10|Test get transcript
+test_ema_log|/logs/ema?10|Test get ema log
+test_feedback_log|/logs/feedback?10|Test get feedback log
+test_interface_log|/logs/interface?10|Test get interface log

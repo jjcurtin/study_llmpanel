@@ -6,12 +6,12 @@ from user_interface_menus.utils._menu_display import *
 
 def individual_participant_menu(self, participant_id):
     def remove_participant_menu(self):
-        if input("Remove participant? (yes/no): ").strip().lower() == 'yes':
+        if prompt_confirmation(self, prompt = "Remove participant?"):
             if self.api("DELETE", f"participants/remove_participant/{participant_id}"):
-                success("Participant removed.")
+                success("Participant removed.", self)
                 return 1
             else:
-                error("Failed to remove participant.")
+                error("Failed to remove participant.", self)
                 return 0
 
     def update_field_menu(self, choice):
@@ -21,7 +21,7 @@ def individual_participant_menu(self, participant_id):
             '8': 'feedback_time', '9': 'feedback_reminder_time'
         }
         field = field_map[choice]
-        new_val = input(f"Enter new value for {field}: ")
+        new_val = get_input(self, prompt = f"Enter new value for {field}: ")
 
         if field == 'on_study':
             if new_val.lower() in ['true', 'True', 't', 'T']:
@@ -40,19 +40,19 @@ def individual_participant_menu(self, participant_id):
 
         if self.api("PUT", f"participants/update_participant/{participant_id}/{field}/{new_val}"):
             participant[field] = new_val
-            success("Participant updated.")
+            success("Participant updated.", self)
         else:
-            error("Failed to update participant.")
+            error("Failed to update participant.", self)
 
     def send_survey_menu(self, participant_id):
-        survey_type = input("Enter survey type (ema/feedback): ").strip().lower()
+        survey_type = get_input(self, prompt = "Enter survey type (ema/feedback): ").lower()
         if survey_type in ['ema', 'feedback']:
             if self.api("POST", f"participants/send_survey/{participant_id}/{survey_type}"):
-                success(f"{survey_type.capitalize()} survey sent.")
+                success(f"{survey_type.capitalize()} survey sent.", self)
             else:
-                error(f"Failed to send {survey_type} survey.")
+                error(f"Failed to send {survey_type} survey.", self)
         else:
-            error("Invalid survey type.")
+            error("Invalid survey type.", self)
 
     def send_message_menu(self, participant_id):
         message = print_twilio_terminal_prompt()
@@ -60,9 +60,9 @@ def individual_participant_menu(self, participant_id):
             error("Message cannot be empty.")
             return
         if self.api("POST", f"participants/send_custom_sms/{participant_id}", json={"message": message}):
-            success("Message sent.")
+            success("Message sent.", self)
         else:
-            error("Failed to send message.")
+            error("Failed to send message.", self)
 
     data = self.api("GET", f"participants/get_participant/{participant_id}")
     participant = data.get("participant") if data else None

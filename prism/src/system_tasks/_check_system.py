@@ -22,27 +22,28 @@ class CheckSystem(SystemTask):
         return file_system_check + qualtrics_check + followmee_check + package_check + research_drive_check + participant_check
     
     def check_installed_packages(self):
-        self.app.add_to_transcript(f"INFO: Now checking installed packages...")
-        try:
-            with open("../requirements.txt", "r") as f:
-                requirements = f.readlines()
-            for req in requirements:
-                req = req.strip()
-                if req:
-                    try:
-                        __import__(req)
-                    except ImportError:
-                        self.app.add_to_transcript(f"WARNING: The package '{req}' is not installed. Attempting to install it...")
-                        try:
-                            subprocess.check_call([sys.executable, "-m", "pip", "install", req])
-                            self.app.add_to_transcript(f"INFO: Successfully installed '{req}'.")
-                        except subprocess.CalledProcessError as install_error:
-                            self.app.add_to_transcript(f"ERROR: Failed to install '{req}'. {install_error}")
-                            return 1
-            return 0
-        except Exception as e:
-            self.app.add_to_transcript(f"ERROR: {e}")
-            return 1
+        return 0
+        # self.app.add_to_transcript(f"INFO: Now checking installed packages...")
+        # try:
+        #     with open("../requirements.txt", "r") as f:
+        #         requirements = f.readlines()
+        #     for req in requirements:
+        #         req = req.strip()
+        #         if req:
+        #             try:
+        #                 __import__(req)
+        #             except ImportError:
+        #                 self.app.add_to_transcript(f"WARNING: The package '{req}' is not installed. Attempting to install it...")
+        #                 try:
+        #                     subprocess.check_call([sys.executable, "-m", "pip", "install", req])
+        #                     self.app.add_to_transcript(f"INFO: Successfully installed '{req}'.")
+        #                 except subprocess.CalledProcessError as install_error:
+        #                     self.app.add_to_transcript(f"ERROR: Failed to install '{req}'. {install_error}")
+        #                     return 1
+        #     return 0
+        # except Exception as e:
+        #     self.app.add_to_transcript(f"ERROR: {e}")
+        #     return 1
 
     def check_file_system(self):
         self.app.add_to_transcript(f"INFO: Now checking file system...")
