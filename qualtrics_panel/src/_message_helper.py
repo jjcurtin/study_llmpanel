@@ -3,17 +3,16 @@ import pandas as pd
 
 # static method to get API credentials from a file or user input
 @staticmethod
-def get_credentials():
+def get_credentials(model = '4'):
     try:
-        if os.path.exists('../azure.api'):
-            api = pd.read_csv('../azure.api')
+        file_path = '../azure4o.api' if model == '4' else '../azure5mini.api'
+        if os.path.exists(file_path):
+            api = pd.read_csv(file_path)
             api_key = api.loc[0, 'key']
             endpoint = api.loc[0, 'endpoint']
         else:
-            api_key = input('API key: ')
-            endpoint = input('Endpoint: ')
-            pd.DataFrame({'key': [api_key], 'endpoint': [endpoint]}).to_csv('../azure.api', index=False)
-            print('Credentials saved to azure.api')
+            print(f"Please set up the api credentials in {file_path} file.")
+            exit(1)
         return api_key, endpoint
     except Exception as e:
         print(f"Error reading API credentials: {e}\nPlease ensure the file is formatted correctly if it exists.\nOtherwise, please delete the file and re-run the script to enter credentials manually.")
