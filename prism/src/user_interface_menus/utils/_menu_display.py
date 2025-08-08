@@ -8,7 +8,10 @@ from user_interface_menus.utils._menu_navigation import *
 # ------------------------------------------------------------
 
 def print_menu_options(self, menu_options, submenu = False, index_and_text = False, choice = None):
-    from user_interface_menus._menu_helper import add_recent_command
+    from user_interface_menus._menu_helper import add_recent_command, set_local_menu_options, add_user_defined_global_command, save_macro
+
+    if submenu:
+        set_local_menu_options("debug", menu_options)
     
     def print_key_line(key, item):
         print(f"{yellow(left_align(key))} {align(item['description'])}")
@@ -29,24 +32,40 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
         if submenu:
             print(f"\n{yellow("ENTER")}: Back to Previous Menu")
 
+    def check_for_special_commands(choice):
+        if choice.split(" ")[0] == "command":
+            query = ' '.join(choice.split(" ")[1:]) if len(choice.split(" ")) > 1 else None
+            print_global_command_menu(self, query)
+            return True
+        elif choice.startswith("/"):
+            CommandInjector(choice)(self)
+            return True
+        elif choice.startswith("?"):
+            query = choice[1:] if len(choice) > 1 else None
+            print_global_command_menu(self, query)
+            return True
+        elif choice.startswith("$"):
+            identifier = choice.split("=")[0][1:].strip()
+            command_string = choice.split("=")[1].strip() if '=' in choice else None
+            print(f"Registering {identifier} as {command_string}")
+            if add_user_defined_global_command(identifier, command_string, self = self):
+                save_macro(self, identifier, command_string)
+            return True
+        return False
+
     if choice is None:
+        if self.commands_queue:
+            return process_chained_command(self)
         print_keys()
         choice = print_fixed_terminal_prompt()
-    
-    if choice.split(" ")[0] == "command":
-        query = ' '.join(choice.split(" ")[1:]) if len(choice.split(" ")) > 1 else None
-        print_global_command_menu(self, query)
-        return 1
-    elif choice.startswith("/"):
-        query = choice[1:].strip()
-        if query == '':
-            query = None
-        print_global_command_menu(self, query)
-        return 1
 
-    selected = menu_options.get(choice)
-    if selected:
+    if choice == '':
+        return 1 if submenu else 0
+    elif check_for_special_commands(choice):
+        return 1
+    elif menu_options.get(choice):
         try:
+            selected = menu_options.get(choice)
             menu_caller = selected['menu_caller']
             add_recent_command(choice)
             if goto_menu(menu_caller, self):
@@ -63,15 +82,24 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
         except Exception as e:
             error(f"Global menu option error: {e}")
             return 0
-    elif choice == '' and submenu:
-        return 1
-    elif choice == '' and not submenu:
-        pass
     else:
         invalid_choice_menu(self, menu_options, choice)
     return 0
 
 # ------------------------------------------------------------
+
+def print_register_command_menu(self):
+    from user_interface_menus._menu_helper import add_user_defined_global_command, save_macro
+    identifier = get_input(self, prompt = "Enter the command identifier (e.g., 'my_command'): ")
+    command_string = get_input(self, prompt = "Enter the command string (e.g., '/command1?input'): ")
+    description = get_input(self, prompt = "Enter a description for the command (optional): ")
+    if not identifier or not command_string:
+        error("Identifier and command string cannot be empty.")
+        return
+    if description == '':
+        description = None
+    if add_user_defined_global_command(identifier, command_string, description, self):
+        save_macro(self, identifier, command_string, description)
 
 def print_global_command_menu(self, query = None):
     menu_options = get_relevant_menu_options(query)

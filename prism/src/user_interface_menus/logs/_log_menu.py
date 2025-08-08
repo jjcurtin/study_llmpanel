@@ -8,7 +8,8 @@ def log_menu(self):
     menu_options = {
         'transcript': {'description': 'View Today\'s Transcript', 'menu_caller': lambda self: print_transcript(self, 'get_transcript')},
         'ema': {'description': 'View EMA Log', 'menu_caller': lambda self: print_transcript(self, 'get_ema_log')},
-        'feedback': {'description': 'View Feedback Survey Log', 'menu_caller': lambda self: print_transcript(self, 'get_feedback_log')}
+        'feedback': {'description': 'View Feedback Survey Log', 'menu_caller': lambda self: print_transcript(self, 'get_feedback_log')},
+        'interface': {'description': 'View Interface Log', 'menu_caller': lambda self: print_interface_log(self)}
     }
 
     while True:
@@ -19,12 +20,35 @@ def log_menu(self):
 # ------------------------------------------------------------
 
 def print_transcript(self, log_type):
-    num_lines = input("Enter number of lines to view (default 10): ").strip()
+    num_lines = get_input(self, prompt = "Enter number of lines to view: ", default_value = "10")
     if not num_lines.isdigit():
         num_lines = '10'
     print_menu_header(f"logs {log_type.split('_')[1]}")
     self.request_transcript(num_lines, log_type)
-    exit_menu()
+    success(f"{log_type.replace('_', ' ').title()} log retrieved.", self)
+
+def print_interface_log(self):
+    from user_interface_menus._menu_helper import read_from_interface_log
+    print_menu_header("logs interface")
+    try:
+        content = read_from_interface_log()
+        if content is None or content == "":
+            error("No content found in the interface log.")
+            return
+
+        num_lines = get_input(self, prompt = "Enter number of lines to view: ", default_value = "10")
+        if not num_lines.isdigit():
+            num_lines = '10'
+        lines = content.splitlines()
+        start_index = max(0, len(lines) - int(num_lines))
+        end_index = len(lines)
+        for line in lines[start_index:end_index]:
+            print(line)
+        exit_menu()
+    except FileNotFoundError:
+        error(f"Interface log file not found.")
+    except Exception as e:
+        error(f"An unexpected error occurred while reading the interface log: {e}")
 
 # ------------------------------------------------------------
 

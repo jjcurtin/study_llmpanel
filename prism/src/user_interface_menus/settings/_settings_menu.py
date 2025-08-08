@@ -7,7 +7,7 @@ from user_interface_menus._menu_helper import *
 def window_width_settings(self):
     from user_interface_menus._menu_helper import WINDOW_WIDTH
     print("Current PRISM window width:", WINDOW_WIDTH)
-    new_width = input("Enter new width (default 80): ").strip()
+    new_width = get_input(self, prompt = "Enter new width: ", default_value = "80")
     if not new_width.isdigit():
         error("Window width must be an integer.")
         return 0
@@ -34,7 +34,7 @@ def display_settings(self):
 def related_parameter(self):
     from user_interface_menus._menu_helper import RELATED_OPTIONS_THRESHOLD
     print("Current threshold:", RELATED_OPTIONS_THRESHOLD)
-    new_threshold = input("Enter new threshold (ranges 0.0 to 1.0): ").strip()
+    new_threshold = get_input(self, prompt = "Enter new threshold (ranges 0.0 to 1.0): ")
     if new_threshold == '':
         return 0
     try:
@@ -50,7 +50,7 @@ def related_parameter(self):
 def best_related_parameter(self):
     from user_interface_menus._menu_helper import BEST_OPTIONS_THRESHOLD
     print("Current threshold:", BEST_OPTIONS_THRESHOLD)
-    new_threshold = input("Enter new threshold (ranges 0.0 to 1.0): ").strip()
+    new_threshold = get_input(self, prompt = "Enter new threshold (ranges 0.0 to 1.0): ")
     if new_threshold == '':
         return 0
     try:
@@ -65,7 +65,7 @@ def best_related_parameter(self):
 def temperature_parameter(self):
     from user_interface_menus._menu_helper import ASSISTANT_TEMPERATURE
     print("Current assistant temperature:", ASSISTANT_TEMPERATURE)
-    new_temperature = input("Enter new temperature (ranges 0.0 to 1.0): ").strip()
+    new_temperature = get_input(self, prompt = "Enter new temperature (ranges 0.0 to 1.0): ")
     if new_temperature == '':
         return 0
     try:
@@ -80,7 +80,7 @@ def temperature_parameter(self):
 def tokens_parameter(self):
     from user_interface_menus._menu_helper import ASSISTANT_TOKENS
     print("Current assistant max tokens:", ASSISTANT_TOKENS)
-    new_tokens = input("Enter new max tokens (must be a positive integer): ").strip()
+    new_tokens = get_input(self, prompt = "Enter new max tokens (must be a positive integer): ")
     if new_tokens == '':
         return 0
     try:
@@ -91,15 +91,47 @@ def tokens_parameter(self):
         error("Invalid input. Please try again.")
     set_assistant_tokens(int(new_tokens))
 
+def menu_delay_parameter(self):
+    from user_interface_menus._menu_helper import MENU_DELAY
+    print("Current menu delay:", MENU_DELAY)
+    new_delay = get_input(self, prompt = "Enter new menu delay (must be a non-negative number): ")
+    if new_delay == '':
+        return 0
+    try:
+        if float(new_delay) < 0:
+            error("Menu delay must be a non-negative number.")
+            return 0
+    except Exception as e:
+        error("Invalid input. Please try again.")
+        return 0
+    set_menu_delay(float(new_delay))
+
+def timeout_parameter(self):
+    from user_interface_menus._menu_helper import TIMEOUT
+    print("Current timeout:", TIMEOUT)
+    new_timeout = get_input(self, prompt = "Enter new timeout (must be a positive integer): ")
+    if new_timeout == '':
+        return 0
+    try:
+        if int(new_timeout) <= 0:
+            error("Timeout must be a positive integer.")
+            return 0
+    except Exception as e:
+        error("Invalid input. Please try again.")
+        return 0
+    set_timeout(int(new_timeout))
+
 def print_params(self):
     from user_interface_menus._menu_helper import RELATED_OPTIONS_THRESHOLD, BEST_OPTIONS_THRESHOLD, \
                                                   ASSISTANT_TEMPERATURE, ASSISTANT_TOKENS, \
-                                                  WINDOW_WIDTH
+                                                  WINDOW_WIDTH, MENU_DELAY, TIMEOUT
     print(f"RELATED_OPTIONS_THRESHOLD: {RELATED_OPTIONS_THRESHOLD}")
     print(f"BEST_OPTIONS_THRESHOLD: {BEST_OPTIONS_THRESHOLD}")
     print(f"ASSISTANT_TEMPERATURE: {ASSISTANT_TEMPERATURE}")
     print(f"ASSISTANT_TOKENS: {ASSISTANT_TOKENS}")
     print(f"WINDOW_WIDTH: {WINDOW_WIDTH}")
+    print(f"MENU_DELAY: {MENU_DELAY}")
+    print(f"TIMEOUT: {TIMEOUT}")
     exit_menu()
 
 def parameter_settings(self):
@@ -108,7 +140,9 @@ def parameter_settings(self):
         'threshold': {'description': 'Adjust the minimum command prediction similarity tolerance', 'menu_caller': related_parameter},
         'best threshold': {'description': 'Adjust the prioritized "best" command prediction similarity tolerance', 'menu_caller': best_related_parameter},
         'temperature': {'description': 'Adjust the temperature of the PRISM Assistant', 'menu_caller': temperature_parameter},
-        'tokens': {'description': 'Adjust the maximum tokens for the PRISM Assistant', 'menu_caller': tokens_parameter}
+        'tokens': {'description': 'Adjust the maximum tokens for the PRISM Assistant', 'menu_caller': tokens_parameter},
+        'delay': {'description': 'Adjust the delay between menu displays', 'menu_caller': menu_delay_parameter}, 
+        'timeout': {'description': 'Adjust the user interface timeout for API calls', 'menu_caller': timeout_parameter},
     }
 
     while True:
@@ -123,16 +157,9 @@ def readme(self):
     else:
         print("PRISM Readme is currently disabled.")
     
-    choice = input("Show README on startup? (y/n): ").strip().lower()
-    if choice == 'y':
-        set_show_readme(True)
-        success("Readme will be shown on startup.")
-    elif choice == 'n':
-        set_show_readme(False)
-        success("Readme will not be shown on startup.")
-    else:
-        print("No changes made to Readme display setting.")
-        exit_menu()
+    show_on_startup = prompt_confirmation(self, prompt = "Show README on startup?")
+    set_show_readme(show_on_startup)
+    success(f"PRISM Readme on startup {'enabled' if show_on_startup else 'disabled'}.", self)
 
 def system_settings(self):
     menu_options = {
@@ -185,3 +212,12 @@ PARAM_ASSISTANT_TOKENS = tokens_parameter
 
 global READ_ME_SET
 READ_ME_SET = readme
+
+global PARAM_MENU_DELAY
+PARAM_MENU_DELAY = menu_delay_parameter
+
+global PRINT_PARAMS
+PRINT_PARAMS = print_params
+
+global PARAM_TIMEOUT
+PARAM_TIMEOUT = timeout_parameter

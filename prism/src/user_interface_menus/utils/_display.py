@@ -42,13 +42,32 @@ def align(text):
 
 # ------------------------------------------------------------
 
-def error(message = "An unexpected error occurred."):
-    print(f"{red("Error")}: {message}")
+def error(message = "An unexpected error occurred.", self = None):
+    from user_interface_menus.utils._menu_navigation import clear_commands_queue
+    from user_interface_menus._menu_helper import write_to_interface_log
+
+    print(f"{red('Error')}: {message}")
+    try:
+        write_to_interface_log(f"Error: {message}")
+    except Exception as e:
+        print(f"Error: Could not write to log file: {e}")
+
+    # stop processing commands, error
+    if self is not None:
+        clear_commands_queue(self)
     exit_menu()
 
-def success(message = "Operation completed successfully."):
-    print(f"{green("Success")}: {message}")
-    exit_menu()
+def success(message = "Operation completed successfully.", self = None):
+    print(f"{green('Success')}: {message}")
+    from user_interface_menus._menu_helper import write_to_interface_log
+    try:
+        write_to_interface_log(f"Success: {message}")
+    except Exception as e:
+        error(f"Could not write to log file: {e}")
+
+    # skip exit menu
+    if self is None or not self.commands_queue:
+        exit_menu()
     
 def exit_menu():
     input(f"\n{yellow("ENTER to Continue>")} ")
@@ -79,11 +98,11 @@ def print_equals():
 # ------------------------------------------------------------
 
 def print_fixed_terminal_prompt():
-    return input(f"\n{cyan("prism> ")}").strip()
+    return input(f"\n{cyan('prism> ')}").strip()
 
 def print_assistant_terminal_prompt():
-    return input(f"\n{red("assistant> ")}").strip()
+    return input(f"\n{red('assistant> ')}").strip()
 
 def print_twilio_terminal_prompt():
     print("Please enter your message below. Press ENTER to send.")
-    return input(f"\n{green("twilio> ")}").strip()
+    return input(f"\n{green('twilio> ')}").strip()

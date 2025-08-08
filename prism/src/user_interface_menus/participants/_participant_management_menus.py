@@ -7,7 +7,7 @@ from user_interface_menus.participants._add_participant_menu import add_particip
 # ------------------------------------------------------------
 
 def refresh_participants_menu(self):
-    if input("Refresh participants from CSV? (yes/no): ").strip().lower() == 'yes':
+    if prompt_confirmation(self, prompt = "Refresh participants from CSV?"):
         if self.api("POST", "participants/refresh_participants"):
             success("Participants refreshed from CSV.")
         else:
@@ -16,10 +16,8 @@ def refresh_participants_menu(self):
         success("Refresh cancelled.")
 
 def send_announcement_menu(self):
-    require_on_study = input("Send to participants on study only? (yes/no): ").strip().lower()
-    if require_on_study not in ('yes', 'y', 'no', 'n'):
-        error("Invalid input. Cancelling. Press Enter to continue...")
-        return
+    require_on_study = prompt_confirmation(self, prompt = "Send to participants on study only?", default_value = "y")
+    print("Sending to participants on study only." if require_on_study else "Sending to all participants.")
     message = print_twilio_terminal_prompt()
     if not message:
         error("Message cannot be empty. Please try again.")
@@ -29,6 +27,31 @@ def send_announcement_menu(self):
         success("Study announcement sent.")
     else:
         error("No participants found or failed to retrieve.")
+
+def remove_participant_menu(self):
+    participant_id = get_input(self, prompt = "Please enter the unique ID of the participant that you would like to remove: ")
+    if not participant_id or participant_id.strip() == '':
+        error("Participant ID cannot be empty.")
+        return 0
+    if prompt_confirmation(self, prompt = f"Are you sure you want to remove participant with ID '{participant_id}'?"):
+        if self.api("DELETE", f"participants/remove_participant/{participant_id}"):
+            success("Participant removed.", self)
+            return 1
+        else:
+            error("Failed to remove participant. Unique ID not found", self)
+            return 0
+        
+def access_specific_participant_menu(self):
+    participant_id = get_input(self, prompt = "Please enter the unique ID of the participant that you would like to access: ")
+    if not participant_id or participant_id.strip() == '':
+        error("Participant ID cannot be empty.")
+        return 0
+    data = self.api("GET", f"participants/get_participant/{participant_id}")
+    if data:
+        individual_participant_menu(self, participant_id)
+    else:
+        error("Failed to retrieve participant data. Unique ID not found.", self)
+        return 0
 
 # ------------------------------------------------------------
 
@@ -42,6 +65,7 @@ def participant_management_menu(self):
             exit_menu()
 
     while True:
+        index_and_text = True
         print_menu_header("participants")
         menu_options = {}
 
@@ -54,15 +78,20 @@ def participant_management_menu(self):
                     'description': f"{p['last_name']}, {p['first_name']} (ID: {p['unique_id']}) - On Study: {p['on_study']}",
                     'menu_caller': lambda self, participant_id = p['unique_id']: individual_participant_menu(self, participant_id)
                 }
+            print("Enter an index to select a participant, or, choose another option.")
+            print_dashes()
         else:
-            print("No participants found or failed to retrieve.")
+            print(f"{red('No participants found or failed to retrieve.')}")
+            print()
+            index_and_text = False
         menu_options['add'] = {'description': 'Add a Participant', 'menu_caller': add_participant_menu}
         menu_options['schedule'] = {'description': 'Get Participant Task Schedule', 'menu_caller': print_task_schedule}
         menu_options['refresh'] = {'description': 'Full Participants Refresh from CSV', 'menu_caller': refresh_participants_menu}
         menu_options['announcement'] = {'description': 'Send Study Announcement', 'menu_caller': send_announcement_menu}
-        print("Enter an index to select a participant, or, choose another option.")
-        print_dashes()
-        if print_menu_options(self, menu_options, submenu = True, index_and_text = True):
+        menu_options['remove'] = {'description': 'Remove a Participant', 'menu_caller': remove_participant_menu}
+        menu_options['access'] = {'description': 'Access Participant Data', 'menu_caller': access_specific_participant_menu}
+        
+        if print_menu_options(self, menu_options, submenu = True, index_and_text = index_and_text):
             break
 
 # ------------------------------------------------------------

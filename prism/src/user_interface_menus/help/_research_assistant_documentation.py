@@ -15,9 +15,8 @@ def research_assistant_documentation(self):
 
     def navigation(self):
         print_menu_header("help ra commands")
-        print(f"PRISM is designed to be navigated through commands. You can use {yellow('command <query>')} or {yellow('/<query>')} to search for commands.")
-        print(f"You can look at all of the commands by typing {yellow('command')} or {yellow('/')} with no arguments.")
-        print(f"I apologize if the documentation is a bit sparse; for this purpose I have added an {yellow("assistant")} to help.")
+        print(f"PRISM is designed to be navigated through commands. You can use {yellow('command <query>')} or {yellow('?<query>')} to search for commands.")
+        print(f"You can look at all of the commands by typing {yellow('command')} or {yellow('?')} with no arguments.")
         print(f"This menu is accessed {yellow("commands")} instead of {yellow("command")} since {yellow("command")} has the highest priority.")
         print(f"\nYou can use most global commands from any menu, but keep in mind that local commands take priority.")
         print(f"Additionally, most local commands are only available in the menu they are defined in (e.g. most of the docs).")
@@ -25,6 +24,10 @@ def research_assistant_documentation(self):
         print(f"\nSome actions are mapped to multiple commands; this is to allow for flexibility.")
         print(f"For example, you can use {yellow('tasks add rscript')} or {yellow('add rscript')} to schedule an R script.")
         print(f"The first shows the menus you need to go through, while the second is more intuitive.")
+        print(f"\nYou can also use the {yellow('register')} command to save a command chain and then use it later.")
+        print(f"You can also use the command of the form {yellow('$<identifier> = <command_chain>')} to register a command chain.")
+        print(f"Command chains follow the format of {yellow('/<command1>?<input1>/<command2>?<input2>...')}.")
+        print(f"You can put commands/inputs in any order, any saved chains will expand in place, and inputs associate with the command to their left.")
         exit_menu()
 
     def terminals(self):
@@ -41,7 +44,7 @@ def research_assistant_documentation(self):
         print(f"PRISM has a task management system that allows you to run R scripts and other tasks.")
         print(f"I set up the Python tasks in a specific way to allow for easy management and execution.")
         print(f"For information on how to set up one of these, refer to {yellow('help dev')}.")
-        print(f"R scripts are much easier; put it in the scripts/ folder and it will be automatically detected by the system.")
+        print(f"R scripts are much easier; put it in the {green('scripts/')} folder and it will be automatically detected by the system.")
         print(f"You can use the {yellow('tasks')} command to manage tasks.")
         exit_menu()
 
@@ -50,7 +53,7 @@ def research_assistant_documentation(self):
         print(f"PRISM has a participant management system that allows you to manage participants in a study.")
         print(f"You can use the {yellow('participants')} command to manage participants.")
         print(f"You can add, remove, and view participants, as well as manage their data.")
-        print(f"Participants are stored in config/study_participants.csv.")
+        print(f"Participants are stored in {green('config/study_participants.csv')}.")
         exit_menu()
 
     menu_options = {

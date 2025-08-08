@@ -1,7 +1,7 @@
 # global commands for prism user interface
 
 def init_commands():
-    from user_interface_menus._main_menu import main_menu, README
+    from user_interface_menus._main_menu import main_menu
 
     # ------------------------------------------------------------
         
@@ -30,8 +30,7 @@ def init_commands():
 
     # ------------------------------------------------------------
 
-    from user_interface_menus.help._help_menu import help_menu
-    from user_interface_menus.help._help_menu import GENERAL_INFORMATION
+    from user_interface_menus.help._help_menu import help_menu, GENERAL_INFORMATION, README
     from user_interface_menus.help._developer_documentation import developer_documentation
     from user_interface_menus.help._research_assistant_documentation import research_assistant_documentation
 
@@ -41,7 +40,8 @@ def init_commands():
     from user_interface_menus.settings._settings_menu import DISPLAY, WINDOW_WIDTH_SETTINGS, PARAM_RELATED_THRESHOLD, \
                                                              PARAM_ASSISTANT_TEMPERATURE, SYSTEM_SETTINGS, \
                                                              PARAMETER_SETTINGS, READ_ME_SET, PARAM_BEST_OPTIONS_THRESHOLD, \
-                                                             PARAM_ASSISTANT_TOKENS, print_params
+                                                             PARAM_ASSISTANT_TOKENS, PRINT_PARAMS, PARAM_MENU_DELAY, \
+                                                             PARAM_TIMEOUT
 
     # ------------------------------------------------------------
 
@@ -49,7 +49,7 @@ def init_commands():
 
     # ------------------------------------------------------------
 
-    from user_interface_menus.utils._menu_display import print_recent_commands, print_global_command_menu
+    from user_interface_menus.utils._menu_display import print_recent_commands, print_global_command_menu, print_register_command_menu
 
     # ------------------------------------------------------------
 
@@ -112,8 +112,10 @@ def init_commands():
         'params best threshold': {'description': 'Manage similarity tolerance for best command suggestions', 'menu_caller': lambda self: PARAM_BEST_OPTIONS_THRESHOLD(self)},
         'params temperature': {'description': 'Manage model temperature for PRISM Assistant', 'menu_caller': lambda self: PARAM_ASSISTANT_TEMPERATURE(self)},
         'params tokens': {'description': 'Manage max tokens for PRISM Assistant', 'menu_caller': lambda self: PARAM_ASSISTANT_TOKENS(self)},
-        'params print': {'description': 'Print current system parameters', 'menu_caller': lambda self: print_params(self)},
-        'print params': {'description': 'Print current system parameters', 'menu_caller': lambda self: print_params(self)},
+        'params delay': {'description': 'Manage menu display delay', 'menu_caller': lambda self: PARAM_MENU_DELAY(self)},
+        'params timeout': {'description': 'Manage user interface timeout (api calls and such)', 'menu_caller': lambda self: PARAM_TIMEOUT(self)},
+        'params print': {'description': 'Print current system parameters', 'menu_caller': lambda self: PRINT_PARAMS(self)},
+        'print params': {'description': 'Print current system parameters', 'menu_caller': lambda self: PRINT_PARAMS(self)},
 
         'settings display': {'description': 'Manage Display settings', 'menu_caller': lambda self: DISPLAY(self)},
         'settings display width': {'description': 'Adjust PRISM window width', 'menu_caller': lambda self: WINDOW_WIDTH_SETTINGS(self)},
@@ -127,6 +129,8 @@ def init_commands():
         'shutdown': {'description': 'Shutdown PRISM', 'menu_caller': shutdown_menu},
         
         'command': {'description': 'Global Command Menu; "command <query>" to search', 'menu_caller': print_global_command_menu},
+        'register': {'description': 'Register a new global command', 'menu_caller': print_register_command_menu},
+
         'recent': {'description': 'View Recent Commands', 'menu_caller': lambda self: print_recent_commands(self)},
         'exit': {'description': 'Exit PRISM User Interface', 'menu_caller': lambda self: exit_interface(self)},
     }

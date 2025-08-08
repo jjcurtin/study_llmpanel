@@ -12,7 +12,7 @@ def assistant_menu(self):
             api_key, endpoint = get_credentials()
             print()
             print_dashes()
-            print(f"Press ENTER to exit assistant. This is an experimental feature and not all information may be accurate.")
+            print(f"Press {yellow('ENTER')} to exit assistant. This is an experimental feature and not all information may be accurate.")
             print_dashes()
 
             from user_interface_menus.utils._commands import init_commands
