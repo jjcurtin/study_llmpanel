@@ -76,7 +76,11 @@ class MessageGenerator:
 
     def initialize_settings(self):
         # Load API credentials, message categories, and user contexts
-        self.api_key, self.endpoint = get_credentials()
+        model = input("Which model would you like to use? 4 for GPT-4o or 5 for GPT-5mini? (default: 4o): ")
+        if model not in ['4', '5']:
+            model = '4'
+        print(f"Using model: {model}")
+        self.api_key, self.endpoint = get_credentials(model = model)
 
         # decide which tones to generate messages for
         self.tones_to_generate, self.category_to_description = select_message_categories()
