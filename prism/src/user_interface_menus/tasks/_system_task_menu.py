@@ -24,7 +24,6 @@ def print_task_schedule(self):
 # ------------------------------------------------------------
 
 def remove_task_menu(self):
-    clear_recommended_actions()
     if not self.commands_queue:
         print_menu_header("tasks remove")
         print_task_schedule(self)
@@ -63,7 +62,6 @@ def system_task_menu(self):
     }
 
     while True:
-        clear_recommended_actions()
         if not self.commands_queue:
             print_menu_header("tasks")
             print_task_schedule(self)

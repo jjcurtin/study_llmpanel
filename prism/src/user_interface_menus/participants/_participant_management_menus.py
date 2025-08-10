@@ -130,7 +130,6 @@ def participant_management_menu(self):
             }
         while True:
             index_and_text = True
-            clear_recommended_actions()
             if not self.commands_queue:
                 print_menu_header("participants")
             menu_options = {}

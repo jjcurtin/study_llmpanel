@@ -2,7 +2,6 @@ from user_interface_menus.utils._menu_display import *
 from user_interface_menus._menu_helper import *
 
 def execute_r_script_menu(self):
-    clear_recommended_actions()
     if not self.commands_queue:
         print_menu_header("tasks execute rscript")
     r_scripts = self.api("GET", "system/get_r_script_tasks")
@@ -28,7 +27,6 @@ def execute_r_script_menu(self):
         error(f"Failed to execute R script task {selected_script_name}.", self)
 
 def execute_task_menu(self):
-    clear_recommended_actions()
     if not self.commands_queue:
         print_menu_header("tasks execute system")
     task_types = self.get_task_types()
@@ -63,7 +61,6 @@ def execute_menu(self):
         'rscript': {'description': 'Execute R Script Task', 'menu_caller': execute_r_script_menu},
     }
     while True:
-        clear_recommended_actions()
         if not self.commands_queue:
             print_menu_header("tasks execute")
         if print_menu_options(self, menu_options, submenu = True):

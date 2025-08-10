@@ -5,7 +5,6 @@ from user_interface_menus._menu_helper import *
 def developer_documentation(self):
     def getting_started(self):
         def api_key_setup(self):
-            clear_recommended_actions()
             if not self.commands_queue:
                 print_menu_header("help dev start api")
                 print("The following API keys are required to be in the api/ folder and have the described format for PRISM to function correctly:")
@@ -17,7 +16,6 @@ def developer_documentation(self):
                 exit_menu()
 
         def config_setup(self):
-            clear_recommended_actions()
             if not self.commands_queue:
                 print_menu_header("help dev start config")
                 print("Ensure that the configuration files are set up correctly in the config/ folder.")
@@ -34,7 +32,6 @@ def developer_documentation(self):
             'config': {'description': 'Config Setup', 'menu_caller': config_setup}
         }
         while True:
-            clear_recommended_actions()
             if not self.commands_queue:
                 print_menu_header("help dev start")
             if print_menu_options(self, menu_options, submenu = True):
@@ -42,7 +39,6 @@ def developer_documentation(self):
 
     def prism_backend_logic_documentation(self):
         def task_abstraction_format(self):
-            clear_recommended_actions()
             if not self.commands_queue:
                 print_menu_header("help dev backend tasks")
                 print("PRISM uses a task abstraction format to manage and execute tasks.")
@@ -72,7 +68,6 @@ def developer_documentation(self):
                 exit_menu()
 
         def task_managers(self):
-            clear_recommended_actions()
             if not self.commands_queue:
                 print_menu_header("help dev backend task_managers")
                 print("PRISM uses task managers to handle the scheduling and execution of tasks.")
@@ -93,7 +88,6 @@ def developer_documentation(self):
                 exit_menu()
         
         def check_system(self):
-            clear_recommended_actions()
             if not self.commands_queue:
                 print_menu_header("help dev backend check")
                 print("PRISM includes a system check feature that verifies the status of the application and its components.")
@@ -101,7 +95,6 @@ def developer_documentation(self):
                 exit_menu()
             
         def data_management(self):
-            clear_recommended_actions()
             if not self.commands_queue:
                 print_menu_header("help dev backend data_management")
                 print("PRISM supports data pull down from various sources, including Qualtrics and FollowMee.")
@@ -117,17 +110,13 @@ def developer_documentation(self):
             'data_management': {'description': 'Data Management', 'menu_caller': lambda self: data_management(self)}
         }
         while True:
-            set_recommended_actions([
-                'tasks'
-            ])
             if not self.commands_queue:
                 print_menu_header("help dev backend")
-            if print_menu_options(self, menu_options, submenu = True):
+            if print_menu_options(self, menu_options, submenu = True, recommended_actions = ['tasks']):
                 break
 
     def prism_server_and_api_endpoints_documentation(self):
         def system_endpoints(self):
-            clear_recommended_actions()
             if not self.commands_queue:
                 print_menu_header("help dev server system")
                 print("1. GET /system/get_mode - Returns the current mode of the application.")
@@ -149,7 +138,6 @@ def developer_documentation(self):
                 exit_menu()
 
         def participant_endpoints(self):
-            clear_recommended_actions()
             if not self.commands_queue:
                 print_menu_header("help dev server participants")
                 print("1. GET /participants/get_participants - Retrieves the list of participants.")
@@ -165,7 +153,6 @@ def developer_documentation(self):
                 exit_menu()
 
         def qualtrics_endpoints(self):
-            clear_recommended_actions()
             if not self.commands_queue:
                 print_menu_header("help dev server qualtrics")
                 print("1. GET /qualtrics/access_ema/<unique_id> - Provides access to the EMA survey for a participant.")
@@ -175,7 +162,6 @@ def developer_documentation(self):
                 print("5. POST /qualtrics/submit_feedback - Submits the feedback survey.")
                 exit_menu()
 
-        clear_recommended_actions()
         menu_options = {
             'system': {'description': 'System Endpoints', 'menu_caller': system_endpoints},
             'participants': {'description': 'Participant Endpoints', 'menu_caller': participant_endpoints},
@@ -192,7 +178,6 @@ def developer_documentation(self):
                 break
 
     def prism_user_interface_documentation(self):
-        clear_recommended_actions()
         if not self.commands_queue:
             print_menu_header("help dev ui")
             print("The PRISM user interface is designed to provide easy access to the application's features.")
@@ -205,7 +190,6 @@ def developer_documentation(self):
             exit_menu()
 
     def qualtrics_interface_documentation(self):
-        clear_recommended_actions()
         if not self.commands_queue:
             print_menu_header("help dev qualtrics")
             print("The Qualtrics interface is used to manage and interact with Qualtrics surveys.")
@@ -216,7 +200,6 @@ def developer_documentation(self):
             exit_menu()
 
     def architecture_overview(self):
-        clear_recommended_actions()
         if not self.commands_queue:
             print_menu_header("help dev architecture")
             print(f"PRISM is designed with many components that work together.")
@@ -241,10 +224,7 @@ def developer_documentation(self):
         'qualtrics': {'description': 'Qualtrics Interface', 'menu_caller': qualtrics_interface_documentation},
     }
     while True:
-        set_recommended_actions([
-            'start'
-        ])
         if not self.commands_queue:
             print_menu_header("help dev")
-        if print_menu_options(self, menu_options, submenu = True):
+        if print_menu_options(self, menu_options, submenu = True, recommended_actions = ['start']):
             break
