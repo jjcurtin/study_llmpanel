@@ -4,6 +4,7 @@ from user_interface_menus._menu_helper import *
 
 def research_assistant_documentation(self):
     def getting_started(self):
+        clear_recommended_actions()
         print_menu_header("help ra start")
         print("The following API keys are required to be in the api/ folder and have the described format for PRISM to function correctly:")
         print(f'1. {green("qualtrics.api")}: "api_token","datacenter","ema_survey_id","feedback_survey_id"')
@@ -14,6 +15,7 @@ def research_assistant_documentation(self):
         exit_menu()
 
     def navigation(self):
+        clear_recommended_actions()
         print_menu_header("help ra commands")
         print(f"PRISM is designed to be navigated through commands. You can use {yellow('command <query>')} or {yellow('?<query>')} to search for commands.")
         print(f"You can look at all of the commands by typing {yellow('command')} or {yellow('?')} with no arguments.")
@@ -31,6 +33,7 @@ def research_assistant_documentation(self):
         exit_menu()
 
     def terminals(self):
+        clear_recommended_actions()
         print_menu_header("help ra terminals")
         print(f"PRISM currently has four terminal prompts:")
         print(f"{cyan('prism> ')}: The main prompt for PRISM. You can use this to run commands.")
@@ -40,6 +43,7 @@ def research_assistant_documentation(self):
         exit_menu()
 
     def task_management(self):
+        clear_recommended_actions()
         print_menu_header("help ra tasks")
         print(f"PRISM has a task management system that allows you to run R scripts and other tasks.")
         print(f"I set up the Python tasks in a specific way to allow for easy management and execution.")
@@ -49,6 +53,7 @@ def research_assistant_documentation(self):
         exit_menu()
 
     def participants(self):
+        clear_recommended_actions()
         print_menu_header("help ra participants")
         print(f"PRISM has a participant management system that allows you to manage participants in a study.")
         print(f"You can use the {yellow('participants')} command to manage participants.")
@@ -64,6 +69,11 @@ def research_assistant_documentation(self):
         'participants': {'description': 'Participant Management', 'menu_caller': participants}
     }
     while True:
+        set_recommended_actions([
+            'start',
+            'tasks',
+            'participants'
+        ])
         print_menu_header("help ra")
         if print_menu_options(self, menu_options, submenu = True):
             break

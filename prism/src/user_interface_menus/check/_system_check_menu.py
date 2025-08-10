@@ -18,6 +18,7 @@ def system_check_menu(self):
         'diagnostics': {"description": "Run System Diagnostics", "menu_caller": diagnostics},
     }
     while True:
+        clear_recommended_actions()
         print_menu_header("check")
         print("Checking PRISM status and system uptime...")
         uptime_data = self.api("GET", "system/uptime")
@@ -29,6 +30,7 @@ def system_check_menu(self):
         else:
             error("PRISM not running or inaccessible.")
             return
+        clear_recommended_actions()
         print_menu_header("check")
         print_dashes()
         print("Mode:", mode)
