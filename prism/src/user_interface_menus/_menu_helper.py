@@ -154,7 +154,53 @@ def save_macro(self, identifier, command_string, description = None):
         if description is None:
             description = command_string
         file.write(f"{identifier}|{command_string}|{description}\n")
-    print("Macro saved successfully.")
+    success("Macro saved successfully.", self)
+
+def remove_macro(self, choice):
+    global _menu_options
+    identifier = choice[1:].strip()
+    if _menu_options and identifier in _menu_options:
+        del _menu_options[identifier]
+        try:
+            with open("../config/saved_macros.txt", 'r') as file:
+                lines = file.readlines()
+            with open("../config/saved_macros.txt", 'w') as file:
+                for line in lines:
+                    if not line.startswith(f"{identifier}|"):
+                        file.write(line)
+            success(f"Macro '{identifier}' removed successfully.", self)
+            try:
+                with open("../config/saved_macros.txt", "r") as f:
+                    saved_macros = f.readlines()
+                    for macro in saved_macros:
+                        print(macro.strip())
+                identifier = choice[1:].strip()
+            except FileNotFoundError:
+                error(f"No saved macros found. Check {green('config/saved_macros.txt')}.", self)
+            except Exception as e:
+                error(f"Error removing command: {e}", self)
+        except Exception as e:
+            error(f"Error removing macro from file: {e}", self)
+
+def macro_search(self, query):
+    query = query[1:].strip() if len(query) > 1 else ''
+    try:
+        with open("../config/saved_macros.txt", "r") as f:
+            saved_macros = f.readlines()
+        matches = [line for line in saved_macros if query in line]
+        if matches:
+            print()
+            for match in matches:
+                identifier, command_string, description = match.split("|", 2)
+                print(f"{yellow(identifier.strip())}: {command_string.strip()} - {description.strip()}")
+            print()
+            success(f"Found {cyan(len(matches))} matching macro(s).", self)
+        else:
+            error(f"No macros found matching '{query}'.", self)
+    except FileNotFoundError:
+        error(f"No saved macros found. Check {green('config/saved_macros.txt')}.", self)
+    except Exception as e:
+        error(f"Error searching macros: {e}", self)
 
 def add_user_defined_global_command(identifier, command_string, description = None, self = None):
     global _menu_options
