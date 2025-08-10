@@ -25,9 +25,9 @@ def display_settings(self):
     }
 
     while True:
-        set_recommended_actions({
-            'color': {'description': 'Toggle color output in terminal', 'menu_caller': toggle_color_output}
-        })
+        set_recommended_actions([
+            'color'
+        ])
         print_menu_header("settings display")
         if print_menu_options(self, menu_options, submenu = True):
             break
