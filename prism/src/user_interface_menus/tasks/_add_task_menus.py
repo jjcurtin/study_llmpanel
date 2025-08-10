@@ -7,7 +7,8 @@ from user_interface_menus._menu_helper import *
 
 def add_new_r_script_menu(self):
     clear_recommended_actions()
-    print_menu_header("tasks add rscript")
+    if not self.commands_queue:
+        print_menu_header("tasks add rscript")
     r_scripts = self.api("GET", "system/get_r_script_tasks")
     if not r_scripts:
         error("No R scripts available.", self)
@@ -40,13 +41,13 @@ def add_new_r_script_menu(self):
 
 def add_new_task_menu(self):
     clear_recommended_actions()
-    print_menu_header("tasks add system")
+    if not self.commands_queue:
+        print_menu_header("tasks add system")
     task_types = self.get_task_types()
     if not task_types:
         error("No task types available.")
         return
     print("Available Tasks:")
-
     for i, (k,v) in enumerate(task_types.items(),1):
         print(f"{yellow(i)}: {v} ({k})")
     idx = get_input(self, prompt = "Task index to add: ")
@@ -80,6 +81,7 @@ def add_task_menu(self):
     }
     while True:
         clear_recommended_actions()
-        print_menu_header("tasks add")
+        if not self.commands_queue:
+            print_menu_header("tasks add")
         if print_menu_options(self, menu_options, submenu = True):
             break

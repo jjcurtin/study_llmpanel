@@ -57,12 +57,13 @@ def access_specific_participant_menu(self):
 
 def participant_management_menu(self):
     def print_task_schedule(self):
-        tasks = self.api("GET", "participants/get_participant_task_schedule")
-        if tasks:
-            print("Participant Task Schedule:")
-            for task in tasks.get("tasks", []):
-                print(f"{task['participant_id']}: {task['task_type']} at {task['task_time']} - On Study: {task['on_study']}")
-            exit_menu()
+        if not self.commands_queue:
+            tasks = self.api("GET", "participants/get_participant_task_schedule")
+            if tasks:
+                print("Participant Task Schedule:")
+                for task in tasks.get("tasks", []):
+                    print(f"{task['participant_id']}: {task['task_type']} at {task['task_time']} - On Study: {task['on_study']}")
+                exit_menu()
 
     def _sort(participants):
         if self.participant_display_mode == "name":
@@ -130,13 +131,14 @@ def participant_management_menu(self):
         while True:
             index_and_text = True
             clear_recommended_actions()
-            print_menu_header("participants")
+            if not self.commands_queue:
+                print_menu_header("participants")
             menu_options = {}
 
             # Fetch participants from the API
             data = self.api("GET", "participants/get_participants")
             participants = data.get("participants", []) if data else []
-            if participants:
+            if participants and not self.commands_queue:
                 for i, p in enumerate(_sort(_filter(participants)), 1):
                     menu_options[str(i)] = {
                         'description': f"{p['last_name']}, {p['first_name']} (ID: {p['unique_id']}) - On Study: {p['on_study']}",
@@ -147,8 +149,9 @@ def participant_management_menu(self):
                 print("Current Filter Settings:", self.participant_filter_settings)
                 print_dashes()
             else:
-                print(f"{red('No participants found or failed to retrieve.')}")
-                print()
+                if not self.commands_queue:
+                    print(f"{red('No participants found or failed to retrieve.')}")
+                    print()
                 index_and_text = False
             menu_options['add'] = {'description': 'Add a Participant', 'menu_caller': add_participant_menu}
             menu_options['schedule'] = {'description': 'Get Participant Task Schedule', 'menu_caller': print_task_schedule}

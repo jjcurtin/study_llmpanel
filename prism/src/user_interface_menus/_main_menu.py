@@ -32,5 +32,6 @@ def main_menu(self):
             'participants',
             'tasks'
         ])
-        print_menu_header("main")
+        if not self.commands_queue:
+            print_menu_header("main")
         print_menu_options(self, menu_options)

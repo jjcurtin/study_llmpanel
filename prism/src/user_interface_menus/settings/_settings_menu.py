@@ -28,7 +28,8 @@ def display_settings(self):
         set_recommended_actions([
             'color'
         ])
-        print_menu_header("settings display")
+        if not self.commands_queue:
+            print_menu_header("settings display")
         if print_menu_options(self, menu_options, submenu = True):
             break
 
@@ -125,17 +126,18 @@ def timeout_parameter(self):
     set_timeout(int(new_timeout))
 
 def print_params(self):
-    from user_interface_menus._menu_helper import RELATED_OPTIONS_THRESHOLD, BEST_OPTIONS_THRESHOLD, \
-                                                  ASSISTANT_TEMPERATURE, ASSISTANT_TOKENS, \
-                                                  WINDOW_WIDTH, MENU_DELAY, TIMEOUT
-    print(f"RELATED_OPTIONS_THRESHOLD: {RELATED_OPTIONS_THRESHOLD}")
-    print(f"BEST_OPTIONS_THRESHOLD: {BEST_OPTIONS_THRESHOLD}")
-    print(f"ASSISTANT_TEMPERATURE: {ASSISTANT_TEMPERATURE}")
-    print(f"ASSISTANT_TOKENS: {ASSISTANT_TOKENS}")
-    print(f"WINDOW_WIDTH: {WINDOW_WIDTH}")
-    print(f"MENU_DELAY: {MENU_DELAY}")
-    print(f"TIMEOUT: {TIMEOUT}")
-    exit_menu()
+    if not self.commands_queue:
+        from user_interface_menus._menu_helper import RELATED_OPTIONS_THRESHOLD, BEST_OPTIONS_THRESHOLD, \
+                                                    ASSISTANT_TEMPERATURE, ASSISTANT_TOKENS, \
+                                                    WINDOW_WIDTH, MENU_DELAY, TIMEOUT
+        print(f"RELATED_OPTIONS_THRESHOLD: {RELATED_OPTIONS_THRESHOLD}")
+        print(f"BEST_OPTIONS_THRESHOLD: {BEST_OPTIONS_THRESHOLD}")
+        print(f"ASSISTANT_TEMPERATURE: {ASSISTANT_TEMPERATURE}")
+        print(f"ASSISTANT_TOKENS: {ASSISTANT_TOKENS}")
+        print(f"WINDOW_WIDTH: {WINDOW_WIDTH}")
+        print(f"MENU_DELAY: {MENU_DELAY}")
+        print(f"TIMEOUT: {TIMEOUT}")
+        exit_menu()
 
 def parameter_settings(self):
     menu_options = {
@@ -152,7 +154,8 @@ def parameter_settings(self):
         set_recommended_actions([
             'print'
         ])
-        print_menu_header("settings system params")
+        if not self.commands_queue:
+            print_menu_header("settings system params")
         if print_menu_options(self, menu_options, submenu = True):
             break
 
@@ -175,7 +178,8 @@ def system_settings(self):
 
     while True:
         clear_recommended_actions()
-        print_menu_header("settings system")
+        if not self.commands_queue:
+            print_menu_header("settings system")
         if print_menu_options(self, menu_options, submenu = True):
             break
 
@@ -189,7 +193,8 @@ def settings_menu(self):
 
     while True:
         clear_recommended_actions()
-        print_menu_header("settings")
+        if not self.commands_queue:
+            print_menu_header("settings")
         if print_menu_options(self, menu_options, submenu = True):
             break
 

@@ -19,7 +19,8 @@ def system_check_menu(self):
     }
     while True:
         clear_recommended_actions()
-        print_menu_header("check")
+        if not self.commands_queue:
+            print_menu_header("check")
         print("Checking PRISM status and system uptime...")
         uptime_data = self.api("GET", "system/uptime")
         mode_data = self.api("GET", "system/get_mode")
@@ -31,7 +32,8 @@ def system_check_menu(self):
             error("PRISM not running or inaccessible.")
             return
         clear_recommended_actions()
-        print_menu_header("check")
+        if not self.commands_queue:
+            print_menu_header("check")
         print_dashes()
         print("Mode:", mode)
         print(f"As of last check, PRISM has been up for {green(start_time)}.")
