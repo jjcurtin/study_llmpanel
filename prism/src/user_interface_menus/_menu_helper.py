@@ -183,20 +183,33 @@ def remove_macro(self, choice):
             error(f"Error removing macro from file: {e}", self)
 
 def macro_search(self, query):
+    from difflib import get_close_matches
+
+    def sort(iterable):
+        global RELATED_OPTIONS_THRESHOLD
+        return get_close_matches(query, iterable, n = 10, cutoff = RELATED_OPTIONS_THRESHOLD)
+    
     query = query[1:].strip() if len(query) > 1 else ''
     try:
         with open("../config/saved_macros.txt", "r") as f:
             saved_macros = f.readlines()
-        matches = [line for line in saved_macros if query in line]
-        if matches:
-            print()
-            for match in matches:
-                identifier, command_string, description = match.split("|", 2)
-                print(f"{yellow(identifier.strip())}: {command_string.strip()} - {description.strip()}")
-            print()
-            success(f"Found {cyan(len(matches))} matching macro(s).", self)
-        else:
-            error(f"No macros found matching '{query}'.", self)
+            matches = []
+            for macro in saved_macros:
+                if query in macro:
+                    matches.append(macro.strip())
+            close_matches = sort([macro.split('|')[0] for macro in saved_macros])
+            for match in close_matches:
+                if match not in matches:
+                    for macro in saved_macros:
+                        if macro.startswith(f"{match}|") and macro.strip() not in matches:
+                            matches.append(macro.strip())
+            matches = matches[:10]
+            if matches:
+                print()
+                for match in matches:
+                    print(yellow(left_align(match.split('|')[0])) + " " * 2 + align(match.split('|')[2]))
+                print()
+                success(f"Found {cyan(len(matches))} matching macros:", self)
     except FileNotFoundError:
         error(f"No saved macros found. Check {green('config/saved_macros.txt')}.", self)
     except Exception as e:
