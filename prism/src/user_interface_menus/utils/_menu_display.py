@@ -7,14 +7,15 @@ from user_interface_menus.utils._menu_navigation import *
 
 # ------------------------------------------------------------
 
-def print_menu_options(self, menu_options, submenu = False, index_and_text = False, choice = None):
+def print_menu_options(self, menu_options, submenu = False, index_and_text = False, choice = None, recommended_actions = None):
     from user_interface_menus._menu_helper import add_recent_command, set_local_menu_options, add_user_defined_global_command, save_macro
 
     if submenu:
         set_local_menu_options("debug", menu_options)
     
     def print_key_line(key, item):
-        print(f"{yellow(left_align(key))} {align(item['description'])}")
+        recommended_text = f" (recommended)" if recommended_actions is not None and key in recommended_actions else ""
+        print(f"{yellow(left_align(key + green(recommended_text), key + recommended_text))} {align(item['description'])}")
 
     def print_keys():
         if index_and_text:

@@ -31,8 +31,13 @@ def cyan(message = None):
 
 # ------------------------------------------------------------
 
-def left_align(text):
-    from user_interface_menus._menu_helper import WINDOW_WIDTH
+def left_align(text, formatless = None):
+    from user_interface_menus._menu_helper import WINDOW_WIDTH, write_to_interface_log
+    if formatless is not None:
+        compensation = (len(text) - len(formatless)) + 1
+        write_to_interface_log(f"Compensation: {compensation}")
+        format_width = int((WINDOW_WIDTH / 2) + compensation)
+        return f"{text:<{format_width}}"
     return f"{text:<{int(WINDOW_WIDTH / 2)}}"
 
 def align(text):
@@ -88,23 +93,23 @@ def print_menu_header(title):
     print(" " * padding + f"{red(title)}")
     print_equals()
 
-    # recommended actions
-    from user_interface_menus._menu_helper import RECOMMENDED_ACTIONS
-    from user_interface_menus._menu_helper import WINDOW_WIDTH
-    if RECOMMENDED_ACTIONS:
-        length = 0
-        action_string = ""
-        for action in RECOMMENDED_ACTIONS:
-            action_string += f" {cyan(action)}"
-            length += 1
-            if action is not RECOMMENDED_ACTIONS[-1]:
-                action_string += " |"
-                length += 2
-            length += len(action.strip())
-        action_string = action_string.strip()
-        padding = (WINDOW_WIDTH - length) // 2
-        print(" " * padding + action_string)
-        print_equals()
+    # # recommended actions
+    # from user_interface_menus._menu_helper import RECOMMENDED_ACTIONS
+    # from user_interface_menus._menu_helper import WINDOW_WIDTH
+    # if RECOMMENDED_ACTIONS:
+    #     length = 0
+    #     action_string = ""
+    #     for action in RECOMMENDED_ACTIONS:
+    #         action_string += f" {cyan(action)}"
+    #         length += 1
+    #         if action is not RECOMMENDED_ACTIONS[-1]:
+    #             action_string += " |"
+    #             length += 2
+    #         length += len(action.strip())
+    #     action_string = action_string.strip()
+    #     padding = (WINDOW_WIDTH - length) // 2
+    #     print(" " * padding + action_string)
+    #     print_equals()
     print()
 
 def print_dashes():
