@@ -137,6 +137,17 @@ def load_saved_macros(self):
         print("No system tests found. Please run the system tests to create macros.")
     except Exception as e:
         error(f"Error loading system tests: {e}", self)
+    try:
+        with open("user_interface_menus/utils/system_utils.txt", 'r') as file:
+            lines = file.readlines()
+            for line in lines:
+                if line.strip():
+                    identifier, command_string, description = line.strip().split('|')
+                    add_user_defined_global_command(identifier, command_string, description, self)
+    except FileNotFoundError:
+        print("No system tests found. Please run the system tests to create macros.")
+    except Exception as e:
+        error(f"Error loading system tests: {e}", self)
 
 def save_macro(self, identifier, command_string, description = None):
     with open("../config/saved_macros.txt", 'a') as file:

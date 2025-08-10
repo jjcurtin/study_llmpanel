@@ -1,0 +1,3 @@
+sort_on_study|/participants/sort?on_study/participants|Sort participants by on_study
+sort_name|/participants/sort?name/participants|/participants/sort?name/Sort participants by name
+sort_id|/participants/sort?unique_id/participants|/participants/sort?unique_id/Sort participants by unique_id
