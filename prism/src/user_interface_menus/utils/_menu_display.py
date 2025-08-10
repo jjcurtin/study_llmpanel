@@ -36,7 +36,7 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
     def check_for_special_commands(choice):
         from user_interface_menus._menu_helper import remove_macro, macro_search
         def check_prefix(prefix):
-            return choice.startswith(prefix) and len(choice) > len(prefix)
+            return choice.startswith(prefix)
         
         def check_prefixes(prefixes):
             return [check_prefix(prefix) for prefix in prefixes]
@@ -71,7 +71,7 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
         elif remove_command:
             remove_macro(self, choice)
         elif search_macros:
-            macro_search(self, choice)
+            macro_search(self, choice, all = (len(choice) == 1))
         else:
             return False
         return True
