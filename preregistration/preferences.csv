@@ -1,0 +1,401 @@
+sub_id,age,sex,race_ethn,education,income,no_in_household,marital_status,income_adj,minoritized,type,identifier,rating
+1,46,Male,Hispanic,HS,130000,4,Divorced,32500.0,True,tone,value_affirmation,5
+1,46,Male,Hispanic,HS,130000,4,Divorced,32500.0,True,tone,norms,5
+1,46,Male,Hispanic,HS,130000,4,Divorced,32500.0,True,tone,acknowledging,4
+1,46,Male,Hispanic,HS,130000,4,Divorced,32500.0,True,tone,self_efficacy,5
+1,46,Male,Hispanic,HS,130000,4,Divorced,32500.0,True,tone,caring_supportive,5
+1,46,Male,Hispanic,HS,130000,4,Divorced,32500.0,True,tone,legitimizing,4
+1,46,Male,Hispanic,HS,130000,4,Divorced,32500.0,True,style,formal,5
+1,46,Male,Hispanic,HS,130000,4,Divorced,32500.0,True,style,informal,6
+2,38,Male,White,Bachelor,70000,4,Divorced,17500.0,False,tone,value_affirmation,6
+2,38,Male,White,Bachelor,70000,4,Divorced,17500.0,False,tone,norms,6
+2,38,Male,White,Bachelor,70000,4,Divorced,17500.0,False,tone,acknowledging,4
+2,38,Male,White,Bachelor,70000,4,Divorced,17500.0,False,tone,self_efficacy,4
+2,38,Male,White,Bachelor,70000,4,Divorced,17500.0,False,tone,caring_supportive,6
+2,38,Male,White,Bachelor,70000,4,Divorced,17500.0,False,tone,legitimizing,6
+2,38,Male,White,Bachelor,70000,4,Divorced,17500.0,False,style,formal,6
+2,38,Male,White,Bachelor,70000,4,Divorced,17500.0,False,style,informal,7
+3,48,Male,Other,Some College,135000,1,Married,135000.0,True,tone,value_affirmation,6
+3,48,Male,Other,Some College,135000,1,Married,135000.0,True,tone,norms,6
+3,48,Male,Other,Some College,135000,1,Married,135000.0,True,tone,acknowledging,6
+3,48,Male,Other,Some College,135000,1,Married,135000.0,True,tone,self_efficacy,6
+3,48,Male,Other,Some College,135000,1,Married,135000.0,True,tone,caring_supportive,5
+3,48,Male,Other,Some College,135000,1,Married,135000.0,True,tone,legitimizing,6
+3,48,Male,Other,Some College,135000,1,Married,135000.0,True,style,formal,4
+3,48,Male,Other,Some College,135000,1,Married,135000.0,True,style,informal,5
+4,58,Male,Black,Graduate,150000,2,Divorced,75000.0,True,tone,value_affirmation,5
+4,58,Male,Black,Graduate,150000,2,Divorced,75000.0,True,tone,norms,5
+4,58,Male,Black,Graduate,150000,2,Divorced,75000.0,True,tone,acknowledging,7
+4,58,Male,Black,Graduate,150000,2,Divorced,75000.0,True,tone,self_efficacy,3
+4,58,Male,Black,Graduate,150000,2,Divorced,75000.0,True,tone,caring_supportive,6
+4,58,Male,Black,Graduate,150000,2,Divorced,75000.0,True,tone,legitimizing,3
+4,58,Male,Black,Graduate,150000,2,Divorced,75000.0,True,style,formal,5
+4,58,Male,Black,Graduate,150000,2,Divorced,75000.0,True,style,informal,6
+5,37,Male,Hispanic,Graduate,100000,1,Married,100000.0,True,tone,value_affirmation,5
+5,37,Male,Hispanic,Graduate,100000,1,Married,100000.0,True,tone,norms,4
+5,37,Male,Hispanic,Graduate,100000,1,Married,100000.0,True,tone,acknowledging,4
+5,37,Male,Hispanic,Graduate,100000,1,Married,100000.0,True,tone,self_efficacy,6
+5,37,Male,Hispanic,Graduate,100000,1,Married,100000.0,True,tone,caring_supportive,4
+5,37,Male,Hispanic,Graduate,100000,1,Married,100000.0,True,tone,legitimizing,5
+5,37,Male,Hispanic,Graduate,100000,1,Married,100000.0,True,style,formal,5
+5,37,Male,Hispanic,Graduate,100000,1,Married,100000.0,True,style,informal,4
+6,37,Male,White,Bachelor,45000,6,Married,7500.0,False,tone,value_affirmation,7
+6,37,Male,White,Bachelor,45000,6,Married,7500.0,False,tone,norms,6
+6,37,Male,White,Bachelor,45000,6,Married,7500.0,False,tone,acknowledging,3
+6,37,Male,White,Bachelor,45000,6,Married,7500.0,False,tone,self_efficacy,5
+6,37,Male,White,Bachelor,45000,6,Married,7500.0,False,tone,caring_supportive,4
+6,37,Male,White,Bachelor,45000,6,Married,7500.0,False,tone,legitimizing,6
+6,37,Male,White,Bachelor,45000,6,Married,7500.0,False,style,formal,4
+6,37,Male,White,Bachelor,45000,6,Married,7500.0,False,style,informal,5
+7,59,Male,Black,Bachelor,135000,4,Married,33750.0,True,tone,value_affirmation,6
+7,59,Male,Black,Bachelor,135000,4,Married,33750.0,True,tone,norms,6
+7,59,Male,Black,Bachelor,135000,4,Married,33750.0,True,tone,acknowledging,4
+7,59,Male,Black,Bachelor,135000,4,Married,33750.0,True,tone,self_efficacy,5
+7,59,Male,Black,Bachelor,135000,4,Married,33750.0,True,tone,caring_supportive,5
+7,59,Male,Black,Bachelor,135000,4,Married,33750.0,True,tone,legitimizing,4
+7,59,Male,Black,Bachelor,135000,4,Married,33750.0,True,style,formal,7
+7,59,Male,Black,Bachelor,135000,4,Married,33750.0,True,style,informal,5
+8,49,Male,Black,Some College,40000,5,Married,8000.0,True,tone,value_affirmation,4
+8,49,Male,Black,Some College,40000,5,Married,8000.0,True,tone,norms,6
+8,49,Male,Black,Some College,40000,5,Married,8000.0,True,tone,acknowledging,7
+8,49,Male,Black,Some College,40000,5,Married,8000.0,True,tone,self_efficacy,6
+8,49,Male,Black,Some College,40000,5,Married,8000.0,True,tone,caring_supportive,3
+8,49,Male,Black,Some College,40000,5,Married,8000.0,True,tone,legitimizing,5
+8,49,Male,Black,Some College,40000,5,Married,8000.0,True,style,formal,6
+8,49,Male,Black,Some College,40000,5,Married,8000.0,True,style,informal,4
+9,34,Female,Asian,Graduate,115000,5,Married,23000.0,True,tone,value_affirmation,6
+9,34,Female,Asian,Graduate,115000,5,Married,23000.0,True,tone,norms,6
+9,34,Female,Asian,Graduate,115000,5,Married,23000.0,True,tone,acknowledging,4
+9,34,Female,Asian,Graduate,115000,5,Married,23000.0,True,tone,self_efficacy,5
+9,34,Female,Asian,Graduate,115000,5,Married,23000.0,True,tone,caring_supportive,2
+9,34,Female,Asian,Graduate,115000,5,Married,23000.0,True,tone,legitimizing,4
+9,34,Female,Asian,Graduate,115000,5,Married,23000.0,True,style,formal,5
+9,34,Female,Asian,Graduate,115000,5,Married,23000.0,True,style,informal,4
+10,47,Male,Other,Graduate,25000,3,Single,8333.333333333334,True,tone,value_affirmation,7
+10,47,Male,Other,Graduate,25000,3,Single,8333.333333333334,True,tone,norms,4
+10,47,Male,Other,Graduate,25000,3,Single,8333.333333333334,True,tone,acknowledging,5
+10,47,Male,Other,Graduate,25000,3,Single,8333.333333333334,True,tone,self_efficacy,5
+10,47,Male,Other,Graduate,25000,3,Single,8333.333333333334,True,tone,caring_supportive,6
+10,47,Male,Other,Graduate,25000,3,Single,8333.333333333334,True,tone,legitimizing,4
+10,47,Male,Other,Graduate,25000,3,Single,8333.333333333334,True,style,formal,6
+10,47,Male,Other,Graduate,25000,3,Single,8333.333333333334,True,style,informal,5
+11,34,Female,Hispanic,Graduate,45000,1,Divorced,45000.0,True,tone,value_affirmation,4
+11,34,Female,Hispanic,Graduate,45000,1,Divorced,45000.0,True,tone,norms,6
+11,34,Female,Hispanic,Graduate,45000,1,Divorced,45000.0,True,tone,acknowledging,5
+11,34,Female,Hispanic,Graduate,45000,1,Divorced,45000.0,True,tone,self_efficacy,5
+11,34,Female,Hispanic,Graduate,45000,1,Divorced,45000.0,True,tone,caring_supportive,5
+11,34,Female,Hispanic,Graduate,45000,1,Divorced,45000.0,True,tone,legitimizing,5
+11,34,Female,Hispanic,Graduate,45000,1,Divorced,45000.0,True,style,formal,5
+11,34,Female,Hispanic,Graduate,45000,1,Divorced,45000.0,True,style,informal,6
+12,34,Female,White,HS,125000,1,Married,125000.0,False,tone,value_affirmation,7
+12,34,Female,White,HS,125000,1,Married,125000.0,False,tone,norms,4
+12,34,Female,White,HS,125000,1,Married,125000.0,False,tone,acknowledging,7
+12,34,Female,White,HS,125000,1,Married,125000.0,False,tone,self_efficacy,3
+12,34,Female,White,HS,125000,1,Married,125000.0,False,tone,caring_supportive,5
+12,34,Female,White,HS,125000,1,Married,125000.0,False,tone,legitimizing,6
+12,34,Female,White,HS,125000,1,Married,125000.0,False,style,formal,6
+12,34,Female,White,HS,125000,1,Married,125000.0,False,style,informal,5
+13,43,Female,Asian,Graduate,70000,3,Divorced,23333.333333333332,True,tone,value_affirmation,5
+13,43,Female,Asian,Graduate,70000,3,Divorced,23333.333333333332,True,tone,norms,5
+13,43,Female,Asian,Graduate,70000,3,Divorced,23333.333333333332,True,tone,acknowledging,5
+13,43,Female,Asian,Graduate,70000,3,Divorced,23333.333333333332,True,tone,self_efficacy,6
+13,43,Female,Asian,Graduate,70000,3,Divorced,23333.333333333332,True,tone,caring_supportive,6
+13,43,Female,Asian,Graduate,70000,3,Divorced,23333.333333333332,True,tone,legitimizing,5
+13,43,Female,Asian,Graduate,70000,3,Divorced,23333.333333333332,True,style,formal,6
+13,43,Female,Asian,Graduate,70000,3,Divorced,23333.333333333332,True,style,informal,6
+14,17,Male,Other,HS,95000,3,Divorced,31666.666666666668,True,tone,value_affirmation,6
+14,17,Male,Other,HS,95000,3,Divorced,31666.666666666668,True,tone,norms,6
+14,17,Male,Other,HS,95000,3,Divorced,31666.666666666668,True,tone,acknowledging,4
+14,17,Male,Other,HS,95000,3,Divorced,31666.666666666668,True,tone,self_efficacy,4
+14,17,Male,Other,HS,95000,3,Divorced,31666.666666666668,True,tone,caring_supportive,6
+14,17,Male,Other,HS,95000,3,Divorced,31666.666666666668,True,tone,legitimizing,6
+14,17,Male,Other,HS,95000,3,Divorced,31666.666666666668,True,style,formal,5
+14,17,Male,Other,HS,95000,3,Divorced,31666.666666666668,True,style,informal,5
+15,19,Male,Asian,Some College,95000,3,Married,31666.666666666668,True,tone,value_affirmation,6
+15,19,Male,Asian,Some College,95000,3,Married,31666.666666666668,True,tone,norms,4
+15,19,Male,Asian,Some College,95000,3,Married,31666.666666666668,True,tone,acknowledging,6
+15,19,Male,Asian,Some College,95000,3,Married,31666.666666666668,True,tone,self_efficacy,5
+15,19,Male,Asian,Some College,95000,3,Married,31666.666666666668,True,tone,caring_supportive,5
+15,19,Male,Asian,Some College,95000,3,Married,31666.666666666668,True,tone,legitimizing,6
+15,19,Male,Asian,Some College,95000,3,Married,31666.666666666668,True,style,formal,6
+15,19,Male,Asian,Some College,95000,3,Married,31666.666666666668,True,style,informal,6
+16,33,Male,Other,HS,20000,4,Single,5000.0,True,tone,value_affirmation,6
+16,33,Male,Other,HS,20000,4,Single,5000.0,True,tone,norms,5
+16,33,Male,Other,HS,20000,4,Single,5000.0,True,tone,acknowledging,6
+16,33,Male,Other,HS,20000,4,Single,5000.0,True,tone,self_efficacy,5
+16,33,Male,Other,HS,20000,4,Single,5000.0,True,tone,caring_supportive,5
+16,33,Male,Other,HS,20000,4,Single,5000.0,True,tone,legitimizing,5
+16,33,Male,Other,HS,20000,4,Single,5000.0,True,style,formal,5
+16,33,Male,Other,HS,20000,4,Single,5000.0,True,style,informal,6
+17,28,Male,Other,Some College,60000,6,Married,10000.0,True,tone,value_affirmation,4
+17,28,Male,Other,Some College,60000,6,Married,10000.0,True,tone,norms,7
+17,28,Male,Other,Some College,60000,6,Married,10000.0,True,tone,acknowledging,4
+17,28,Male,Other,Some College,60000,6,Married,10000.0,True,tone,self_efficacy,4
+17,28,Male,Other,Some College,60000,6,Married,10000.0,True,tone,caring_supportive,6
+17,28,Male,Other,Some College,60000,6,Married,10000.0,True,tone,legitimizing,6
+17,28,Male,Other,Some College,60000,6,Married,10000.0,True,style,formal,6
+17,28,Male,Other,Some College,60000,6,Married,10000.0,True,style,informal,6
+18,44,Female,Hispanic,Graduate,150000,1,Single,150000.0,True,tone,value_affirmation,5
+18,44,Female,Hispanic,Graduate,150000,1,Single,150000.0,True,tone,norms,4
+18,44,Female,Hispanic,Graduate,150000,1,Single,150000.0,True,tone,acknowledging,5
+18,44,Female,Hispanic,Graduate,150000,1,Single,150000.0,True,tone,self_efficacy,5
+18,44,Female,Hispanic,Graduate,150000,1,Single,150000.0,True,tone,caring_supportive,6
+18,44,Female,Hispanic,Graduate,150000,1,Single,150000.0,True,tone,legitimizing,5
+18,44,Female,Hispanic,Graduate,150000,1,Single,150000.0,True,style,formal,4
+18,44,Female,Hispanic,Graduate,150000,1,Single,150000.0,True,style,informal,5
+19,29,Male,Other,Graduate,45000,4,Divorced,11250.0,True,tone,value_affirmation,5
+19,29,Male,Other,Graduate,45000,4,Divorced,11250.0,True,tone,norms,4
+19,29,Male,Other,Graduate,45000,4,Divorced,11250.0,True,tone,acknowledging,4
+19,29,Male,Other,Graduate,45000,4,Divorced,11250.0,True,tone,self_efficacy,5
+19,29,Male,Other,Graduate,45000,4,Divorced,11250.0,True,tone,caring_supportive,5
+19,29,Male,Other,Graduate,45000,4,Divorced,11250.0,True,tone,legitimizing,4
+19,29,Male,Other,Graduate,45000,4,Divorced,11250.0,True,style,formal,5
+19,29,Male,Other,Graduate,45000,4,Divorced,11250.0,True,style,informal,5
+20,23,Male,Asian,Some College,95000,3,Single,31666.666666666668,True,tone,value_affirmation,4
+20,23,Male,Asian,Some College,95000,3,Single,31666.666666666668,True,tone,norms,4
+20,23,Male,Asian,Some College,95000,3,Single,31666.666666666668,True,tone,acknowledging,4
+20,23,Male,Asian,Some College,95000,3,Single,31666.666666666668,True,tone,self_efficacy,5
+20,23,Male,Asian,Some College,95000,3,Single,31666.666666666668,True,tone,caring_supportive,5
+20,23,Male,Asian,Some College,95000,3,Single,31666.666666666668,True,tone,legitimizing,6
+20,23,Male,Asian,Some College,95000,3,Single,31666.666666666668,True,style,formal,6
+20,23,Male,Asian,Some College,95000,3,Single,31666.666666666668,True,style,informal,5
+21,58,Male,Other,Bachelor,30000,1,Single,30000.0,True,tone,value_affirmation,5
+21,58,Male,Other,Bachelor,30000,1,Single,30000.0,True,tone,norms,4
+21,58,Male,Other,Bachelor,30000,1,Single,30000.0,True,tone,acknowledging,5
+21,58,Male,Other,Bachelor,30000,1,Single,30000.0,True,tone,self_efficacy,5
+21,58,Male,Other,Bachelor,30000,1,Single,30000.0,True,tone,caring_supportive,5
+21,58,Male,Other,Bachelor,30000,1,Single,30000.0,True,tone,legitimizing,4
+21,58,Male,Other,Bachelor,30000,1,Single,30000.0,True,style,formal,6
+21,58,Male,Other,Bachelor,30000,1,Single,30000.0,True,style,informal,7
+22,37,Male,Hispanic,Some College,115000,4,Single,28750.0,True,tone,value_affirmation,5
+22,37,Male,Hispanic,Some College,115000,4,Single,28750.0,True,tone,norms,5
+22,37,Male,Hispanic,Some College,115000,4,Single,28750.0,True,tone,acknowledging,6
+22,37,Male,Hispanic,Some College,115000,4,Single,28750.0,True,tone,self_efficacy,5
+22,37,Male,Hispanic,Some College,115000,4,Single,28750.0,True,tone,caring_supportive,5
+22,37,Male,Hispanic,Some College,115000,4,Single,28750.0,True,tone,legitimizing,5
+22,37,Male,Hispanic,Some College,115000,4,Single,28750.0,True,style,formal,5
+22,37,Male,Hispanic,Some College,115000,4,Single,28750.0,True,style,informal,4
+23,41,Male,Hispanic,Bachelor,150000,6,Divorced,25000.0,True,tone,value_affirmation,5
+23,41,Male,Hispanic,Bachelor,150000,6,Divorced,25000.0,True,tone,norms,5
+23,41,Male,Hispanic,Bachelor,150000,6,Divorced,25000.0,True,tone,acknowledging,6
+23,41,Male,Hispanic,Bachelor,150000,6,Divorced,25000.0,True,tone,self_efficacy,6
+23,41,Male,Hispanic,Bachelor,150000,6,Divorced,25000.0,True,tone,caring_supportive,7
+23,41,Male,Hispanic,Bachelor,150000,6,Divorced,25000.0,True,tone,legitimizing,4
+23,41,Male,Hispanic,Bachelor,150000,6,Divorced,25000.0,True,style,formal,6
+23,41,Male,Hispanic,Bachelor,150000,6,Divorced,25000.0,True,style,informal,5
+24,23,Female,Asian,HS,35000,4,Divorced,8750.0,True,tone,value_affirmation,7
+24,23,Female,Asian,HS,35000,4,Divorced,8750.0,True,tone,norms,4
+24,23,Female,Asian,HS,35000,4,Divorced,8750.0,True,tone,acknowledging,4
+24,23,Female,Asian,HS,35000,4,Divorced,8750.0,True,tone,self_efficacy,5
+24,23,Female,Asian,HS,35000,4,Divorced,8750.0,True,tone,caring_supportive,3
+24,23,Female,Asian,HS,35000,4,Divorced,8750.0,True,tone,legitimizing,5
+24,23,Female,Asian,HS,35000,4,Divorced,8750.0,True,style,formal,5
+24,23,Female,Asian,HS,35000,4,Divorced,8750.0,True,style,informal,5
+25,33,Male,Black,HS,110000,6,Single,18333.333333333332,True,tone,value_affirmation,5
+25,33,Male,Black,HS,110000,6,Single,18333.333333333332,True,tone,norms,7
+25,33,Male,Black,HS,110000,6,Single,18333.333333333332,True,tone,acknowledging,6
+25,33,Male,Black,HS,110000,6,Single,18333.333333333332,True,tone,self_efficacy,4
+25,33,Male,Black,HS,110000,6,Single,18333.333333333332,True,tone,caring_supportive,4
+25,33,Male,Black,HS,110000,6,Single,18333.333333333332,True,tone,legitimizing,5
+25,33,Male,Black,HS,110000,6,Single,18333.333333333332,True,style,formal,4
+25,33,Male,Black,HS,110000,6,Single,18333.333333333332,True,style,informal,7
+26,41,Female,Black,HS,145000,3,Single,48333.333333333336,True,tone,value_affirmation,6
+26,41,Female,Black,HS,145000,3,Single,48333.333333333336,True,tone,norms,5
+26,41,Female,Black,HS,145000,3,Single,48333.333333333336,True,tone,acknowledging,4
+26,41,Female,Black,HS,145000,3,Single,48333.333333333336,True,tone,self_efficacy,7
+26,41,Female,Black,HS,145000,3,Single,48333.333333333336,True,tone,caring_supportive,5
+26,41,Female,Black,HS,145000,3,Single,48333.333333333336,True,tone,legitimizing,7
+26,41,Female,Black,HS,145000,3,Single,48333.333333333336,True,style,formal,4
+26,41,Female,Black,HS,145000,3,Single,48333.333333333336,True,style,informal,5
+27,26,Male,Other,Graduate,30000,6,Married,5000.0,True,tone,value_affirmation,5
+27,26,Male,Other,Graduate,30000,6,Married,5000.0,True,tone,norms,5
+27,26,Male,Other,Graduate,30000,6,Married,5000.0,True,tone,acknowledging,5
+27,26,Male,Other,Graduate,30000,6,Married,5000.0,True,tone,self_efficacy,6
+27,26,Male,Other,Graduate,30000,6,Married,5000.0,True,tone,caring_supportive,4
+27,26,Male,Other,Graduate,30000,6,Married,5000.0,True,tone,legitimizing,5
+27,26,Male,Other,Graduate,30000,6,Married,5000.0,True,style,formal,5
+27,26,Male,Other,Graduate,30000,6,Married,5000.0,True,style,informal,6
+28,45,Female,White,HS,110000,1,Single,110000.0,False,tone,value_affirmation,6
+28,45,Female,White,HS,110000,1,Single,110000.0,False,tone,norms,4
+28,45,Female,White,HS,110000,1,Single,110000.0,False,tone,acknowledging,4
+28,45,Female,White,HS,110000,1,Single,110000.0,False,tone,self_efficacy,7
+28,45,Female,White,HS,110000,1,Single,110000.0,False,tone,caring_supportive,6
+28,45,Female,White,HS,110000,1,Single,110000.0,False,tone,legitimizing,5
+28,45,Female,White,HS,110000,1,Single,110000.0,False,style,formal,7
+28,45,Female,White,HS,110000,1,Single,110000.0,False,style,informal,5
+29,33,Male,Other,Bachelor,115000,3,Married,38333.333333333336,True,tone,value_affirmation,6
+29,33,Male,Other,Bachelor,115000,3,Married,38333.333333333336,True,tone,norms,5
+29,33,Male,Other,Bachelor,115000,3,Married,38333.333333333336,True,tone,acknowledging,7
+29,33,Male,Other,Bachelor,115000,3,Married,38333.333333333336,True,tone,self_efficacy,7
+29,33,Male,Other,Bachelor,115000,3,Married,38333.333333333336,True,tone,caring_supportive,5
+29,33,Male,Other,Bachelor,115000,3,Married,38333.333333333336,True,tone,legitimizing,6
+29,33,Male,Other,Bachelor,115000,3,Married,38333.333333333336,True,style,formal,6
+29,33,Male,Other,Bachelor,115000,3,Married,38333.333333333336,True,style,informal,6
+30,36,Male,Asian,HS,50000,1,Single,50000.0,True,tone,value_affirmation,4
+30,36,Male,Asian,HS,50000,1,Single,50000.0,True,tone,norms,6
+30,36,Male,Asian,HS,50000,1,Single,50000.0,True,tone,acknowledging,6
+30,36,Male,Asian,HS,50000,1,Single,50000.0,True,tone,self_efficacy,3
+30,36,Male,Asian,HS,50000,1,Single,50000.0,True,tone,caring_supportive,4
+30,36,Male,Asian,HS,50000,1,Single,50000.0,True,tone,legitimizing,3
+30,36,Male,Asian,HS,50000,1,Single,50000.0,True,style,formal,5
+30,36,Male,Asian,HS,50000,1,Single,50000.0,True,style,informal,6
+31,33,Female,Asian,Some College,115000,5,Married,23000.0,True,tone,value_affirmation,7
+31,33,Female,Asian,Some College,115000,5,Married,23000.0,True,tone,norms,5
+31,33,Female,Asian,Some College,115000,5,Married,23000.0,True,tone,acknowledging,7
+31,33,Female,Asian,Some College,115000,5,Married,23000.0,True,tone,self_efficacy,4
+31,33,Female,Asian,Some College,115000,5,Married,23000.0,True,tone,caring_supportive,4
+31,33,Female,Asian,Some College,115000,5,Married,23000.0,True,tone,legitimizing,5
+31,33,Female,Asian,Some College,115000,5,Married,23000.0,True,style,formal,6
+31,33,Female,Asian,Some College,115000,5,Married,23000.0,True,style,informal,5
+32,62,Female,Asian,Some College,60000,2,Divorced,30000.0,True,tone,value_affirmation,3
+32,62,Female,Asian,Some College,60000,2,Divorced,30000.0,True,tone,norms,5
+32,62,Female,Asian,Some College,60000,2,Divorced,30000.0,True,tone,acknowledging,4
+32,62,Female,Asian,Some College,60000,2,Divorced,30000.0,True,tone,self_efficacy,6
+32,62,Female,Asian,Some College,60000,2,Divorced,30000.0,True,tone,caring_supportive,6
+32,62,Female,Asian,Some College,60000,2,Divorced,30000.0,True,tone,legitimizing,4
+32,62,Female,Asian,Some College,60000,2,Divorced,30000.0,True,style,formal,5
+32,62,Female,Asian,Some College,60000,2,Divorced,30000.0,True,style,informal,4
+33,40,Female,Asian,Graduate,20000,6,Single,3333.3333333333335,True,tone,value_affirmation,5
+33,40,Female,Asian,Graduate,20000,6,Single,3333.3333333333335,True,tone,norms,6
+33,40,Female,Asian,Graduate,20000,6,Single,3333.3333333333335,True,tone,acknowledging,4
+33,40,Female,Asian,Graduate,20000,6,Single,3333.3333333333335,True,tone,self_efficacy,6
+33,40,Female,Asian,Graduate,20000,6,Single,3333.3333333333335,True,tone,caring_supportive,5
+33,40,Female,Asian,Graduate,20000,6,Single,3333.3333333333335,True,tone,legitimizing,5
+33,40,Female,Asian,Graduate,20000,6,Single,3333.3333333333335,True,style,formal,5
+33,40,Female,Asian,Graduate,20000,6,Single,3333.3333333333335,True,style,informal,4
+34,27,Male,Asian,Some College,55000,2,Single,27500.0,True,tone,value_affirmation,4
+34,27,Male,Asian,Some College,55000,2,Single,27500.0,True,tone,norms,4
+34,27,Male,Asian,Some College,55000,2,Single,27500.0,True,tone,acknowledging,7
+34,27,Male,Asian,Some College,55000,2,Single,27500.0,True,tone,self_efficacy,5
+34,27,Male,Asian,Some College,55000,2,Single,27500.0,True,tone,caring_supportive,4
+34,27,Male,Asian,Some College,55000,2,Single,27500.0,True,tone,legitimizing,5
+34,27,Male,Asian,Some College,55000,2,Single,27500.0,True,style,formal,5
+34,27,Male,Asian,Some College,55000,2,Single,27500.0,True,style,informal,5
+35,50,Female,Hispanic,Bachelor,50000,2,Single,25000.0,True,tone,value_affirmation,6
+35,50,Female,Hispanic,Bachelor,50000,2,Single,25000.0,True,tone,norms,6
+35,50,Female,Hispanic,Bachelor,50000,2,Single,25000.0,True,tone,acknowledging,5
+35,50,Female,Hispanic,Bachelor,50000,2,Single,25000.0,True,tone,self_efficacy,5
+35,50,Female,Hispanic,Bachelor,50000,2,Single,25000.0,True,tone,caring_supportive,5
+35,50,Female,Hispanic,Bachelor,50000,2,Single,25000.0,True,tone,legitimizing,3
+35,50,Female,Hispanic,Bachelor,50000,2,Single,25000.0,True,style,formal,4
+35,50,Female,Hispanic,Bachelor,50000,2,Single,25000.0,True,style,informal,7
+36,25,Male,Black,HS,105000,6,Single,17500.0,True,tone,value_affirmation,7
+36,25,Male,Black,HS,105000,6,Single,17500.0,True,tone,norms,5
+36,25,Male,Black,HS,105000,6,Single,17500.0,True,tone,acknowledging,6
+36,25,Male,Black,HS,105000,6,Single,17500.0,True,tone,self_efficacy,5
+36,25,Male,Black,HS,105000,6,Single,17500.0,True,tone,caring_supportive,7
+36,25,Male,Black,HS,105000,6,Single,17500.0,True,tone,legitimizing,6
+36,25,Male,Black,HS,105000,6,Single,17500.0,True,style,formal,5
+36,25,Male,Black,HS,105000,6,Single,17500.0,True,style,informal,4
+37,43,Male,Asian,Graduate,55000,3,Married,18333.333333333332,True,tone,value_affirmation,3
+37,43,Male,Asian,Graduate,55000,3,Married,18333.333333333332,True,tone,norms,5
+37,43,Male,Asian,Graduate,55000,3,Married,18333.333333333332,True,tone,acknowledging,4
+37,43,Male,Asian,Graduate,55000,3,Married,18333.333333333332,True,tone,self_efficacy,4
+37,43,Male,Asian,Graduate,55000,3,Married,18333.333333333332,True,tone,caring_supportive,4
+37,43,Male,Asian,Graduate,55000,3,Married,18333.333333333332,True,tone,legitimizing,4
+37,43,Male,Asian,Graduate,55000,3,Married,18333.333333333332,True,style,formal,7
+37,43,Male,Asian,Graduate,55000,3,Married,18333.333333333332,True,style,informal,6
+38,16,Female,White,HS,20000,5,Single,4000.0,False,tone,value_affirmation,5
+38,16,Female,White,HS,20000,5,Single,4000.0,False,tone,norms,7
+38,16,Female,White,HS,20000,5,Single,4000.0,False,tone,acknowledging,5
+38,16,Female,White,HS,20000,5,Single,4000.0,False,tone,self_efficacy,4
+38,16,Female,White,HS,20000,5,Single,4000.0,False,tone,caring_supportive,7
+38,16,Female,White,HS,20000,5,Single,4000.0,False,tone,legitimizing,6
+38,16,Female,White,HS,20000,5,Single,4000.0,False,style,formal,4
+38,16,Female,White,HS,20000,5,Single,4000.0,False,style,informal,5
+39,24,Female,White,HS,70000,1,Divorced,70000.0,False,tone,value_affirmation,4
+39,24,Female,White,HS,70000,1,Divorced,70000.0,False,tone,norms,4
+39,24,Female,White,HS,70000,1,Divorced,70000.0,False,tone,acknowledging,6
+39,24,Female,White,HS,70000,1,Divorced,70000.0,False,tone,self_efficacy,7
+39,24,Female,White,HS,70000,1,Divorced,70000.0,False,tone,caring_supportive,4
+39,24,Female,White,HS,70000,1,Divorced,70000.0,False,tone,legitimizing,6
+39,24,Female,White,HS,70000,1,Divorced,70000.0,False,style,formal,5
+39,24,Female,White,HS,70000,1,Divorced,70000.0,False,style,informal,5
+40,42,Male,White,Bachelor,140000,4,Divorced,35000.0,False,tone,value_affirmation,4
+40,42,Male,White,Bachelor,140000,4,Divorced,35000.0,False,tone,norms,4
+40,42,Male,White,Bachelor,140000,4,Divorced,35000.0,False,tone,acknowledging,5
+40,42,Male,White,Bachelor,140000,4,Divorced,35000.0,False,tone,self_efficacy,4
+40,42,Male,White,Bachelor,140000,4,Divorced,35000.0,False,tone,caring_supportive,5
+40,42,Male,White,Bachelor,140000,4,Divorced,35000.0,False,tone,legitimizing,5
+40,42,Male,White,Bachelor,140000,4,Divorced,35000.0,False,style,formal,5
+40,42,Male,White,Bachelor,140000,4,Divorced,35000.0,False,style,informal,4
+41,49,Male,White,Some College,140000,1,Single,140000.0,False,tone,value_affirmation,4
+41,49,Male,White,Some College,140000,1,Single,140000.0,False,tone,norms,6
+41,49,Male,White,Some College,140000,1,Single,140000.0,False,tone,acknowledging,6
+41,49,Male,White,Some College,140000,1,Single,140000.0,False,tone,self_efficacy,4
+41,49,Male,White,Some College,140000,1,Single,140000.0,False,tone,caring_supportive,5
+41,49,Male,White,Some College,140000,1,Single,140000.0,False,tone,legitimizing,6
+41,49,Male,White,Some College,140000,1,Single,140000.0,False,style,formal,3
+41,49,Male,White,Some College,140000,1,Single,140000.0,False,style,informal,6
+42,42,Female,Hispanic,Some College,105000,4,Divorced,26250.0,True,tone,value_affirmation,5
+42,42,Female,Hispanic,Some College,105000,4,Divorced,26250.0,True,tone,norms,6
+42,42,Female,Hispanic,Some College,105000,4,Divorced,26250.0,True,tone,acknowledging,5
+42,42,Female,Hispanic,Some College,105000,4,Divorced,26250.0,True,tone,self_efficacy,3
+42,42,Female,Hispanic,Some College,105000,4,Divorced,26250.0,True,tone,caring_supportive,4
+42,42,Female,Hispanic,Some College,105000,4,Divorced,26250.0,True,tone,legitimizing,5
+42,42,Female,Hispanic,Some College,105000,4,Divorced,26250.0,True,style,formal,6
+42,42,Female,Hispanic,Some College,105000,4,Divorced,26250.0,True,style,informal,4
+43,39,Female,White,HS,130000,1,Single,130000.0,False,tone,value_affirmation,6
+43,39,Female,White,HS,130000,1,Single,130000.0,False,tone,norms,4
+43,39,Female,White,HS,130000,1,Single,130000.0,False,tone,acknowledging,5
+43,39,Female,White,HS,130000,1,Single,130000.0,False,tone,self_efficacy,4
+43,39,Female,White,HS,130000,1,Single,130000.0,False,tone,caring_supportive,5
+43,39,Female,White,HS,130000,1,Single,130000.0,False,tone,legitimizing,5
+43,39,Female,White,HS,130000,1,Single,130000.0,False,style,formal,4
+43,39,Female,White,HS,130000,1,Single,130000.0,False,style,informal,5
+44,36,Female,Asian,Graduate,65000,6,Single,10833.333333333334,True,tone,value_affirmation,6
+44,36,Female,Asian,Graduate,65000,6,Single,10833.333333333334,True,tone,norms,5
+44,36,Female,Asian,Graduate,65000,6,Single,10833.333333333334,True,tone,acknowledging,6
+44,36,Female,Asian,Graduate,65000,6,Single,10833.333333333334,True,tone,self_efficacy,4
+44,36,Female,Asian,Graduate,65000,6,Single,10833.333333333334,True,tone,caring_supportive,6
+44,36,Female,Asian,Graduate,65000,6,Single,10833.333333333334,True,tone,legitimizing,7
+44,36,Female,Asian,Graduate,65000,6,Single,10833.333333333334,True,style,formal,3
+44,36,Female,Asian,Graduate,65000,6,Single,10833.333333333334,True,style,informal,5
+45,22,Male,Other,Some College,30000,5,Divorced,6000.0,True,tone,value_affirmation,6
+45,22,Male,Other,Some College,30000,5,Divorced,6000.0,True,tone,norms,5
+45,22,Male,Other,Some College,30000,5,Divorced,6000.0,True,tone,acknowledging,5
+45,22,Male,Other,Some College,30000,5,Divorced,6000.0,True,tone,self_efficacy,4
+45,22,Male,Other,Some College,30000,5,Divorced,6000.0,True,tone,caring_supportive,5
+45,22,Male,Other,Some College,30000,5,Divorced,6000.0,True,tone,legitimizing,5
+45,22,Male,Other,Some College,30000,5,Divorced,6000.0,True,style,formal,6
+45,22,Male,Other,Some College,30000,5,Divorced,6000.0,True,style,informal,5
+46,31,Male,White,Graduate,50000,4,Single,12500.0,False,tone,value_affirmation,5
+46,31,Male,White,Graduate,50000,4,Single,12500.0,False,tone,norms,5
+46,31,Male,White,Graduate,50000,4,Single,12500.0,False,tone,acknowledging,5
+46,31,Male,White,Graduate,50000,4,Single,12500.0,False,tone,self_efficacy,5
+46,31,Male,White,Graduate,50000,4,Single,12500.0,False,tone,caring_supportive,5
+46,31,Male,White,Graduate,50000,4,Single,12500.0,False,tone,legitimizing,5
+46,31,Male,White,Graduate,50000,4,Single,12500.0,False,style,formal,5
+46,31,Male,White,Graduate,50000,4,Single,12500.0,False,style,informal,7
+47,34,Male,Hispanic,Some College,95000,3,Divorced,31666.666666666668,True,tone,value_affirmation,6
+47,34,Male,Hispanic,Some College,95000,3,Divorced,31666.666666666668,True,tone,norms,5
+47,34,Male,Hispanic,Some College,95000,3,Divorced,31666.666666666668,True,tone,acknowledging,6
+47,34,Male,Hispanic,Some College,95000,3,Divorced,31666.666666666668,True,tone,self_efficacy,5
+47,34,Male,Hispanic,Some College,95000,3,Divorced,31666.666666666668,True,tone,caring_supportive,3
+47,34,Male,Hispanic,Some College,95000,3,Divorced,31666.666666666668,True,tone,legitimizing,4
+47,34,Male,Hispanic,Some College,95000,3,Divorced,31666.666666666668,True,style,formal,3
+47,34,Male,Hispanic,Some College,95000,3,Divorced,31666.666666666668,True,style,informal,5
+48,53,Male,Hispanic,Graduate,145000,1,Married,145000.0,True,tone,value_affirmation,5
+48,53,Male,Hispanic,Graduate,145000,1,Married,145000.0,True,tone,norms,7
+48,53,Male,Hispanic,Graduate,145000,1,Married,145000.0,True,tone,acknowledging,5
+48,53,Male,Hispanic,Graduate,145000,1,Married,145000.0,True,tone,self_efficacy,5
+48,53,Male,Hispanic,Graduate,145000,1,Married,145000.0,True,tone,caring_supportive,6
+48,53,Male,Hispanic,Graduate,145000,1,Married,145000.0,True,tone,legitimizing,3
+48,53,Male,Hispanic,Graduate,145000,1,Married,145000.0,True,style,formal,5
+48,53,Male,Hispanic,Graduate,145000,1,Married,145000.0,True,style,informal,6
+49,44,Male,White,Bachelor,95000,1,Single,95000.0,False,tone,value_affirmation,4
+49,44,Male,White,Bachelor,95000,1,Single,95000.0,False,tone,norms,6
+49,44,Male,White,Bachelor,95000,1,Single,95000.0,False,tone,acknowledging,5
+49,44,Male,White,Bachelor,95000,1,Single,95000.0,False,tone,self_efficacy,5
+49,44,Male,White,Bachelor,95000,1,Single,95000.0,False,tone,caring_supportive,6
+49,44,Male,White,Bachelor,95000,1,Single,95000.0,False,tone,legitimizing,7
+49,44,Male,White,Bachelor,95000,1,Single,95000.0,False,style,formal,5
+49,44,Male,White,Bachelor,95000,1,Single,95000.0,False,style,informal,5
+50,19,Male,Other,Graduate,140000,4,Married,35000.0,True,tone,value_affirmation,5
+50,19,Male,Other,Graduate,140000,4,Married,35000.0,True,tone,norms,4
+50,19,Male,Other,Graduate,140000,4,Married,35000.0,True,tone,acknowledging,6
+50,19,Male,Other,Graduate,140000,4,Married,35000.0,True,tone,self_efficacy,4
+50,19,Male,Other,Graduate,140000,4,Married,35000.0,True,tone,caring_supportive,5
+50,19,Male,Other,Graduate,140000,4,Married,35000.0,True,tone,legitimizing,5
+50,19,Male,Other,Graduate,140000,4,Married,35000.0,True,style,formal,5
+50,19,Male,Other,Graduate,140000,4,Married,35000.0,True,style,informal,5
