@@ -74,9 +74,9 @@ def goto_menu(menu_caller, self):
                 elif isinstance(menu_caller, str):
                     return goto_menu(menu_caller, self)
             else:
-                print("\nAvailable local menu options at this point in execution:\n")
                 print_local_menu_options()
-                error(f"Menu '{menu_caller}' not found.", self)
+                error_string = f"likely a syntax error. {(yellow('?<query>'))} to search for commands, or {yellow('!<query>')} to search macros specifically."
+                error(f"Command '{menu_caller}' failed; {error_string}", self)
                 return False
         else:
             error("Invalid menu caller.", self)
