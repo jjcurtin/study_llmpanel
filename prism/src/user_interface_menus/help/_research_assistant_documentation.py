@@ -65,8 +65,8 @@ def research_assistant_documentation(self):
         'start': {'description': 'Getting Started', 'menu_caller': getting_started},
         'commands': {'description': 'Navigating PRISM through Commands', 'menu_caller': navigation},
         'terminals': {'description': 'Terminal Prompts', 'menu_caller': terminals},
-        'tasks': {'description': 'Task Management', 'menu_caller': task_management},
-        'participants': {'description': 'Participant Management', 'menu_caller': participants}
+        'task_management': {'description': 'Task Management', 'menu_caller': task_management},
+        'participant_management': {'description': 'Participant Management', 'menu_caller': participants}
     }
     while True:
         if not self.commands_queue:

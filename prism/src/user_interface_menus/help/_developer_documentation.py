@@ -104,9 +104,9 @@ def developer_documentation(self):
                 exit_menu()
             
         menu_options = {
-            'tasks': {'description': 'Task Abstraction Format', 'menu_caller': lambda self: task_abstraction_format(self)},
+            'task_abstraction': {'description': 'Task Abstraction Format', 'menu_caller': lambda self: task_abstraction_format(self)},
             'task_managers': {'description': 'Task Managers', 'menu_caller': lambda self: task_managers(self)},
-            'check': {'description': 'Check System', 'menu_caller': lambda self: check_system(self)},
+            'check_system': {'description': 'Check System', 'menu_caller': lambda self: check_system(self)},
             'data_management': {'description': 'Data Management', 'menu_caller': lambda self: data_management(self)}
         }
         while True:
@@ -163,9 +163,9 @@ def developer_documentation(self):
                 exit_menu()
 
         menu_options = {
-            'system': {'description': 'System Endpoints', 'menu_caller': system_endpoints},
-            'participants': {'description': 'Participant Endpoints', 'menu_caller': participant_endpoints},
-            'qualtrics': {'description': 'Qualtrics Endpoints', 'menu_caller': qualtrics_endpoints}
+            'system_endpoints': {'description': 'System Endpoints', 'menu_caller': system_endpoints},
+            'participant_endpoints': {'description': 'Participant Endpoints', 'menu_caller': participant_endpoints},
+            'qualtrics_endpoints': {'description': 'Qualtrics Endpoints', 'menu_caller': qualtrics_endpoints}
         }
         while True:
             if not self.commands_queue:
