@@ -34,12 +34,27 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
             print(f"\n{yellow("ENTER")}: Back to Previous Menu")
 
     def check_for_special_commands(choice):
-        command = choice.split(" ")[0] == "command"
-        command_query = choice.startswith("?")
-        execute_commands = choice.startswith("/")
-        register_command = choice.startswith("$")
-        remove_command = choice.startswith("-")
-        search_macros = choice.startswith("!")
+        def check_prefix(prefix):
+            return choice.startswith(prefix) and len(choice) > len(prefix)
+        
+        def check_prefixes(prefixes):
+            return [check_prefix(prefix) for prefix in prefixes]
+
+        command, \
+        command_query, \
+        execute_commands, \
+        register_command, \
+        remove_command, \
+        search_macros = \
+        \
+        check_prefixes (
+            ["command ", 
+             "?", 
+             "/", 
+             "+", 
+             "-", 
+             "!"]
+        )
 
         if command or command_query:
             query = ' '.join(choice.split(" ")[1:]) if len(choice.split(" ")) > 1 and command else choice[1:] if len(choice) > 1 else None
