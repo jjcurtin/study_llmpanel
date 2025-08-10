@@ -64,7 +64,7 @@ def participant_management_menu(self):
                 print(f"{task['participant_id']}: {task['task_type']} at {task['task_time']} - On Study: {task['on_study']}")
             exit_menu()
 
-    def sort(participants):
+    def _sort(participants):
         if self.participant_display_mode == "name":
             return sorted(participants, key = lambda x: (x['last_name'].lower(), x['first_name'].lower()))
         elif self.participant_display_mode == "unique_id":
@@ -89,10 +89,44 @@ def participant_management_menu(self):
         else:
             error("Invalid mode selected.", self)
 
+    def _filter(participants):
+        if not self.participant_filter_settings:
+            return participants
+        filtered = []
+        for p in participants:
+            if self.participant_filter_settings.get('on_study', 'All') == "All" or \
+               (self.participant_filter_settings.get('on_study', 'All') == "True" and p['on_study']) or \
+               (self.participant_filter_settings.get('on_study', 'All') == "False" and not p['on_study']):
+                filtered.append(p)
+        return filtered
+
+    def filter_participants_menu(self):
+        print("Current filter settings:")
+        for key, value in self.participant_filter_settings.items():
+            print(f"{key}: {value}")
+        print("Available filters: on_study")
+        filter_choice = get_input(self, prompt = "Enter filter to change: ")
+        if filter_choice == '':
+            return
+        elif filter_choice not in self.participant_filter_settings:
+            error(f"Invalid filter choice: {filter_choice}. Available filters: {', '.join(self.participant_filter_settings.keys())}", self)
+            return
+        new_value = get_input(self, prompt = f"Enter new value for {filter_choice} (True/False/All): ")
+        if new_value not in ['True', 'False', 'All']:
+            error("Invalid value. Please enter 'True', 'False', or 'All'.", self)
+            return
+        self.participant_filter_settings[filter_choice] = new_value
+        success(f"Filter {filter_choice} set to {new_value}.", self)
+        
     try:
         self.participant_display_mode = getattr(self, 'participant_display_mode', 'unique_id')
         if not self.participant_display_mode:
             self.participant_display_mode = 'unique_id'
+        self.participant_filter_settings = getattr(self, 'participant_filter_settings', {})
+        if not self.participant_filter_settings:
+            self.participant_filter_settings = {
+                'on_study': "All"
+            }
         while True:
             index_and_text = True
             print_menu_header("participants")
@@ -102,13 +136,14 @@ def participant_management_menu(self):
             data = self.api("GET", "participants/get_participants")
             participants = data.get("participants", []) if data else []
             if participants:
-                for i, p in enumerate(sort(participants), 1):
+                for i, p in enumerate(_sort(_filter(participants)), 1):
                     menu_options[str(i)] = {
                         'description': f"{p['last_name']}, {p['first_name']} (ID: {p['unique_id']}) - On Study: {p['on_study']}",
                         'menu_caller': lambda self, participant_id = p['unique_id']: individual_participant_menu(self, participant_id)
                     }
                 print("Enter an index to select a participant, or, choose another option.")
                 print("Current Display Mode:", red(self.participant_display_mode))
+                print("Current Filter Settings:", self.participant_filter_settings)
                 print_dashes()
             else:
                 print(f"{red('No participants found or failed to retrieve.')}")
@@ -120,7 +155,8 @@ def participant_management_menu(self):
             menu_options['announcement'] = {'description': 'Send Study Announcement', 'menu_caller': send_announcement_menu}
             menu_options['remove'] = {'description': 'Remove a Participant', 'menu_caller': remove_participant_menu}
             menu_options['access'] = {'description': 'Access Participant Data', 'menu_caller': access_specific_participant_menu}
-            menu_options['sort'] = {'description': f'Sort Participants (Current: {self.participant_display_mode})', 'menu_caller': lambda self: change_display_mode(self)}
+            menu_options['sort'] = {'description': f'Sort Participants (Current: {self.participant_display_mode})', 'menu_caller': change_display_mode}
+            menu_options['filter'] = {'description': 'Filter Participants', 'menu_caller': filter_participants_menu}
             
             if print_menu_options(self, menu_options, submenu = True, index_and_text = index_and_text):
                 break
