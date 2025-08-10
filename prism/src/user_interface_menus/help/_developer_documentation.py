@@ -5,6 +5,7 @@ from user_interface_menus._menu_helper import *
 def developer_documentation(self):
     def getting_started(self):
         def api_key_setup(self):
+            clear_recommended_actions()
             print_menu_header("help dev start api")
             print("The following API keys are required to be in the api/ folder and have the described format for PRISM to function correctly:")
             print(f'1. {green("qualtrics.api")}: "api_token","datacenter","ema_survey_id","feedback_survey_id"')
@@ -15,6 +16,7 @@ def developer_documentation(self):
             exit_menu()
 
         def config_setup(self):
+            clear_recommended_actions()
             print_menu_header("help dev start config")
             print("Ensure that the configuration files are set up correctly in the config/ folder.")
             print("This includes setting up the correct paths and environment variables for PRISM to function properly.")
@@ -30,12 +32,14 @@ def developer_documentation(self):
             'config': {'description': 'Config Setup', 'menu_caller': config_setup}
         }
         while True:
+            clear_recommended_actions()
             print_menu_header("help dev start")
             if print_menu_options(self, menu_options, submenu = True):
                 break
 
     def prism_backend_logic_documentation(self):
         def task_abstraction_format(self):
+            clear_recommended_actions()
             print_menu_header("help dev backend tasks")
             print("PRISM uses a task abstraction format to manage and execute tasks.")
             print("Each task is defined by its type, time, and optional R script path.")
@@ -64,6 +68,7 @@ def developer_documentation(self):
             exit_menu()
 
         def task_managers(self):
+            clear_recommended_actions()
             print_menu_header("help dev backend task_managers")
             print("PRISM uses task managers to handle the scheduling and execution of tasks.")
             print("The TaskManager class is the base class for all task managers in PRISM.")
@@ -83,12 +88,14 @@ def developer_documentation(self):
             exit_menu()
         
         def check_system(self):
+            clear_recommended_actions()
             print_menu_header("help dev backend check")
             print("PRISM includes a system check feature that verifies the status of the application and its components.")
             print("This includes checking packages, the directory structure, required files, testing API connectivity, and some additional participant information fidelity logic.")
             exit_menu()
         
         def data_management(self):
+            clear_recommended_actions()
             print_menu_header("help dev backend data_management")
             print("PRISM supports data pull down from various sources, including Qualtrics and FollowMee.")
             print("The data pull down feature allows PRISM to retrieve data from these sources and store it in the appropriate format for further processing.")
@@ -96,19 +103,23 @@ def developer_documentation(self):
             print("PRISM also supports mapping and pushing data to the Research Drive, which allows for easy access and secure management of study data.")
             exit_menu()
             
-        menu_options = {
+            menu_options = {
             'tasks': {'description': 'Task Abstraction Format', 'menu_caller': lambda self: task_abstraction_format(self)},
             'task_managers': {'description': 'Task Managers', 'menu_caller': lambda self: task_managers(self)},
             'check': {'description': 'Check System', 'menu_caller': lambda self: check_system(self)},
             'data_management': {'description': 'Data Management', 'menu_caller': lambda self: data_management(self)}
         }
         while True:
+            set_recommended_actions([
+                'tasks'
+            ])
             print_menu_header("help dev backend")
             if print_menu_options(self, menu_options, submenu = True):
                 break
 
     def prism_server_and_api_endpoints_documentation(self):
         def system_endpoints(self):
+            clear_recommended_actions()
             print_menu_header("help dev server system")
             print("1. GET /system/get_mode - Returns the current mode of the application.")
             print("2. GET /system/uptime - Returns the uptime of the application.")
@@ -129,6 +140,7 @@ def developer_documentation(self):
             exit_menu()
 
         def participant_endpoints(self):
+            clear_recommended_actions()
             print_menu_header("help dev server participants")
             print("1. GET /participants/get_participants - Retrieves the list of participants.")
             print("2. GET /participants/get_participant_task_schedule - Retrieves the participant task schedule.")
@@ -143,6 +155,7 @@ def developer_documentation(self):
             exit_menu()
 
         def qualtrics_endpoints(self):
+            clear_recommended_actions()
             print_menu_header("help dev server qualtrics")
             print("1. GET /qualtrics/access_ema/<unique_id> - Provides access to the EMA survey for a participant.")
             print("2. GET /qualtrics/request_coords/<unique_id> - Requests the coordinates of a participant.")
@@ -151,6 +164,7 @@ def developer_documentation(self):
             print("5. POST /qualtrics/submit_feedback - Submits the feedback survey.")
             exit_menu()
 
+        clear_recommended_actions()
         menu_options = {
             'system': {'description': 'System Endpoints', 'menu_caller': system_endpoints},
             'participants': {'description': 'Participant Endpoints', 'menu_caller': participant_endpoints},
@@ -166,6 +180,7 @@ def developer_documentation(self):
                 break
 
     def prism_user_interface_documentation(self):
+        clear_recommended_actions()
         print_menu_header("help dev ui")
         print("The PRISM user interface is designed to provide easy access to the application's features.")
         print("When PRISM is running, the user interface can also be run from the command line by executing the prism_interface.py file.")
@@ -177,6 +192,7 @@ def developer_documentation(self):
         exit_menu()
 
     def qualtrics_interface_documentation(self):
+        clear_recommended_actions()
         print_menu_header("help dev qualtrics")
         print("The Qualtrics interface is used to manage and interact with Qualtrics surveys.")
         print("The code that I have written for Qualtrics is in the ../qualtrics_js folder.")
@@ -186,6 +202,7 @@ def developer_documentation(self):
         exit_menu()
 
     def architecture_overview(self):
+        clear_recommended_actions()
         print_menu_header("help dev architecture")
         print(f"PRISM is designed with many components that work together.")
         print(f"\nThere is the backend which is initiated by the {green('run_prism.py')} file.")
@@ -209,6 +226,9 @@ def developer_documentation(self):
         'qualtrics': {'description': 'Qualtrics Interface', 'menu_caller': qualtrics_interface_documentation},
     }
     while True:
+        set_recommended_actions([
+            'start'
+        ])
         print_menu_header("help dev")
         if print_menu_options(self, menu_options, submenu = True):
             break
