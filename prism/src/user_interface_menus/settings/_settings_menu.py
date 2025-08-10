@@ -17,8 +17,17 @@ def window_width_settings(self):
         
     set_window_width(int(new_width))
 
+def print_display_params(self):
+    if not self.commands_queue:
+        from user_interface_menus._menu_helper import WINDOW_WIDTH, RIGHT_ALIGN, COLOR_ON
+        print(f"PRISM window width: {WINDOW_WIDTH}")
+        print(f"Right alignment of menu options: {'enabled' if RIGHT_ALIGN else 'disabled'}")
+        print(f"Color output in terminal: {'enabled' if COLOR_ON else 'disabled'}")
+        exit_menu()
+
 def display_settings(self):
     menu_options = {
+        'print': {'description': 'Print current system parameters', 'menu_caller': print_display_params},
         'width': {'description': 'Adjust PRISM window width', 'menu_caller': window_width_settings},
         'align': {'description': 'Toggle right alignment of menu options', 'menu_caller': toggle_right_align},
         'color': {'description': 'Toggle color output in terminal', 'menu_caller': toggle_color_output},
@@ -126,12 +135,11 @@ def print_params(self):
     if not self.commands_queue:
         from user_interface_menus._menu_helper import RELATED_OPTIONS_THRESHOLD, BEST_OPTIONS_THRESHOLD, \
                                                     ASSISTANT_TEMPERATURE, ASSISTANT_TOKENS, \
-                                                    WINDOW_WIDTH, MENU_DELAY, TIMEOUT
+                                                    MENU_DELAY, TIMEOUT
         print(f"RELATED_OPTIONS_THRESHOLD: {RELATED_OPTIONS_THRESHOLD}")
         print(f"BEST_OPTIONS_THRESHOLD: {BEST_OPTIONS_THRESHOLD}")
         print(f"ASSISTANT_TEMPERATURE: {ASSISTANT_TEMPERATURE}")
         print(f"ASSISTANT_TOKENS: {ASSISTANT_TOKENS}")
-        print(f"WINDOW_WIDTH: {WINDOW_WIDTH}")
         print(f"MENU_DELAY: {MENU_DELAY}")
         print(f"TIMEOUT: {TIMEOUT}")
         exit_menu()
