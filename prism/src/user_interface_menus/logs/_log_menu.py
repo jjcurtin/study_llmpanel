@@ -27,7 +27,7 @@ def print_transcript(self, log_type):
         if not num_lines.isdigit():
             num_lines = '10'
         self.request_transcript(num_lines, log_type)
-        success(f"{log_type.replace('_', ' ').title()} log retrieved.", self)
+        success(f"{log_type.replace('_', ' ').title()}", self)
 
 def print_interface_log(self):
     from user_interface_menus._menu_helper import read_from_interface_log
