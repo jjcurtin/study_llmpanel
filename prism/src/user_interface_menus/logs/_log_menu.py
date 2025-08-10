@@ -13,6 +13,7 @@ def log_menu(self):
     }
 
     while True:
+        clear_recommended_actions()
         print_menu_header("logs")
         if print_menu_options(self, menu_options, submenu = True):
             break
@@ -23,12 +24,14 @@ def print_transcript(self, log_type):
     num_lines = get_input(self, prompt = "Enter number of lines to view: ", default_value = "10")
     if not num_lines.isdigit():
         num_lines = '10'
+    clear_recommended_actions()
     print_menu_header(f"logs {log_type.split('_')[1]}")
     self.request_transcript(num_lines, log_type)
     success(f"{log_type.replace('_', ' ').title()} log retrieved.", self)
 
 def print_interface_log(self):
     from user_interface_menus._menu_helper import read_from_interface_log
+    clear_recommended_actions()
     print_menu_header("logs interface")
     try:
         content = read_from_interface_log()

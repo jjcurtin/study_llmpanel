@@ -103,7 +103,7 @@ def developer_documentation(self):
             print("PRISM also supports mapping and pushing data to the Research Drive, which allows for easy access and secure management of study data.")
             exit_menu()
             
-            menu_options = {
+        menu_options = {
             'tasks': {'description': 'Task Abstraction Format', 'menu_caller': lambda self: task_abstraction_format(self)},
             'task_managers': {'description': 'Task Managers', 'menu_caller': lambda self: task_managers(self)},
             'check': {'description': 'Check System', 'menu_caller': lambda self: check_system(self)},
