@@ -81,15 +81,45 @@ def exit_interface(self):
 def print_menu_header(title):
     clear()
     from user_interface_menus._menu_helper import WINDOW_WIDTH
+
+    # title
     padding = (WINDOW_WIDTH - len(title)) // 2
     print_equals()
     print(" " * padding + f"{red(title)}")
     print_equals()
+
+    # recommended actions
+    from user_interface_menus._menu_helper import RECOMMENDED_ACTIONS
+    from user_interface_menus._menu_helper import WINDOW_WIDTH
+    if RECOMMENDED_ACTIONS:
+        length = len("recommended |")
+        action_string = f"{cyan("recommended ")}|"
+        for action in RECOMMENDED_ACTIONS:
+            action_string += f" {yellow(action)}"
+            length += 1
+            if action is not RECOMMENDED_ACTIONS[-1]:
+                action_string += " |"
+                length += 2
+            length += len(action.strip())
+        action_string = action_string.strip()
+        padding = (WINDOW_WIDTH - length) // 2
+        print(" " * padding + action_string)
+        print_equals()
     print()
 
 def print_dashes():
     from user_interface_menus._menu_helper import WINDOW_WIDTH
     print("-" * WINDOW_WIDTH)
+
+def print_guide_dashes(length):
+    from user_interface_menus._menu_helper import WINDOW_WIDTH
+    padding = (WINDOW_WIDTH - length) // 2
+    print("-" * padding + "x" * length + "-" * padding)
+
+def print_guide_equals(length):
+    from user_interface_menus._menu_helper import WINDOW_WIDTH
+    padding = (WINDOW_WIDTH - length) // 2
+    print("=" * padding + "X" * length + "=" * padding)
 
 def print_equals():
     from user_interface_menus._menu_helper import WINDOW_WIDTH
