@@ -199,3 +199,16 @@ def invalid_choice_menu(self, menu_options, choice = None):
             goto_menu(menu_caller, self)
     else:
         print_menu_options(self, menu_options, submenu = True, index_and_text = False, choice = choice)
+
+# ------------------------------------------------------------
+
+def infopage(self, content = [], title = 'help infopage'):
+    if not self.commands_queue:
+        if content:
+            print_menu_header(title)
+            for line in content:
+                print(line)
+            exit_menu()
+        else:
+            print(f"{red('No content available for this infopage.')}")
+            exit_menu()
