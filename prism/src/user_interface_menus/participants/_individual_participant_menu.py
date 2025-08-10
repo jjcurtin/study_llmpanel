@@ -88,7 +88,8 @@ def individual_participant_menu(self, participant_id):
             'message': {'description': 'Send Message', 'menu_caller': lambda self: send_message_menu(self, participant_id)}
         }
         clear_recommended_actions()
-        print_menu_header(f"Participant ID {participant_id} Info")
+        if not self.commands_queue:
+            print_menu_header(f"Participant ID {participant_id} Info")
         print("Enter an index to update a field, or, choose another option.")
         print_dashes()
         if print_menu_options(self, menu_options, submenu = True, index_and_text = True):

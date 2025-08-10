@@ -25,8 +25,9 @@ def print_task_schedule(self):
 
 def remove_task_menu(self):
     clear_recommended_actions()
-    print_menu_header("tasks remove")
-    print_task_schedule(self)
+    if not self.commands_queue:
+        print_menu_header("tasks remove")
+        print_task_schedule(self)
     try:
         idx = int(get_input(self, prompt = "Task index to remove: ")) - 1
         if 0 <= idx < len(self.scheduled_tasks):
@@ -63,9 +64,10 @@ def system_task_menu(self):
 
     while True:
         clear_recommended_actions()
-        print_menu_header("tasks")
-        print_task_schedule(self)
-        print()
+        if not self.commands_queue:
+            print_menu_header("tasks")
+            print_task_schedule(self)
+            print()
         if print_menu_options(self, menu_options, submenu = True):
             break
 

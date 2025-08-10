@@ -1,9 +1,9 @@
 test|/test_participants/test_tasks|Test all
 
 test_participants|/test_participants_add/test_participants_update/test_participants_remove/participants|Test participant menus
-test_participants_add|/participants add?TestFirstName?TestLastName?TestUniqueID?y?1?1?1?1?1/participants|Test adding a participant
-test_participants_update|/participants/access?TestUniqueID/1?TestFirstNameUPDATED/participants/access?TestUniqueID|Test updating a field
-test_participants_remove|/participants/remove?TestUniqueID?yes/participants|Test removing a participant
+test_participants_add|/participants add?TestFirstName?TestLastName?777777777777777777?y?1?1?1?1?1/participants|Test adding a participant
+test_participants_update|/participants/access?777777777777777777/1?TestFirstNameUPDATED/participants/access?777777777777777777|Test updating a field
+test_participants_remove|/participants/remove?777777777777777777?yes/participants|Test removing a participant
 
 test_util_participants_remove|/participants/1/remove?yes/participants|Remove the first index participant
 test_util_participants_remove5|/test_util_participants_remove/test_util_participants_remove/test_util_participants_remove/test_util_participants_remove/test_util_participants_remove/participants|Remove 5
@@ -18,3 +18,8 @@ test_transcript|/logs/transcript?10|Test get transcript
 test_ema_log|/logs/ema?10|Test get ema log
 test_feedback_log|/logs/feedback?10|Test get feedback log
 test_interface_log|/logs/interface?10|Test get interface log
+
+full_menu_traversal|/help_menu_traversal/tasks_menu_traversal/settings_menu_traversal|Traverse menu system
+help_menu_traversal|/help/readme/help/general/help/ra/start/help/ra/commands/help/ra/terminals/help/ra/tasks/help/ra/participants/help/dev/backend/task_managers/help/dev/backend/data_management|Traverse help menu
+tasks_menu_traversal|/tasks/add/tasks/execute|Traverse tasks menus
+settings_menu_traversal|/settings/system/params/display/settings|Traverse settings menus

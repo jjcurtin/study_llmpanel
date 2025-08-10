@@ -8,7 +8,8 @@ from user_interface_menus._menu_helper import *
 
 def add_participant_menu(self):
     clear_recommended_actions()
-    print_menu_header("participants add")
+    if not self.commands_queue:
+        print_menu_header("participants add")
     first_name = get_input(self, prompt = "First name: ")
     if not first_name:
         error("First name is required.", self)

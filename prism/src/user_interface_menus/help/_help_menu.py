@@ -17,28 +17,31 @@ def help_menu(self):
             'readme',
             'ra'
         ])
-        print_menu_header("help")
+        if not self.commands_queue:
+            print_menu_header("help")
         if print_menu_options(self, menu_options, submenu = True):
             break
 
 def read_me(self):
     clear_recommended_actions()
-    print_menu_header("readme")
-    global read_me_lines
-    for line in read_me_lines:
-        print(line)
-    exit_menu()
+    if not self.commands_queue:
+        print_menu_header("readme")
+        global read_me_lines
+        for line in read_me_lines:
+            print(line)
+        exit_menu()
 
 def general_information(self):
     clear_recommended_actions()
-    print_menu_header("help general")
-    print("This application is designed to manage and monitor participants in a study.")
-    print("It includes features for system checks, task management, participant management, and logging.")
-    print("It is designed to incorporate data collection, data processing, and communication with participants in a single system.")
-    print(f"\nTo see a list of user interface commands, type {yellow('command')}.")
-    print(f"To chain commands together, use the {yellow('/')} character for commands and {yellow('?')} for user inputs.")
-    print("\nFor more detailed information, please refer to the appropriate documentation.")
-    exit_menu()
+    if not self.commands_queue:
+        print_menu_header("help general")
+        print("This application is designed to manage and monitor participants in a study.")
+        print("It includes features for system checks, task management, participant management, and logging.")
+        print("It is designed to incorporate data collection, data processing, and communication with participants in a single system.")
+        print(f"\nTo see a list of user interface commands, type {yellow('command')}.")
+        print(f"To chain commands together, use the {yellow('/')} character for commands and {yellow('?')} for user inputs.")
+        print("\nFor more detailed information, please refer to the appropriate documentation.")
+        exit_menu()
 
 global GENERAL_INFORMATION
 GENERAL_INFORMATION = general_information

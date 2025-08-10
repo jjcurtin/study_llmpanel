@@ -107,17 +107,19 @@ def print_global_command_menu(self, query = None):
         menu_options = {k: v for k, v in sorted(menu_options.items(), key=lambda item: item[0])}
     from user_interface_menus._menu_helper import clear_recommended_actions
     clear_recommended_actions()
-    print_menu_header("command")
-    if not menu_options:
-        print(f"{red("No commands found matching your query.")}")
+    if not self.commands_queue:
+        print_menu_header("command")
+        if not menu_options:
+            print(f"{red("No commands found matching your query.")}")
     if print_menu_options(self, menu_options, submenu = True):
         return
 
 def print_recent_commands(self):
     from user_interface_menus._menu_helper import RECENT_COMMANDS
     if not RECENT_COMMANDS:
-        print("No recent commands found.")
-        exit_menu()
+        if not self.commands_queue:
+            print("No recent commands found.")
+            exit_menu()
         return
     menu_options = {}
     for command in RECENT_COMMANDS:
@@ -127,7 +129,8 @@ def print_recent_commands(self):
         }
     from user_interface_menus._menu_helper import clear_recommended_actions
     clear_recommended_actions()
-    print_menu_header("recent")
+    if not self.commands_queue:
+        print_menu_header("recent")
     if print_menu_options(self, menu_options, submenu = True):
         return
 
