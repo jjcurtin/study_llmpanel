@@ -28,17 +28,23 @@ def remove_task_menu(self):
         print_menu_header("tasks remove")
         print_task_schedule(self)
     try:
-        idx = int(get_input(self, prompt = "Task index to remove: ")) - 1
-        if 0 <= idx < len(self.scheduled_tasks):
-            t = self.scheduled_tasks[idx]
-            if self.api("DELETE", f"system/remove_system_task/{t['task_type']}/{t['task_time']}"):
-                success("Task removed.", self)
+        tasks = self.api("GET", "system/get_task_schedule")
+        if tasks and "tasks" in tasks:
+            self.scheduled_tasks = tasks["tasks"]
+            if self.scheduled_tasks:
+                idx = int(get_input(self, prompt = "Task index to remove: ")) - 1
+                if 0 <= idx < len(self.scheduled_tasks):
+                    t = self.scheduled_tasks[idx]
+                    if self.api("DELETE", f"system/remove_system_task/{t['task_type']}/{t['task_time']}"):
+                        success("Task removed.", self)
+                    else:
+                        error("Failed to remove task.", self)
+                else:
+                    error("Invalid index.", self)
             else:
-                error("Failed to remove task.", self)
-        else:
-            error("Invalid index.", self)
-    except Exception:
-        error("Invalid input.", self)
+                error("No tasks scheduled to remove.", self)
+    except Exception as e:
+        error(f"Invalid input: {e}", self)
 
 # ------------------------------------------------------------
 
