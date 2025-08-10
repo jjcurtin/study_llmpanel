@@ -19,7 +19,7 @@ test_ema_log|/logs/ema?10|Test get ema log
 test_feedback_log|/logs/feedback?10|Test get feedback log
 test_interface_log|/logs/interface?10|Test get interface log
 
-full_menu_traversal|/help_menu_traversal/tasks_menu_traversal/settings_menu_traversal|Traverse menu system
-help_menu_traversal|/help/readme/help/general/help/ra/start/help/ra/commands/help/ra/terminals/help/ra/tasks/help/ra/participants/help/dev/backend/task_managers/help/dev/backend/data_management|Traverse help menu
-tasks_menu_traversal|/tasks/add/tasks/execute|Traverse tasks menus
-settings_menu_traversal|/settings/system/params/display/settings|Traverse settings menus
+full_menu_traversal|/help_menu_traversal/tasks_menu_traversal/settings_menu_traversal/main|Traverse menu system
+help_menu_traversal|/help/readme/help/general/help/ra/start/help/ra/commands/help/ra/terminals/help/ra/tasks/help/ra/participants/help/dev/backend/task_managers/help/dev/backend/data_management/main|Traverse help menu
+tasks_menu_traversal|/tasks/add/tasks/execute/main|Traverse tasks menus
+settings_menu_traversal|/settings/system/params/display/settings/main|Traverse settings menus
