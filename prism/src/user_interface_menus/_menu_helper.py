@@ -182,7 +182,7 @@ def remove_macro(self, choice):
         except Exception as e:
             error(f"Error removing macro from file: {e}", self)
 
-def macro_search(self, query):
+def macro_search(self, query, all = False):
     from difflib import get_close_matches
 
     def sort(iterable):
@@ -194,22 +194,29 @@ def macro_search(self, query):
         with open("../config/saved_macros.txt", "r") as f:
             saved_macros = f.readlines()
             matches = []
-            for macro in saved_macros:
-                if query in macro:
-                    matches.append(macro.strip())
-            close_matches = sort([macro.split('|')[0] for macro in saved_macros])
-            for match in close_matches:
-                if match not in matches:
-                    for macro in saved_macros:
-                        if macro.startswith(f"{match}|") and macro.strip() not in matches:
-                            matches.append(macro.strip())
-            matches = matches[:10]
+            print(f"\nSearching {"all" if all else "matching"} macros{f" for '{yellow(query)}'" if query else ""}:")
+            if all:
+                matches = [macro.strip() for macro in saved_macros if macro.strip()]
+            elif query:
+                for macro in saved_macros:
+                    if query in macro:
+                        matches.append(macro.strip())
+                close_matches = sort([macro.split('|')[0] for macro in saved_macros])
+                for match in close_matches:
+                    if match not in matches:
+                        for macro in saved_macros:
+                            if macro.startswith(f"{match}|") and macro.strip() not in matches:
+                                matches.append(macro.strip())
+                matches = matches[:10]
             if matches:
                 print()
                 for match in matches:
                     print(yellow(left_align(match.split('|')[0])) + " " * 2 + align(match.split('|')[2]))
                 print()
                 success(f"Found {cyan(len(matches))} matching macros:", self)
+            else:
+                print()
+                error(f"No saved macros found." if not query else f"No matching macros found for '{yellow(query)}'.", self)
     except FileNotFoundError:
         error(f"No saved macros found. Check {green('config/saved_macros.txt')}.", self)
     except Exception as e:
