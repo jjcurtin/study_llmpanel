@@ -164,7 +164,9 @@ def invalid_choice_menu(self, menu_options, choice = None):
         
         for potential_choice in combined_choices.split(', ')[:5]:
             print(f"- {yellow(potential_choice)}")
-        print(f"\nEnter {yellow("yes")} to select the first command, or enter a {yellow("different command")}.")
+        print(f"\nEnter {yellow("yes")} to select the first command or enter a different command.")
+    print(f"If you meant to enter a command string, please include {yellow("/")} at the start of your command.")
+    print(f"To search for commands, use {yellow("?")} followed by your query.")
     
     choice = print_fixed_terminal_prompt()
     if choice.lower() == 'yes' and combined_choices != '':
