@@ -34,24 +34,35 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
             print(f"\n{yellow("ENTER")}: Back to Previous Menu")
 
     def check_for_special_commands(choice):
-        if choice.split(" ")[0] == "command":
+        command = choice.split(" ")[0] == "command"
+        command_query = choice.startswith("?")
+        execute_commands = choice.startswith("/")
+        register_command = choice.startswith("$")
+        remove_command = choice.startswith("-")
+        search_macros = choice.startswith("!")
+
+        if command:
             query = ' '.join(choice.split(" ")[1:]) if len(choice.split(" ")) > 1 else None
             print_global_command_menu(self, query)
             return True
-        elif choice.startswith("/"):
+        elif execute_commands:
             CommandInjector(choice)(self)
             return True
-        elif choice.startswith("?"):
+        elif command_query:
             query = choice[1:] if len(choice) > 1 else None
             print_global_command_menu(self, query)
             return True
-        elif choice.startswith("$"):
+        elif register_command:
             identifier = choice.split("=")[0][1:].strip()
             command_string = choice.split("=")[1].strip() if '=' in choice else None
             print(f"Registering {identifier} as {command_string}")
             if add_user_defined_global_command(identifier, command_string, self = self):
                 save_macro(self, identifier, command_string)
             return True
+        elif remove_command:
+            identifier = choice[1:].strip()
+        elif search_macros:
+            pass # search for macros
         return False
 
     if choice is None:
