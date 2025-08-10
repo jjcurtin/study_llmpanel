@@ -41,16 +41,12 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
         remove_command = choice.startswith("-")
         search_macros = choice.startswith("!")
 
-        if command:
-            query = ' '.join(choice.split(" ")[1:]) if len(choice.split(" ")) > 1 else None
+        if command or command_query:
+            query = ' '.join(choice.split(" ")[1:]) if len(choice.split(" ")) > 1 and command else choice[1:] if len(choice) > 1 else None
             print_global_command_menu(self, query)
             return True
         elif execute_commands:
             CommandInjector(choice)(self)
-            return True
-        elif command_query:
-            query = choice[1:] if len(choice) > 1 else None
-            print_global_command_menu(self, query)
             return True
         elif register_command:
             identifier = choice.split("=")[0][1:].strip()
@@ -60,7 +56,7 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
                 save_macro(self, identifier, command_string)
             return True
         elif remove_command:
-            identifier = choice[1:].strip()
+            pass # search for and remove a command
         elif search_macros:
             pass # search for macros
         return False
