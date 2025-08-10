@@ -20,6 +20,7 @@ def window_width_settings(self):
 def print_display_params(self):
     if not self.commands_queue:
         from user_interface_menus._menu_helper import WINDOW_WIDTH, RIGHT_ALIGN, COLOR_ON
+        print()
         print(f"PRISM window width: {WINDOW_WIDTH}")
         print(f"Right alignment of menu options: {'enabled' if RIGHT_ALIGN else 'disabled'}")
         print(f"Color output in terminal: {'enabled' if COLOR_ON else 'disabled'}")
