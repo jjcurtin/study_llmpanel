@@ -34,6 +34,7 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
             print(f"\n{yellow("ENTER")}: Back to Previous Menu")
 
     def check_for_special_commands(choice):
+        from user_interface_menus._menu_helper import remove_macro, macro_search
         def check_prefix(prefix):
             return choice.startswith(prefix) and len(choice) > len(prefix)
         
@@ -51,7 +52,7 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
             ["command ", 
              "?", 
              "/", 
-             "+", 
+             "$", 
              "-", 
              "!"]
         )
@@ -59,22 +60,21 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
         if command or command_query:
             query = ' '.join(choice.split(" ")[1:]) if len(choice.split(" ")) > 1 and command else choice[1:] if len(choice) > 1 else None
             print_global_command_menu(self, query)
-            return True
         elif execute_commands:
             CommandInjector(choice)(self)
-            return True
         elif register_command:
             identifier = choice.split("=")[0][1:].strip()
             command_string = choice.split("=")[1].strip() if '=' in choice else None
             print(f"Registering {identifier} as {command_string}")
             if add_user_defined_global_command(identifier, command_string, self = self):
                 save_macro(self, identifier, command_string)
-            return True
         elif remove_command:
-            pass # search for and remove a command
+            remove_macro(self, choice)
         elif search_macros:
-            pass # search for macros
-        return False
+            macro_search(self, choice)
+        else:
+            return False
+        return True
 
     if choice is None:
         if self.commands_queue:
