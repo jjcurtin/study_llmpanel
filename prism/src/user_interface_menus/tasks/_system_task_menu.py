@@ -24,6 +24,7 @@ def print_task_schedule(self):
 # ------------------------------------------------------------
 
 def remove_task_menu(self):
+    clear_recommended_actions()
     print_menu_header("tasks remove")
     print_task_schedule(self)
     try:
@@ -61,6 +62,7 @@ def system_task_menu(self):
     }
 
     while True:
+        clear_recommended_actions()
         print_menu_header("tasks")
         print_task_schedule(self)
         print()

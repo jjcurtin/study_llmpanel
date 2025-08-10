@@ -25,6 +25,9 @@ def display_settings(self):
     }
 
     while True:
+        set_recommended_actions({
+            'color': {'description': 'Toggle color output in terminal', 'menu_caller': toggle_color_output}
+        })
         print_menu_header("settings display")
         if print_menu_options(self, menu_options, submenu = True):
             break
@@ -146,6 +149,9 @@ def parameter_settings(self):
     }
 
     while True:
+        set_recommended_actions([
+            'print'
+        ])
         print_menu_header("settings system params")
         if print_menu_options(self, menu_options, submenu = True):
             break
@@ -168,6 +174,7 @@ def system_settings(self):
     }
 
     while True:
+        clear_recommended_actions()
         print_menu_header("settings system")
         if print_menu_options(self, menu_options, submenu = True):
             break
@@ -181,6 +188,7 @@ def settings_menu(self):
     }
 
     while True:
+        clear_recommended_actions()
         print_menu_header("settings")
         if print_menu_options(self, menu_options, submenu = True):
             break

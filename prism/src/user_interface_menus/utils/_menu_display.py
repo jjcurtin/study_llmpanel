@@ -105,6 +105,8 @@ def print_global_command_menu(self, query = None):
     menu_options = get_relevant_menu_options(query)
     if query is None:
         menu_options = {k: v for k, v in sorted(menu_options.items(), key=lambda item: item[0])}
+    from user_interface_menus._menu_helper import clear_recommended_actions
+    clear_recommended_actions()
     print_menu_header("command")
     if not menu_options:
         print(f"{red("No commands found matching your query.")}")
@@ -123,6 +125,8 @@ def print_recent_commands(self):
             'description': f"",
             'menu_caller': lambda self, cmd = command: goto_menu(cmd, self)
         }
+    from user_interface_menus._menu_helper import clear_recommended_actions
+    clear_recommended_actions()
     print_menu_header("recent")
     if print_menu_options(self, menu_options, submenu = True):
         return
