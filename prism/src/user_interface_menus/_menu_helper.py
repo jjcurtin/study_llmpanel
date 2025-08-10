@@ -248,9 +248,9 @@ def set_local_menu_options(menu_name, menu_options):
 def print_local_menu_options(self = None):
     global local_menu_options
     if local_menu_options:
-        print("\nAvailable local menu options at this point in execution:\n")
+        print(f"\nLocal menu options ({yellow('/<command>')} to access):\n")
         for key, value in local_menu_options.items():
-            print(f"{key}")
+            print(f"{yellow(key)}")
     print()
 
 def get_local_menu_options():
