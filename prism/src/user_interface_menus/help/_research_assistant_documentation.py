@@ -4,7 +4,6 @@ from user_interface_menus._menu_helper import *
 
 def research_assistant_documentation(self):
     def getting_started(self):
-        clear_recommended_actions()
         if not self.commands_queue:
             print_menu_header("help ra start")
             print("The following API keys are required to be in the api/ folder and have the described format for PRISM to function correctly:")
@@ -16,7 +15,6 @@ def research_assistant_documentation(self):
             exit_menu()
 
     def navigation(self):
-        clear_recommended_actions()
         if not self.commands_queue:
             print_menu_header("help ra commands")
             print(f"PRISM is designed to be navigated through commands. You can use {yellow('command <query>')} or {yellow('?<query>')} to search for commands.")
@@ -35,7 +33,6 @@ def research_assistant_documentation(self):
             exit_menu()
 
     def terminals(self):
-        clear_recommended_actions()
         if not self.commands_queue:
             print_menu_header("help ra terminals")
             print(f"PRISM currently has four terminal prompts:")
@@ -46,7 +43,6 @@ def research_assistant_documentation(self):
             exit_menu()
 
     def task_management(self):
-        clear_recommended_actions()
         if not self.commands_queue:
             print_menu_header("help ra tasks")
             print(f"PRISM has a task management system that allows you to run R scripts and other tasks.")
@@ -57,7 +53,6 @@ def research_assistant_documentation(self):
             exit_menu()
 
     def participants(self):
-        clear_recommended_actions()
         if not self.commands_queue:
             print_menu_header("help ra participants")
             print(f"PRISM has a participant management system that allows you to manage participants in a study.")
@@ -74,12 +69,7 @@ def research_assistant_documentation(self):
         'participants': {'description': 'Participant Management', 'menu_caller': participants}
     }
     while True:
-        set_recommended_actions([
-            'start',
-            'tasks',
-            'participants'
-        ])
         if not self.commands_queue:
             print_menu_header("help ra")
-        if print_menu_options(self, menu_options, submenu = True):
+        if print_menu_options(self, menu_options, submenu = True, recommended_actions = ['start', 'tasks', 'participants']):
             break

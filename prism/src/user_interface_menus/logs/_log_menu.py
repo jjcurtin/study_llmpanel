@@ -13,16 +13,14 @@ def log_menu(self):
     }
 
     while True:
-        clear_recommended_actions()
         if not self.commands_queue:
             print_menu_header("logs")
-        if print_menu_options(self, menu_options, submenu = True):
+        if print_menu_options(self, menu_options, submenu = True, recommended_actions = ['transcript']):
             break
 
 # ------------------------------------------------------------
 
 def print_transcript(self, log_type):
-    clear_recommended_actions()
     if not self.commands_queue:
         print_menu_header(f"logs {log_type.split('_')[1]}")
         num_lines = get_input(self, prompt = "Enter number of lines to view: ", default_value = "10")
@@ -33,7 +31,6 @@ def print_transcript(self, log_type):
 
 def print_interface_log(self):
     from user_interface_menus._menu_helper import read_from_interface_log
-    clear_recommended_actions()
     if not self.commands_queue:
         print_menu_header("logs interface")
         try:

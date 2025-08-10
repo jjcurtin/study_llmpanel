@@ -35,7 +35,6 @@ def left_align(text, formatless = None):
     from user_interface_menus._menu_helper import WINDOW_WIDTH, write_to_interface_log
     if formatless is not None:
         compensation = (len(text) - len(formatless)) + 1
-        write_to_interface_log(f"Compensation: {compensation}")
         format_width = int((WINDOW_WIDTH / 2) + compensation)
         return f"{text:<{format_width}}"
     return f"{text:<{int(WINDOW_WIDTH / 2)}}"

@@ -7,7 +7,6 @@ from user_interface_menus.utils._menu_display import *
 from user_interface_menus._menu_helper import *
 
 def add_participant_menu(self):
-    clear_recommended_actions()
     if not self.commands_queue:
         print_menu_header("participants add")
     first_name = get_input(self, prompt = "First name: ")

@@ -13,17 +13,12 @@ def help_menu(self):
     }
 
     while True:
-        set_recommended_actions([
-            'readme',
-            'ra'
-        ])
         if not self.commands_queue:
             print_menu_header("help")
-        if print_menu_options(self, menu_options, submenu = True):
+        if print_menu_options(self, menu_options, submenu = True, recommended_actions = ['readme', 'ra']):
             break
 
 def read_me(self):
-    clear_recommended_actions()
     if not self.commands_queue:
         print_menu_header("readme")
         global read_me_lines
@@ -32,7 +27,6 @@ def read_me(self):
         exit_menu()
 
 def general_information(self):
-    clear_recommended_actions()
     if not self.commands_queue:
         print_menu_header("help general")
         print("This application is designed to manage and monitor participants in a study.")

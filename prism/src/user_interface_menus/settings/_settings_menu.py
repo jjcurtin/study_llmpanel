@@ -25,12 +25,9 @@ def display_settings(self):
     }
 
     while True:
-        set_recommended_actions([
-            'color'
-        ])
         if not self.commands_queue:
             print_menu_header("settings display")
-        if print_menu_options(self, menu_options, submenu = True):
+        if print_menu_options(self, menu_options, submenu = True, recommended_actions = ['color']):
             break
 
 # ------------------------------------------------------------
@@ -151,12 +148,9 @@ def parameter_settings(self):
     }
 
     while True:
-        set_recommended_actions([
-            'print'
-        ])
         if not self.commands_queue:
             print_menu_header("settings system params")
-        if print_menu_options(self, menu_options, submenu = True):
+        if print_menu_options(self, menu_options, submenu = True, recommended_actions = ['print']):
             break
 
 def readme(self):
@@ -177,7 +171,6 @@ def system_settings(self):
     }
 
     while True:
-        clear_recommended_actions()
         if not self.commands_queue:
             print_menu_header("settings system")
         if print_menu_options(self, menu_options, submenu = True):
@@ -192,7 +185,6 @@ def settings_menu(self):
     }
 
     while True:
-        clear_recommended_actions()
         if not self.commands_queue:
             print_menu_header("settings")
         if print_menu_options(self, menu_options, submenu = True):

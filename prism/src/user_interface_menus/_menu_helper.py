@@ -40,9 +40,6 @@ COLOR_ON = True
 global RECENT_COMMANDS
 RECENT_COMMANDS = []
 
-global RECOMMENDED_ACTIONS
-RECOMMENDED_ACTIONS = []
-
 global MENU_DELAY
 MENU_DELAY = 0.5
 
@@ -116,17 +113,6 @@ def add_recent_command(command):
         RECENT_COMMANDS.append(command)
         if len(RECENT_COMMANDS) > 10:
             RECENT_COMMANDS.pop(0)
-
-def set_recommended_actions(actions):
-    global RECOMMENDED_ACTIONS
-    if isinstance(actions, list):
-        RECOMMENDED_ACTIONS = actions
-    else:
-        error("Recommended actions must be a list.")
-
-def clear_recommended_actions():
-    global RECOMMENDED_ACTIONS
-    RECOMMENDED_ACTIONS = []
 
 def load_saved_macros(self):
     try:
