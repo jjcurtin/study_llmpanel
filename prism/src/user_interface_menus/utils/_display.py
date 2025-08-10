@@ -92,10 +92,10 @@ def print_menu_header(title):
     from user_interface_menus._menu_helper import RECOMMENDED_ACTIONS
     from user_interface_menus._menu_helper import WINDOW_WIDTH
     if RECOMMENDED_ACTIONS:
-        length = len("recommended |")
-        action_string = f"{cyan("recommended ")}|"
+        length = 0
+        action_string = ""
         for action in RECOMMENDED_ACTIONS:
-            action_string += f" {yellow(action)}"
+            action_string += f" {cyan(action)}"
             length += 1
             if action is not RECOMMENDED_ACTIONS[-1]:
                 action_string += " |"
