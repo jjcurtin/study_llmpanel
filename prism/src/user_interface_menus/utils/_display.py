@@ -75,6 +75,28 @@ def align(text, column_number, num_columns, formatless = None, window_width = No
     output = f"{left}{truncated:{alignment}{format_width}}{right}"
     return output
 
+def get_cursor_position():
+        import sys, msvcrt
+        sys.stdout.write("\033[6n")
+        sys.stdout.flush()
+
+        buf = ""
+        while True:
+            ch = msvcrt.getwch()
+            buf += ch
+            if ch == "R":
+                break
+
+        if not buf.startswith("\x1b["):
+            return None, None  # not an ANSI response
+
+        try:
+            pos = buf[2:-1]  # strip "\x1b[" and trailing "R"
+            row_str, col_str = pos.split(";")
+            return int(col_str) - 1, int(row_str) - 1 
+        except Exception:
+            return None, None
+
 def display_in_columns(items = None):
     from user_interface_menus._menu_helper import WINDOW_WIDTH, COLOR_ON
     import re
@@ -83,9 +105,15 @@ def display_in_columns(items = None):
         return "Error: No items to display."
     num_segments = len(items)
 
+    window_positions = []
+
     def assemble_content():
         column_width = int(WINDOW_WIDTH / num_segments)
+        frame_width = column_width
         output = ""
+        initial_pos = get_cursor_position()
+        initial_y = initial_pos[1] if initial_pos[1] is not None else 0
+
         for i, item in enumerate(items):
             ansi_escape = re.compile(r'\x1B\[[0-?]*[ -/]*[@-~]')
             item_formatless = ansi_escape.sub('', item['text'])
@@ -96,6 +124,11 @@ def display_in_columns(items = None):
                 border_left = True
             if border_settings == 'right' or border_settings == 'both':
                 border_right = True
+            initial_x = len(output)
+            if border_left:
+                initial_x += 2
+                frame_width = column_width - 2
+            window_positions.append((initial_x, initial_y))
             output += align(
                 item['text'], i, 
                 num_segments, formatless = item_formatless, 
@@ -105,10 +138,11 @@ def display_in_columns(items = None):
                 border_left = border_left,
                 border_right = border_right,
             )
-        return output
+        return output, frame_width
     
-    output = assemble_content()
-    return output
+    output, column_width = assemble_content()
+    print(output)
+    return window_positions, column_width
 
 # ------------------------------------------------------------
 

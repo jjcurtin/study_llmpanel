@@ -13,17 +13,24 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
     if submenu:
         set_local_menu_options("debug", menu_options)
     
-    def print_key_line(key, item):
+    def print_key_line(key, item, index, total_items):
         recommended_text = f" (recommended)" if recommended_actions is not None and key in recommended_actions else ""
         items = [
             # can have up to four columns
-            # {"text": f"", "align_right" : False, "locked": True, "bordered": "both"},
+            {"text": f"", "align_right" : False, "locked": True, "bordered": "left"},
             # {"text": f"", "align_right" : False, "locked": True, "bordered": "both"},
             {"text": f"{yellow(key + green(recommended_text))}", "align_right" : False, "locked": True, "bordered": "left"},
             {"text": f"{item['description']}", "align_right": False, "locked": False, "bordered": "both"},
         ]
-        print(display_in_columns(items))
-        #print_guide_lines(len(items) - 1, "dashes", len(items))
+        window_positions, column_width = display_in_columns(items)
+        for i, pos in enumerate(window_positions):
+            if index == 0:
+                setattr(self, f"window_{i}_x", pos[0])
+                setattr(self, f"window_{i}_y", pos[1])
+        self.column_width = column_width
+        self.window_height = total_items
+        self.num_columns = len(window_positions)
+        # print_guide_lines(len(items) - 1, "dashes", len(items))
 
     def print_keys():
         if index_and_text:
@@ -33,13 +40,14 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
             print_dashes()
             print()
             print_dashes()
-            for key, item in menu_options.items():
+            for index, (key, item) in enumerate(menu_options.items()):
                 if not key.isdigit():
-                    print_key_line(key, item)
+                    print_key_line(key, item, index, len(menu_options))
         else:
             print_dashes()
-            for key, item in menu_options.items():
-                print_key_line(key, item)
+            for index, (key, item) in enumerate(menu_options.items()):
+                if not key.isdigit():
+                    print_key_line(key, item, index, len(menu_options))
         print_dashes()
         if submenu:
             print(f"\n{yellow("ENTER")}: Back to Previous Menu")
