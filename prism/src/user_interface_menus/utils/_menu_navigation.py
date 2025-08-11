@@ -87,7 +87,7 @@ def goto_menu(menu_caller, self):
     
 # ------------------------------------------------------------
 
-def get_input(self, prompt = None, default_value = None):
+def get_input(self, prompt = None, default_value = None, print_prompt = True):
     try:
         inputs_queue = self.inputs_queue
         if inputs_queue is None:
@@ -97,7 +97,8 @@ def get_input(self, prompt = None, default_value = None):
         if inputs_queue and not inputs_queue.empty():
             input_override = inputs_queue.get()
             if input_override is not None:
-                print(f"{prompt}{input_override}")
+                if print_prompt:
+                    print(f"{prompt}{input_override}")
                 return input_override
         
         if prompt is None:
