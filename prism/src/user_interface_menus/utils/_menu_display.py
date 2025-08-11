@@ -18,9 +18,8 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
         print(display_in_columns(
             line_type = "dashes",
             items = [
-                f"{yellow(key + green(recommended_text))}", 
-                f"{item['description']}",
-                f"{"Test1"}",
+                {"text": f"{yellow(key + green(recommended_text))}", "align_right" : False, "locked": True},
+                {"text": f"{item['description']}", "align_right": False, "locked": False},
             ]
         ))
 
