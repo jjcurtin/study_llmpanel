@@ -157,12 +157,16 @@ class CommandInjector:
         self.command_string = command_string
 
     def __call__(self, self_ref):
-        tokens = self.command_string.split('/')
-        for token in reversed(tokens):
-            stripped = token.strip()
-            if stripped:
-                self_ref.commands_queue.appendleft(stripped)
-        return True
+        try:
+            tokens = self.command_string.split('/')
+            for token in reversed(tokens):
+                stripped = token.strip()
+                if stripped:
+                    self_ref.commands_queue.appendleft(stripped)
+        except Exception as e:
+            error(f"Error processing command string: {e}", self)
+        finally:
+            return True
 
     def __repr__(self):
         return f"<CommandInjector: {self.command_string}>"

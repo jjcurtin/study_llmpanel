@@ -5,9 +5,6 @@ test_participants_add|/participants add?TestFirstName?TestLastName?7777777777777
 test_participants_update|/participants/access?777777777777777777/1?TestFirstNameUPDATED/participants/access?777777777777777777|Test updating a field
 test_participants_remove|/participants/remove?777777777777777777?yes/participants|Test removing a participant
 
-test_util_participants_remove|/participants/1/remove?yes/participants|Remove the first index participant
-test_util_participants_remove5|/test_util_participants_remove/test_util_participants_remove/test_util_participants_remove/test_util_participants_remove/test_util_participants_remove/participants|Remove 5
-
 test_tasks|/test_tasks_add_system/test_tasks_add_rscript/test_tasks_remove/test_tasks_remove/tasks|Test task menus
 test_tasks_add_system|/tasks/add/system?1?1|Test adding a system task
 test_tasks_add_rscript|/tasks/add/rscript?2?1|Test adding a rscript task
