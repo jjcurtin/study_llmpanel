@@ -31,18 +31,68 @@ def cyan(message = None):
 
 # ------------------------------------------------------------
 
-def left_align(text, formatless = None):
-    from user_interface_menus._menu_helper import WINDOW_WIDTH, write_to_interface_log
-    if formatless is not None:
-        compensation = (len(text) - len(formatless)) + 1
-        format_width = int((WINDOW_WIDTH / 2) + compensation)
-        return f"{text:<{format_width}}"
-    return f"{text:<{int(WINDOW_WIDTH / 2)}}"
-
-def align(text):
+def align(text, column_number, num_columns, formatless = None, window_width = None):
     from user_interface_menus._menu_helper import RIGHT_ALIGN, WINDOW_WIDTH
+    if window_width is None:
+        window_width = int(WINDOW_WIDTH)
+    if formatless is None:
+        formatless = text
+
+    compensation = (len(text) - len(formatless))
+    format_width = int(window_width + compensation)
+    format_width += 1 if column_number == 1 and num_columns == 3 else 0
     alignment = ">" if RIGHT_ALIGN else "<"
-    return f"{text:{alignment}{int(WINDOW_WIDTH / 2 - 1)}}"
+    return f"{text:{alignment}{format_width}}"
+
+def display_in_columns(line_type = "dashes", items = None):
+    from user_interface_menus._menu_helper import WINDOW_WIDTH, COLOR_ON
+    import re
+
+    if items is None:
+        return "Error: No items to display."
+    num_segments = len(items)
+    divisions = num_segments - 1
+    
+    def print_guide_lines():
+        max_divisions = 3
+        if divisions > max_divisions:
+            error(f"Maximum divisions is {max_divisions}. You requested {divisions}.")
+        
+        elif line_type == "dashes":
+            chars = ['-', '-', '-', '-']
+            if COLOR_ON:
+                chars = [f"\033[1;3{(i % 6) + 1}m{'-'}\033[0m" for i, char in enumerate(chars)]
+            segment_length = WINDOW_WIDTH // num_segments
+            s = "".join(
+                "|" + (chars[i % len(chars)] * (segment_length - 2 + (1 if i == 1 and num_segments == 3 else 0))) + "|"
+                for i in range(num_segments)
+            )
+            print(s.strip())
+        
+        elif line_type == "dots":
+            chars = ['|', '|', '|', '|']
+            if COLOR_ON:
+                chars = [f"\033[1;3{(i % 6) + 1}m{'|'}\033[0m" for i, char in enumerate(chars)]
+            segment_length = WINDOW_WIDTH // num_segments
+            s = "".join(
+                chars[i % len(chars)] + (" " * (segment_length - 2 + (1 if i == 1 and num_segments == 3 else 0))) + chars[i % len(chars)]
+                for i in range(num_segments)
+            )
+            print(s.strip())
+
+    def assemble_content():
+        column_width = int(WINDOW_WIDTH / num_segments)
+        output = ""
+        for i, item in enumerate(items):
+            ansi_escape = re.compile(r'\x1B\[[0-?]*[ -/]*[@-~]')
+            item_formatless = ansi_escape.sub('', item)
+            output += align(item, i, num_segments, formatless = item_formatless, window_width = column_width)
+        return output
+    
+    output = assemble_content()
+    #print_guide_lines()
+
+    return output
 
 # ------------------------------------------------------------
 
@@ -114,11 +164,6 @@ def print_menu_header(title):
 def print_dashes():
     from user_interface_menus._menu_helper import WINDOW_WIDTH
     print("-" * WINDOW_WIDTH)
-
-def print_guide_dashes(length):
-    from user_interface_menus._menu_helper import WINDOW_WIDTH
-    padding = (WINDOW_WIDTH - length) // 2
-    print("-" * padding + "x" * length + "-" * padding)
 
 def print_guide_equals(length):
     from user_interface_menus._menu_helper import WINDOW_WIDTH
