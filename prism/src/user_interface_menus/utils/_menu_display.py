@@ -15,7 +15,14 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
     
     def print_key_line(key, item):
         recommended_text = f" (recommended)" if recommended_actions is not None and key in recommended_actions else ""
-        print(f"{yellow(left_align(key + green(recommended_text), key + recommended_text))} {align(item['description'])}")
+        print(display_in_columns(
+            line_type = "dashes",
+            items = [
+                f"{yellow(key + green(recommended_text))}", 
+                f"{item['description']}",
+                f"{"Test1"}",
+            ]
+        ))
 
     def print_keys():
         if index_and_text:
