@@ -39,6 +39,30 @@ Colin:
 
 # Data Generation
 
+Simulated data should have:
+
+ 1. We should see clear differences in actual ratings of messages. Within each tone/style, people's ratings should be pretty similar to one another (low variance) but between tone/style ratings should be noticeably different (high variance).
+ 
+ Example: people might rate the norms tone at around a 6/7 but the self-efficacy tone at around a 3/7.
+
+ 2. Stated preferences should match actual ratings.
+ 
+ Example: if someone says they like "informal" messages, then their ratings of actual "informal" messages should be high, too.
+
+ 3. We want to observe a demographic difference. Create a sex variable (male/female) where there is a clear difference in tone/style preferences.
+ 
+ Example: prefer "norms" messages and women prefer "legitimizing" messages.
+
+ 4. We want tone and style to interact.
+ 
+ Example: all tones that are crossed with the "informal" style to have higher actual ratings than all tones crossed with the "formal" style.
+
+Some other notes for making it realistic!
+
+ - Make sure there's a little bit of randomness (we don't want two given person's ratings to be identical, but we still want the patterns above to be obvious)
+ - Make sure that not every person's stated preference perfectly matches their actual message ratings
+ - Keep ratings in the real range of values we'll be collecting (e.g., 1-7 Likert scale)
+
 # Preregistered Analyses
 
 Variables:
@@ -62,38 +86,60 @@ Variables:
  - minoritized
  - income_adj (will be calculated as: income / no_in_household)
  
-## Do people have message tone and/or style preferences? (stated preferences from categories)
+## Models 1 & 2 - Style and tone stated preferences
 
-> Simulate data where subjects OVERALL prefer a particular tone and style (e.g., everyone loves acknowledging and formal)
+Answers:
 
+ - Do people have message tone and/or style preferences? (stated preferences from categories)
+ - Are there demographic differences in these preferences? (demonstrated here using sex variable)
+ 
+By testing:
+
+ - The main effects of style and tone separately
+ - The main effect of sex
+ - The interaction between sex and style/tone
+
+For style:
 ```{r}
-m1 <- lm(pref_rating_style ~ style, data = d)
-
-m2 <- lm(pref_rating_tone ~ tone, data = d)
+m1 <- lm(pref_rating_style ~ style*sex, data = d)
 ```
 
-## Do people have actual message tone and/or style differences? (actual ratings from messages)
+For tone:
+```{r}
+m2 <- lm(pref_rating_tone ~ tone*sex, data = d)
+```
 
-> Simulate data where subjects OVERALL rate a particular tone and style higher
+## Model 3 - Style and tone actual ratings
 
-## Are there demographics differences across tone and/or style preferences? (stated preferences from categories)
+Answers:
 
-> Pick one demographic category of your choosing and have clear differences in preference stratified across that variable.
+ - Do people have actual message tone and/or style differences?
+ - Is there an interaction between tone and style?
+ - Are there demographic differences in actual message ratings?
+ 
+By testing:
 
-## Are there demographics differences across tone and/or style actual ratings? (actual ratings from messages)
+ - The main effects of style and tone on actual ratings
+ - The interactive effect of style and tone
+ - The main effect of sex on actual ratings
+ - While accounting for individual differences by including random intercepts for participants and messages
+ - While modeling individual variability in effects of style and tone with random slopes by participant
 
-> Same as above, but with clear differences in actual ratings across demographic variable.
+```{r}
+m3 <- lmer(
+  actual_rating ~ style*tone + sex + 
+  (1 + style*tone | participant) + (1 | message),
+  data = d)
+```
 
-## Do tone and style interact in how actual messages are rated?
-
-> Simulate data where subjects prefer a tone in a particular style but not when it's another style (e.g., they like legitimizing when it's informal but not formal)
+Note to Claire to add in model simplification steps that will be carried out should model not converge.
 
 ## What is the relationship between stated preferences and actual ratings? (LMEM)
 
-> Simulate data where subjects stated preferences and actual ratings are similar
-
 ```{r}
+d$preferred_tone_flag <- with(d, ifelse(tone == participant_preferred_tone, 1, 0))
 
+m <- lmer(actual_rating ~ preferred_tone_flag + (1 | participant) + (1 | message), data = d)
 ```
 
 ## Are participant ratings more different across preference categories than within preference categories?
@@ -101,6 +147,8 @@ m2 <- lm(pref_rating_tone ~ tone, data = d)
 ## Are participant ratings more different across actual categories than within actual categories?
 
 ## How does user context impact actual ratings?
+
+> Note that this is contingent on necessary randomization being feasible.
  
 # Notes
 
@@ -108,6 +156,5 @@ m2 <- lm(pref_rating_tone ~ tone, data = d)
  - Should pref_rating be one variable or separated into two?
  - Are we going to use context?
  - Note that gender_id is fill in the blank so probably can't use in analyses. Should this be specific categories?
- - 
  
  
