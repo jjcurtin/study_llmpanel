@@ -81,11 +81,16 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
              ]
         )
 
+        iterations = int(choice.split(".")[1]) if "." in choice and choice.split(".")[1].isdigit() else 1
+        if iterations:
+            choice = choice.split(".")[0]
+
         if command or command_query:
             query = ' '.join(choice.split(" ")[1:]) if len(choice.split(" ")) > 1 and command else choice[1:] if len(choice) > 1 else None
             print_global_command_menu(self, query)
         elif execute_commands:
-            CommandInjector(choice)(self)
+            for _ in range(iterations):
+                CommandInjector(choice)(self)
         elif register_command:
             identifier = choice.split("=")[0][1:].strip()
             command_string = choice.split("=")[1].strip() if '=' in choice else None
