@@ -279,8 +279,9 @@ def print_equals():
 def print_fixed_terminal_prompt():
     return input(f"\n{cyan('prism> ')}").strip()
 
-def print_assistant_terminal_prompt():
-    return input(f"\n{red('assistant> ')}").strip()
+def print_assistant_terminal_prompt(self):
+    from user_interface_menus.utils._menu_navigation import get_input
+    return get_input(self, f"\n{red('assistant> ')}").strip()
 
 def print_twilio_terminal_prompt():
     print("Please enter your message below. Press ENTER to send.")

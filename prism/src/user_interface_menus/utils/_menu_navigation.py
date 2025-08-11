@@ -88,25 +88,29 @@ def goto_menu(menu_caller, self):
 # ------------------------------------------------------------
 
 def get_input(self, prompt = None, default_value = None):
-    inputs_queue = self.inputs_queue
-    if inputs_queue is None:
-        error("Inputs queue is not available.", self)
-        return
-    
-    if inputs_queue and not inputs_queue.empty():
-        input_override = inputs_queue.get()
-        if input_override is not None:
-            print(f"{prompt}{input_override}")
-            return input_override
-    
-    if prompt is None:
-        prompt = "Input: "
-    prompt += f"[default = {default_value}]: " if default_value else ""
-    
-    user_input = input(prompt).strip()
-    if not user_input and default_value is not None:
-        return default_value
-    return user_input
+    try:
+        inputs_queue = self.inputs_queue
+        if inputs_queue is None:
+            import queue
+            self.inputs_queue = queue.Queue()
+        
+        if inputs_queue and not inputs_queue.empty():
+            input_override = inputs_queue.get()
+            if input_override is not None:
+                print(f"{prompt}{input_override}")
+                return input_override
+        
+        if prompt is None:
+            prompt = "Input: "
+        prompt += f"[default = {default_value}]: " if default_value else ""
+        
+        user_input = input(prompt).strip()
+        if not user_input and default_value is not None:
+            return default_value
+        return user_input
+    except Exception as e:
+        error(f"An error occurred while getting input: {e}", self)
+        return None
 
 def prompt_confirmation(self, prompt = "Are you sure?", default_value = "n"):
     confirmation = get_input(self, prompt + ' (y/n): ', default_value)
