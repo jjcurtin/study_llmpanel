@@ -42,7 +42,18 @@ def align(text, column_number, num_columns, formatless = None, window_width = No
 
     compensation = (len(text) - len(formatless))
     format_width = int(window_width + compensation)
-    format_width += 1 if column_number == 1 and num_columns == 3 else 0
+    middle_screen_adjustment = (WINDOW_WIDTH % num_columns)
+    middle_screen_adjustment1 = middle_screen_adjustment // 2 + (middle_screen_adjustment % 2)
+    middle_screen_adjustment2 = middle_screen_adjustment // 2
+    format_width += middle_screen_adjustment if (
+        (column_number == 0 and num_columns == 2) or
+        (column_number == 1 and num_columns == 3)
+    ) else middle_screen_adjustment1 if (
+        column_number == 1 and num_columns == 4
+    ) else middle_screen_adjustment2 if (
+        column_number == 2 and num_columns == 4
+    ) else 0
+
     if locked:
         alignment = "<" if not align_right else ">"
     else:
@@ -56,21 +67,20 @@ def align(text, column_number, num_columns, formatless = None, window_width = No
     left, right = "", ""
     if border_left:
         left = "| "
-        format_width -= 2
+        # format_width -= 2
     if border_right:
         right = " |"
-        format_width -= 2
-    output = f"{left}{text:{alignment}{format_width}}{right}"
+        # format_width -= 2
+    output = f"{text:{alignment}{format_width}}"
     return output
 
-def display_in_columns(line_type = "dashes", items = None):
+def display_in_columns(items = None):
     from user_interface_menus._menu_helper import WINDOW_WIDTH, COLOR_ON
     import re
 
     if items is None:
         return "Error: No items to display."
     num_segments = len(items)
-    divisions = num_segments - 1
 
     def assemble_content():
         column_width = int(WINDOW_WIDTH / num_segments)
@@ -181,8 +191,22 @@ def print_guide_lines(divisions, line_type, num_segments):
         if COLOR_ON:
             chars = [f"\033[1;3{(i % 6) + 1}m{'-'}\033[0m" for i, char in enumerate(chars)]
         segment_length = WINDOW_WIDTH // num_segments
+        middle_screen_adjustment = (WINDOW_WIDTH % num_segments)
+        middle_screen_adjustment1 = middle_screen_adjustment // 2 + (middle_screen_adjustment % 2)
+        middle_screen_adjustment2 = middle_screen_adjustment // 2
         s = "".join(
-            "|" + (chars[i % len(chars)] * (segment_length - 2 + (1 if i == 1 and num_segments == 3 else 0))) + "|"
+            "|" + (chars[i % len(chars)] * (
+            segment_length - 2 + (
+                middle_screen_adjustment if (
+                (i == 0 and num_segments == 2) or
+                (i == 1 and num_segments == 3)
+                ) else middle_screen_adjustment1 if (
+                    i == 1 and num_segments == 4
+                ) else middle_screen_adjustment2 if (
+                    i == 2 and num_segments == 4
+                ) else 0
+            )
+            )) + "|"
             for i in range(num_segments)
         )
         print(s.strip())
@@ -192,8 +216,21 @@ def print_guide_lines(divisions, line_type, num_segments):
         if COLOR_ON:
             chars = [f"\033[1;3{(i % 6) + 1}m{'|'}\033[0m" for i, char in enumerate(chars)]
         segment_length = WINDOW_WIDTH // num_segments
+        middle_screen_adjustment = (WINDOW_WIDTH % num_segments)
+        middle_screen_adjustment1 = middle_screen_adjustment // 2 + (middle_screen_adjustment % 2)
+        middle_screen_adjustment2 = middle_screen_adjustment // 2
         s = "".join(
-            chars[i % len(chars)] + (" " * (segment_length - 2 + (1 if i == 1 and num_segments == 3 else 0))) + chars[i % len(chars)]
+            chars[i % len(chars)] + (" " * (
+            segment_length - 2 + (
+                middle_screen_adjustment if (
+                (i == 0 and num_segments == 2) or
+                (i == 1 and num_segments == 3)
+                ) else middle_screen_adjustment1 if (
+                    i == 1 and num_segments == 4
+                ) else middle_screen_adjustment2 if (
+                    i == 2 and num_segments == 4
+                ) else 0
+            ))) + chars[i % len(chars)]
             for i in range(num_segments)
         )
         print(s.strip())
