@@ -1,5 +1,5 @@
 # menu for the prism assistant
-import sys, time
+import sys, time, msvcrt
 
 from user_interface_menus._menu_helper import *
 from user_interface_menus.assistant._prism_assistant import make_assistant_call, get_credentials
@@ -12,14 +12,9 @@ def assistant_menu(self):
         choice = ''
         if first_loop:
             api_key, endpoint = get_credentials()
-            print()
-            print_dashes()
-            print(f"Press {yellow('ENTER')} to exit assistant. This is an experimental feature and not all information may be accurate.")
-            print_dashes()
-
             from user_interface_menus.utils._commands import init_commands
             menu_options = init_commands()
-        choice = print_assistant_terminal_prompt()
+        choice = print_assistant_terminal_prompt(self)
         if not choice.strip():
             return
         else:
@@ -85,6 +80,12 @@ def assistant_write(self, lines, initial_x, initial_y, column_width, window_heig
     row = 0
     col = 0
     for ch in full_text:
+        if msvcrt.kbhit():
+            key = msvcrt.getwch()
+            if key == '\r':
+                sys.stdout.write("\033[u")  # Restore cursor position
+                sys.stdout.flush()
+                break  # stop printing immediately if Enter is pressed
         if ch == "\n" or col >= column_width:
             # move to next row
             row += 1

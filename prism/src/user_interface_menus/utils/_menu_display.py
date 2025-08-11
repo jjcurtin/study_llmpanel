@@ -52,7 +52,7 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
         if submenu:
             print(f"\n{yellow("ENTER")}: Back to Previous Menu")
 
-    def check_for_special_commands(choice):
+    def check_for_special_commands(choice, self):
         from user_interface_menus._menu_helper import remove_macro, macro_search
         def check_prefix(prefix):
             return choice.startswith(prefix)
@@ -65,7 +65,8 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
         execute_commands, \
         register_command, \
         remove_command, \
-        search_macros = \
+        search_macros, \
+        query_assistant = \
         \
         check_prefixes (
             ["command ", 
@@ -73,7 +74,9 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
              "/", 
              "$", 
              "-", 
-             "!"]
+             "!",
+             "@",
+             ]
         )
 
         if command or command_query:
@@ -91,6 +94,10 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
             remove_macro(self, choice)
         elif search_macros:
             macro_search(self, choice, all = (len(choice) == 1))
+        elif query_assistant:
+            self.inputs_queue.put(choice[1:])
+            from user_interface_menus.assistant._assistant_menu import assistant_menu
+            assistant_menu(self)
         else:
             return False
         return True
@@ -103,7 +110,7 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
 
     if choice == '':
         return 1 if submenu else 0
-    elif check_for_special_commands(choice):
+    elif check_for_special_commands(choice, self):
         return 1
     elif menu_options.get(choice):
         try:
