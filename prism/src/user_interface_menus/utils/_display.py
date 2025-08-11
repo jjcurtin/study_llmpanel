@@ -67,11 +67,11 @@ def align(text, column_number, num_columns, formatless = None, window_width = No
     left, right = "", ""
     if border_left:
         left = "| "
-        # format_width -= 2
+        format_width -= 2
     if border_right:
         right = " |"
-        # format_width -= 2
-    output = f"{text:{alignment}{format_width}}"
+        format_width -= 2
+    output = f"{left}{text:{alignment}{format_width}}{right}"
     return output
 
 def display_in_columns(items = None):
