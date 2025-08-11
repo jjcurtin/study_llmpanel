@@ -31,7 +31,7 @@ def cyan(message = None):
 
 # ------------------------------------------------------------
 
-def align(text, column_number, num_columns, formatless = None, window_width = None, align_right = None, locked = False):
+def align(text, column_number, num_columns, formatless = None, window_width = None, align_right = None, locked = False, border_left = False, border_right = False):
     from user_interface_menus._menu_helper import RIGHT_ALIGN, WINDOW_WIDTH
     if window_width is None:
         window_width = int(WINDOW_WIDTH)
@@ -52,7 +52,16 @@ def align(text, column_number, num_columns, formatless = None, window_width = No
             alignment = ">"
         else:
             alignment = ">" if align_right else "<"
-    return f"{text:{alignment}{format_width}}"
+
+    left, right = "", ""
+    if border_left:
+        left = "| "
+        format_width -= 2
+    if border_right:
+        right = " |"
+        format_width -= 2
+    output = f"{left}{text:{alignment}{format_width}}{right}"
+    return output
 
 def display_in_columns(line_type = "dashes", items = None):
     from user_interface_menus._menu_helper import WINDOW_WIDTH, COLOR_ON
@@ -69,12 +78,21 @@ def display_in_columns(line_type = "dashes", items = None):
         for i, item in enumerate(items):
             ansi_escape = re.compile(r'\x1B\[[0-?]*[ -/]*[@-~]')
             item_formatless = ansi_escape.sub('', item['text'])
+            border_settings = item.get('bordered', 'none')
+            border_left = False
+            border_right = False
+            if border_settings == 'left' or border_settings == 'both':
+                border_left = True
+            if border_settings == 'right' or border_settings == 'both':
+                border_right = True
             output += align(
                 item['text'], i, 
                 num_segments, formatless = item_formatless, 
                 window_width = column_width, 
                 align_right = item.get('align_right', False),
-                locked = item.get('locked', False)
+                locked = item.get('locked', False),
+                border_left = border_left,
+                border_right = border_right,
             )
         return output
     
