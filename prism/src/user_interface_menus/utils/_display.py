@@ -71,7 +71,8 @@ def align(text, column_number, num_columns, formatless = None, window_width = No
     if border_right:
         right = " |"
         format_width -= 2
-    output = f"{left}{text:{alignment}{format_width}}{right}"
+    truncated = text[:format_width]
+    output = f"{left}{truncated:{alignment}{format_width}}{right}"
     return output
 
 def display_in_columns(items = None):
