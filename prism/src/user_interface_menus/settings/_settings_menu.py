@@ -105,12 +105,12 @@ def tokens_parameter(self):
 def menu_delay_parameter(self):
     from user_interface_menus._menu_helper import MENU_DELAY
     print("Current menu delay:", MENU_DELAY)
-    new_delay = get_input(self, prompt = "Enter new menu delay (must be a non-negative number): ")
+    new_delay = get_input(self, prompt = "Enter new menu delay (must be a positive number): ")
     if new_delay == '':
         return 0
     try:
-        if float(new_delay) < 0:
-            error("Menu delay must be a non-negative number.")
+        if float(new_delay) <= 0:
+            error("Menu delay must be a positive number.")
             return 0
     except Exception as e:
         error("Invalid input. Please try again.")
