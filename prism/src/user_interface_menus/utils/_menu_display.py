@@ -116,8 +116,12 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
         print_keys()
         choice = print_fixed_terminal_prompt()
 
+    if not submenu:
+        while choice == '':
+            choice = print_fixed_terminal_prompt()
+
     if choice == '':
-        return 1 if submenu else 0
+        return 1
     elif check_for_special_commands(choice, self):
         return 1
     elif menu_options.get(choice):
