@@ -56,6 +56,16 @@ tone_sex_adj <- list(
 )
 # Males rate "norms" higher, "legitimizing" lower
 # Females rate "legitimizing" higher, "norms" lower
+style_sex_adj <- list(
+  male = c(
+    formal       = -0.3,
+    informal     =  0.8
+  ),
+  female = c(
+    formal       = 0.8,
+    informal     =  -0.3
+  )
+)
 
 # 4 ------------------------------------------------------------------
 
@@ -164,32 +174,75 @@ print(mean_diff_sex)
 # ================ Tone Preference Analysis ================
 
 
-# # ================ Style Preference Generation ================
-# participant_id <- rep(participants$participant_id, each = length(styles))
-# style <- rep(styles, times = nrow(participants))
-# style_rating <- rnorm(length(style), mean = style_means[style], sd = 0.45)
-# style_rating <- pmin(pmax(style_rating, 1), 7)
-# style_rating <- round(style_rating)
-# style_preferences <- data.frame(
-#   participant_id = participant_id,
-#   style = style,
-#   style_rating = style_rating
-# )
-# # Join demographics by participant_id
-# style_preferences <- merge(style_preferences, participants, by = "participant_id", all.x = TRUE
-# )
-# # analyze the mean and sd of style ratings
-# library(dplyr)
-# data_summary <- style_preferences %>%
-#     group_by(style) %>%
-#     summarise(
-#         mean_rating = mean(style_rating),
-#         sd_rating   = sd(style_rating),
-#         n           = n()
-#     ) %>%
-#     arrange(mean_rating)
-# print(data_summary)
-# write.csv(style_preferences, file = 'style_preferences.csv', row.names = FALSE)
+# ================ Style Preference Generation ================
+participant_id <- rep(participants$participant_id, each = length(styles))
+participant_sex <- rep(participants$sex, each = length(styles))
+style <- rep(styles, times = nrow(participants))
+
+# Create a function to get adjusted style mean
+get_adjusted_style_mean <- function(style, sex) {
+  base_mean <- style_means[style]
+  adj <- 0
+  if (!is.null(style_sex_adj[[sex]])) {
+    adj <- style_sex_adj[[sex]][style]
+    if (is.na(adj)) adj <- 0  # If no adjustment for that style, set to 0
+  }
+  return(base_mean + adj)
+}
+
+# Generate adjusted style means vector
+adjusted_means <- mapply(get_adjusted_style_mean, style, participant_sex)
+
+style_rating <- rnorm(length(style), mean = adjusted_means, sd = 0.45)
+style_rating <- pmin(pmax(style_rating, 1), 7)
+style_rating <- round(style_rating)
+style_preferences <- data.frame(
+  participant_id = participant_id,
+  style = style,
+  style_rating = style_rating
+)
+# Join demographics by participant_id
+style_preferences <- merge(style_preferences, participants, by = "participant_id", all.x = TRUE)
+write.csv(style_preferences, file = 'style_preferences.csv', row.names = FALSE)
+# ================ Style Preference Generation ================
+
+# ================ Style Preference Analysis ================
+# analyze the mean and sd of style ratings
+library(dplyr)
+data_summary <- style_preferences %>%
+    group_by(style) %>%
+    summarise(
+        mean_rating = mean(style_rating),
+        sd_rating   = sd(style_rating),
+        n           = n()
+    ) %>%
+    arrange(mean_rating)
+print(data_summary)
+
+library(dplyr)
+library(tidyr)
+
+# Summary by style and sex
+data_summary_sex <- style_preferences %>%
+  group_by(style, sex) %>%
+  summarise(
+    mean_rating = mean(style_rating),
+    sd_rating = sd(style_rating),
+    n = n(),
+    .groups = 'drop'
+  ) %>%
+  arrange(style, sex)
+# Calculate mean difference between sexes per style
+mean_diff_sex <- data_summary_sex %>%
+  select(style, sex, mean_rating) %>%
+  pivot_wider(names_from = sex, values_from = mean_rating) %>%
+  mutate(
+    mean_diff = male - female
+  )
+
+print(mean_diff_sex)
+# ================ Style Preference Analysis ================
+
 
 # # ================ Message Preference Generation for tonesxstylexcontext ================
 # participant_id <- rep(participants$participant_id, each = length(tones) * length(styles) * length(contexts))
