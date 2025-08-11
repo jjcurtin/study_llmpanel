@@ -16,14 +16,21 @@ editor_options:
 # To do
 
 Claire:
- - Rewrite questions to be more specific
- - Write out more specific qualities of simulated data
  - Write out models
- - Email Markus to ask about model/set up meeting
+ - Email Markus to ask about model/set up meeting --> will email Ben, Markus OOO
 
 Colin:
   - Generating the data
   - Start outlining the study overview section
+
+```{r}
+library(stats)
+library(lme4)
+library(tidyverse) 
+library(psych) 
+library(car)
+library(performance) # for icc
+```
 
 # Study Overview
 
@@ -119,36 +126,70 @@ Answers:
  
 By testing:
 
- - The main effects of style and tone on actual ratings
+ - The main effects of style and tone condition on actual ratings
  - The interactive effect of style and tone
  - The main effect of sex on actual ratings
  - While accounting for individual differences by including random intercepts for participants and messages
  - While modeling individual variability in effects of style and tone with random slopes by participant
+ 
+> This would be the model where we could incorporate context if we are able to do the necessary randomization for that. Then I think we'd need random slope for context within participant.
 
 ```{r}
-m3 <- lmer(
-  actual_rating ~ style*tone + sex + 
-  (1 + style*tone | participant) + (1 | message),
-  data = d)
+m3 <- lmer(actual_rating ~ style*tone + sex +
+             (1 + style*tone | participant) + (1 | message),
+           data = d)
 ```
 
 Note to Claire to add in model simplification steps that will be carried out should model not converge.
 
-## What is the relationship between stated preferences and actual ratings? (LMEM)
+## Model 4 - Concordance between preferences and actual ratings
+
+Answers:
+
+ - Do message tone and style preferences correspond to actual ratings?
+ 
+By testing:
+
+ - Main effects of style and tone preferences on actual ratings
+ - While accounting for individual differences by including random intercepts for participants and messages
+ - While modeling individual variability in effects of style and tone with random slopes by participant
+
 
 ```{r}
-d$preferred_tone_flag <- with(d, ifelse(tone == participant_preferred_tone, 1, 0))
-
-m <- lmer(actual_rating ~ preferred_tone_flag + (1 | participant) + (1 | message), data = d)
+m4 <- lmer(actual_rating ~ pref_rating_tone + pref_rating_style +
+             (1 + pref_rating_tone + pref_rating_style | participant) + (1 | message),
+           data = d)
 ```
 
-## Are participant ratings more different across preference categories than within preference categories?
+> Do we want demographic characteristics in here? Unsure. Also think about if pref_rating_tone and pref_rating_style should be an interaction. This might also be a good place to try out Spearman's ranked correlations.
 
-## Are participant ratings more different across actual categories than within actual categories?
+## Models 5, 6, 7, & 8 - Within and between comparisons (ICC)
 
-## How does user context impact actual ratings?
+Answers:
 
-> Note that this is contingent on necessary randomization being feasible.
+ - Are participant ratings of their preferences more different across tone/style categories than within tone/style categories?
+ - Are participant ratings of messages more different across tone/style categories than within tone/style categories?
+
+For tone/style preferences:
+```{r}
+m5 <- lmer(pref_rating_tone ~ 1 + (1 | tone), data = d)
+icc(m5)
+
+m6 <- lmer(pref_rating_style ~ 1 + (1 | style), data = d)
+icc(m6)
+```
+
+For tone/style actual ratings:
+```{r}
+m7 <- lmer(actual_rating ~ 1 + (1 | tone) + (1 | participant) + (1 | message), data = d)
+icc(m7)
+
+m8 <- lmer(actual_rating ~ 1 + (1 | style) + (1 | participant) + (1 | message), data = d)
+icc(m8)
+```
+
+> ICC does not work with ranked ordered categories, but there is a rank ICC package we could consider using: https://pmc.ncbi.nlm.nih.gov/articles/PMC10592008/ https://github.com/shengxintu/rankICC This paper has only been cited 10 times so might not be the best option.
+
  
 # Notes
 
@@ -156,5 +197,5 @@ m <- lmer(actual_rating ~ preferred_tone_flag + (1 | participant) + (1 | message
  - Should pref_rating be one variable or separated into two?
  - Are we going to use context?
  - Note that gender_id is fill in the blank so probably can't use in analyses. Should this be specific categories?
- 
+
  
