@@ -17,9 +17,10 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
         recommended_text = f" (recommended)" if recommended_actions is not None and key in recommended_actions else ""
         print(display_in_columns(
             line_type = "dashes",
+            # {"text": f"", "align_right" : True, "locked": False},
             items = [
-                {"text": f"{yellow(key + green(recommended_text))}", "align_right" : False, "locked": True},
-                {"text": f"{item['description']}", "align_right": False, "locked": False},
+                {"text": f"{yellow(key + green(recommended_text))}", "align_right" : False, "locked": True, "bordered": "left"},
+                {"text": f"{item['description']}", "align_right": False, "locked": False, "bordered": "right"},
             ]
         ))
 
@@ -30,12 +31,15 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
                     print(f"{yellow(key)}: {item['description']}")
             print_dashes()
             print()
+            print_dashes()
             for key, item in menu_options.items():
                 if not key.isdigit():
                     print_key_line(key, item)
         else:
+            print_dashes()
             for key, item in menu_options.items():
                 print_key_line(key, item)
+        print_dashes()
         if submenu:
             print(f"\n{yellow("ENTER")}: Back to Previous Menu")
 
