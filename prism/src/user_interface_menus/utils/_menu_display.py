@@ -66,7 +66,8 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
         register_command, \
         remove_command, \
         search_macros, \
-        query_assistant = \
+        query_assistant, \
+        query_assistant_alias = \
         \
         check_prefixes (
             ["command ", 
@@ -76,6 +77,7 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
              "-", 
              "!",
              "@",
+             "assistant ",
              ]
         )
 
@@ -94,8 +96,9 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
             remove_macro(self, choice)
         elif search_macros:
             macro_search(self, choice, all = (len(choice) == 1))
-        elif query_assistant:
-            self.inputs_queue.put(choice[1:])
+        elif query_assistant or query_assistant_alias:
+            query = ' '.join(choice.split(" ")[1:]) if query_assistant_alias else choice[1:] if query_assistant else None
+            self.inputs_queue.put(query)
             from user_interface_menus.assistant._assistant_menu import assistant_menu
             assistant_menu(self)
         else:

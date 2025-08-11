@@ -281,7 +281,7 @@ def print_fixed_terminal_prompt():
 
 def print_assistant_terminal_prompt(self):
     from user_interface_menus.utils._menu_navigation import get_input
-    return get_input(self, f"\n{red('assistant> ')}").strip()
+    return get_input(self, f"\n{red('assistant> ')}", print_prompt = False).strip()
 
 def print_twilio_terminal_prompt():
     print("Please enter your message below. Press ENTER to send.")
