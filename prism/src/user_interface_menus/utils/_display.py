@@ -1,6 +1,7 @@
 # display api
 
-import os
+import os, sys, msvcrt, time
+
 
 # ------------------------------------------------------------
 
@@ -74,6 +75,8 @@ def align(text, column_number, num_columns, formatless = None, window_width = No
     truncated = text[:format_width]
     output = f"{left}{truncated:{alignment}{format_width}}{right}"
     return output
+
+# ------------------------------------------------------------
 
 def display_in_columns(items = None):
     from user_interface_menus._menu_helper import WINDOW_WIDTH, COLOR_ON
@@ -172,9 +175,14 @@ def print_menu_header(title):
     print_dashes()
     print()
 
-def print_dashes():
+def print_dashes(delay = None):
     from user_interface_menus._menu_helper import WINDOW_WIDTH
-    print("-" * WINDOW_WIDTH)
+    if delay is not None:
+        for i in range(WINDOW_WIDTH):
+            print("-", end="", flush = True)
+            time.sleep(delay)
+    else:
+        print("-" * WINDOW_WIDTH)
 
 def print_guide_lines(divisions, line_type, num_segments):
     from user_interface_menus._menu_helper import WINDOW_WIDTH, COLOR_ON
@@ -257,25 +265,25 @@ def print_twilio_terminal_prompt():
 import sys, msvcrt, time
 
 def get_cursor_position():
-        sys.stdout.write("\033[6n")
-        sys.stdout.flush()
+    sys.stdout.write("\033[6n")
+    sys.stdout.flush()
 
-        buf = ""
-        while True:
-            ch = msvcrt.getwch()
-            buf += ch
-            if ch == "R":
-                break
+    buf = ""
+    while True:
+        ch = msvcrt.getwch()
+        buf += ch
+        if ch == "R":
+            break
 
-        if not buf.startswith("\x1b["):
-            return None, None  # not an ANSI response
+    if not buf.startswith("\x1b["):
+        return None, None  # not an ANSI response
 
-        try:
-            pos = buf[2:-1]  # strip "\x1b[" and trailing "R"
-            row_str, col_str = pos.split(";")
-            return int(col_str) - 1, int(row_str) - 1 
-        except Exception:
-            return None, None
+    try:
+        pos = buf[2:-1]  # strip "\x1b[" and trailing "R"
+        row_str, col_str = pos.split(";")
+        return int(col_str) - 1, int(row_str) - 1 
+    except Exception:
+        return None, None
         
 def save_current_cursor_pos(self):
     x, y = get_cursor_position()
@@ -401,7 +409,8 @@ def assistant_header_write(self, lines):
                     char_time = time_to_read_char_fast
                 text_reading_time = max(min_time_to_read, min(max_time_to_read, col * char_time))
                 time.sleep(text_reading_time)
-                clear_column(self, initial_x, initial_y, WINDOW_WIDTH, 1)
+                if i < length - 1:
+                    clear_column(self, initial_x, initial_y, WINDOW_WIDTH, 1)
                 row = 0
             col = 0
             if ch == "\n":
