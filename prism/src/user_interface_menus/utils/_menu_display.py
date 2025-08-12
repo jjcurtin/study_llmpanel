@@ -17,8 +17,7 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
         recommended_text = f" (recommended)" if recommended_actions is not None and key in recommended_actions else ""
         items = [
             # can have up to four columns
-            {"text": f"", "align_right" : False, "locked": True, "bordered": "left"},
-            # {"text": f"", "align_right" : False, "locked": True, "bordered": "both"},
+            # {"text": f"", "align_right" : False, "locked": True, "bordered": "left"}, # used for prism assistant if it is in a window
             {"text": f"{yellow(key + green(recommended_text))}", "align_right" : False, "locked": True, "bordered": "left"},
             {"text": f"{item['description']}", "align_right": False, "locked": False, "bordered": "both"},
         ]
