@@ -30,6 +30,11 @@ def cyan(message = None):
     cyan, color_end = ("\033[36m", "\033[0m") if COLOR_ON else ("", "")
     return f"{cyan}{message}{color_end}"
 
+def white(message = None):
+    from user_interface_menus._menu_helper import COLOR_ON
+    white, color_end = ("\033[37m", "\033[0m") if COLOR_ON else ("", "")
+    return f"{white}{message}{color_end}"
+
 # ------------------------------------------------------------
 
 def align(text, column_number, num_columns, formatless = None, window_width = None, align_right = None, locked = False, border_left = False, border_right = False):
@@ -357,9 +362,10 @@ def assistant_header_write(self, lines):
     initial_x = 0
     initial_y = 3
     window_height = 1
-    clear_column(self, initial_x, initial_y, WINDOW_WIDTH, 1)
     ansi_save_cursor()
     ansi_hide_cursor()
+
+    clear_column(self, initial_x, initial_y, WINDOW_WIDTH, 1)
 
     full_text = "\n".join(lines)
     ansi_escape = re.compile(r'\033\[[0-?]*[ -/]*[@-~]')

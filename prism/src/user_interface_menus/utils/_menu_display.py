@@ -31,25 +31,30 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
         self.num_columns = len(window_positions)
         # print_guide_lines(len(items) - 1, "dashes", len(items))
 
-    def display_local_indexed_menu_options():
-        for key, item in menu_options.items():
-            if key.isdigit():
-                print(f"{yellow(key)}: {item['description']}")
-        print_dashes()
-        print()
+    def display_local_menu_options(start_index = 1, num_to_print = None, indexed = False):
+        if num_to_print is None:
+            num_to_print = len(menu_options)
+        num_printed = 0
+        if not indexed:
+            print_dashes()
+        for index, (key, item) in enumerate(menu_options.items(), start = start_index):
+            if indexed == False and not key.isdigit() and num_printed < num_to_print:
+                num_printed += 1
+                print_key_line(key, item, index, len(menu_options))
+            elif indexed and key.isdigit() and num_printed < num_to_print:
+                num_printed += 1
+                print_key_line(f"{key}: {white(item['description'])}", item, index, len(menu_options))
         print_dashes()
 
-    def display_local_menu_options():
-        print_dashes()
-        for index, (key, item) in enumerate(menu_options.items()):
-            if not key.isdigit():
-                print_key_line(key, item, index, len(menu_options))
+        #if num_printed < num_to_print:
+        # if num_printed < len(menu_options):
+        #     print(f"{start_index} to {start_index + num_printed - 1} of {len(menu_options)} options shown.")
 
     def print_keys():
+        from user_interface_menus._menu_helper import WINDOW_HEIGHT
         if index_and_text:
-            display_local_indexed_menu_options()
-        display_local_menu_options()
-        print_dashes()
+            display_local_menu_options(start_index = 1, num_to_print = WINDOW_HEIGHT, indexed = True)
+        display_local_menu_options(start_index = 1)
         if submenu:
             print(f"\n{yellow("ENTER")}: Back to Previous Menu")
 

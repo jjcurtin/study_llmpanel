@@ -14,20 +14,18 @@ def window_width_settings(self):
     if int(new_width) > 200 or int(new_width) < 80:
         error("Window width cannot exceed 200 characters.")
         return 0
-        
     set_window_width(int(new_width))
 
 def window_height_settings(self):
     from user_interface_menus._menu_helper import WINDOW_HEIGHT
     print("Current PRISM window height:", WINDOW_HEIGHT)
-    new_height = get_input(self, prompt = "Enter new height between 10 and 60: ")
+    new_height = get_input(self, prompt = "Enter new height between 5 and 15: ")
     if not new_height.isdigit():
         error("Window height must be an integer.")
         return 0
-    if int(new_height) < 10 or int(new_height) > 60:
-        error("Window height must be between 10 and 60 lines.")
+    if int(new_height) < 5 or int(new_height) > 15:
+        error("Window height must be between 5 and 15 lines.")
         return 0
-        
     set_window_height(int(new_height))
 
 def print_display_params(self):

@@ -29,4 +29,5 @@ def main_menu(self):
     while True:
         if not self.commands_queue:
             print_menu_header("main")
+            assistant_header_write(self, ["PRISM Main Menu"])
         print_menu_options(self, menu_options, recommended_actions = ['help', 'participants', 'tasks'])
