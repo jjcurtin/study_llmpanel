@@ -324,6 +324,12 @@ def assistant_header_write(self, lines):
     row = 0
     col = 0
     for ch in full_text:
+        if msvcrt.kbhit():
+            key = msvcrt.getwch()
+            if key == '\r':
+                sys.stdout.write("\033[u")  # Restore cursor position
+                sys.stdout.flush()
+                break  # stop printing immediately if Enter is pressed
         if ch == "\n" or col >= WINDOW_WIDTH:
             # move to next row
             row += 1
@@ -340,6 +346,46 @@ def assistant_header_write(self, lines):
         sys.stdout.flush()
         time.sleep(0.015)  # typing delay
         col += 1
+
+    sys.stdout.write("\033[u")  # Restore cursor position
+    sys.stdout.flush()
+
+def assistant_header_shift_write(self, lines):
+    import time
+    from user_interface_menus._menu_helper import WINDOW_WIDTH
+
+    initial_x = 0
+    initial_y = 3
+    window_height = 1
+
+    full_text = " ".join(line.replace('\n', ' ') for line in lines)
+
+    # Pad spaces on left and right for scrolling off screen
+    padding = " " * WINDOW_WIDTH
+    scroll_text = padding + full_text + padding
+    length = len(scroll_text)
+
+    sys.stdout.write("\033[s")  # Save cursor position
+
+    for start in range(length - WINDOW_WIDTH + 1):
+        if msvcrt.kbhit():
+            key = msvcrt.getwch()
+            if key == '\r':
+                clear_column(self, initial_x, initial_y, WINDOW_WIDTH, window_height)
+                sys.stdout.write("\033[u")  # Restore cursor position
+                sys.stdout.flush()
+                break  # stop printing immediately if Enter is pressed
+        # Clear the header line
+        clear_column(self, initial_x, initial_y, WINDOW_WIDTH, window_height)
+
+        # Get the visible window slice
+        window_slice = scroll_text[start : start + WINDOW_WIDTH]
+
+        move_cursor(self, initial_x, initial_y)
+        sys.stdout.write(window_slice)
+        sys.stdout.flush()
+
+        time.sleep(0.05)  # Adjust speed here
 
     sys.stdout.write("\033[u")  # Restore cursor position
     sys.stdout.flush()
