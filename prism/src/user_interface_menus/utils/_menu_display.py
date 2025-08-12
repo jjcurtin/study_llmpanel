@@ -31,22 +31,24 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
         self.num_columns = len(window_positions)
         # print_guide_lines(len(items) - 1, "dashes", len(items))
 
+    def display_local_indexed_menu_options():
+        for key, item in menu_options.items():
+            if key.isdigit():
+                print(f"{yellow(key)}: {item['description']}")
+        print_dashes()
+        print()
+        print_dashes()
+
+    def display_local_menu_options():
+        print_dashes()
+        for index, (key, item) in enumerate(menu_options.items()):
+            if not key.isdigit():
+                print_key_line(key, item, index, len(menu_options))
+
     def print_keys():
         if index_and_text:
-            for key, item in menu_options.items():
-                if key.isdigit():
-                    print(f"{yellow(key)}: {item['description']}")
-            print_dashes()
-            print()
-            print_dashes()
-            for index, (key, item) in enumerate(menu_options.items()):
-                if not key.isdigit():
-                    print_key_line(key, item, index, len(menu_options))
-        else:
-            print_dashes()
-            for index, (key, item) in enumerate(menu_options.items()):
-                if not key.isdigit():
-                    print_key_line(key, item, index, len(menu_options))
+            display_local_indexed_menu_options()
+        display_local_menu_options()
         print_dashes()
         if submenu:
             print(f"\n{yellow("ENTER")}: Back to Previous Menu")
