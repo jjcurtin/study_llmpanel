@@ -16,6 +16,9 @@ current_menu = None
 global WINDOW_WIDTH
 WINDOW_WIDTH = 155
 
+global WINDOW_HEIGHT
+WINDOW_HEIGHT = 20
+
 global RIGHT_ALIGN
 RIGHT_ALIGN = True
 
@@ -51,11 +54,6 @@ TIMEOUT = 10
 
 # ------------------------------------------------------------
 
-def toggle_color_output(self):
-    global COLOR_ON
-    COLOR_ON = not COLOR_ON
-    save_params()
-
 def set_window_width(width):
     global WINDOW_WIDTH
     if isinstance(width, int) and width > 0:
@@ -64,10 +62,30 @@ def set_window_width(width):
         error("Window width must be a positive integer.")
     save_params()
 
+def set_window_height(height):
+    global WINDOW_HEIGHT
+    if isinstance(height, int) and height > 0:
+        WINDOW_HEIGHT = height
+    else:
+        error("Window height must be a positive integer.")
+    save_params()
+
 def toggle_right_align(self = None):
     global RIGHT_ALIGN
     RIGHT_ALIGN = not RIGHT_ALIGN
     save_params()
+
+def set_show_readme(show):
+    global SHOW_README
+    SHOW_README = show
+    save_params()
+
+def toggle_color_output(self):
+    global COLOR_ON
+    COLOR_ON = not COLOR_ON
+    save_params()
+
+# ------------------------------------------------------------
 
 def set_related_options_threshold(new_threshold):
     global RELATED_OPTIONS_THRESHOLD
@@ -79,6 +97,8 @@ def set_best_options_threshold(new_threshold):
     BEST_OPTIONS_THRESHOLD = new_threshold
     save_params()
 
+# ------------------------------------------------------------
+
 def set_assistant_temperature(temperature):
     global ASSISTANT_TEMPERATURE
     ASSISTANT_TEMPERATURE = temperature
@@ -88,6 +108,17 @@ def set_assistant_tokens(tokens):
     global ASSISTANT_TOKENS
     ASSISTANT_TOKENS = tokens
     save_params()
+
+def set_assistant_type_speed(speed):
+    global ASSISTANT_TYPE_SPEED
+    print(speed)
+    if isinstance(speed, (int, float)) and speed > 0:
+        ASSISTANT_TYPE_SPEED = speed
+    else:
+        error(f"Assistant type speed must be a positive number: {speed}")
+    save_params()
+
+# ------------------------------------------------------------
 
 def set_menu_delay(delay):
     global MENU_DELAY
@@ -105,19 +136,6 @@ def set_timeout(timeout):
         error("Timeout must be a positive integer.")
     save_params()
 
-def set_show_readme(show):
-    global SHOW_README
-    SHOW_README = show
-    save_params()
-
-def set_assistant_type_speed(speed):
-    global ASSISTANT_TYPE_SPEED
-    print(speed)
-    if isinstance(speed, (int, float)) and speed > 0:
-        ASSISTANT_TYPE_SPEED = speed
-    else:
-        error(f"Assistant type speed must be a positive number: {speed}")
-    save_params()
 
 # ------------------------------------------------------------
 
@@ -293,7 +311,7 @@ def load_params():
     import time
     global RIGHT_ALIGN, RELATED_OPTIONS_THRESHOLD, ASSISTANT_TEMPERATURE, \
            BEST_OPTIONS_THRESHOLD, ASSISTANT_TOKENS, WINDOW_WIDTH, SHOW_README, COLOR_ON, \
-           MENU_DELAY, TIMEOUT, ASSISTANT_TYPE_SPEED
+           MENU_DELAY, TIMEOUT, ASSISTANT_TYPE_SPEED, WINDOW_HEIGHT
 
     clear()
     print("Now loading parameters...")
@@ -311,6 +329,13 @@ def load_params():
                     try:
                         if int(val) and int(val) > 0 and int(val) < 200:
                             WINDOW_WIDTH = int(val)
+                            print(global_var, val)
+                    except Exception as e:
+                        print(global_var, "INVALID, please update")
+                elif global_var == "WINDOW_HEIGHT":
+                    try:
+                        if int(val) and int(val) > 0 and int(val) < 100:
+                            WINDOW_HEIGHT = int(val)
                             print(global_var, val)
                     except Exception as e:
                         print(global_var, "INVALID, please update")
@@ -403,7 +428,7 @@ def load_params():
 def save_params():
     global RIGHT_ALIGN, RELATED_OPTIONS_THRESHOLD, ASSISTANT_TEMPERATURE, \
            BEST_OPTIONS_THRESHOLD, ASSISTANT_TOKENS, WINDOW_WIDTH, SHOW_README, COLOR_ON, \
-           MENU_DELAY, TIMEOUT, ASSISTANT_TYPE_SPEED
+           MENU_DELAY, TIMEOUT, ASSISTANT_TYPE_SPEED, WINDOW_HEIGHT
 
     file_path = "../config/uiconfig.txt"
     with open(file_path, 'w') as file:
@@ -414,6 +439,7 @@ def save_params():
         file.write(f"ASSISTANT_TOKENS={ASSISTANT_TOKENS}\n")
         file.write(f"ASSISTANT_TYPE_SPEED={ASSISTANT_TYPE_SPEED}\n")
         file.write(f"WINDOW_WIDTH={WINDOW_WIDTH}\n")
+        file.write(f"WINDOW_HEIGHT={WINDOW_HEIGHT}\n")
         file.write(f"SHOW_README={SHOW_README}\n")
         file.write(f"COLOR_ON={COLOR_ON}\n")
         file.write(f"MENU_DELAY={MENU_DELAY}\n")

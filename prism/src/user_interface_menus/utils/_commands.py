@@ -41,7 +41,7 @@ def init_commands():
                                                              PARAM_ASSISTANT_TEMPERATURE, SYSTEM_SETTINGS, \
                                                              PARAMETER_SETTINGS, READ_ME_SET, PARAM_BEST_OPTIONS_THRESHOLD, \
                                                              PARAM_ASSISTANT_TOKENS, PRINT_PARAMS, PARAM_MENU_DELAY, \
-                                                             PARAM_TIMEOUT, PARAM_ASSISTANT_TYPE_SPEED
+                                                             PARAM_TIMEOUT, PARAM_ASSISTANT_TYPE_SPEED, PARAM_WINDOW_HEIGHT
 
     # ------------------------------------------------------------
 
@@ -120,8 +120,10 @@ def init_commands():
 
         'settings display': {'description': 'Manage Display settings', 'menu_caller': lambda self: DISPLAY(self)},
         'settings display width': {'description': 'Adjust PRISM window width', 'menu_caller': lambda self: WINDOW_WIDTH_SETTINGS(self)},
+        'settings display height': {'description': 'Adjust PRISM window height', 'menu_caller': lambda self: PARAM_WINDOW_HEIGHT(self)},
         'display': {'description': 'Manage Display settings', 'menu_caller': lambda self: DISPLAY(self)},
         'display width': {'description': 'Adjust PRISM window width', 'menu_caller': lambda self: WINDOW_WIDTH_SETTINGS(self)},
+        'display height': {'description': 'Adjust PRISM window height', 'menu_caller': lambda self: PARAM_WINDOW_HEIGHT(self)},
         'display align': {'description': 'Toggle right alignment of menu options', 'menu_caller': toggle_right_align},
         'display color': {'description': 'Toggle color output in terminal', 'menu_caller': toggle_color_output},
         'readme': {'description': 'Display README', 'menu_caller': lambda self: README(self)},
