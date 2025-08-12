@@ -168,6 +168,11 @@ def print_menu_header(title):
     print(" " * padding + f"{red(title)}")
     print_equals()
 
+    from user_interface_menus._menu_helper import WINDOW_WIDTH
+    print(" " * WINDOW_WIDTH)
+    print_equals()
+    print()
+
 def print_dashes():
     from user_interface_menus._menu_helper import WINDOW_WIDTH
     print("-" * WINDOW_WIDTH)
@@ -302,6 +307,43 @@ def clear_column(self, x, y, width, height):
         sys.stdout.write(" " * width)
     restore_cursor_pos(self, 0)
 
+# def screen_write(self, content, initial_x, initial_y, column_width, window_height):
+
+def assistant_header_write(self, lines):
+    from user_interface_menus._menu_helper import WINDOW_WIDTH
+
+    initial_x = 0
+    initial_y = 3
+    window_height = 1
+    clear_column(self, initial_x, initial_y, WINDOW_WIDTH, 1)
+    sys.stdout.write("\033[s")  # Save cursor position
+
+    # Merge into one string with explicit newlines
+    full_text = "\n".join(lines)
+
+    row = 0
+    col = 0
+    for ch in full_text:
+        if ch == "\n" or col >= WINDOW_WIDTH:
+            # move to next row
+            row += 1
+            if row >= window_height:
+                time.sleep(1) # page delay
+                clear_column(self, initial_x, initial_y, WINDOW_WIDTH, 1)
+                row = 0
+            col = 0
+            if ch == "\n":
+                continue
+
+        move_cursor(self, initial_x + col, initial_y + row)
+        sys.stdout.write(ch)
+        sys.stdout.flush()
+        time.sleep(0.015)  # typing delay
+        col += 1
+
+    sys.stdout.write("\033[u")  # Restore cursor position
+    sys.stdout.flush()
+    
 def assistant_write(self, lines, initial_x, initial_y, column_width, window_height):
     clear_assistant_area(self)
     sys.stdout.write("\033[s")  # Save cursor position
