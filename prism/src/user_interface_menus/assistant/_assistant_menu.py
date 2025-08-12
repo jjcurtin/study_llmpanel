@@ -50,10 +50,10 @@ def assistant_menu(self):
                             assistant_write(self, [response], self.window_0_x, self.window_0_y, self.column_width, self.window_height)
                         context.append(content)
                     else:
-                        assistant_header_write(self, ["No content found in the assistant's response."])
+                        assistant_header_write(self, ["Error processing assistant response."])
                         ansi_show_cursor()
                 else:
-                    assistant_header_write(self, ["No response from the assistant."])
+                    assistant_header_write(self, ["No response from the assistant. Please check your connection and try again."])
                     ansi_show_cursor()
                     exit_menu()
                     return
