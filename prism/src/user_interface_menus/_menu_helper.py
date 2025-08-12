@@ -31,6 +31,9 @@ ASSISTANT_TEMPERATURE = 0.7
 global ASSISTANT_TOKENS
 ASSISTANT_TOKENS = 600
 
+global ASSISTANT_TYPE_SPEED
+ASSISTANT_TYPE_SPEED = 0.015
+
 global SHOW_README
 SHOW_README = True
 
@@ -107,12 +110,25 @@ def set_show_readme(show):
     SHOW_README = show
     save_params()
 
+def set_assistant_type_speed(speed):
+    global ASSISTANT_TYPE_SPEED
+    print(speed)
+    if isinstance(speed, (int, float)) and speed > 0:
+        ASSISTANT_TYPE_SPEED = speed
+    else:
+        error(f"Assistant type speed must be a positive number: {speed}")
+    save_params()
+
+# ------------------------------------------------------------
+
 def add_recent_command(command):
     global RECENT_COMMANDS
     if command != 'recent' and command != 'command' and command not in RECENT_COMMANDS:
         RECENT_COMMANDS.append(command)
         if len(RECENT_COMMANDS) > 10:
             RECENT_COMMANDS.pop(0)
+
+# ------------------------------------------------------------
 
 def load_saved_macros(self):
     try:
@@ -225,6 +241,8 @@ def macro_search(self, query, all = False):
     except Exception as e:
         error(f"Error searching macros: {e}", self)
 
+# ------------------------------------------------------------
+
 def add_user_defined_global_command(identifier, command_string, description = None, self = None):
     global _menu_options
     if _menu_options is None:
@@ -250,6 +268,8 @@ def add_user_defined_global_command(identifier, command_string, description = No
         error(f"Command '{identifier}' already exists.", self if self else None)
         return False
 
+# ------------------------------------------------------------
+
 def set_local_menu_options(menu_name, menu_options):
     global current_menu, local_menu_options
     current_menu = menu_name
@@ -273,7 +293,7 @@ def load_params():
     import time
     global RIGHT_ALIGN, RELATED_OPTIONS_THRESHOLD, ASSISTANT_TEMPERATURE, \
            BEST_OPTIONS_THRESHOLD, ASSISTANT_TOKENS, WINDOW_WIDTH, SHOW_README, COLOR_ON, \
-           MENU_DELAY, TIMEOUT
+           MENU_DELAY, TIMEOUT, ASSISTANT_TYPE_SPEED
 
     clear()
     print("Now loading parameters...")
@@ -366,13 +386,24 @@ def load_params():
                             print(global_var, val)
                     except Exception as e:
                         print(global_var, "INVALID, please update")
+                elif global_var == "ASSISTANT_TYPE_SPEED":
+                    try:
+                        if float(val) <= 0:
+                            print(global_var, "INVALID, please update")
+                        else:
+                            ASSISTANT_TYPE_SPEED = float(val)
+                            print(global_var, val)
+                    except Exception as e:
+                        print(global_var, "INVALID, please update")
     time.sleep(MENU_DELAY * 2)
     save_params()
+
+# ------------------------------------------------------------
 
 def save_params():
     global RIGHT_ALIGN, RELATED_OPTIONS_THRESHOLD, ASSISTANT_TEMPERATURE, \
            BEST_OPTIONS_THRESHOLD, ASSISTANT_TOKENS, WINDOW_WIDTH, SHOW_README, COLOR_ON, \
-           MENU_DELAY, TIMEOUT
+           MENU_DELAY, TIMEOUT, ASSISTANT_TYPE_SPEED
 
     file_path = "../config/uiconfig.txt"
     with open(file_path, 'w') as file:
@@ -381,11 +412,14 @@ def save_params():
         file.write(f"BEST_OPTIONS_THRESHOLD={BEST_OPTIONS_THRESHOLD}\n")
         file.write(f"ASSISTANT_TEMPERATURE={ASSISTANT_TEMPERATURE}\n")
         file.write(f"ASSISTANT_TOKENS={ASSISTANT_TOKENS}\n")
+        file.write(f"ASSISTANT_TYPE_SPEED={ASSISTANT_TYPE_SPEED}\n")
         file.write(f"WINDOW_WIDTH={WINDOW_WIDTH}\n")
         file.write(f"SHOW_README={SHOW_README}\n")
         file.write(f"COLOR_ON={COLOR_ON}\n")
         file.write(f"MENU_DELAY={MENU_DELAY}\n")
         file.write(f"TIMEOUT={TIMEOUT}\n")
+
+# ------------------------------------------------------------
 
 def load_menus():
     global _menu_options

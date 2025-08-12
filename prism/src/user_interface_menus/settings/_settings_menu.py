@@ -132,15 +132,31 @@ def timeout_parameter(self):
         return 0
     set_timeout(int(new_timeout))
 
+def param_set_type_speed(self):
+    from user_interface_menus._menu_helper import ASSISTANT_TYPE_SPEED
+    print("Current assistant type speed:", ASSISTANT_TYPE_SPEED)
+    new_speed = get_input(self, prompt = "Enter new type speed (must be a positive number recommended 0.015): ")
+    print(f"New type speed: {new_speed}")
+    if new_speed == '':
+        return 0
+    try:
+        if float(new_speed) < 0.001 or float(new_speed) > 0.03:
+            error(f"Type speed must be a positive number between 0.001 and 0.03: {new_speed}")
+            return 0
+    except Exception as e:
+        error("Invalid input. Please try again.")
+    set_assistant_type_speed(float(new_speed))
+
 def print_params(self):
     if not self.commands_queue:
         from user_interface_menus._menu_helper import RELATED_OPTIONS_THRESHOLD, BEST_OPTIONS_THRESHOLD, \
                                                     ASSISTANT_TEMPERATURE, ASSISTANT_TOKENS, \
-                                                    MENU_DELAY, TIMEOUT
+                                                    MENU_DELAY, TIMEOUT, ASSISTANT_TYPE_SPEED
         print(f"RELATED_OPTIONS_THRESHOLD: {RELATED_OPTIONS_THRESHOLD}")
         print(f"BEST_OPTIONS_THRESHOLD: {BEST_OPTIONS_THRESHOLD}")
         print(f"ASSISTANT_TEMPERATURE: {ASSISTANT_TEMPERATURE}")
         print(f"ASSISTANT_TOKENS: {ASSISTANT_TOKENS}")
+        print(f"ASSISTANT_TYPE_SPEED: {ASSISTANT_TYPE_SPEED}")
         print(f"MENU_DELAY: {MENU_DELAY}")
         print(f"TIMEOUT: {TIMEOUT}")
         exit_menu()
@@ -152,6 +168,7 @@ def parameter_settings(self):
         'best threshold': {'description': 'Adjust the prioritized "best" command prediction similarity tolerance', 'menu_caller': best_related_parameter},
         'temperature': {'description': 'Adjust the temperature of the PRISM Assistant', 'menu_caller': temperature_parameter},
         'tokens': {'description': 'Adjust the maximum tokens for the PRISM Assistant', 'menu_caller': tokens_parameter},
+        'type speed': {'description': 'Adjust the typing speed of the PRISM Assistant', 'menu_caller': param_set_type_speed},
         'delay': {'description': 'Adjust the delay between menu displays', 'menu_caller': menu_delay_parameter}, 
         'timeout': {'description': 'Adjust the user interface timeout for API calls', 'menu_caller': timeout_parameter},
     }
@@ -223,6 +240,9 @@ PARAM_ASSISTANT_TEMPERATURE = temperature_parameter
 
 global PARAM_ASSISTANT_TOKENS
 PARAM_ASSISTANT_TOKENS = tokens_parameter
+
+global PARAM_ASSISTANT_TYPE_SPEED
+PARAM_ASSISTANT_TYPE_SPEED = param_set_type_speed
 
 global READ_ME_SET
 READ_ME_SET = readme

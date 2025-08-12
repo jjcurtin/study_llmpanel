@@ -41,7 +41,7 @@ def init_commands():
                                                              PARAM_ASSISTANT_TEMPERATURE, SYSTEM_SETTINGS, \
                                                              PARAMETER_SETTINGS, READ_ME_SET, PARAM_BEST_OPTIONS_THRESHOLD, \
                                                              PARAM_ASSISTANT_TOKENS, PRINT_PARAMS, PARAM_MENU_DELAY, \
-                                                             PARAM_TIMEOUT
+                                                             PARAM_TIMEOUT, PARAM_ASSISTANT_TYPE_SPEED
 
     # ------------------------------------------------------------
 
@@ -114,6 +114,7 @@ def init_commands():
         'params tokens': {'description': 'Manage max tokens for PRISM Assistant', 'menu_caller': lambda self: PARAM_ASSISTANT_TOKENS(self)},
         'params delay': {'description': 'Manage menu display delay', 'menu_caller': lambda self: PARAM_MENU_DELAY(self)},
         'params timeout': {'description': 'Manage user interface timeout (api calls and such)', 'menu_caller': lambda self: PARAM_TIMEOUT(self)},
+        'params type speed': {'description': 'Manage typing speed of PRISM Assistant', 'menu_caller': lambda self: PARAM_ASSISTANT_TYPE_SPEED(self)},
         'params print': {'description': 'Print current system parameters', 'menu_caller': lambda self: PRINT_PARAMS(self)},
         'print params': {'description': 'Print current system parameters', 'menu_caller': lambda self: PRINT_PARAMS(self)},
 

@@ -341,7 +341,7 @@ def ansi_write_str(s):
 # def screen_write(self, content, initial_x, initial_y, column_width, window_height):
 
 def assistant_header_write(self, lines):
-    from user_interface_menus._menu_helper import WINDOW_WIDTH
+    from user_interface_menus._menu_helper import WINDOW_WIDTH, ASSISTANT_TYPE_SPEED
     import re
 
     lines = [line.encode().decode('unicode_escape') for line in lines]
@@ -368,7 +368,7 @@ def assistant_header_write(self, lines):
     time_to_read_char_slow = 0.05
     min_time_to_read = 1
     max_time_to_read = 10
-    print_speed = 0.015
+    print_speed = ASSISTANT_TYPE_SPEED
 
     i = 0
     length = len(full_text)
