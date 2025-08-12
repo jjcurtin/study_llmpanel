@@ -29,7 +29,7 @@ library(lme4)
 library(tidyverse) 
 library(psych) 
 library(car)
-library(performance) # for icc
+library(broom)
 ```
 
 # Study Overview
@@ -245,11 +245,10 @@ Some other notes for making it realistic!
 # Preregistered Analyses
 
 Variables:
- - sub_id
- - pref_rating (how much would you like to receive a message in this style/tone)
- - pref_rating_style
- - pref_rating_tone
- - actual_rating (how helpful do you find this message)
+ - participant_id
+ - style_rating (how much would you like to receive a message in this style)
+ - tone_rating (how much would you like to receive a message in this tone)
+ - message_rating (how helpful do you find this message)
  - style (informal, formal)
  - tone (value affirmation, norms, acknowledging, self-efficacy, caring/supportive, legitimizing)
  - context (high/increasing, low/increasing, high/decreasing, low/decreasing)
@@ -280,12 +279,14 @@ By testing:
 
 For style:
 ```{r}
-m1 <- lm(pref_rating_style ~ style*sex, data = d)
+m1 <- lm(style_rating ~ style*sex, data = style_preferences)
+broom::tidy(m1)
 ```
 
 For tone:
 ```{r}
-m2 <- lm(pref_rating_tone ~ tone*sex, data = d)
+m2 <- lm(tone_rating ~ tone*sex, data = tone_preferences)
+broom::tidy(m2)
 ```
 
 ## Model 3 - Style and tone actual ratings
@@ -341,23 +342,42 @@ Answers:
 
  - Are participant ratings of their preferences more different across tone/style categories than within tone/style categories?
  - Are participant ratings of messages more different across tone/style categories than within tone/style categories?
+ 
+> note that not everyone is exposed to every message
 
 For tone/style preferences:
 ```{r}
-m5 <- lmer(pref_rating_tone ~ 1 + (1 | tone), data = d)
-icc(m5)
+tone_preferences |>
+  select(participant_id, tone, tone_rating) |>
+  pivot_wider(names_from = participant_id, values_from = tone_rating) |>
+  select(-tone) |> 
+  ICC()
 
-m6 <- lmer(pref_rating_style ~ 1 + (1 | style), data = d)
-icc(m6)
+style_preferences |>
+  select(participant_id, style, style_rating) |>
+  pivot_wider(names_from = participant_id, values_from = style_rating) |>
+  select(-style) |> 
+  ICC()
 ```
 
 For tone/style actual ratings:
 ```{r}
-m7 <- lmer(actual_rating ~ 1 + (1 | tone) + (1 | participant) + (1 | message), data = d)
-icc(m7)
+message_preferences |> 
+  group_by(participant_id, tone) |>
+  # here I am summarizing across four contexts
+  summarise(mean_rating = mean(message_rating, na.rm = TRUE),
+            .groups = "drop") |> 
+  pivot_wider(names_from = participant_id, values_from = mean_rating) |>
+  select(-tone) |> 
+  ICC()
 
-m8 <- lmer(actual_rating ~ 1 + (1 | style) + (1 | participant) + (1 | message), data = d)
-icc(m8)
+message_preferences |> 
+  group_by(participant_id, style) |> 
+  summarise(mean_rating = mean(message_rating, na.rm = TRUE),
+            .groups = "drop") |> 
+  pivot_wider(names_from = participant_id, values_from = mean_rating) |>
+  select(-style) |> 
+  ICC()
 ```
 
 > ICC does not work with ranked ordered categories, but there is a rank ICC package we could consider using: https://pmc.ncbi.nlm.nih.gov/articles/PMC10592008/ https://github.com/shengxintu/rankICC This paper has only been cited 10 times so might not be the best option.
@@ -369,5 +389,6 @@ icc(m8)
  - Should pref_rating be one variable or separated into two?
  - Are we going to use context?
  - Note that gender_id is fill in the blank so probably can't use in analyses. Should this be specific categories?
+ - Treat race/ethnicity as separate variables?
 
  
