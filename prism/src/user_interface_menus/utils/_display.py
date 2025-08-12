@@ -307,6 +307,26 @@ def clear_column(self, x, y, width, height):
         sys.stdout.write(" " * width)
     restore_cursor_pos(self, 0)
 
+def ansi_save_cursor():
+    sys.stdout.write("\033[s")
+    sys.stdout.flush()
+
+def ansi_restore_cursor():
+    sys.stdout.write("\033[u")
+    sys.stdout.flush()
+
+def ansi_clear_line():
+    sys.stdout.write("\033[2K")
+    sys.stdout.flush()
+
+def ansi_clear_screen():
+    sys.stdout.write("\033[2J")
+    sys.stdout.flush()
+
+def ansi_write_char(c):
+    sys.stdout.write(c)
+    sys.stdout.flush()
+
 # def screen_write(self, content, initial_x, initial_y, column_width, window_height):
 
 def assistant_header_write(self, lines):
@@ -316,7 +336,7 @@ def assistant_header_write(self, lines):
     initial_y = 3
     window_height = 1
     clear_column(self, initial_x, initial_y, WINDOW_WIDTH, 1)
-    sys.stdout.write("\033[s")  # Save cursor position
+    ansi_save_cursor()
 
     # Merge into one string with explicit newlines
     full_text = "\n".join(lines)
@@ -326,10 +346,9 @@ def assistant_header_write(self, lines):
     for ch in full_text:
         if msvcrt.kbhit():
             key = msvcrt.getwch()
-            if key == '\r':
-                sys.stdout.write("\033[u")  # Restore cursor position
-                sys.stdout.flush()
-                break  # stop printing immediately if Enter is pressed
+            if key == '\r': # enter key pressed
+                ansi_restore_cursor()
+                break
         if ch == "\n" or col >= WINDOW_WIDTH:
             # move to next row
             row += 1
@@ -342,57 +361,42 @@ def assistant_header_write(self, lines):
                 continue
 
         move_cursor(self, initial_x + col, initial_y + row)
-        sys.stdout.write(ch)
-        sys.stdout.flush()
+        ansi_write_char(ch)
         time.sleep(0.015)  # typing delay
         col += 1
 
-    sys.stdout.write("\033[u")  # Restore cursor position
-    sys.stdout.flush()
+    ansi_restore_cursor()
 
 def assistant_header_shift_write(self, lines):
     import time
     from user_interface_menus._menu_helper import WINDOW_WIDTH
-
-    initial_x = 0
-    initial_y = 3
+    initial_x, initial_y = 0, 3
     window_height = 1
 
     full_text = " ".join(line.replace('\n', ' ') for line in lines)
-
-    # Pad spaces on left and right for scrolling off screen
     padding = " " * WINDOW_WIDTH
     scroll_text = padding + full_text + padding
     length = len(scroll_text)
 
-    sys.stdout.write("\033[s")  # Save cursor position
+    ansi_save_cursor()
 
     for start in range(length - WINDOW_WIDTH + 1):
         if msvcrt.kbhit():
             key = msvcrt.getwch()
             if key == '\r':
                 clear_column(self, initial_x, initial_y, WINDOW_WIDTH, window_height)
-                sys.stdout.write("\033[u")  # Restore cursor position
-                sys.stdout.flush()
-                break  # stop printing immediately if Enter is pressed
-        # Clear the header line
-        clear_column(self, initial_x, initial_y, WINDOW_WIDTH, window_height)
+                break
 
-        # Get the visible window slice
-        window_slice = scroll_text[start : start + WINDOW_WIDTH]
-
-        move_cursor(self, initial_x, initial_y)
-        sys.stdout.write(window_slice)
+        sys.stdout.write(f"\033[u\033[{initial_y + 1};{initial_x + 1}H{scroll_text[start:start + WINDOW_WIDTH]}")
         sys.stdout.flush()
 
-        time.sleep(0.05)  # Adjust speed here
+        time.sleep(0.07)
 
-    sys.stdout.write("\033[u")  # Restore cursor position
-    sys.stdout.flush()
+    ansi_restore_cursor()
     
 def assistant_write(self, lines, initial_x, initial_y, column_width, window_height):
     clear_assistant_area(self)
-    sys.stdout.write("\033[s")  # Save cursor position
+    ansi_save_cursor()
 
     # Merge into one string with explicit newlines
     full_text = "\n".join(lines)
@@ -403,9 +407,8 @@ def assistant_write(self, lines, initial_x, initial_y, column_width, window_heig
         if msvcrt.kbhit():
             key = msvcrt.getwch()
             if key == '\r':
-                sys.stdout.write("\033[u")  # Restore cursor position
-                sys.stdout.flush()
-                break  # stop printing immediately if Enter is pressed
+                ansi_restore_cursor()
+                break
         if ch == "\n" or col >= column_width:
             # move to next row
             row += 1
@@ -418,13 +421,11 @@ def assistant_write(self, lines, initial_x, initial_y, column_width, window_heig
                 continue
 
         move_cursor(self, initial_x + col, initial_y + row)
-        sys.stdout.write(ch)
-        sys.stdout.flush()
+        ansi_write_char(ch)
         time.sleep(0.015)  # typing delay
         col += 1
 
-    sys.stdout.write("\033[u")  # Restore cursor position
-    sys.stdout.flush()
+    ansi_restore_cursor()
 
 def clear_assistant_area(self):
     clear_column(self, self.window_0_x, self.window_0_y, self.column_width, self.window_height)
