@@ -11,6 +11,7 @@ times_run <- times_run + 1
 writeLines(as.character(times_run), "times_run.txt")
 
 n_participants <- 100
+standard_deviation <- 0.3
 
 tones <- c("legitimizing", "caring_supportive", "self_efficacy",
            "acknowledging", "value_affirmation", "norms")
@@ -117,7 +118,7 @@ tone <- rep(tones, times = nrow(participants))
 
 adjusted_means <- mapply(get_adjusted_tone_mean, tone, participant_sex)
 
-tone_rating <- rnorm(length(tone), mean = adjusted_means, sd = 0.45)
+tone_rating <- rnorm(length(tone), mean = adjusted_means, sd = standard_deviation)
 tone_rating <- pmin(pmax(tone_rating, 1), 7)
 tone_rating <- round(tone_rating)
 tone_preferences <- data.frame(
@@ -137,7 +138,7 @@ style <- rep(styles, times = nrow(participants))
 
 adjusted_means <- mapply(get_adjusted_style_mean, style, participant_sex)
 
-style_rating <- rnorm(length(style), mean = adjusted_means, sd = 0.45)
+style_rating <- rnorm(length(style), mean = adjusted_means, sd = standard_deviation)
 style_rating <- pmin(pmax(style_rating, 1), 7)
 style_rating <- round(style_rating)
 style_preferences <- data.frame(
@@ -162,8 +163,8 @@ style <- rep(rep(styles, each = length(contexts)), times = length(tones) * nrow(
 adjusted_tone_means <- mapply(get_adjusted_tone_mean, tone, participant_sex)
 adjusted_style_means <- mapply(get_adjusted_style_mean, style, participant_sex)
 
-message_rating_tone <- rnorm(length(tone), mean = adjusted_tone_means, sd = 0.45)
-message_rating_style <- rnorm(length(style), mean = adjusted_style_means, sd = 0.45)
+message_rating_tone <- rnorm(length(tone), mean = adjusted_tone_means, sd = standard_deviation)
+message_rating_style <- rnorm(length(style), mean = adjusted_style_means, sd = standard_deviation)
 message_rating <- (message_rating_tone + message_rating_style) / 2
 
 message_rating <- pmin(pmax(message_rating, 1), 7)
