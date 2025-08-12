@@ -145,7 +145,7 @@ participants <- data.frame(
     minoritized,
     income_adj
 )
-write.csv(participants, file = 'participants.csv', row.names = FALSE)
+#write.csv(participants, file = 'participants.csv', row.names = FALSE)
 # ================ Participant Generation ================
 
 
@@ -164,8 +164,8 @@ tone_preferences <- data.frame(
   tone = tone,
   tone_rating = tone_rating
 )
-tone_preferences <- merge(tone_preferences, participants, by = "participant_id", all.x = TRUE)
-write.csv(tone_preferences, file = 'tone/tone_preferences.csv', row.names = FALSE)
+#tone_preferences <- merge(tone_preferences, participants, by = "participant_id", all.x = TRUE)
+#write.csv(tone_preferences, file = 'tone/tone_preferences.csv', row.names = FALSE)
 # ================ Tone Preference Generation ================
 
 
@@ -184,8 +184,8 @@ style_preferences <- data.frame(
   style = style,
   style_rating = style_rating
 )
-style_preferences <- merge(style_preferences, participants, by = "participant_id", all.x = TRUE)
-write.csv(style_preferences, file = 'style/style_preferences.csv', row.names = FALSE)
+#style_preferences <- merge(style_preferences, participants, by = "participant_id", all.x = TRUE)
+#write.csv(style_preferences, file = 'style/style_preferences.csv', row.names = FALSE)
 # ================ Style Preference Generation ================
 
 
@@ -213,9 +213,21 @@ message_preferences <- data.frame(
   style = style,
   message_rating = message_rating
 )
-message_preferences <- merge(message_preferences, participants, by = "participant_id", all.x = TRUE)
-write.csv(message_preferences, file = 'messages/message_preferences.csv', row.names = FALSE)
+#message_preferences <- merge(message_preferences, participants, by = "participant_id", all.x = TRUE)
+#write.csv(message_preferences, file = 'messages/message_preferences.csv', row.names = FALSE)
 # # ================ Message Preference Generation for tonesxstylexcontext ================
+```
+
+Combine message, style, and tone preferences into one dataset:
+```{r}
+# for this to work, don't run the merging you did above
+# I commented your merges and write functions out for now so you can run it in one go
+
+combined <- participants |>
+  left_join(message_preferences, by = "participant_id") |> 
+  left_join(style_preferences, by = c("participant_id", "style")) |> 
+  left_join(tone_preferences, by = c("participant_id", "tone"))
+
 ```
 
 Simulated data should have:
