@@ -30,13 +30,7 @@ def assistant_menu(self):
                 response_thread.join()
 
                 response = result_holder['response']
-                response = make_assistant_call(choice, 
-                                               menu_options = menu_options, 
-                                               api_key = api_key, 
-                                               endpoint = endpoint,
-                                               context = context)
                 if response and 'choices' in response and len(response['choices']) > 0:
-                    global WINDOW_WIDTH
                     if 'content' in response['choices'][0]['message']:
                         content = response['choices'][0]['message']['content'].replace('**', '')
                         response = ""
@@ -56,13 +50,16 @@ def assistant_menu(self):
                             assistant_write(self, [response], self.window_0_x, self.window_0_y, self.column_width, self.window_height)
                         context.append(content)
                     else:
-                        print("No content in response.")
+                        assistant_header_write(self, ["No content found in the assistant's response."])
+                        ansi_show_cursor()
                 else:
-                    print("No valid response received from the assistant.")
+                    assistant_header_write(self, ["No response from the assistant."])
+                    ansi_show_cursor()
                     exit_menu()
                     return
             except Exception as e:
-                print(f"An error occurred: {e}")
+                assistant_header_write(self, [f"{red('Error')}: {e}"])
+                ansi_show_cursor()
                 exit_menu()
                 return
             

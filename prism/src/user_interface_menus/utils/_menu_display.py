@@ -18,7 +18,7 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
         items = [
             # can have up to four columns
             # {"text": f"", "align_right" : False, "locked": True, "bordered": "left"}, # used for prism assistant if it is in a window
-            {"text": f"{yellow(key + green(recommended_text))}", "align_right" : False, "locked": True, "bordered": "left"},
+            {"text": f"{yellow(key + green(recommended_text))}", "align_right" : False, "locked": True, "bordered": "both"},
             {"text": f"{item['description']}", "align_right": False, "locked": False, "bordered": "both"},
         ]
         window_positions, column_width = display_in_columns(items)
