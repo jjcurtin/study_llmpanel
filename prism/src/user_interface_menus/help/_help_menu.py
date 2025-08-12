@@ -15,6 +15,7 @@ def help_menu(self):
     while True:
         if not self.commands_queue:
             print_menu_header("help")
+            assistant_header_write(self, ["Help Menu"])
         if print_menu_options(self, menu_options, submenu = True, recommended_actions = ['readme', 'ra']):
             break
 

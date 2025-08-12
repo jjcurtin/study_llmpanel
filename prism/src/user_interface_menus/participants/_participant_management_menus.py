@@ -132,6 +132,7 @@ def participant_management_menu(self):
             index_and_text = True
             if not self.commands_queue:
                 print_menu_header("participants")
+                assistant_header_write(self, ["Participant Management Menu"])
             menu_options = {}
 
             # Fetch participants from the API
