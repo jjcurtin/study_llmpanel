@@ -168,9 +168,8 @@ def print_menu_header(title):
     print(" " * padding + f"{red(title)}")
     print_equals()
 
-    from user_interface_menus._menu_helper import WINDOW_WIDTH
-    print(" " * WINDOW_WIDTH)
-    print_equals()
+    print()
+    print_dashes()
     print()
 
 def print_dashes():
@@ -335,10 +334,17 @@ def ansi_show_cursor():
     sys.stdout.write("\033[?25h")
     sys.stdout.flush()
 
+def ansi_write_str(s):
+    sys.stdout.write(s)
+    sys.stdout.flush()
+
 # def screen_write(self, content, initial_x, initial_y, column_width, window_height):
 
 def assistant_header_write(self, lines):
     from user_interface_menus._menu_helper import WINDOW_WIDTH
+    import re
+
+    lines = [line.encode().decode('unicode_escape') for line in lines]
 
     initial_x = 0
     initial_y = 3
@@ -348,6 +354,11 @@ def assistant_header_write(self, lines):
     ansi_hide_cursor()
 
     full_text = "\n".join(lines)
+    ansi_escape = re.compile(r'\033\[[0-?]*[ -/]*[@-~]')
+
+    matches = list(ansi_escape.finditer(full_text))
+    next_escape_idx = 0
+    next_escape = matches[next_escape_idx] if matches else None
 
     row = 0
     col = 0
@@ -357,14 +368,28 @@ def assistant_header_write(self, lines):
     time_to_read_char_slow = 0.05
     min_time_to_read = 1
     max_time_to_read = 10
-    print_speed = 0.015  # seconds per character
+    print_speed = 0.015
 
-    for ch in full_text:
+    i = 0
+    length = len(full_text)
+
+    while i < length:
+        if next_escape and i == next_escape.start():
+            ansi_write_str(next_escape.group())
+            i = next_escape.end()
+            next_escape_idx += 1
+            next_escape = matches[next_escape_idx] if next_escape_idx < len(matches) else None
+            continue
+
+        ch = full_text[i]
+
         if msvcrt.kbhit():
             key = msvcrt.getwch()
-            if key == '\r': # enter key pressed
+            if key == '\r':  # enter key
                 ansi_restore_cursor()
-                break
+                ansi_show_cursor()
+                return
+
         if ch == "\n" or col >= WINDOW_WIDTH:
             row += 1
             if row >= window_height:
@@ -380,12 +405,14 @@ def assistant_header_write(self, lines):
                 row = 0
             col = 0
             if ch == "\n":
+                i += 1
                 continue
 
         move_cursor(self, initial_x + col, initial_y + row)
         ansi_write_char(ch)
         time.sleep(print_speed)
         col += 1
+        i += 1
 
     ansi_show_cursor()
     ansi_restore_cursor()
