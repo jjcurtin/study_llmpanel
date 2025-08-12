@@ -1,5 +1,6 @@
 # menu for the prism assistant
 
+import threading
 from user_interface_menus._menu_helper import *
 from user_interface_menus.assistant._prism_assistant import make_assistant_call, get_credentials
 
@@ -18,6 +19,17 @@ def assistant_menu(self):
             return
         else:
             try:
+                result_holder = {}
+
+                def prism_assistant_call(result_holder):
+                    result_holder['response'] = make_assistant_call(choice, menu_options, api_key, endpoint, context)
+
+                response_thread = threading.Thread(target = prism_assistant_call, args = (result_holder,))
+                response_thread.start()
+                assistant_header_write(self, [f"Requested '{choice}' from the assistant. Please wait..."])
+                response_thread.join()
+
+                response = result_holder['response']
                 response = make_assistant_call(choice, 
                                                menu_options = menu_options, 
                                                api_key = api_key, 
