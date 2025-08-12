@@ -118,7 +118,7 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
 
     if not submenu:
         while choice == '':
-            choice = print_fixed_terminal_prompt()
+            choice = re_print_fixed_terminal_prompt(self)
 
     if choice == '':
         return 1

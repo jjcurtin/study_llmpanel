@@ -236,6 +236,11 @@ def print_equals():
 def print_fixed_terminal_prompt():
     return input(f"\n{cyan('prism> ')}").strip()
 
+def re_print_fixed_terminal_prompt(self):
+    x, y = save_current_cursor_pos(self)
+    move_cursor(self, x + len('prism> '), y - 1)
+    return input().strip()
+
 def print_assistant_terminal_prompt(self):
     from user_interface_menus.utils._menu_navigation import get_input
     return get_input(self, f"\n{red('assistant> ')}", print_prompt = False).strip()
@@ -267,6 +272,11 @@ def get_cursor_position():
             return int(col_str) - 1, int(row_str) - 1 
         except Exception:
             return None, None
+        
+def save_current_cursor_pos(self):
+    x, y = get_cursor_position()
+    save_cursor_pos(self, x, y)
+    return x, y
         
 def save_cursor_pos(self, x, y):
     if not hasattr(self, 'saved_positions'):
