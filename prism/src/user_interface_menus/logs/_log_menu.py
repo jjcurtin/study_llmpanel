@@ -15,6 +15,7 @@ def log_menu(self):
     while True:
         if not self.commands_queue:
             print_menu_header("logs")
+            assistant_header_write(self, ["Logs Menu"])
         if print_menu_options(self, menu_options, submenu = True, recommended_actions = ['transcript']):
             break
 

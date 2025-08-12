@@ -49,6 +49,7 @@ def display_settings(self):
     while True:
         if not self.commands_queue:
             print_menu_header("settings display")
+            assistant_header_write(self, ["Display Settings Menu"])
         if print_menu_options(self, menu_options, submenu = True, recommended_actions = ['color']):
             break
 
@@ -205,12 +206,13 @@ def readme(self):
 def system_settings(self):
     menu_options = {
         'params': {'description': 'Adjust system parameters', 'menu_caller': parameter_settings},
-        'readme': {'description': 'Toggle display of the PRISM Readme on startup', 'menu_caller': readme},
+        'readme set': {'description': 'Toggle display of the PRISM Readme on startup', 'menu_caller': readme},
     }
 
     while True:
         if not self.commands_queue:
             print_menu_header("settings system")
+            assistant_header_write(self, ["System Settings Menu"])
         if print_menu_options(self, menu_options, submenu = True):
             break
 
@@ -225,6 +227,7 @@ def settings_menu(self):
     while True:
         if not self.commands_queue:
             print_menu_header("settings")
+            assistant_header_write(self, ["Settings Menu"])
         if print_menu_options(self, menu_options, submenu = True):
             break
 

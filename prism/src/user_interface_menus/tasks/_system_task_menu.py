@@ -70,6 +70,7 @@ def system_task_menu(self):
     while True:
         if not self.commands_queue:
             print_menu_header("tasks")
+            assistant_header_write(self, ["Task Management Menu"])
             print_task_schedule(self)
             print()
         if print_menu_options(self, menu_options, submenu = True):
