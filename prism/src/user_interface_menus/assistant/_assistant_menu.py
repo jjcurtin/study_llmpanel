@@ -31,7 +31,11 @@ def assistant_menu(self):
                         for line in content.split('\n'):
                             if line.strip():
                                 response += f"{line.strip()}\n"
-                        assistant_write(self, [response], self.window_0_x, self.window_0_y, self.column_width, self.window_height)
+                        header = True
+                        if header:
+                            assistant_header_write(self, [response])
+                        else:
+                            assistant_write(self, [response], self.window_0_x, self.window_0_y, self.column_width, self.window_height)
                         context.append(content)
                     else:
                         print("No content in response.")
