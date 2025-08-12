@@ -33,11 +33,11 @@ def assistant_menu(self):
                                 response += f"{line.strip()}\n"
                         
                         header = True
-                        mode = 'shift' # or 'normal'
+                        mode = 'normal' # or 'normal'
 
                         if header:
                             if mode == 'shift':
-                                assistant_header_shift_write(self, [response])
+                                assistant_header_shift_write(self, [response]) # shift mode is kind of choppy at the moment
                             else:
                                 assistant_header_write(self, [response])
                         else:

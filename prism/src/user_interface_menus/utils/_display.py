@@ -327,6 +327,14 @@ def ansi_write_char(c):
     sys.stdout.write(c)
     sys.stdout.flush()
 
+def ansi_hide_cursor():
+    sys.stdout.write("\033[?25l")
+    sys.stdout.flush()
+
+def ansi_show_cursor():
+    sys.stdout.write("\033[?25h")
+    sys.stdout.flush()
+
 # def screen_write(self, content, initial_x, initial_y, column_width, window_height):
 
 def assistant_header_write(self, lines):
@@ -337,8 +345,8 @@ def assistant_header_write(self, lines):
     window_height = 1
     clear_column(self, initial_x, initial_y, WINDOW_WIDTH, 1)
     ansi_save_cursor()
+    ansi_hide_cursor()
 
-    # Merge into one string with explicit newlines
     full_text = "\n".join(lines)
 
     row = 0
@@ -350,10 +358,9 @@ def assistant_header_write(self, lines):
                 ansi_restore_cursor()
                 break
         if ch == "\n" or col >= WINDOW_WIDTH:
-            # move to next row
             row += 1
             if row >= window_height:
-                time.sleep(1) # page delay
+                time.sleep(1)               # page delay
                 clear_column(self, initial_x, initial_y, WINDOW_WIDTH, 1)
                 row = 0
             col = 0
@@ -362,13 +369,13 @@ def assistant_header_write(self, lines):
 
         move_cursor(self, initial_x + col, initial_y + row)
         ansi_write_char(ch)
-        time.sleep(0.015)  # typing delay
+        time.sleep(0.015)                   # typing char delay
         col += 1
 
+    ansi_show_cursor()
     ansi_restore_cursor()
 
 def assistant_header_shift_write(self, lines):
-    import time
     from user_interface_menus._menu_helper import WINDOW_WIDTH
     initial_x, initial_y = 0, 3
     window_height = 1
@@ -379,6 +386,7 @@ def assistant_header_shift_write(self, lines):
     length = len(scroll_text)
 
     ansi_save_cursor()
+    ansi_hide_cursor()
 
     for start in range(length - WINDOW_WIDTH + 1):
         if msvcrt.kbhit():
@@ -390,8 +398,9 @@ def assistant_header_shift_write(self, lines):
         sys.stdout.write(f"\033[u\033[{initial_y + 1};{initial_x + 1}H{scroll_text[start:start + WINDOW_WIDTH]}")
         sys.stdout.flush()
 
-        time.sleep(0.07)
+        time.sleep(0.05)
 
+    ansi_show_cursor()
     ansi_restore_cursor()
     
 def assistant_write(self, lines, initial_x, initial_y, column_width, window_height):
