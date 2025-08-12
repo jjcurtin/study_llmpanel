@@ -80,9 +80,9 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
              ]
         )
 
-        iterations = int(choice.split(".")[1]) if "." in choice and choice.split(".")[1].isdigit() else 1
+        iterations = int(choice.split("*")[1]) if "*" in choice and choice.split("*")[1].isdigit() else 1
         if iterations:
-            choice = choice.split(".")[0]
+            choice = choice.split("*")[0]
 
         if command or command_query:
             query = ' '.join(choice.split(" ")[1:]) if len(choice.split(" ")) > 1 and command else choice[1:] if len(choice) > 1 else None
