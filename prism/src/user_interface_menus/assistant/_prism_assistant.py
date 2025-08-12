@@ -65,7 +65,8 @@ def make_assistant_call(user_prompt, menu_options = None, api_key = None, endpoi
         response.raise_for_status()
         return response.json()
     except Exception as e:
-        error(f"Error making assistant call: {e}", None)
+        #error(f"Error making assistant call: {e}", None)
+        pass
 
 @staticmethod
 def get_credentials():
