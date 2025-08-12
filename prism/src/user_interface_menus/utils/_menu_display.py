@@ -225,6 +225,9 @@ def invalid_choice_menu(self, menu_options, choice = None):
     print(f"To search for commands, use {yellow("?")} followed by your query.")
     
     choice = print_fixed_terminal_prompt()
+    if choice.strip() == '':
+        while choice.strip() == '':
+            choice = re_print_fixed_terminal_prompt(self)
     if choice.lower() == 'yes' and combined_choices != '':
         first_choice = combined_choices.split(', ')[0]
         add_recent_command(first_choice)
