@@ -75,28 +75,6 @@ def align(text, column_number, num_columns, formatless = None, window_width = No
     output = f"{left}{truncated:{alignment}{format_width}}{right}"
     return output
 
-def get_cursor_position():
-        import sys, msvcrt
-        sys.stdout.write("\033[6n")
-        sys.stdout.flush()
-
-        buf = ""
-        while True:
-            ch = msvcrt.getwch()
-            buf += ch
-            if ch == "R":
-                break
-
-        if not buf.startswith("\x1b["):
-            return None, None  # not an ANSI response
-
-        try:
-            pos = buf[2:-1]  # strip "\x1b[" and trailing "R"
-            row_str, col_str = pos.split(";")
-            return int(col_str) - 1, int(row_str) - 1 
-        except Exception:
-            return None, None
-
 def display_in_columns(items = None):
     from user_interface_menus._menu_helper import WINDOW_WIDTH, COLOR_ON
     import re
@@ -185,31 +163,10 @@ def exit_interface(self):
 def print_menu_header(title):
     clear()
     from user_interface_menus._menu_helper import WINDOW_WIDTH
-
-    # title
     padding = (WINDOW_WIDTH - len(title)) // 2
     print_equals()
     print(" " * padding + f"{red(title)}")
     print_equals()
-
-    # # recommended actions
-    # from user_interface_menus._menu_helper import RECOMMENDED_ACTIONS
-    # from user_interface_menus._menu_helper import WINDOW_WIDTH
-    # if RECOMMENDED_ACTIONS:
-    #     length = 0
-    #     action_string = ""
-    #     for action in RECOMMENDED_ACTIONS:
-    #         action_string += f" {cyan(action)}"
-    #         length += 1
-    #         if action is not RECOMMENDED_ACTIONS[-1]:
-    #             action_string += " |"
-    #             length += 2
-    #         length += len(action.strip())
-    #     action_string = action_string.strip()
-    #     padding = (WINDOW_WIDTH - length) // 2
-    #     print(" " * padding + action_string)
-    #     print_equals()
-    print()
 
 def print_dashes():
     from user_interface_menus._menu_helper import WINDOW_WIDTH
@@ -286,3 +243,90 @@ def print_assistant_terminal_prompt(self):
 def print_twilio_terminal_prompt():
     print("Please enter your message below. Press ENTER to send.")
     return input(f"\n{green('twilio> ')}").strip()
+
+# ------------------------------------------------------------
+import sys, msvcrt, time
+
+def get_cursor_position():
+        sys.stdout.write("\033[6n")
+        sys.stdout.flush()
+
+        buf = ""
+        while True:
+            ch = msvcrt.getwch()
+            buf += ch
+            if ch == "R":
+                break
+
+        if not buf.startswith("\x1b["):
+            return None, None  # not an ANSI response
+
+        try:
+            pos = buf[2:-1]  # strip "\x1b[" and trailing "R"
+            row_str, col_str = pos.split(";")
+            return int(col_str) - 1, int(row_str) - 1 
+        except Exception:
+            return None, None
+        
+def save_cursor_pos(self, x, y):
+    if not hasattr(self, 'saved_positions'):
+        self.saved_positions = []
+    self.saved_positions.append((x, y))
+
+def restore_cursor_pos(self, index=-1):
+    if not hasattr(self, 'saved_positions') or not self.saved_positions:
+        return
+    x, y = self.saved_positions[index]
+    move_cursor(self, x, y)
+
+def move_cursor(self, x, y):
+    sys.stdout.write(f"\033[{y+1};{x+1}H")
+    sys.stdout.flush()
+
+def clear_column(self, x, y, width, height):
+    save_x, save_y = get_cursor_position()
+    if save_x is not None and save_y is not None:
+        save_cursor_pos(self, save_x, save_y)
+    for row in range(height):
+        move_cursor(self, x, y + row)
+        sys.stdout.write(" " * width)
+    restore_cursor_pos(self, 0)
+
+def assistant_write(self, lines, initial_x, initial_y, column_width, window_height):
+    clear_assistant_area(self)
+    sys.stdout.write("\033[s")  # Save cursor position
+
+    # Merge into one string with explicit newlines
+    full_text = "\n".join(lines)
+
+    row = 0
+    col = 0
+    for ch in full_text:
+        if msvcrt.kbhit():
+            key = msvcrt.getwch()
+            if key == '\r':
+                sys.stdout.write("\033[u")  # Restore cursor position
+                sys.stdout.flush()
+                break  # stop printing immediately if Enter is pressed
+        if ch == "\n" or col >= column_width:
+            # move to next row
+            row += 1
+            if row >= window_height:
+                time.sleep(0.5) # page delay
+                clear_assistant_area(self)
+                row = 0
+            col = 0
+            if ch == "\n":
+                continue
+
+        move_cursor(self, initial_x + col, initial_y + row)
+        sys.stdout.write(ch)
+        sys.stdout.flush()
+        time.sleep(0.015)  # typing delay
+        col += 1
+
+    sys.stdout.write("\033[u")  # Restore cursor position
+    sys.stdout.flush()
+
+def clear_assistant_area(self):
+    clear_column(self, self.window_0_x, self.window_0_y, self.column_width, self.window_height)

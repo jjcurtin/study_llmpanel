@@ -1,5 +1,4 @@
 # menu for the prism assistant
-import sys, time, msvcrt
 
 from user_interface_menus._menu_helper import *
 from user_interface_menus.assistant._prism_assistant import make_assistant_call, get_credentials
@@ -47,64 +46,3 @@ def assistant_menu(self):
             
         if first_loop:
             first_loop = False
-
-saved_positions = []
-
-def save_cursor_pos(x, y):
-    saved_positions.append((x, y))
-
-def restore_cursor_pos(index=-1):
-    x, y = saved_positions[index]
-    move_cursor(x, y)
-
-def move_cursor(x, y):
-    sys.stdout.write(f"\033[{y+1};{x+1}H")
-    sys.stdout.flush()
-
-def clear_column(x, y, width, height):
-    save_x, save_y = get_cursor_position()
-    if save_x is not None and save_y is not None:
-        save_cursor_pos(save_x, save_y)
-    for row in range(height):
-        move_cursor(x, y + row)
-        sys.stdout.write(" " * width)
-    restore_cursor_pos(0)
-
-def assistant_write(self, lines, initial_x, initial_y, column_width, window_height):
-    clear_assistant_area(self)
-    sys.stdout.write("\033[s")  # Save cursor position
-
-    # Merge into one string with explicit newlines
-    full_text = "\n".join(lines)
-
-    row = 0
-    col = 0
-    for ch in full_text:
-        if msvcrt.kbhit():
-            key = msvcrt.getwch()
-            if key == '\r':
-                sys.stdout.write("\033[u")  # Restore cursor position
-                sys.stdout.flush()
-                break  # stop printing immediately if Enter is pressed
-        if ch == "\n" or col >= column_width:
-            # move to next row
-            row += 1
-            if row >= window_height:
-                time.sleep(0.5) # page delay
-                clear_assistant_area(self)
-                row = 0
-            col = 0
-            if ch == "\n":
-                continue
-
-        move_cursor(initial_x + col, initial_y + row)
-        sys.stdout.write(ch)
-        sys.stdout.flush()
-        time.sleep(0.015)  # typing delay
-        col += 1
-
-    sys.stdout.write("\033[u")  # Restore cursor position
-    sys.stdout.flush()
-
-def clear_assistant_area(self):
-    clear_column(self.window_0_x, self.window_0_y, self.column_width, self.window_height)
