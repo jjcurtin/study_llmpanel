@@ -44,13 +44,12 @@ def make_assistant_call(user_prompt, menu_options = None, api_key = None, endpoi
             "max_tokens": ASSISTANT_TOKENS,
             "temperature": ASSISTANT_TEMPERATURE
         }
-        response = requests.post(endpoint, headers = headers, json = payload)
+        from user_interface_menus._menu_helper import TIMEOUT
+        response = requests.post(endpoint, headers = headers, json = payload, timeout = TIMEOUT)
         response.raise_for_status()
         return response.json()
-    except requests.RequestException as e:
-        print(f"Error making API call: {e}\nPlease check your API key and endpoint.")
     except Exception as e:
-        print(f"Unexpected error during API call: {e}\nPlease check your input and try again.")
+        pass
 
 @staticmethod
 def get_credentials():

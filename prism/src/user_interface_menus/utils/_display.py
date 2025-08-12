@@ -351,6 +351,14 @@ def assistant_header_write(self, lines):
 
     row = 0
     col = 0
+    
+    time_to_read_char_fast = 0.02
+    time_to_read_char_medium = 0.04
+    time_to_read_char_slow = 0.05
+    min_time_to_read = 1
+    max_time_to_read = 10
+    print_speed = 0.015  # seconds per character
+
     for ch in full_text:
         if msvcrt.kbhit():
             key = msvcrt.getwch()
@@ -360,7 +368,14 @@ def assistant_header_write(self, lines):
         if ch == "\n" or col >= WINDOW_WIDTH:
             row += 1
             if row >= window_height:
-                time.sleep(1)               # page delay
+                if col < 20:
+                    char_time = time_to_read_char_slow
+                elif col < 50:
+                    char_time = time_to_read_char_medium
+                else:
+                    char_time = time_to_read_char_fast
+                text_reading_time = max(min_time_to_read, min(max_time_to_read, col * char_time))
+                time.sleep(text_reading_time)
                 clear_column(self, initial_x, initial_y, WINDOW_WIDTH, 1)
                 row = 0
             col = 0
@@ -369,7 +384,7 @@ def assistant_header_write(self, lines):
 
         move_cursor(self, initial_x + col, initial_y + row)
         ansi_write_char(ch)
-        time.sleep(0.015)                   # typing char delay
+        time.sleep(print_speed)
         col += 1
 
     ansi_show_cursor()
