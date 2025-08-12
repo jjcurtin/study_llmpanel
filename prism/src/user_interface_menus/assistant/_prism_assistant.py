@@ -4,9 +4,11 @@ import requests
 import os
 import pandas as pd
 
+from user_interface_menus._menu_helper import error
+
 def make_assistant_call(user_prompt, menu_options = None, api_key = None, endpoint = None, context = None):
     try:
-        from user_interface_menus._menu_helper import ASSISTANT_TEMPERATURE, ASSISTANT_TOKENS
+        from user_interface_menus._menu_helper import ASSISTANT_TEMPERATURE, ASSISTANT_TOKENS, COLOR_ON
         system_prompt = ""
         with open('../config/system_prompt.txt', 'r') as file:
             system_prompt = file.read().strip()
@@ -29,6 +31,20 @@ def make_assistant_call(user_prompt, menu_options = None, api_key = None, endpoi
 
         for prev_message in context:
             system_prompt += f"\nThe user has previously asked about {prev_message}"
+
+        if COLOR_ON:
+            y, g, r, stop = "\\033[33m", "\\033[32m", "\\033[31m", "\\033[0m"
+        else:
+            y, g, r, stop = "\\033[4m", "\\033[1m", "\\033[1m", "\\033[0m"
+
+        system_prompt += f'\nWhen using colors include the "{stop}" escape character after the thing you are putting in color. \
+                            Do not wrap the color codes in quotes.'
+        system_prompt += f'\nWhen referencing files or folders, use the "{g}" escape character before the name of the file or folder. \
+                            Do not wrap the file or folder name in quotes.'
+        system_prompt += f'\nWhen referencing commands or macros, use the "{y}" escape character before the name of the command or \
+                            macro or / or command search instructions. Do not wrap the command in quotes.'
+        system_prompt += f'\nWhen referencing the prism assistant, use the "{r}" escape character before the word "assistant". \
+                            Do not wrap the word in quotes.'
             
         messages = []
         messages.append({"role": "system", "content": system_prompt})
@@ -49,7 +65,7 @@ def make_assistant_call(user_prompt, menu_options = None, api_key = None, endpoi
         response.raise_for_status()
         return response.json()
     except Exception as e:
-        pass
+        error(f"Error making assistant call: {e}", None)
 
 @staticmethod
 def get_credentials():
