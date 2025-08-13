@@ -37,17 +37,7 @@ def assistant_menu(self):
                         for line in content.split('\n'):
                             if line.strip():
                                 response += f"{line.strip()}\n"
-                        
-                        header = True
-                        mode = 'normal' # or 'normal'
-
-                        if header:
-                            if mode == 'shift':
-                                assistant_header_shift_write(self, [response]) # shift mode is kind of choppy at the moment
-                            else:
-                                assistant_header_write(self, [response])
-                        else:
-                            assistant_write(self, [response], self.window_0_x, self.window_0_y, self.column_width, self.window_height)
+                        assistant_header_write(self, [response])
                         context.append(content)
                     else:
                         assistant_header_write(self, ["Error processing assistant response."])
