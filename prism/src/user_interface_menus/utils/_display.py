@@ -42,8 +42,10 @@ def white(message = None):
 
 # ------------------------------------------------------------
 
-def align(text, column_number, num_columns, formatless = None, window_width = None, align_right = None, locked = False, border_left = False, border_right = False):
+def align(self, text, column_number, num_columns, formatless = None, window_width = None, align_right = None, locked = False, border_left = False, border_right = False):
     from user_interface_menus._menu_helper import RIGHT_ALIGN, WINDOW_WIDTH
+    import re
+
     if window_width is None:
         window_width = int(WINDOW_WIDTH)
     if formatless is None:
@@ -51,11 +53,20 @@ def align(text, column_number, num_columns, formatless = None, window_width = No
     if align_right is None:
         align_right = RIGHT_ALIGN
 
+    num_invisible_escape_chars = len(re.findall(r'\x1B\[[0-?]*[ -/]*[@-~]', text))
     compensation = (len(text) - len(formatless))
     format_width = int(window_width + compensation)
+
+    if self.debug:
+        print(f"size of window: {window_width}, text size = {len(text)}, formatless size = {len(formatless)}, escape chars = {compensation}")
+
     middle_screen_adjustment = (WINDOW_WIDTH % num_columns)
     middle_screen_adjustment1 = middle_screen_adjustment // 2 + (middle_screen_adjustment % 2)
     middle_screen_adjustment2 = middle_screen_adjustment // 2
+
+    if self.debug:
+        print(f"\nmiddle screen adjustment: {green(middle_screen_adjustment)}\n")
+
     format_width += middle_screen_adjustment if (
         (column_number == 0 and num_columns == 2) or
         (column_number == 1 and num_columns == 3)
@@ -78,18 +89,55 @@ def align(text, column_number, num_columns, formatless = None, window_width = No
     left, right = "", ""
     if border_left:
         left = "| "
-        format_width -= 2
     if border_right:
         right = " |"
-        format_width -= 2
-    truncated = text[:format_width]
-    output = f"{left}{truncated:{alignment}{format_width}}{right}"
+
+    truncated = text[:(format_width)].rstrip()
+
+    if self.debug:
+        print(red(num_invisible_escape_chars), "invisible escape chars in text:", text)
+        string = "\n"
+        for i in range(0, len(truncated)):
+            string += truncated[i] + " "
+        length = int(len(string) / 2)
+        color = green if length <= format_width else red
+        print((color(string) + f" ({color(length)}" + " chars)"))
+
+    output = ""
+
+    if alignment == "<":
+        final_string = f"{left}{truncated}"
+        if border_right:
+            format_width -= len(right)
+        if self.debug:
+            print(f"Truncated with left: {final_string}, alignment: {alignment}, format width: {format_width}\n")
+        output = f"{final_string:{alignment}{format_width}}"
+        output += right
+    elif alignment == ">":
+        final_string = f"{truncated}{right}"
+        if border_left:
+            format_width -= len(left)
+        if self.debug:
+            print(f"Truncated with right: {final_string}, alignment: {alignment}, format width: {format_width}\n")
+        output = f"{final_string:{alignment}{format_width}}"
+        output = left + output
+
+    if self.debug:
+        print("Final output:     " + repr(output))
+        print(f"                  {red("-") * len(repr(output))}")
+        print("Formatted input:  " + repr(text))
+        print(f"                  {yellow("-") * len(repr(text))}")
+        print("Formatless input: " + repr(formatless))
+        print(f"                  {green('-') * len(repr(formatless))}")
+        amount = len(output) - format_width - 2
+        print(f"{yellow(format_width)} -> column {column_number + 1} of {num_columns}, output is {f"{red(amount)}" if amount != 0 else 0} chars over format width {format_width}\n")
+
     return output
 
 # ------------------------------------------------------------
 
-def display_in_columns(items = None):
-    from user_interface_menus._menu_helper import WINDOW_WIDTH, COLOR_ON
+def display_in_columns(self, items = None):
+    from user_interface_menus._menu_helper import WINDOW_WIDTH
     import re
 
     if items is None:
@@ -106,6 +154,8 @@ def display_in_columns(items = None):
         initial_y = initial_pos[1] if initial_pos[1] is not None else 0
 
         line_text = ""
+        if self.debug:
+            print()
         for i, item in enumerate(items):
 
             if i % len(items) == 0:
@@ -125,7 +175,7 @@ def display_in_columns(items = None):
                 initial_x += 2
                 frame_width = column_width - 2
             window_positions.append((initial_x, initial_y))
-            column_text = align(
+            column_text = align(self,
                 item['text'], i, 
                 num_segments, formatless = item_formatless, 
                 window_width = column_width, 
