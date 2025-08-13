@@ -48,6 +48,7 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
         # print_guide_lines(len(items) - 1, "dashes", len(items))
 
     def display_local_menu_options(start_index = 1, num_to_print = None, indexed = False):
+        from user_interface_menus._menu_helper import WINDOW_HEIGHT
         if num_to_print is None:
             num_to_print = len(menu_options)
         num_printed = 0
@@ -56,7 +57,8 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
 
         menu_items = list(menu_options.items())
         total_items = len(menu_items)
-        for index in range(start_index, total_items):
+
+        for index in range(start_index - 1, total_items):
             key, item = menu_items[index]
 
             if not indexed and not key.isdigit() and num_printed < num_to_print:
@@ -65,14 +67,14 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
 
             elif indexed and key.isdigit() and num_printed < num_to_print:
                 num_printed += 1
-                if index + 5 < total_items:
-                    key2, item2 = menu_items[index + 5]
+                if index + WINDOW_HEIGHT < total_items:
+                    key2, item2 = menu_items[index + WINDOW_HEIGHT]
                     if not key2.isdigit():
                         key2, item2 = None, None
                 else:
                     key2, item2 = None, None
-
                 print_key_line(key, item, index, len(menu_options), top_window = True, key2 = key2, item2 = item2)
+        
         print_dashes()
 
         #if num_printed < num_to_print:
