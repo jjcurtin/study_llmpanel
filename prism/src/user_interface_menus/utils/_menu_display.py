@@ -14,175 +14,192 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
         set_local_menu_options("debug", menu_options)
     
     def print_key_line(key, item, index, total_items, top_window = False, key2 = None, item2 = None):
-        recommended_text = f" (recommended)" if recommended_actions is not None and key in recommended_actions else ""
+        try:
+            recommended_text = f" (recommended)" if recommended_actions is not None and key in recommended_actions else ""
 
-        if top_window:
-            if key2 is not None and item2 is not None:
+            if top_window:
+                if key2 is not None and item2 is not None:
+                    items = [
+                        # can have up to four columns
+                        {"text": f"{yellow(key)}: {white(item['description'])}", "align_right" : False, "locked": True, "bordered": "both"},
+                        {"text": f"{yellow(key2)}: {white(item2['description'])}", "align_right" : False, "locked": True, "bordered": "both"},
+                    ]
+                else:
+                    items = [
+                        # can have up to four columns
+                        {"text": f"{yellow(key)}: {white(item['description'])}", "align_right" : False, "locked": True, "bordered": "both"},
+                        {"text": f"", "align_right" : False, "locked": True, "bordered": "both"}, # overflow catcher
+                    ]
+
+            elif not top_window:
                 items = [
                     # can have up to four columns
-                    {"text": f"{yellow(key)}: {white(item['description'])}", "align_right" : False, "locked": True, "bordered": "both"},
-                    {"text": f"{yellow(key2)}: {white(item2['description'])}", "align_right" : False, "locked": True, "bordered": "both"},
+                    # {"text": f"", "align_right" : False, "locked": True, "bordered": "left"}, # empty window
+                    {"text": f"{yellow(key + green(recommended_text))}", "align_right" : False, "locked": True, "bordered": "both"},
+                    {"text": f"{item['description']}", "align_right": False, "locked": False, "bordered": "both"},
                 ]
-            else:
-                items = [
-                    # can have up to four columns
-                    {"text": f"{yellow(key)}: {white(item['description'])}", "align_right" : False, "locked": True, "bordered": "both"},
-                    {"text": f"", "align_right" : False, "locked": True, "bordered": "both"}, # overflow catcher
-                ]
+            window_positions, column_width = display_in_columns(items)
+            for i, pos in enumerate(window_positions):
+                if index == 0:
+                    setattr(self, f"window_{i}_x", pos[0])
+                    setattr(self, f"window_{i}_y", pos[1])
+            self.column_width = column_width
+            self.window_height = total_items
+            self.num_columns = len(window_positions)
+            # print_guide_lines(len(items) - 1, "dashes", len(items))
+        except Exception as e:
+            error(f"Error printing key line: {e}")
 
-        elif not top_window:
-            items = [
-                # can have up to four columns
-                # {"text": f"", "align_right" : False, "locked": True, "bordered": "left"}, # empty window
-                {"text": f"{yellow(key + green(recommended_text))}", "align_right" : False, "locked": True, "bordered": "both"},
-                {"text": f"{item['description']}", "align_right": False, "locked": False, "bordered": "both"},
-            ]
-        window_positions, column_width = display_in_columns(items)
-        for i, pos in enumerate(window_positions):
-            if index == 0:
-                setattr(self, f"window_{i}_x", pos[0])
-                setattr(self, f"window_{i}_y", pos[1])
-        self.column_width = column_width
-        self.window_height = total_items
-        self.num_columns = len(window_positions)
-        # print_guide_lines(len(items) - 1, "dashes", len(items))
+    def display_local_menu_options(self, start_index = 1, num_to_print = None, indexed = False):
+        try:
+            from user_interface_menus._menu_helper import WINDOW_HEIGHT
+            if num_to_print is None:
+                num_to_print = len(menu_options)
+            num_printed = 0
+            if not indexed:
+                print_dashes()
 
-    def display_local_menu_options(start_index = 1, num_to_print = None, indexed = False):
-        from user_interface_menus._menu_helper import WINDOW_HEIGHT
-        if num_to_print is None:
-            num_to_print = len(menu_options)
-        num_printed = 0
-        if not indexed:
+            menu_items = list(menu_options.items())
+            total_items = len(menu_items)
+
+            for index in range(start_index - 1, total_items):
+                key, item = menu_items[index]
+
+                if not indexed and not key.isdigit() and num_printed < num_to_print:
+                    num_printed += 1
+                    print_key_line(key, item, index, len(menu_options), top_window = False)
+
+                elif indexed and key.isdigit() and num_printed < num_to_print:
+                    num_printed += 1
+                    if index + WINDOW_HEIGHT < total_items:
+                        key2, item2 = menu_items[index + WINDOW_HEIGHT]
+                        if not key2.isdigit():
+                            key2, item2 = None, None
+                    else:
+                        key2, item2 = None, None
+                    print_key_line(key, item, index, len(menu_options), top_window = True, key2 = key2, item2 = item2)
+            
             print_dashes()
 
-        menu_items = list(menu_options.items())
-        total_items = len(menu_items)
+            #if num_printed < num_to_print:
+            # if num_printed < len(menu_options):
+            #     print(f"{start_index} to {start_index + num_printed - 1} of {len(menu_options)} options shown.")
+        except Exception as e:
+            error(f"Error displaying local menu options: {e}")
 
-        for index in range(start_index - 1, total_items):
-            key, item = menu_items[index]
-
-            if not indexed and not key.isdigit() and num_printed < num_to_print:
-                num_printed += 1
-                print_key_line(key, item, index, len(menu_options), top_window = False)
-
-            elif indexed and key.isdigit() and num_printed < num_to_print:
-                num_printed += 1
-                if index + WINDOW_HEIGHT < total_items:
-                    key2, item2 = menu_items[index + WINDOW_HEIGHT]
-                    if not key2.isdigit():
-                        key2, item2 = None, None
-                else:
-                    key2, item2 = None, None
-                print_key_line(key, item, index, len(menu_options), top_window = True, key2 = key2, item2 = item2)
-        
-        print_dashes()
-
-        #if num_printed < num_to_print:
-        # if num_printed < len(menu_options):
-        #     print(f"{start_index} to {start_index + num_printed - 1} of {len(menu_options)} options shown.")
-
-    def print_keys():
-        from user_interface_menus._menu_helper import WINDOW_HEIGHT
-        if index_and_text:
-            display_local_menu_options(start_index = 1, num_to_print = WINDOW_HEIGHT, indexed = True)
-        display_local_menu_options(start_index = 1)
-        if submenu:
-            print(f"\n{yellow("ENTER")}: Back to Previous Menu")
+    def print_keys(self):
+        try:
+            from user_interface_menus._menu_helper import WINDOW_HEIGHT
+            if index_and_text:
+                display_local_menu_options(self, start_index = 1, num_to_print = WINDOW_HEIGHT, indexed = True)
+            display_local_menu_options(self, start_index = 1)
+            if submenu:
+                print(f"\n{yellow("ENTER")}: Back to Previous Menu")
+        except Exception as e:
+            error(f"Error printing keys: {e}")
 
     def check_for_special_commands(choice, self):
-        from user_interface_menus._menu_helper import remove_macro, macro_search
-        def check_prefix(prefix):
-            return choice.startswith(prefix)
-        
-        def check_prefixes(prefixes):
-            return [check_prefix(prefix) for prefix in prefixes]
-
-        command, \
-        command_query, \
-        execute_commands, \
-        register_command, \
-        remove_command, \
-        search_macros, \
-        query_assistant, \
-        query_assistant_alias = \
-        \
-        check_prefixes (
-            ["command ", 
-             "?", 
-             "/", 
-             "$", 
-             "-", 
-             "!",
-             "@",
-             "assistant ",
-             ]
-        )
-
-        iterations = int(choice.split("*")[1]) if "*" in choice and choice.split("*")[1].isdigit() else 1
-        if iterations:
-            choice = choice.split("*")[0]
-
-        if command or command_query:
-            query = ' '.join(choice.split(" ")[1:]) if len(choice.split(" ")) > 1 and command else choice[1:] if len(choice) > 1 else None
-            print_global_command_menu(self, query)
-        elif execute_commands:
-            for _ in range(iterations):
-                CommandInjector(choice)(self)
-        elif register_command:
-            identifier = choice.split("=")[0][1:].strip()
-            command_string = choice.split("=")[1].strip() if '=' in choice else None
-            print(f"Registering {identifier} as {command_string}")
-            if add_user_defined_global_command(identifier, command_string, self = self):
-                save_macro(self, identifier, command_string)
-        elif remove_command:
-            remove_macro(self, choice)
-        elif search_macros:
-            macro_search(self, choice, all = (len(choice) == 1))
-        elif query_assistant or query_assistant_alias:
-            query = ' '.join(choice.split(" ")[1:]) if query_assistant_alias else choice[1:] if query_assistant else None
-            self.inputs_queue.put(query)
-            from user_interface_menus.assistant._assistant_menu import assistant_menu
-            assistant_menu(self)
-        else:
-            return False
-        return True
-
-    if choice is None:
-        if self.commands_queue:
-            return process_chained_command(self)
-        print_keys()
-        choice = print_fixed_terminal_prompt()
-
-    if not submenu:
-        while choice == '':
-            choice = re_print_fixed_terminal_prompt(self)
-
-    if choice == '':
-        return 1
-    elif check_for_special_commands(choice, self):
-        return 1
-    elif menu_options.get(choice):
         try:
-            selected = menu_options.get(choice)
-            menu_caller = selected['menu_caller']
-            add_recent_command(choice)
-            if goto_menu(menu_caller, self):
-                return 1
-        except Exception as e:  
-            error(f"Local menu option error: {e}")
-            return 0
-    elif check_global_menu_options(choice):
-        try:
-            description, menu_caller = check_global_menu_options(choice)
-            add_recent_command(choice)
-            if goto_menu(menu_caller, self):
-                return 1
+            from user_interface_menus._menu_helper import remove_macro, macro_search
+            def check_prefix(prefix):
+                return choice.startswith(prefix)
+            
+            def check_prefixes(prefixes):
+                return [check_prefix(prefix) for prefix in prefixes]
+
+            command, \
+            command_query, \
+            execute_commands, \
+            register_command, \
+            remove_command, \
+            search_macros, \
+            query_assistant, \
+            query_assistant_alias = \
+            \
+            check_prefixes (
+                ["command ", 
+                "?", 
+                "/", 
+                "$", 
+                "-", 
+                "!",
+                "@",
+                "assistant ",
+                ]
+            )
+
+            iterations = int(choice.split("*")[1]) if "*" in choice and choice.split("*")[1].isdigit() else 1
+            if iterations:
+                choice = choice.split("*")[0]
+
+            if command or command_query:
+                query = ' '.join(choice.split(" ")[1:]) if len(choice.split(" ")) > 1 and command else choice[1:] if len(choice) > 1 else None
+                print_global_command_menu(self, query)
+            elif execute_commands:
+                for _ in range(iterations):
+                    CommandInjector(choice)(self)
+            elif register_command:
+                identifier = choice.split("=")[0][1:].strip()
+                command_string = choice.split("=")[1].strip() if '=' in choice else None
+                print(f"Registering {identifier} as {command_string}")
+                if add_user_defined_global_command(identifier, command_string, self = self):
+                    save_macro(self, identifier, command_string)
+            elif remove_command:
+                remove_macro(self, choice)
+            elif search_macros:
+                macro_search(self, choice, all = (len(choice) == 1))
+            elif query_assistant or query_assistant_alias:
+                query = ' '.join(choice.split(" ")[1:]) if query_assistant_alias else choice[1:] if query_assistant else None
+                self.inputs_queue.put(query)
+                from user_interface_menus.assistant._assistant_menu import assistant_menu
+                assistant_menu(self)
+            else:
+                return False
+            return True
         except Exception as e:
-            error(f"Global menu option error: {e}")
-            return 0
-    else:
-        invalid_choice_menu(self, menu_options, choice)
-    return 0
+            error(f"Error checking for special commands: {e}")
+            return False
+
+    try:
+        if choice is None:
+            if self.commands_queue:
+                return process_chained_command(self)
+            print_keys(self)
+            choice = print_fixed_terminal_prompt()
+
+        if not submenu:
+            while choice == '':
+                choice = re_print_fixed_terminal_prompt(self)
+
+        if choice == '':
+            return 1
+        elif check_for_special_commands(choice, self):
+            return 1
+        elif menu_options.get(choice):
+            try:
+                selected = menu_options.get(choice)
+                menu_caller = selected['menu_caller']
+                add_recent_command(choice)
+                if goto_menu(menu_caller, self):
+                    return 1
+            except Exception as e:  
+                error(f"Local menu option error: {e}")
+                return 0
+        elif check_global_menu_options(choice):
+            try:
+                description, menu_caller = check_global_menu_options(choice)
+                add_recent_command(choice)
+                if goto_menu(menu_caller, self):
+                    return 1
+            except Exception as e:
+                error(f"Global menu option error: {e}")
+                return 0
+        else:
+            invalid_choice_menu(self, menu_options, choice)
+        return 0
+    except Exception as e:
+        error(f"Error parsing command: {e}")
+        return 0
 
 # ------------------------------------------------------------
 
