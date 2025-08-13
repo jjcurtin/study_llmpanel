@@ -16,6 +16,7 @@ class PRISMInterface:
 
         self.inputs_queue = queue.Queue()
         self.commands_queue = deque()
+        self.debug = False
 
         load_saved_macros(self)
             

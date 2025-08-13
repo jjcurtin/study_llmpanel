@@ -13,22 +13,31 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
     if submenu:
         set_local_menu_options("debug", menu_options)
     
-    def print_key_line(key, item, index, total_items, top_window = False, key2 = None, item2 = None):
+    def print_key_line(key, item, index, total_items, top_window = False, key2 = None, item2 = None, key3 = None, item3 = None):
         try:
             recommended_text = f" (recommended)" if recommended_actions is not None and key in recommended_actions else ""
 
             if top_window:
-                if key2 is not None and item2 is not None:
+                if key2 is not None and item2 is not None and key3 is not None and item3 is not None:
                     items = [
                         # can have up to four columns
                         {"text": f"{yellow(key)}: {white(item['description'])}", "align_right" : False, "locked": True, "bordered": "both"},
                         {"text": f"{yellow(key2)}: {white(item2['description'])}", "align_right" : False, "locked": True, "bordered": "both"},
+                        {"text": f"{yellow(key3)}: {white(item3['description'])}", "align_right" : False, "locked": True, "bordered": "both"},
+                    ]
+                elif key2 is not None and item2 is not None:
+                    items = [
+                        # can have up to four columns
+                        {"text": f"{yellow(key)}: {white(item['description'])}", "align_right" : False, "locked": True, "bordered": "both"},
+                        {"text": f"{yellow(key2)}: {white(item2['description'])}", "align_right" : False, "locked": True, "bordered": "both"},
+                        {"text": f"", "align_right" : False, "locked": False, "bordered": "both"},
                     ]
                 else:
                     items = [
                         # can have up to four columns
                         {"text": f"{yellow(key)}: {white(item['description'])}", "align_right" : False, "locked": True, "bordered": "both"},
-                        {"text": f"", "align_right" : False, "locked": True, "bordered": "both"}, # overflow catcher
+                        {"text": f"", "align_right" : False, "locked": False, "bordered": "both"},
+                        {"text": f"", "align_right" : False, "locked": False, "bordered": "both"},
                     ]
 
             elif not top_window:
@@ -46,7 +55,8 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
             self.column_width = column_width
             self.window_height = total_items
             self.num_columns = len(window_positions)
-            # print_guide_lines(len(items) - 1, "dashes", len(items))
+            if self.debug:
+                print_guide_lines(len(items) - 1, "dashes", len(items))
         except Exception as e:
             error(f"Error printing key line: {e}")
 
@@ -77,7 +87,14 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
                             key2, item2 = None, None
                     else:
                         key2, item2 = None, None
-                    print_key_line(key, item, index, len(menu_options), top_window = True, key2 = key2, item2 = item2)
+
+                    if index + (WINDOW_HEIGHT * 2) < total_items:
+                        key3, item3 = menu_items[index + (WINDOW_HEIGHT * 2)]
+                        if not key3.isdigit():
+                            key3, item3 = None, None
+                    else:
+                        key3, item3 = None, None
+                    print_key_line(key, item, index, len(menu_options), top_window = True, key2 = key2, item2 = item2, key3 = key3, item3 = item3)
             
             print_dashes()
 
