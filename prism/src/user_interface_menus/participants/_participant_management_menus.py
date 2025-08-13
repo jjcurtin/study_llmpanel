@@ -141,7 +141,7 @@ def participant_management_menu(self):
             if participants and not self.commands_queue:
                 for i, p in enumerate(_sort(_filter(participants)), 1):
                     menu_options[str(i)] = {
-                        'description': f"{p['last_name']}, {p['first_name']} (ID: {p['unique_id']}) - On Study: {p['on_study']}",
+                        'description': f"{p['last_name']}, {p['first_name']} ({p['unique_id']})",
                         'menu_caller': lambda self, participant_id = p['unique_id']: individual_participant_menu(self, participant_id)
                     }
                 print("Enter an index to select a participant, or, choose another option.")

@@ -10,6 +10,11 @@ def clear():
 
 # ------------------------------------------------------------
 
+def toggle_debug_mode(self):
+    self.debug = not self.debug
+
+# ------------------------------------------------------------
+
 def green(message = None):
     from user_interface_menus._menu_helper import COLOR_ON
     green, color_end = ("\033[32m", "\033[0m") if COLOR_ON else ("\033[1m", "\033[0m")

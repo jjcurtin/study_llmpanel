@@ -50,6 +50,7 @@ def init_commands():
     # ------------------------------------------------------------
 
     from user_interface_menus.utils._menu_display import print_recent_commands, print_global_command_menu, print_register_command_menu
+    from user_interface_menus.utils._display import toggle_debug_mode
 
     # ------------------------------------------------------------
 
@@ -133,6 +134,8 @@ def init_commands():
         
         'command': {'description': 'Global Command Menu; "command <query>" to search', 'menu_caller': print_global_command_menu},
         'register': {'description': 'Register a new global command', 'menu_caller': print_register_command_menu},
+
+        'debug': {'description': 'Debug Menu', 'menu_caller': lambda self: toggle_debug_mode(self)},
 
         'recent': {'description': 'View Recent Commands', 'menu_caller': lambda self: print_recent_commands(self)},
         'exit': {'description': 'Exit PRISM User Interface', 'menu_caller': lambda self: exit_interface(self)},
