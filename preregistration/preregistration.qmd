@@ -38,7 +38,9 @@ This project aims to measure and compare individuals' stated tone preferences, s
 Specifically, this project pursues the following aims:
 
 AIM 1: Generate messages tailored to simulated participants with varying AUD lapse contexts.
+
 AIM 2: Collect data on stated preferences for message tone and style, as well as actual message ratings.
+
 AIM 3: Analyze the data to compare tone and style preferences and to assess the relationship between stated preferences and actual message ratings. 
 
 ## Specific Aims
