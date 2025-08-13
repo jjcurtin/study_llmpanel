@@ -13,14 +13,30 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
     if submenu:
         set_local_menu_options("debug", menu_options)
     
-    def print_key_line(key, item, index, total_items):
+    def print_key_line(key, item, index, total_items, top_window = False, key2 = None, item2 = None):
         recommended_text = f" (recommended)" if recommended_actions is not None and key in recommended_actions else ""
-        items = [
-            # can have up to four columns
-            # {"text": f"", "align_right" : False, "locked": True, "bordered": "left"}, # used for prism assistant if it is in a window
-            {"text": f"{yellow(key + green(recommended_text))}", "align_right" : False, "locked": True, "bordered": "both"},
-            {"text": f"{item['description']}", "align_right": False, "locked": False, "bordered": "both"},
-        ]
+
+        if top_window:
+            if key2 is not None and item2 is not None:
+                items = [
+                    # can have up to four columns
+                    {"text": f"{yellow(key)}: {white(item['description'])}", "align_right" : False, "locked": True, "bordered": "both"},
+                    {"text": f"{yellow(key2)}: {white(item2['description'])}", "align_right" : False, "locked": True, "bordered": "both"},
+                ]
+            else:
+                items = [
+                    # can have up to four columns
+                    {"text": f"{yellow(key)}: {white(item['description'])}", "align_right" : False, "locked": True, "bordered": "both"},
+                    {"text": f"", "align_right" : False, "locked": True, "bordered": "both"}, # overflow catcher
+                ]
+
+        elif not top_window:
+            items = [
+                # can have up to four columns
+                # {"text": f"", "align_right" : False, "locked": True, "bordered": "left"}, # empty window
+                {"text": f"{yellow(key + green(recommended_text))}", "align_right" : False, "locked": True, "bordered": "both"},
+                {"text": f"{item['description']}", "align_right": False, "locked": False, "bordered": "both"},
+            ]
         window_positions, column_width = display_in_columns(items)
         for i, pos in enumerate(window_positions):
             if index == 0:
@@ -37,13 +53,26 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
         num_printed = 0
         if not indexed:
             print_dashes()
-        for index, (key, item) in enumerate(menu_options.items(), start = start_index):
-            if indexed == False and not key.isdigit() and num_printed < num_to_print:
+
+        menu_items = list(menu_options.items())
+        total_items = len(menu_items)
+        for index in range(start_index, total_items):
+            key, item = menu_items[index]
+
+            if not indexed and not key.isdigit() and num_printed < num_to_print:
                 num_printed += 1
-                print_key_line(key, item, index, len(menu_options))
+                print_key_line(key, item, index, len(menu_options), top_window = False)
+
             elif indexed and key.isdigit() and num_printed < num_to_print:
                 num_printed += 1
-                print_key_line(f"{key}: {white(item['description'])}", item, index, len(menu_options))
+                if index + 5 < total_items:
+                    key2, item2 = menu_items[index + 5]
+                    if not key2.isdigit():
+                        key2, item2 = None, None
+                else:
+                    key2, item2 = None, None
+
+                print_key_line(key, item, index, len(menu_options), top_window = True, key2 = key2, item2 = item2)
         print_dashes()
 
         #if num_printed < num_to_print:
