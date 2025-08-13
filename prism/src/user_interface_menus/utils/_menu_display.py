@@ -13,7 +13,7 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
     if submenu:
         set_local_menu_options("debug", menu_options)
     
-    def print_key_line(key, item, index, total_items, top_window = False, key2 = None, item2 = None, key3 = None, item3 = None):
+    def print_key_line(self, key, item, index, total_items, top_window = False, key2 = None, item2 = None, key3 = None, item3 = None):
         try:
             recommended_text = f" (recommended)" if recommended_actions is not None and key in recommended_actions else ""
 
@@ -47,7 +47,7 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
                     {"text": f"{yellow(key + green(recommended_text))}", "align_right" : False, "locked": True, "bordered": "both"},
                     {"text": f"{item['description']}", "align_right": False, "locked": False, "bordered": "both"},
                 ]
-            window_positions, column_width = display_in_columns(items)
+            window_positions, column_width = display_in_columns(self, items)
             for i, pos in enumerate(window_positions):
                 if index == 0:
                     setattr(self, f"window_{i}_x", pos[0])
@@ -77,7 +77,7 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
 
                 if not indexed and not key.isdigit() and num_printed < num_to_print:
                     num_printed += 1
-                    print_key_line(key, item, index, len(menu_options), top_window = False)
+                    print_key_line(self, key, item, index, len(menu_options), top_window = False)
 
                 elif indexed and key.isdigit() and num_printed < num_to_print:
                     num_printed += 1
@@ -94,7 +94,7 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
                             key3, item3 = None, None
                     else:
                         key3, item3 = None, None
-                    print_key_line(key, item, index, len(menu_options), top_window = True, key2 = key2, item2 = item2, key3 = key3, item3 = item3)
+                    print_key_line(self, key, item, index, len(menu_options), top_window = True, key2 = key2, item2 = item2, key3 = key3, item3 = item3)
             
             print_dashes()
 

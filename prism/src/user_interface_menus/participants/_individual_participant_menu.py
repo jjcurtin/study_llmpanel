@@ -89,7 +89,7 @@ def individual_participant_menu(self, participant_id):
         }
         if not self.commands_queue:
             print_menu_header(f"Participant ID {participant_id} Info")
-        print("Enter an index to update a field, or, choose another option.")
+            assistant_header_write(self, ["Enter an index to update a field, or, choose another option."])
         print_dashes()
         if print_menu_options(self, menu_options, submenu = True, index_and_text = True):
             break

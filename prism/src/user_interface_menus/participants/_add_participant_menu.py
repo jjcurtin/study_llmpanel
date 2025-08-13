@@ -18,9 +18,9 @@ def add_participant_menu(self):
         error("Last name is required.", self)
         return
     unique_id = get_input(self, prompt = "Unique ID: ")
-    if not unique_id:
+    if not unique_id or not unique_id.isnumeric() or len(unique_id) != 9:
         unique_id = str(random.randint(100000000, 999999999))
-        print(f"Unique ID not provided. Generated: {unique_id}")
+        print(f"Unique ID not valid. Generated: {unique_id}")
     existing_participants = self.api("GET", "participants/get_participants")
     if existing_participants:
         for participant in existing_participants.get("participants", []):
