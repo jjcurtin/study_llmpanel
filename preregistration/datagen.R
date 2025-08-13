@@ -1,4 +1,7 @@
 # random seed logic
+
+# qualtrics looks like
+# Q1,Q2,Q3,Q4,Q5_6,Q6,Q7,Q8,Q9,Q10,Q1_1,Q2_1,Q3_1,Q4_1,Q5_1.1,Q6_1,Q7_1,Q8_1,_1,_1.1,_1.2,_1.3,_1.4,_1.5,_1.6,_1.7,_1.8,_1.9,_1.10,_1.11,_1.12,_1.13,_1.14,_1.15,_1.16,_1.17,_1.18,_1.19,_1.20,_1.21,_1.22,_1.23,_1.24,_1.25,_1.26,_1.27,_1.28,_1.29,_1.30,_1.31,_1.32,_1.33,_1.34,_1.35,_1.36,_1.37,_1.38,_1.39,_1.40,_1.41,_1.42,_1.43,_1.44,_1.45,_1.46,_1.47
 if (!file.exists("times_run.txt")) {
   writeLines("1", "times_run.txt")
 }
@@ -126,7 +129,7 @@ tone_preferences <- data.frame(
   tone = tone,
   tone_rating = tone_rating
 )
-tone_preferences <- merge(tone_preferences, participants, by = "participant_id", all.x = TRUE)
+# tone_preferences <- merge(tone_preferences, participants, by = "participant_id", all.x = TRUE)
 write.csv(tone_preferences, file = 'tone/tone_preferences.csv', row.names = FALSE)
 # ================ Tone Preference Generation ================
 
@@ -146,7 +149,7 @@ style_preferences <- data.frame(
   style = style,
   style_rating = style_rating
 )
-style_preferences <- merge(style_preferences, participants, by = "participant_id", all.x = TRUE)
+# style_preferences <- merge(style_preferences, participants, by = "participant_id", all.x = TRUE)
 write.csv(style_preferences, file = 'style/style_preferences.csv', row.names = FALSE)
 # ================ Style Preference Generation ================
 
@@ -175,11 +178,18 @@ message_preferences <- data.frame(
   style = style,
   message_rating = message_rating
 )
-message_preferences <- merge(message_preferences, participants, by = "participant_id", all.x = TRUE)
+# message_preferences <- merge(message_preferences, participants, by = "participant_id", all.x = TRUE)
 write.csv(message_preferences, file = 'messages/message_preferences.csv', row.names = FALSE)
 # # ================ Message Preference Generation for tonesxstylexcontext ================
 
 
+library(dplyr)
+
+combined <- participants |>
+  left_join(message_preferences, by = "participant_id") |>
+  left_join(style_preferences, by = c("participant_id", "style")) |>
+  left_join(tone_preferences, by = c("participant_id", "tone"))
+write.csv(participants, file = 'participants.csv', row.names = FALSE)
 
 
 
