@@ -100,12 +100,7 @@ def display_in_columns(items = None):
         initial_pos = get_cursor_position()
         initial_y = initial_pos[1] if initial_pos[1] is not None else 0
 
-        line_text = ""
         for i, item in enumerate(items):
-
-            if i % len(items) == 0:
-                line_text = ""
-
             ansi_escape = re.compile(r'\x1B\[[0-?]*[ -/]*[@-~]')
             item_formatless = ansi_escape.sub('', item['text'])
             border_settings = item.get('bordered', 'none')
@@ -120,7 +115,7 @@ def display_in_columns(items = None):
                 initial_x += 2
                 frame_width = column_width - 2
             window_positions.append((initial_x, initial_y))
-            line_text += align(
+            output += align(
                 item['text'], i, 
                 num_segments, formatless = item_formatless, 
                 window_width = column_width, 
@@ -129,14 +124,10 @@ def display_in_columns(items = None):
                 border_left = border_left,
                 border_right = border_right,
             )
-            output += line_text
-
-            if i % len(items) == 1:
-                print(line_text)
         return output, frame_width
     
     output, column_width = assemble_content()
-    # print(output)
+    print(output)
     return window_positions, column_width
 
 # ------------------------------------------------------------
