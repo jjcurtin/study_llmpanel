@@ -137,64 +137,77 @@ def align(self, text, column_number, num_columns, formatless = None, window_widt
 # ------------------------------------------------------------
 
 def display_in_columns(self, items = None):
-    from user_interface_menus._menu_helper import WINDOW_WIDTH
-    import re
+    try:
+        from user_interface_menus._menu_helper import WINDOW_WIDTH
+        import re
 
-    if items is None:
-        return "Error: No items to display."
-    num_segments = len(items)
-
-    window_positions = []
-
-    def assemble_content():
-        column_width = int(WINDOW_WIDTH / num_segments)
-        frame_width = column_width
-        output = ""
-        initial_pos = get_cursor_position()
-        initial_y = initial_pos[1] if initial_pos[1] is not None else 0
-
-        line_text = ""
         if self.debug:
-            print()
-        for i, item in enumerate(items):
+            print(f"\n{items}\n")
 
-            if i % len(items) == 0:
-                line_text = ""
+        if items is None:
+            return "Error: No items to display."
+        num_segments = len(items)
 
-            ansi_escape = re.compile(r'\x1B\[[0-?]*[ -/]*[@-~]')
-            item_formatless = ansi_escape.sub('', item['text'])
-            border_settings = item.get('bordered', 'none')
-            border_left = False
-            border_right = False
-            if border_settings == 'left' or border_settings == 'both':
-                border_left = True
-            if border_settings == 'right' or border_settings == 'both':
-                border_right = True
-            initial_x = len(output)
-            if border_left:
-                initial_x += 2
-                frame_width = column_width - 2
-            window_positions.append((initial_x, initial_y))
-            column_text = align(self,
-                item['text'], i, 
-                num_segments, formatless = item_formatless, 
-                window_width = column_width, 
-                align_right = item.get('align_right', False),
-                locked = item.get('locked', False),
-                border_left = border_left,
-                border_right = border_right,
-            )
-            line_text += column_text
-            output += column_text
+        window_positions = []
 
-            if i % len(items) == 1:
-                pass
-                #print(line_text)
-        return output, frame_width
-    
-    output, column_width = assemble_content()
-    print(output)
-    return window_positions, column_width
+        def assemble_content():
+            column_width = int(WINDOW_WIDTH / num_segments)
+            frame_width = column_width
+            output = ""
+            initial_pos = get_cursor_position()
+            initial_y = initial_pos[1] if initial_pos[1] is not None else 0
+
+            line_text = ""
+            if self.debug:
+                print()
+            for i, item in enumerate(items):
+
+                if i % len(items) == 0:
+                    line_text = ""
+
+                ansi_escape = re.compile(r'\x1B\[[0-?]*[ -/]*[@-~]')
+                item_formatless = ansi_escape.sub('', item['text'])
+                border_settings = item.get('bordered', 'none')
+                border_left = False
+                border_right = False
+                if border_settings == 'left' or border_settings == 'both':
+                    border_left = True
+                if border_settings == 'right' or border_settings == 'both':
+                    border_right = True
+                initial_x = len(output)
+                if border_left:
+                    initial_x += 2
+                    frame_width = column_width - 2
+                if self.debug:
+                    print(f"Column {i + 1} of {num_segments}, initial x: {initial_x}, initial y: {initial_y}, column width: {column_width}, frame width: {frame_width}")
+                window_positions.append((initial_x, initial_y))
+                column_text = align(self,
+                    item['text'], i, 
+                    num_segments, formatless = item_formatless, 
+                    window_width = column_width, 
+                    align_right = item.get('align_right', False),
+                    locked = item.get('locked', False),
+                    border_left = border_left,
+                    border_right = border_right,
+                )
+                line_text += column_text
+                output += column_text
+
+                if i % len(items) == 1:
+                    pass
+                    #print(line_text)
+            return output, frame_width
+        
+        output, column_width = assemble_content()
+        print(output)
+        if self.debug:
+            print(f"\nWindow positions: {window_positions}")
+            print(f"Column width: {column_width}")
+            print(f"\nEnter {yellow("debug")} to exit debug mode.")
+        return window_positions, column_width
+    except Exception as e:
+        error(f"Error displaying items in columns: {e}", self)
+        return [], 0
 
 # ------------------------------------------------------------
 
