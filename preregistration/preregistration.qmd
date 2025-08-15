@@ -19,10 +19,13 @@ Claire:
  - Meet with Ben on Friday
  - Look through stats resources --> lmem simulation site
  - Finalize models for next week
+ - Send data vis resources
 
 Colin:
  - Add in informative question IDs
  - Add in identifier to signify what version of the survey (of four) is being completed
+ - Basic data vis of simulated data
+ - Fill in data section
 
 ```{r}
 library(stats)
@@ -58,10 +61,6 @@ Specifically, this project pursues the following aims:
 # Data Generation
 
 ```{r}
-# qualtrics data comes out as:
-# Q1,Q2,Q3,Q4,Q5_6,Q6,Q7,Q8,Q9,Q10,           demographics
-# Q1_1,Q2_1,Q3_1,Q4_1,Q5_1.1,Q6_1,Q7_1,Q8_1,  tone categories
-# _1,_1.1,_1.2,_1.3,_1.4,_1.5,_1.6,_1.7,_1.8,_1.9,_1.10,_1.11,_1.12,_1.13,_1.14,_1.15,_1.16,_1.17,_1.18,_1.19,_1.20,_1.21,_1.22,_1.23,_1.24,_1.25,_1.26,_1.27,_1.28,_1.29,_1.30,_1.31,_1.32,_1.33,_1.34,_1.35,_1.36,_1.37,_1.38,_1.39,_1.40,_1.41,_1.42,_1.43,_1.44,_1.45,_1.46,_1.47
 set.seed(1)
 n_participants <- 100
 standard_deviation <- 0.3
@@ -73,8 +72,10 @@ contexts <- c(
   "high_increasing", "high_decreasing",
   "low_increasing", "low_decreasing"
 )
+```
 
-# ================ Preferences Setup ================
+Preferences set-up.
+```{r}
 tone_means <- c(
   legitimizing      = 1,
   caring_supportive = 2,
@@ -126,10 +127,10 @@ get_adjusted_style_mean <- function(style, sex) {
   }
   return(base_mean + adj)
 }
-# ================ Preferences Setup ================
+```
 
-
-# ================ Participant Generation ================
+Participant generation.
+```{r}
 n <- n_participants
 repeat_even <- function(x, total) {
     rep(x, length.out = total)
@@ -161,10 +162,10 @@ participants <- data.frame(
     income_adj
 )
 #write.csv(participants, file = 'participants.csv', row.names = FALSE)
-# ================ Participant Generation ================
+```
 
-
-# ================ Tone Preference Generation ================
+Tone preference generation
+```{r}
 participant_id <- rep(participants$participant_id, each = length(tones))
 participant_sex <- rep(participants$sex, each = length(tones))
 tone <- rep(tones, times = nrow(participants))
@@ -181,10 +182,11 @@ tone_preferences <- data.frame(
 )
 #tone_preferences <- merge(tone_preferences, participants, by = "participant_id", all.x = TRUE)
 #write.csv(tone_preferences, file = 'tone/tone_preferences.csv', row.names = FALSE)
-# ================ Tone Preference Generation ================
+```
 
 
-# ================ Style Preference Generation ================
+Style preference generation
+```{r}
 participant_id <- rep(participants$participant_id, each = length(styles))
 participant_sex <- rep(participants$sex, each = length(styles))
 style <- rep(styles, times = nrow(participants))
@@ -201,13 +203,11 @@ style_preferences <- data.frame(
 )
 #style_preferences <- merge(style_preferences, participants, by = "participant_id", all.x = TRUE)
 #write.csv(style_preferences, file = 'style/style_preferences.csv', row.names = FALSE)
-# ================ Style Preference Generation ================
+```
 
 
-
-
-# # ================ Message Preference Generation for tonesxstylexcontext ================
-
+Message preference generation for tone x style (x context eventually).
+```{r}
 participant_id <- rep(participants$participant_id, each = length(tones))
 participant_sex <- rep(participants$sex, each = length(tones))
 tone <- rep(rep(tones, each = length(styles) * length(contexts)), times = nrow(participants))
@@ -228,23 +228,30 @@ message_preferences <- data.frame(
   style = style,
   message_rating = message_rating
 )
+
+# add in ids for messages
+message_lookup <- message_preferences |> 
+  distinct(tone, style) |> 
+  arrange(tone, style) |> 
+  mutate(message_id = row_number())
+
+message_preferences <- message_preferences |> 
+  left_join(message_lookup, by = c("tone", "style")) |> 
+  select(participant_id, tone, style, message_id, message_rating)
+
 #message_preferences <- merge(message_preferences, participants, by = "participant_id", all.x = TRUE)
 #write.csv(message_preferences, file = 'messages/message_preferences.csv', row.names = FALSE)
-# # ================ Message Preference Generation for tonesxstylexcontext ================
 ```
 
 Combine message, style, and tone preferences into one dataset:
 ```{r}
-# for this to work, don't run the merging you did above
-# I commented your merges and write functions out for now so you can run it in one go
-
-combined <- participants |>
+d <- participants |>
   left_join(message_preferences, by = "participant_id") |> 
   left_join(style_preferences, by = c("participant_id", "style")) |> 
   left_join(tone_preferences, by = c("participant_id", "tone"))
 
 
-combined |> glimpse()
+d |> glimpse()
 ```
 
 Simulated data should have:
@@ -292,6 +299,17 @@ Variables:
  - no_in_household
  - minoritized
  - income_adj (will be calculated as: income / no_in_household)
+
+## Centering
+
+```{r}
+d <- d |> 
+  mutate(style_c = if_else(style == "formal", .5, -.5),
+         sex_c = if_else(sex == "male", .5, -.5))
+```
+
+
+> Do we want to use dummy coding for tone? What is the best way to decide what our reference group is?
  
 ## Models 1 & 2 - Style and tone stated preferences
 
@@ -308,14 +326,13 @@ By testing:
 
 For style:
 ```{r}
-m1 <- lm(style_rating ~ style*sex, data = style_preferences)
-m1 <- lm(style_rating ~ style + sex + style:sex, data = style_preferences)
+m1 <- lm(style_rating ~ style*sex, d)
 broom::tidy(m1)
 ```
 
 For tone:
 ```{r}
-m2 <- lm(tone_rating ~ tone*sex, data = tone_preferences)
+m2 <- lm(tone_rating ~ tone*sex, d)
 broom::tidy(m2)
 ```
 
@@ -338,9 +355,11 @@ By testing:
 > This would be the model where we could incorporate context if we are able to do the necessary randomization for that. Then I think we'd need random slope for context within participant.
 
 ```{r}
-m3 <- lmer(actual_rating ~ style*tone + sex +
-             (1 + style*tone | participant) + (1 | message),
-           data = d)
+m3 <- lmer(message_rating ~ style*tone + sex +
+             (1 + style*tone | participant_id) + (1 | message_id),
+           d)
+
+summary(m3)
 ```
 
 Note to Claire to add in model simplification steps that will be carried out should model not converge.
@@ -359,40 +378,26 @@ By testing:
 
 
 ```{r}
-m4 <- lmer(actual_rating ~ pref_rating_tone + pref_rating_style +
-             (1 + pref_rating_tone + pref_rating_style | participant) + (1 | message),
-           data = d)
+m4 <- lmer(message_rating ~ tone_rating + style_rating +
+             (1 + tone_rating + style_rating | participant_id) + (1 | message_id),
+           d)
 ```
 
-> Do we want demographic characteristics in here? Unsure. Also think about if pref_rating_tone and pref_rating_style should be an interaction. This might also be a good place to try out Spearman's ranked correlations.
+> Do we want demographic characteristics in here? Unsure. Also think about if tone_rating and style_rating should be an interaction. This might also be a good place to try out Spearman's ranked correlations.
 
-## Models 5, 6, 7, & 8 - Within and between comparisons (ICC)
+## Models 5, 6, & 7- Within and between comparisons (ICC)
 
 Answers:
 
- - Are participant ratings of their preferences more different across tone/style categories than within tone/style categories?
- - Are participant ratings of messages more different across tone/style categories than within tone/style categories?
- 
-> note that not everyone is exposed to every message
+ - Are participant ratings of messages more different across tone categories than within tone categories?
+  - Are participant ratings of messages more different across style categories than within style categories?
+  - Are participant ratings of messages more different across tone/style combinations than within tone/style combinations?
+  
+> I believe it would be appropriate for us to look at ICC2 or ICC3 here, but they would answer slightly different questions. ICC2 assumes a random sample of raters and ICC3 assumes a fixed sample. ICC2 is more appropriate if we want to generalize. ICC3 is more appropriate if we are interested in characterizing these particular participants. I'm leaning towards 2.
 
-For tone/style preferences: --> not sure about this one
 ```{r}
-tone_preferences |>
-  select(participant_id, tone, tone_rating) |>
-  pivot_wider(names_from = participant_id, values_from = tone_rating) |>
-  select(-tone) |> 
-  ICC()
-
-style_preferences |>
-  select(participant_id, style, style_rating) |>
-  pivot_wider(names_from = participant_id, values_from = style_rating) |>
-  select(-style) |> 
-  ICC()
-```
-
-For tone/style actual ratings:
-```{r}
-message_preferences |> 
+## this will look at tone and style separately
+d |> 
   group_by(participant_id, tone) |>
   # here I am summarizing across four contexts
   summarise(mean_rating = mean(message_rating, na.rm = TRUE),
@@ -401,12 +406,21 @@ message_preferences |>
   select(-tone) |> 
   ICC()
 
-message_preferences |> 
+d |> 
   group_by(participant_id, style) |> 
   summarise(mean_rating = mean(message_rating, na.rm = TRUE),
             .groups = "drop") |> 
   pivot_wider(names_from = participant_id, values_from = mean_rating) |>
   select(-style) |> 
+  ICC()
+
+## this will look at the within and between effect across tone/style combinations
+d |>
+  group_by(participant_id, message_id) |>
+  summarise(mean_rating = mean(message_rating, na.rm = TRUE),
+            .groups = "drop") |>
+  pivot_wider(names_from = participant_id, values_from = mean_rating) |>
+  select(-message_id) |>
   ICC()
 ```
 
