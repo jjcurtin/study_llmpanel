@@ -26,8 +26,4 @@ def main_menu(self):
         'exit': {'description': 'Exit PRISM User Interface', 'menu_caller': exit_interface}
     }
 
-    while True:
-        if not self.commands_queue:
-            print_menu_header("main")
-            assistant_header_write(self, ["Main Menu"])
-        print_menu_options(self, menu_options, recommended_actions = ['help', 'participants', 'tasks'])
+    menu_loop(self, menu_options, submenu = False, recommended_actions = ['help', 'participants', 'tasks'])
