@@ -243,14 +243,17 @@ def macro_search(self, query, all = False):
                                 matches.append(macro.strip())
                 matches = matches[:10]
             if matches:
-                print()
-                for match in matches:
-                    items = [
-                        {"text": f"{yellow(match.split('|')[0]) + " - " + match.split('|')[2]}", "align_right" : False, "locked": True, "bordered": "none"},
-                    ]
-                    window_positions, column_width = display_in_columns(items)
-                print()
-                success(f"Found {cyan(len(matches))} matching macros.", self)
+                try:
+                    print()
+                    for match in matches:
+                        items = [
+                            {"text": f"{yellow(match.split('|')[0]) + " - " + match.split('|')[2]}", "align_right" : False, "locked": True, "bordered": "none"},
+                        ]
+                        display_in_columns(self, items)
+                    print()
+                    success(f"Found {cyan(len(matches))} matching macros.", self)
+                except Exception as e:
+                    error(f"Error displaying macros: {e}", self)
             else:
                 print()
                 error(f"No saved macros found." if not query else f"No matching macros found for '{yellow(query)}'.", self)
