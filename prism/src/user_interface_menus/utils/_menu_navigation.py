@@ -4,6 +4,29 @@ from user_interface_menus.utils._display import *
 
 # ------------------------------------------------------------
 
+def menu_loop(self, menu_options, header = "main", name = "Main Menu", submenu = True, recommended_actions = [], additional_content = None):
+    if 'print_menu_options' not in globals():
+        from user_interface_menus.utils._menu_display import print_menu_options
+    if (name == "Main Menu" or header == "main") and submenu:
+        error("Please call menu loop with the appropriate parameters.", self)
+
+    while True:
+        if not self.commands_queue:
+            print_menu_header(header)
+            if additional_content:
+                for line in additional_content:
+                    if line == "-":
+                        print_dashes()
+                    elif line == "":
+                        print()
+                    else:
+                        print(line)
+            assistant_header_write(self, [name])
+        if print_menu_options(self, menu_options, submenu = submenu, recommended_actions = recommended_actions) and submenu:
+            break
+
+# ------------------------------------------------------------
+
 def get_menu_options():
     from user_interface_menus._menu_helper import _menu_options
     return _menu_options
