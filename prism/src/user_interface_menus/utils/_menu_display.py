@@ -212,6 +212,7 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
                 error(f"Global menu option error: {e}")
                 return 0
         else:
+            syntax_highlight(self, prompt = f"{cyan('prism> ')}", items = [(red, choice)])
             invalid_choice_menu(self, menu_options, choice)
         return 0
     except Exception as e:

@@ -40,6 +40,14 @@ def white(message = None):
     white, color_end = ("\033[37m", "\033[0m") if COLOR_ON else ("", "")
     return f"{white}{message}{color_end}"
 
+def syntax_highlight(self, prompt = "", items = None):
+    from user_interface_menus._menu_helper import COLOR_ON
+    if not COLOR_ON:
+        return
+    curr_pos = get_cursor_position()
+    move_cursor(self, 0, curr_pos[1] - 1)
+    print(prompt + items[0][0](items[0][1]))
+
 # ------------------------------------------------------------
 
 def align(self, text, column_number, num_columns, formatless = None, window_width = None, align_right = None, locked = False, border_left = False, border_right = False):
@@ -330,7 +338,8 @@ def print_equals():
 # ------------------------------------------------------------
 
 def print_fixed_terminal_prompt():
-    return input(f"\n{cyan('prism> ')}").strip()
+    prompt = cyan('\nprism> ')
+    return input(prompt).strip()
 
 def re_print_fixed_terminal_prompt(self):
     x, y = save_current_cursor_pos(self)
