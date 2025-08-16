@@ -272,6 +272,8 @@ def add_user_defined_global_command(identifier, command_string, description = No
     banned_characters = ['/', '?']
     banned_identifiers = ['yes', 'y', 'no', 'n']
     banned_identifiers.extend(map(str, range(0, 1000)))
+    banned_identifiers.extend([chr(i) for i in range(97, 123)])  # a-z
+    banned_identifiers.extend([chr(i) for i in range(65, 91)])  # A-Z
     
     if identifier not in _menu_options:
         if identifier in banned_identifiers:

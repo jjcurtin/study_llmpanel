@@ -32,15 +32,19 @@ def remove_task_menu(self):
         if tasks and "tasks" in tasks:
             self.scheduled_tasks = tasks["tasks"]
             if self.scheduled_tasks:
-                idx = int(get_input(self, prompt = "Task index to remove: ")) - 1
-                if 0 <= idx < len(self.scheduled_tasks):
-                    t = self.scheduled_tasks[idx]
-                    if self.api("DELETE", f"system/remove_system_task/{t['task_type']}/{t['task_time']}"):
-                        success("Task removed.", self)
+                index = get_input(self, prompt = "Task index to remove: ")
+                try:
+                    idx = int(index) - 1
+                    if 0 <= idx < len(self.scheduled_tasks):
+                        t = self.scheduled_tasks[idx]
+                        if self.api("DELETE", f"system/remove_system_task/{t['task_type']}/{t['task_time']}"):
+                            success("Task removed.", self)
+                        else:
+                            error("Failed to remove task.", self)
                     else:
-                        error("Failed to remove task.", self)
-                else:
-                    error("Invalid index.", self)
+                        error("Invalid index.", self)
+                except ValueError:
+                    error("Invalid input. Please enter a valid task index.", self)
             else:
                 error("No tasks scheduled to remove.", self)
     except Exception as e:

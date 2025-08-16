@@ -182,11 +182,11 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
             if self.commands_queue:
                 return process_chained_command(self)
             print_keys(self)
-            choice = print_fixed_terminal_prompt()
+            choice = print_fixed_terminal_prompt(self, submenu = submenu)
 
         if not submenu:
             while choice == '':
-                choice = re_print_fixed_terminal_prompt(self)
+                choice = print_fixed_terminal_prompt(self, submenu = submenu)
 
         if choice == '':
             return 1
@@ -213,7 +213,7 @@ def print_menu_options(self, menu_options, submenu = False, index_and_text = Fal
                 return 0
         else:
             syntax_highlight(self, prompt = f"{cyan('prism> ')}", items = [(red, choice)])
-            invalid_choice_menu(self, menu_options, choice)
+            invalid_choice_menu(self, menu_options, choice, submenu = submenu)
         return 0
     except Exception as e:
         error(f"Error parsing command: {e}")
@@ -265,7 +265,7 @@ def print_recent_commands(self):
 
 # ------------------------------------------------------------
 
-def invalid_choice_menu(self, menu_options, choice = None):
+def invalid_choice_menu(self, menu_options, choice = None, submenu = False):
     from user_interface_menus._menu_helper import RELATED_OPTIONS_THRESHOLD, \
                                                   BEST_OPTIONS_THRESHOLD, _menu_options, \
                                                   add_recent_command
@@ -297,10 +297,10 @@ def invalid_choice_menu(self, menu_options, choice = None):
     print(f"If you meant to enter a command string, please include {yellow("/")} at the start of your command.")
     print(f"To search for commands, use {yellow("?")} followed by your query.")
     
-    choice = print_fixed_terminal_prompt()
+    choice = print_fixed_terminal_prompt(self, submenu = submenu)
     if choice.strip() == '':
         while choice.strip() == '':
-            choice = re_print_fixed_terminal_prompt(self)
+            choice = print_fixed_terminal_prompt(self, submenu = submenu)
     if choice.lower() == 'yes' and combined_choices != '':
         first_choice = combined_choices.split(', ')[0]
         add_recent_command(first_choice)
