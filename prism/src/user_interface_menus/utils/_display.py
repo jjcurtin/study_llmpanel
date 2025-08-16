@@ -436,13 +436,38 @@ def print_fixed_terminal_prompt(self = None, submenu = True):
     if self is not None:
         prompt = cyan('prism> ')
         print(prompt, end='', flush=True)
+        recent_pointer = -1
         while True:
             if msvcrt.kbhit():
                 key = msvcrt.getwch()
 
-                if key in ('\x00', '\xe0'):
-                    msvcrt.getwch()
-                    continue
+                if key in ('\x00', '\xe0'):  # Handle special keys like arrows
+                    key = msvcrt.getwch()
+                    if key == 'H':  # Arrow Up
+                        from user_interface_menus._menu_helper import RECENT_COMMANDS
+                        if RECENT_COMMANDS:
+                            recovered_string = RECENT_COMMANDS[recent_pointer] if recent_pointer >= -len(RECENT_COMMANDS) else ""
+                            recent_pointer -= 1
+                            if recent_pointer < -len(RECENT_COMMANDS):
+                                recent_pointer = -1
+                        pass
+                    elif key == 'P':  # Arrow Down
+                        from user_interface_menus._menu_helper import RECENT_COMMANDS
+                        if RECENT_COMMANDS:
+                            if recent_pointer < -1:
+                                recent_pointer += 1
+                            recovered_string = RECENT_COMMANDS[recent_pointer] if recent_pointer >= -len(RECENT_COMMANDS) else ""
+                        else:
+                            recent_pointer = -1
+                        pass
+                    elif key == 'K':  # Arrow Left
+                        # print("Left Arrow Pressed")
+                        pass
+                    elif key == 'M':  # Arrow Right
+                        # print("Right Arrow Pressed")
+                        pass
+                    else:
+                        continue
                 elif key == '\r' or key == '\n':
                     if len(recovered_string) == 0 and not submenu:
                         continue
