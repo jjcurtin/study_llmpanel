@@ -46,7 +46,41 @@ def syntax_highlight(self, prompt = "", items = None):
         return
     curr_pos = get_cursor_position()
     move_cursor(self, 0, curr_pos[1] - 1)
-    print(prompt + items[0][0](items[0][1]))
+    output = prompt
+    for item in items:
+        output += item[0](item[1])
+    print(output)
+
+def syntax_highlight_string(self, input_string, prompt = "", items = None, in_place = False):
+    try:
+        from user_interface_menus._menu_helper import COLOR_ON
+        if not COLOR_ON or items is None:
+            return
+        curr_pos = get_cursor_position()
+        if not in_place:
+            move_cursor(self, 0, curr_pos[1] - 1)
+        elif in_place:
+            try:
+                ansi_clear_line()
+                while move_cursor(self, 0, curr_pos[1]):
+                    pass
+            except Exception as e:
+                error(f"ANSI error: " + str(e), self)
+        
+        output = input_string
+        if items is not None:
+            for item in items:
+                if item[1] in input_string:
+                    output = output.replace(item[1], item[0](item[1]))
+        try:
+            ansi_write_str(prompt + output)
+        except Exception as e:
+            print(f"Error writing to terminal: {e}")
+    except Exception as e:
+        print(f"Error in syntax_highlight_string: {e}")
+        if self.debug:
+            print(f"Input string: {input_string}, Prompt: {prompt}, Items: {items}")
+        return
 
 # ------------------------------------------------------------
 
@@ -337,14 +371,103 @@ def print_equals():
 
 # ------------------------------------------------------------
 
-def print_fixed_terminal_prompt():
+def print_fixed_terminal_prompt(self = None, submenu = True):
+    from user_interface_menus._menu_helper import WINDOW_WIDTH
+    def scan_recovered_string(recovered_string):
+        from user_interface_menus.utils._menu_navigation import get_relevant_menu_options
+        from user_interface_menus._menu_helper import get_local_menu_options
+        import re
+        items = []
+        if not recovered_string or not recovered_string.startswith('/'):
+
+            if recovered_string.startswith("?"):
+                items.append((yellow, recovered_string))
+            else:
+                if recovered_string.split("?"):
+                    items.append((red, "?" + "".join(recovered_string.split("?")[1:])))
+                if recovered_string.split("*"):
+                    items.append((red, "*" + "".join(recovered_string.split("*")[1:])))
+                if recovered_string.split("/"):
+                    items.append((red, "/" + "".join(recovered_string.split("/")[1:])))
+            return items
+
+        # parse iterations
+        if '*' in recovered_string:
+            command_string, iterations = recovered_string.split('*', 1)
+        else:
+            command_string, iterations = recovered_string, None
+        if iterations is not None:
+            number = re.search(r'\d+', iterations)
+            if number and number.group(0).isdigit():
+                remaining = iterations[len(number.group(0)):]
+                if remaining:
+                    items.append((red, "*" + number.group(0) + remaining))
+                else:
+                    items.append((cyan, "*" + number.group(0)))
+            else:
+                items.append((red, "*" + iterations))
+        
+        # parse commands
+        command_strings = command_string.split('/')
+        for command in command_strings:
+            if '?' in command:
+                parts = command.split('?')
+                cmd = parts[0]
+                parameters = parts[1:] if len(parts) > 1 else []
+            else:
+                cmd, parameters = command, []
+            cmd = cmd.strip()
+            relevant_options = get_relevant_menu_options(cmd, exact_match = True)
+            if cmd in relevant_options and len(relevant_options) == 1:
+                items.append((yellow, "/" + cmd))
+            local_options = get_local_menu_options()
+            if cmd in local_options:
+                items.append((yellow, "/" + cmd))
+
+            # parse parameters
+            for parameter in parameters:
+                if parameter.strip():
+                    items.append((green, '?' + parameter.strip()))
+        return items
+
     prompt = cyan('\nprism> ')
-    return input(prompt).strip()
+    recovered_string = ""
+    print()
+    if self is not None:
+        prompt = cyan('prism> ')
+        print(prompt, end='', flush=True)
+        while True:
+            if msvcrt.kbhit():
+                key = msvcrt.getwch()
+
+                if key in ('\x00', '\xe0'):
+                    msvcrt.getwch()
+                    continue
+                elif key == '\r' or key == '\n':
+                    if len(recovered_string) == 0 and not submenu:
+                        continue
+                    break
+                elif key == '\b' and len(recovered_string) > 0:
+                    recovered_string = recovered_string[:-1]
+                elif len(recovered_string) < WINDOW_WIDTH - len(prompt) - 1:
+                    if key is not None and key.isprintable() and key < '\u0080':
+                        recovered_string += key
+                    elif key == ' ':
+                        recovered_string += ' '
+                    else:
+                        continue
+                else:
+                    continue
+                syntax_highlight_string(self, prompt = prompt, input_string = recovered_string, items = scan_recovered_string(recovered_string), in_place = True)
+    else:
+        return input(prompt).strip()
+    print()
+    return recovered_string.strip()
 
 def re_print_fixed_terminal_prompt(self):
     x, y = save_current_cursor_pos(self)
     move_cursor(self, x + len('prism> '), y - 1)
-    return input().strip()
+    return print_fixed_terminal_prompt(self).strip()
 
 def print_assistant_terminal_prompt(self):
     from user_interface_menus.utils._menu_navigation import get_input
@@ -363,7 +486,13 @@ def get_cursor_position():
 
     buf = ""
     while True:
-        ch = msvcrt.getwch()
+        ch = ""
+        try:
+            if msvcrt.kbhit():
+                ch = msvcrt.getwch()
+        except Exception as e:
+            error(f"Failed to read cursor position: {e}")
+            return None, None
         buf += ch
         if ch == "R":
             break
@@ -375,7 +504,8 @@ def get_cursor_position():
         pos = buf[2:-1]  # strip "\x1b[" and trailing "R"
         row_str, col_str = pos.split(";")
         return int(col_str) - 1, int(row_str) - 1 
-    except Exception:
+    except Exception as e:
+        error(f"Failed to parse cursor position: {e}")
         return None, None
         
 def save_current_cursor_pos(self):
@@ -395,8 +525,12 @@ def restore_cursor_pos(self, index=-1):
     move_cursor(self, x, y)
 
 def move_cursor(self, x, y):
-    sys.stdout.write(f"\033[{y+1};{x+1}H")
-    sys.stdout.flush()
+    try:
+        sys.stdout.write(f"\033[{y+1};{x+1}H")
+        sys.stdout.flush()
+    except Exception as e:
+        if self.debug:
+            print(f"error moving: {x if x is not None else 'None'}, {y if y is not None else 'None'}")
 
 def clear_column(self, x, y, width, height):
     save_x, save_y = get_cursor_position()

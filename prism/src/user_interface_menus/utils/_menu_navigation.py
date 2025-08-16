@@ -31,7 +31,7 @@ def get_menu_options():
     from user_interface_menus._menu_helper import _menu_options
     return _menu_options
 
-def get_relevant_menu_options(query = None):
+def get_relevant_menu_options(query = None, exact_match = False):
     from user_interface_menus._menu_helper import RELATED_OPTIONS_THRESHOLD
     from difflib import get_close_matches
 
@@ -52,6 +52,10 @@ def get_relevant_menu_options(query = None):
         choices = potential_global_choices
 
     if query is not None:
+        if exact_match:
+            if perfect_match := menu_options.get(query):
+                return {query: perfect_match}
+
         choices = ', '.join(
             sorted(
             set(sort(set(potential_global_choices.split(', ')))) | 
