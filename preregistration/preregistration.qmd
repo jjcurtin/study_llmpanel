@@ -16,10 +16,6 @@ editor_options:
 # To do
 
 Claire:
- - Meet with Ben on Friday
- - Look through stats resources --> lmem simulation site
- - Finalize models for next week
- - Send data vis resources
 
 Colin:
  - Add in informative question IDs
@@ -208,10 +204,14 @@ style_preferences <- data.frame(
 
 Message preference generation for tone x style (x context eventually).
 ```{r}
-participant_id <- rep(participants$participant_id, each = length(tones))
-participant_sex <- rep(participants$sex, each = length(tones))
+#participant_id <- rep(participants$participant_id, each = length(tones))
+#participant_sex <- rep(participants$sex, each = length(tones))
+participant_id <- rep(participants$participant_id, each = length(styles) * length(contexts) * length(tones))
+participant_sex <- rep(participants$sex, each = length(styles) * length(contexts) * length(tones))
 tone <- rep(rep(tones, each = length(styles) * length(contexts)), times = nrow(participants))
 style <- rep(rep(styles, each = length(contexts)), times = length(tones) * nrow(participants))
+# not using context currently but adding in here
+context <- rep(contexts, times = length(tones) * length(styles) * nrow(participants))
 
 adjusted_tone_means <- mapply(get_adjusted_tone_mean, tone, participant_sex)
 adjusted_style_means <- mapply(get_adjusted_style_mean, style, participant_sex)
@@ -230,6 +230,7 @@ message_preferences <- data.frame(
 )
 
 # add in ids for messages
+# eventually want to add in a cross for context
 message_lookup <- message_preferences |> 
   distinct(tone, style) |> 
   arrange(tone, style) |> 
@@ -299,17 +300,6 @@ Variables:
  - no_in_household
  - minoritized
  - income_adj (will be calculated as: income / no_in_household)
-
-## Centering
-
-```{r}
-d <- d |> 
-  mutate(style_c = if_else(style == "formal", .5, -.5),
-         sex_c = if_else(sex == "male", .5, -.5))
-```
-
-
-> Do we want to use dummy coding for tone? What is the best way to decide what our reference group is?
  
 ## Models 1 & 2 - Style and tone stated preferences
 
@@ -322,7 +312,7 @@ By testing:
 
  - The main effects of style and tone separately
  - The main effect of sex
- - The interaction between sex and style/tone
+ - The interaction between sex and style/tone (and any other demographic variables we wish to include)
 
 For style:
 ```{r}
@@ -351,18 +341,19 @@ By testing:
  - The main effect of sex on actual ratings
  - While accounting for individual differences by including random intercepts for participants and messages
  - While modeling individual variability in effects of style and tone with random slopes by participant
+ - While accounting for variation on sex (or any other demographic characteristics we choose to measure) within the message_id grouping variable
  
-> This would be the model where we could incorporate context if we are able to do the necessary randomization for that. Then I think we'd need random slope for context within participant.
+> This would be the model where we could incorporate context if we are able to do the necessary randomization for that. Then I think we'd need random slope for context within participant
+
+> For both of our LMEMs we need to decide how we are going to handle non-convergence and also put it in the preregistration. We should talk about what are the most important variables to retain at our next meeting.
 
 ```{r}
 m3 <- lmer(message_rating ~ style*tone + sex +
-             (1 + style*tone | participant_id) + (1 | message_id),
+             (1 + style*tone | participant_id) + (1 + sex | message_id),
            d)
 
 summary(m3)
 ```
-
-Note to Claire to add in model simplification steps that will be carried out should model not converge.
 
 ## Model 4 - Concordance between preferences and actual ratings
 
@@ -375,15 +366,16 @@ By testing:
  - Main effects of style and tone preferences on actual ratings
  - While accounting for individual differences by including random intercepts for participants and messages
  - While modeling individual variability in effects of style and tone with random slopes by participant
+  - While accounting for variation on sex (or any other demographic characteristics we choose to measure) within the message_id grouping variable
 
+> Unsure if it conceptually makes sense to have an interaction here between tone_rating and style_rating.
 
 ```{r}
-m4 <- lmer(message_rating ~ tone_rating + style_rating +
-             (1 + tone_rating + style_rating | participant_id) + (1 | message_id),
+m4 <- lmer(message_rating ~ tone_rating + style_rating + sex
+             (1 + tone_rating + style_rating | participant_id) +
+             (1 + sex | message_id),
            d)
 ```
-
-> Do we want demographic characteristics in here? Unsure. Also think about if tone_rating and style_rating should be an interaction. This might also be a good place to try out Spearman's ranked correlations.
 
 ## Models 5, 6, & 7- Within and between comparisons (ICC)
 
@@ -429,11 +421,9 @@ d |>
  
 # Notes
 
- - Are pref_rating_style/tone and actual_rating comparable? Should pref be "helpful" instead of like?
- - Should pref_rating be one variable or separated into two?
- - Are we going to use context?
- - Note that gender_id is fill in the blank so probably can't use in analyses. Should this be specific categories?
+ - Are tone/style_rating and message_rating comparable? Should preferences also be "helpful" instead of like?
+ - Should gender_id include specific categories?
  - Treat race/ethnicity as separate variables?
- - Four different possibilities for which message (tone/style/context combination)
+ - We need to add in a variable accounting for context and study iteration
 
  
