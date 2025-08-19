@@ -161,7 +161,6 @@ participants <- data.frame(
     minoritized,
     income_adj
 )
-#write.csv(participants, file = 'participants.csv', row.names = FALSE)
 ```
 
 Tone preference generation
@@ -181,7 +180,6 @@ tone_preferences <- data.frame(
   tone_rating = tone_rating
 )
 #tone_preferences <- merge(tone_preferences, participants, by = "participant_id", all.x = TRUE)
-#write.csv(tone_preferences, file = 'tone/tone_preferences.csv', row.names = FALSE)
 ```
 
 
@@ -202,7 +200,6 @@ style_preferences <- data.frame(
   style_rating = style_rating
 )
 #style_preferences <- merge(style_preferences, participants, by = "participant_id", all.x = TRUE)
-#write.csv(style_preferences, file = 'style/style_preferences.csv', row.names = FALSE)
 ```
 
 
@@ -242,8 +239,6 @@ message_preferences <- message_preferences |>
   left_join(message_lookup, by = c("tone", "style")) |> 
   select(participant_id, tone, style, message_id, message_rating)
 
-#message_preferences <- merge(message_preferences, participants, by = "participant_id", all.x = TRUE)
-#write.csv(message_preferences, file = 'messages/message_preferences.csv', row.names = FALSE)
 ```
 
 Combine message, style, and tone preferences into one dataset:
