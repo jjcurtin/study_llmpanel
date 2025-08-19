@@ -15,10 +15,11 @@ editor_options:
 
 # To do
 
-Claire:
+Claire
+ - update message_id tag
 
 Colin:
- - Basic data vis of simulated data
+ - Add in context and survey_id tags
 
 ```{r}
 library(stats)
@@ -45,7 +46,9 @@ Specifically, this project pursues the following aims:
 
 ## Data
 
-~50 (unsure of exact number) individuals who meet the criteria for alcohol use disorder (AUD) were provided with a set of linguistic styles (6) and tones (2) designed to be applied to messages generated with the use of large language models (LLMs). They were asked to rate each of these tones and styles on a 1 to 7 likert scale on how much they liked each category. Then, participants were prompted with a series of LLM-generated messages across a set of 4 simulated user contexts in which a lapse risk (high, low) and lapse risk change (increasing, decreasing) was reported. They were asked to rate each of these messages on a similar 1 to 7 likert scale on how much they found each of these messages to be helpful.
+ - Future tense
+ 
+Five hundred individuals (50 pilot subjects) who score above XX on the Alcohol Use Disorder Identification Test (AUDIT) Self-Report (suggestive of possible alcohol use disorder) were provided with a set of linguistic styles (6) and tones (2) designed to be applied to messages generated with the use of large language models (LLMs). They were asked to rate each of these tones and styles on a 1 to 7 likert scale on how much they liked each category. Then, participants were prompted with a series of LLM-generated messages across a set of 4 simulated user contexts in which a lapse risk (high, low) and lapse risk change (increasing, decreasing) was reported. They were asked to rate each of these messages on a similar 1 to 7 likert scale on how much they found each of these messages to be helpful.
 
 We evaluated stated and actual preferences for each tone and style category, determined if there was an interaction between stated and actual preferences, and assessed the impact that demographic characteristics have on stated and actual preferences.
 
@@ -59,7 +62,7 @@ We evaluated stated and actual preferences for each tone and style category, det
 
 ```{r}
 set.seed(1)
-n_participants <- 100
+n_participants <- 500
 standard_deviation <- 0.3
 
 tones <- c("legitimizing", "caring_supportive", "self_efficacy",
@@ -205,8 +208,6 @@ style_preferences <- data.frame(
 
 Message preference generation for tone x style (x context eventually).
 ```{r}
-#participant_id <- rep(participants$participant_id, each = length(tones))
-#participant_sex <- rep(participants$sex, each = length(tones))
 participant_id <- rep(participants$participant_id, each = length(styles) * length(contexts) * length(tones))
 participant_sex <- rep(participants$sex, each = length(styles) * length(contexts) * length(tones))
 tone <- rep(rep(tones, each = length(styles) * length(contexts)), times = nrow(participants))
@@ -254,6 +255,18 @@ d <- participants |>
 
 
 d |> glimpse()
+```
+
+```{r}
+d |> pull(age) |> hist()
+d |> pull(tone_rating) |> hist()
+d |> pull(style_rating) |> hist()
+d |> ggplot(aes(x = tone,
+                y = tone_rating)) +
+  geom_col()
+d |> ggplot(aes(x = style,
+                y = style_rating)) +
+  geom_col()
 ```
 
 Simulated data should have:
@@ -426,5 +439,6 @@ d |>
  - Should gender_id include specific categories?
  - Treat race/ethnicity as separate variables?
  - We need to add in a variable accounting for context and study iteration
+ - "I/we" category???
 
  
