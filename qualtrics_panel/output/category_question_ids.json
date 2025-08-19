@@ -1,38 +1,38 @@
 [
     {
         "DataExportTag": "description",
-        "QuestionID": "QID2565"
+        "QuestionID": "QID2634"
     },
     {
-        "DataExportTag": "Q1",
-        "QuestionID": "QID2566"
+        "DataExportTag": "Q1_Legitimizing",
+        "QuestionID": "QID2635"
     },
     {
-        "DataExportTag": "Q2",
-        "QuestionID": "QID2567"
+        "DataExportTag": "Q2_CaringSupportive",
+        "QuestionID": "QID2636"
     },
     {
-        "DataExportTag": "Q3",
-        "QuestionID": "QID2568"
+        "DataExportTag": "Q3_SelfEfficacy",
+        "QuestionID": "QID2637"
     },
     {
-        "DataExportTag": "Q4",
-        "QuestionID": "QID2569"
+        "DataExportTag": "Q4_Acknowledging",
+        "QuestionID": "QID2638"
     },
     {
-        "DataExportTag": "Q5",
-        "QuestionID": "QID2570"
+        "DataExportTag": "Q5_ValueAffirmation",
+        "QuestionID": "QID2639"
     },
     {
-        "DataExportTag": "Q6",
-        "QuestionID": "QID2571"
+        "DataExportTag": "Q6_Norms",
+        "QuestionID": "QID2640"
     },
     {
-        "DataExportTag": "Q7",
-        "QuestionID": "QID2572"
+        "DataExportTag": "Q7_Formal",
+        "QuestionID": "QID2641"
     },
     {
-        "DataExportTag": "Q8",
-        "QuestionID": "QID2573"
+        "DataExportTag": "Q8_Informal",
+        "QuestionID": "QID2642"
     }
 ]
