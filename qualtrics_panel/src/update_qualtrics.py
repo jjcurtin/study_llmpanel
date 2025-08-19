@@ -139,7 +139,10 @@ class SurveyHandler:
                 exit(1)
             demographic_questions = sorted(
                 demographic_questions, 
-                key=lambda x: (x['DataExportTag'] != "description", int(x['DataExportTag'][1:]) if x['DataExportTag'][1:].isdigit() else float('inf'))
+                key=lambda x: (
+                    x['DataExportTag'] != "description", 
+                    int(x['DataExportTag'][1:x['DataExportTag'].index('_')]) if '_' in x['DataExportTag'] and x['DataExportTag'][1:x['DataExportTag'].index('_')].isdigit() else float('inf')
+                )
             )
             print(f"Sorted {len(demographic_questions)} demographic questions.")
             for question in demographic_questions:
@@ -172,7 +175,10 @@ class SurveyHandler:
                 exit(1)
             category_questions = sorted(
                 category_questions,
-                key=lambda x: (x['DataExportTag'] != "description", int(x['DataExportTag'][1:]) if x['DataExportTag'][1:].isdigit() else float('inf'))
+                key=lambda x: (
+                    x['DataExportTag'] != "description",
+                    int(x['DataExportTag'][1:x['DataExportTag'].index('_')]) if '_' in x['DataExportTag'] and x['DataExportTag'][1:x['DataExportTag'].index('_')].isdigit() else float('inf')
+                )
             )
             print(f"Sorted {len(category_questions)} tone category questions.")
             for question in category_questions:
