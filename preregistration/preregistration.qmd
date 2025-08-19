@@ -207,8 +207,8 @@ participant_id <- rep(participants$participant_id, each = length(styles) * lengt
 participant_sex <- rep(participants$sex, each = length(styles) * length(contexts) * length(tones))
 tone <- rep(rep(tones, each = length(styles) * length(contexts)), times = nrow(participants))
 style <- rep(rep(styles, each = length(contexts)), times = length(tones) * nrow(participants))
-# not using context currently but adding in here
 context <- rep(contexts, times = length(tones) * length(styles) * nrow(participants))
+survey_id <- rep(1:4, length.out = length(context))  # simpler than num(1,4)
 
 adjusted_tone_means <- mapply(get_adjusted_tone_mean, tone, participant_sex)
 adjusted_style_means <- mapply(get_adjusted_style_mean, style, participant_sex)
@@ -216,27 +216,27 @@ adjusted_style_means <- mapply(get_adjusted_style_mean, style, participant_sex)
 message_rating_tone <- rnorm(length(tone), mean = adjusted_tone_means, sd = standard_deviation)
 message_rating_style <- rnorm(length(style), mean = adjusted_style_means, sd = standard_deviation)
 message_rating <- (message_rating_tone + message_rating_style) / 2
-
 message_rating <- pmin(pmax(message_rating, 1), 7)
 message_rating <- round(message_rating)
+
 message_preferences <- data.frame(
   participant_id = participant_id,
   tone = tone,
   style = style,
+  context = context,
+  survey_id = survey_id,
   message_rating = message_rating
 )
 
-# add in ids for messages
-# eventually want to add in a cross for context
+# lookup now includes context as well
 message_lookup <- message_preferences |> 
-  distinct(tone, style) |> 
-  arrange(tone, style) |> 
+  distinct(tone, style, context) |> 
+  arrange(tone, style, context) |> 
   mutate(message_id = row_number())
 
 message_preferences <- message_preferences |> 
-  left_join(message_lookup, by = c("tone", "style")) |> 
-  select(participant_id, tone, style, message_id, message_rating)
-
+  left_join(message_lookup, by = c("tone", "style", "context")) |> 
+  select(participant_id, survey_id, tone, style, context, message_id, message_rating)
 ```
 
 Combine message, style, and tone preferences into one dataset:
