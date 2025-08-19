@@ -179,7 +179,6 @@ tone_preferences <- data.frame(
   tone = tone,
   tone_rating = tone_rating
 )
-#tone_preferences <- merge(tone_preferences, participants, by = "participant_id", all.x = TRUE)
 ```
 
 
@@ -199,7 +198,6 @@ style_preferences <- data.frame(
   style = style,
   style_rating = style_rating
 )
-#style_preferences <- merge(style_preferences, participants, by = "participant_id", all.x = TRUE)
 ```
 
 
