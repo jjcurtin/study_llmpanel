@@ -28,6 +28,7 @@ library(tidyverse)
 library(psych) 
 library(car)
 library(broom)
+library(ggplot2)
 ```
 
 # Study Overview
@@ -286,6 +287,125 @@ Some other notes for making it realistic!
  - Make sure that not every person's stated preference perfectly matches their actual message ratings
  - Keep ratings in the real range of values we'll be collecting (e.g., 1-7 Likert scale)
 
+## Meeting data gen
+
+> Dataset w 24 helpfulness message ratings, 4 per tone category, with two patterns (one where people find some messages helpful and some not helpful, where helpfulness has nothing to do with tones AKA random; generate data participant-by-participant for 24 participants, each has a different relative ordering in how much they like different tone categories and so all message helpfulness ratings will parallel these categories (6/7s, 4/5s, 1/2s)) --> what analysis to confirm that a preference exists?
+
+> Randomly sort tone categories to determine preference ratings for each subject, give ratings that only vary by two
+
+Dataset with 24 helpfulness message ratings where there are 4 ratings per tone category. Participants find some messages helpful and some not helpful. Helpfulness has nothing to do with tones (AKA it's random!).
+```{r}
+# set up - set seed and define ranges, tone cats
+set.seed(81322)
+
+n_participants <- 50
+n_messages <- 24
+n_tones <- 6
+ratings_scale <- 1:7
+
+tones <- c("affirmation", "norms", "acknowledging", 
+           "selfefficacy", "caring", "legitimizing")
+
+# every participant rates 24 messages and each tone is rated 4 times
+tone_assignments <- rep(tones, each = n_messages / n_tones)
+
+# simulate some data
+random_data <- expand.grid(
+  participant_id = 1:n_participants,
+  message_id = 1:n_messages) |> 
+  mutate(tone = rep(tone_assignments, times = n_participants), # assign tone
+         helpfulness = sample(ratings_scale, # randomly assign helpfulness ratings
+                              size = nrow(sim_data),
+                              replace = TRUE))
+
+random_data |> head(10)
+```
+
+
+Dataset for 24 participants, each who has a different relative ordering in how much they like different tone categories. Tone categories are randomly sorted to determine these preference ratings.
+```{r}
+# function to simulate data for a given participant
+simulate_participant <- function(id) {
+  # random preference order
+  pref_order <- sample(tones, n_tones, replace = FALSE)
+  
+  tibble(
+    participant_id = id,
+    message_id = 1:24,
+    tone = tone_assignments
+  ) |>
+    # chunk preference orders so we can assign them ratings
+    mutate(
+      preference_group = case_when(
+        tone %in% pref_order[1:2] ~ "top",
+        tone %in% pref_order[3:4] ~ "middle",
+        tone %in% pref_order[5:6] ~ "bottom"
+      ),
+      # assign ratings based on top/mid/low and also save group for our reference
+      helpfulness = case_when(
+        preference_group == "top" ~ sample(6:7, 1),
+        preference_group == "middle" ~ sample(4:5, 1),
+        preference_group == "bottom" ~ sample(1:2, 1)
+      ),
+      preference_order = paste(pref_order, collapse = " > ")
+    )
+}
+
+# set up - setting seed, defining params, and tones again for good measure
+set.seed(81322)
+
+n_participants <- 24
+n_tones <- 6
+n_messages <- 24
+tones <- c("affirmation", "norms", "acknowledging", 
+           "selfefficacy", "caring", "legitimizing")
+
+# same as above every tone is rated four times
+tone_assignments <- rep(tones, each = n_messages / n_tones)
+
+# apply function
+relative_data <- 1:n_participants |> 
+  map(\(id) simulate_participant(id)) |> 
+  bind_rows() |>
+  # comment these out to look at the preference orders participants were randomly assigned
+  select(-preference_order, -preference_group)
+
+relative_data |> glimpse()
+```
+
+Some visuals.
+```{r}
+ggplot(relative_data, aes(x = tone, y = helpfulness, fill = tone)) +
+  geom_boxplot(alpha = 0.6) +
+  geom_jitter(width = 0.2, size = 1, alpha = 0.5) +
+  theme_minimal(base_size = 14) +
+  theme(axis.text.x = element_text(angle = 30, hjust = 1)) +
+  labs(title = "Helpfulness Ratings by Tone",
+       x = "Tone Category", y = "Helpfulness Rating (1–7)")
+
+relative_data |> 
+  filter(participant_id <= 12) |> 
+  ggplot(aes(x = tone, y = helpfulness, fill = tone)) +
+    geom_boxplot(alpha = 0.6) +
+    geom_jitter(width = 0.2, size = 1, alpha = 0.5) +
+    theme_minimal(base_size = 14) +
+    theme(axis.text.x = element_text(angle = 30, hjust = 1, size = 6)) +
+    facet_grid(~ participant_id) +
+    labs(title = "Helpfulness Ratings by Tone",
+        x = "Tone Category", y = "Helpfulness Rating (1–7)")
+
+relative_data |> 
+  filter(participant_id >= 13) |> 
+  ggplot(aes(x = tone, y = helpfulness, fill = tone)) +
+    geom_boxplot(alpha = 0.6) +
+    geom_jitter(width = 0.2, size = 1, alpha = 0.5) +
+    theme_minimal(base_size = 14) +
+    theme(axis.text.x = element_text(angle = 30, hjust = 1, size = 6)) +
+    facet_grid(~ participant_id) +
+    labs(title = "Helpfulness Ratings by Tone",
+        x = "Tone Category", y = "Helpfulness Rating (1–7)")
+```
+
 # Preregistered Analyses
 
 Variables:
@@ -312,7 +432,7 @@ Variables:
 
 Answers:
 
- - Do people have message tone and/or style preferences? (stated preferences from categories)
+ - Are there message tone and/or style preferences? (stated preferences from categories)
  - Are there demographic differences in these preferences? (demonstrated here using sex variable)
  
 By testing:
@@ -323,14 +443,12 @@ By testing:
 
 For style:
 ```{r}
-m1 <- lm(style_rating ~ style*sex, d)
-broom::tidy(m1)
+m1 <- lmer(style_rating ~ style*sex + (style | participant_id), d)
 ```
 
 For tone:
 ```{r}
-m2 <- lm(tone_rating ~ tone*sex, d)
-broom::tidy(m2)
+m2 <- lmer(tone_rating ~ tone*sex + (tone | participant_id), d)
 ```
 
 ## Model 3 - Style and tone actual ratings
@@ -355,7 +473,7 @@ By testing:
 > For both of our LMEMs we need to decide how we are going to handle non-convergence and also put it in the preregistration. We should talk about what are the most important variables to retain at our next meeting.
 
 ```{r}
-m3 <- lmer(message_rating ~ style*tone + sex +
+m3 <- lmer(message_rating ~ style*tone*sex +
              (1 + style*tone | participant_id) + (1 + sex | message_id),
            d)
 
@@ -394,6 +512,8 @@ Answers:
   
 > I believe it would be appropriate for us to look at ICC2 or ICC3 here, but they would answer slightly different questions. ICC2 assumes a random sample of raters and ICC3 assumes a fixed sample. ICC2 is more appropriate if we want to generalize. ICC3 is more appropriate if we are interested in characterizing these particular participants. I'm leaning towards 2.
 
+> Instead of looking at systematic preferences look at person-by-person differences
+
 ```{r}
 ## this will look at tone and style separately
 d |> 
@@ -402,7 +522,7 @@ d |>
   summarise(mean_rating = mean(message_rating, na.rm = TRUE),
             .groups = "drop") |> 
   pivot_wider(names_from = participant_id, values_from = mean_rating) |>
-  select(-tone) |> 
+  select(-tone) |> view()
   ICC()
 
 d |> 
