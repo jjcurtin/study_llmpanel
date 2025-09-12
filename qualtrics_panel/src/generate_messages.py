@@ -76,11 +76,11 @@ class MessageGenerator:
 
     def initialize_settings(self):
         # Load API credentials, message categories, and user contexts
-        model = input("Which model would you like to use? 4 for GPT-4o or 5 for GPT-5mini? (default: 4o): ")
-        if model not in ['4', '5']:
-            model = '4'
-        print(f"Using model: {model}")
-        self.api_key, self.endpoint = get_credentials(model = model)
+        self.model = input("Which model would you like to use? 4 for GPT-4o or 5 for GPT-5mini? (default: 4o): ")
+        if self.model not in ['4', '5']:
+            self.model = '4'
+        print(f"Using model: {self.model}")
+        self.api_key, self.endpoint = get_credentials(model = self.model)
 
         # decide which tones to generate messages for
         self.tones_to_generate, self.category_to_description = select_message_categories()
@@ -198,11 +198,12 @@ class MessageGenerator:
                 "Content-Type": "application/json"
             }
             payload = {
-                "model": "optimize-v2",
                 "messages": messages,
-                "max_tokens": 600,
-                "temperature": self.temperature
             }
+            payload["model"] = "optimize-v2" if (self.model == 4) else "optimize-5-mini"
+            if self.model == '4':
+                payload["temperature"] = self.temperature
+                payload["max_tokens"] = 600
             response = requests.post(self.endpoint, headers=headers, json=payload)
             response.raise_for_status()
             return response.json()
@@ -327,14 +328,14 @@ class MessageGenerator:
                                 except Exception as e:
                                     print(f"Error generating messages for user {user_index + 1} in category {message_category}: {e}")
                                     continue
-                                print(f"[Generated {self.num_messages} {formality} messages for user {user_index + 1} in category {message_category} at temperature {self.temperature}]\n")
+                                print(f"[Generated {self.num_messages} {formality} messages for user {user_index + 1} in category {message_category} at temperature {self.temperature if self.model == '4' else "1.0 (only option for GPT-5)"}]\n")
                                 for msg in messages:
                                     # add the generated message to the output list
                                     self.all_output_rows.append({
                                         'user_index': user_index + 1,
                                         'lapse_risk': user_context.get('lapse_risk', ''),
                                         'lapse_risk_change': user_context.get('lapse_risk_change', ''),
-                                        'temperature': self.temperature,
+                                        'temperature': self.temperature if self.model == '4' else '1.0',
                                         'formality': formality,
                                         'message_category': message_category,
                                         'generated_message': msg,
