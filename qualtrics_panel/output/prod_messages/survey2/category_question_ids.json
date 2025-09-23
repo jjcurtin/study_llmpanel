@@ -1,0 +1,42 @@
+[
+    {
+        "DataExportTag": "description",
+        "QuestionID": "QID2868"
+    },
+    {
+        "DataExportTag": "Q1_Legitimizing",
+        "QuestionID": "QID2869"
+    },
+    {
+        "DataExportTag": "Q2_CaringSupportive",
+        "QuestionID": "QID2870"
+    },
+    {
+        "DataExportTag": "Q3_SelfEfficacy",
+        "QuestionID": "QID2871"
+    },
+    {
+        "DataExportTag": "Q4_Acknowledging",
+        "QuestionID": "QID2872"
+    },
+    {
+        "DataExportTag": "Q5_ValueAffirmation",
+        "QuestionID": "QID2873"
+    },
+    {
+        "DataExportTag": "Q6_Norms",
+        "QuestionID": "QID2874"
+    },
+    {
+        "DataExportTag": "Q7_Formal",
+        "QuestionID": "QID2875"
+    },
+    {
+        "DataExportTag": "Q8_Informal",
+        "QuestionID": "QID2876"
+    },
+    {
+        "DataExportTag": "Q9_ToneUserInput",
+        "QuestionID": "QID2877"
+    }
+]
