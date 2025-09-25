@@ -315,7 +315,7 @@ random_data <- expand.grid(
   message_id = 1:n_messages) |> 
   mutate(tone = rep(tone_assignments, times = n_participants), # assign tone
          helpfulness = sample(ratings_scale, # randomly assign helpfulness ratings
-                              size = nrow(sim_data),
+                              size = n(),
                               replace = TRUE))
 
 random_data |> head(10)
@@ -467,8 +467,6 @@ By testing:
  - While accounting for individual differences by including random intercepts for participants and messages
  - While modeling individual variability in effects of style and tone with random slopes by participant
  - While accounting for variation on sex (or any other demographic characteristics we choose to measure) within the message_id grouping variable
- 
-> This would be the model where we could incorporate context if we are able to do the necessary randomization for that. Then I think we'd need random slope for context within participant
 
 > For both of our LMEMs we need to decide how we are going to handle non-convergence and also put it in the preregistration. We should talk about what are the most important variables to retain at our next meeting.
 
@@ -476,6 +474,8 @@ By testing:
 m3 <- lmer(message_rating ~ style*tone*sex +
              (1 + style*tone | participant_id) + (1 + sex | message_id),
            d)
+
+# context goes in as a fixed effect and a random effect in participant_id
 
 summary(m3)
 ```
@@ -502,7 +502,33 @@ m4 <- lmer(message_rating ~ tone_rating + style_rating + sex
            d)
 ```
 
-## Models 5, 6, & 7- Within and between comparisons (ICC)
+## Within- and between-comparisons
+
+ - Are participant ratings of messages more different across tone categories than within tone categories?
+ - Are participant ratings of messages more different across style categories than within style categories?
+ - Are participant ratings of messages more different across tone/style combinations than within tone/style combinations?
+ 
+To answer these questions, we need to do some sort of variance decomposition.
+
+Outline:
+
+1) Nakagawa's R2: https://royalsocietypublishing.org/doi/10.1098/rsif.2017.0213 --> this produces a marginal R2 value (variance explained by fixed effects) and a conditional R2 value (variance explained by the combination of fixed and random effects). We could do this with our m3 model above. --> *quantify overall variance explained by fixed/random effects*
+
+2) Variance partitioning by factor where we successively add variables we want to compare --> *quantify how much variance each factor in our model contributes on average across all people*
+
+3) Extract variance components --> *quantify individual heterogeneity*
+```{r}
+summary(m3)$varcor
+```
+ 
+# Notes
+
+ - Are tone/style_rating and message_rating comparable? Should preferences also be "helpful" instead of like?
+ - Should gender_id include specific categories?
+ - Treat race/ethnicity as separate variables?
+ - We need to add in a variable accounting for context and study iteration
+
+## Old but saving in case
 
 Answers:
 
@@ -545,13 +571,5 @@ d |>
 
 > ICC does not work with ranked ordered categories, but there is a rank ICC package we could consider using: https://pmc.ncbi.nlm.nih.gov/articles/PMC10592008/ https://github.com/shengxintu/rankICC This paper has only been cited 10 times so might not be the best option.
 
- 
-# Notes
-
- - Are tone/style_rating and message_rating comparable? Should preferences also be "helpful" instead of like?
- - Should gender_id include specific categories?
- - Treat race/ethnicity as separate variables?
- - We need to add in a variable accounting for context and study iteration
- - "I/we" category???
 
  
