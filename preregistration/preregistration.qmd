@@ -22,13 +22,12 @@ Colin:
  - Add in context and survey_id tags
 
 ```{r}
-library(stats)
+# library(stats)
 library(lme4)
 library(tidyverse) 
 library(psych) 
 library(car)
 library(broom)
-library(ggplot2)
 ```
 
 # Study Overview
