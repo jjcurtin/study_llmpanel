@@ -22,13 +22,12 @@ Colin:
  - Add in context and survey_id tags
 
 ```{r}
-library(stats)
+# library(stats)
 library(lme4)
 library(tidyverse) 
 library(psych) 
 library(car)
 library(broom)
-library(ggplot2)
 ```
 
 # Study Overview
@@ -342,6 +341,7 @@ simulate_participant <- function(id) {
         tone %in% pref_order[5:6] ~ "bottom"
       ),
       # assign ratings based on top/mid/low and also save group for our reference
+      ## NOTE TO ADD SOME NOISE WITHIN CATEGORIES and make preferences less strong
       helpfulness = case_when(
         preference_group == "top" ~ sample(6:7, 1),
         preference_group == "middle" ~ sample(4:5, 1),
@@ -470,15 +470,72 @@ By testing:
 
 > For both of our LMEMs we need to decide how we are going to handle non-convergence and also put it in the preregistration. We should talk about what are the most important variables to retain at our next meeting.
 
+MAKE THIS FIRST QUESTION.
+
+> Overall, are there differences in helpfulness by style and tone?
+
 ```{r}
-m3 <- lmer(message_rating ~ style*tone*sex +
-             (1 + style*tone | participant_id) + (1 + sex | message_id),
+m1_s <- lmer(message_rating ~ style +
+             (1 + style | participant_id) + (1 | message_id),
+           d)
+
+m1_t <- lmer(message_rating ~ tone +
+             (1 + tone | participant_id) + (1 | message_id),
            d)
 
 # context goes in as a fixed effect and a random effect in participant_id
 
 summary(m3)
 ```
+
+SECOND: effect of demographics
+
+One variable at a time, only interested in the interaction sex and style, sex and tone
+
+These analyses will be conducted for all demographics variables which have sufficient variation, defined as XX. Less than 10% of participants in a given category, we will consider collapsing groups into fewer categories.
+
+THIRD: do preferences differ across individuals?
+
+Analyze if the variance of helpfulness scores less within a tone/style category than between tone/style categories
+
+Calculate the variances of helpfulness ratings within each of the tones within each participant, then average within a participant (six variances). Each participant will end up with one mean variance within tone categories. Then we can also calculate overall variance still within participants but across all tones that they have rated.
+
+
+
+```{r}
+rd <- relative_data
+
+
+
+head(rd)
+
+
+v_w <- rd |>  
+  group_by(participant_id, tone) |>
+  summarise(var_within = var(helpfulness),
+            .groups = "drop") |>
+  group_by(participant_id) |>
+  summarise(mean_var_within = mean(var_within),
+            .groups = "drop")
+ 
+v_b <- rd |>
+  group_by(participant_id) |>
+  summarise(var_between = var(helpfulness),
+            .groups = "drop")
+
+# join the files
+v <- v_w |> 
+  left_join(v_b, by = "participant_id")
+
+# within subject t-test comparing within and between variances
+t.test(v$mean_var_within, v$var_between, paired = TRUE)
+```
+
+If there are preferences among individuals, we will want to give people their preferred tones/styples
+
+Can our tone preference ratings predict their actual ratings?
+
+
 
 ## Model 4 - Concordance between preferences and actual ratings
 
@@ -495,10 +552,22 @@ By testing:
 
 > Unsure if it conceptually makes sense to have an interaction here between tone_rating and style_rating.
 
+Model comparison: compact model is predicting message ratings based on style (same as above), augmented is can we do better including their style/tone ratings.
+
+Generate style ratings with random integers from the uniform distribution from 1 to 7.
+Message ratings should be generated based on style ratings + some noise. Could also be a function of what people prefer on average or maybe we want that to be a null effect. Ratings are also a function of demographics (sex at birth). Sex by style interaction but no main effect of sex.
+
 ```{r}
-m4 <- lmer(message_rating ~ tone_rating + style_rating + sex
-             (1 + tone_rating + style_rating | participant_id) +
-             (1 + sex | message_id),
+m2_s <- lmer(message_rating ~ informal_style_rating*style + formal_style_rating*style
+             (1 + style | participant_id) +
+             (1 | message_id),
+           d)
+
+m2_t <- lmer(message_rating ~ value_affirmation_tone_rating*tone + norms_tone_rating*tone +
+             acknowledging_tone_rating*tone + self_efficacy_tone_rating*tone +
+             caring_supportive_tone_rating*tone + legitimizing_tone_rating*tone +
+             (1 + tone | participant_id) +
+             (1 | message_id),
            d)
 ```
 
