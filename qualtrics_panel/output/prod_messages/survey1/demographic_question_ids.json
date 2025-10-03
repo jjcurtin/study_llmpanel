@@ -1,50 +1,50 @@
 [
     {
         "DataExportTag": "description",
-        "QuestionID": "QID3012"
+        "QuestionID": "QID3034"
     },
     {
         "DataExportTag": "Q1_Age",
-        "QuestionID": "QID3013"
+        "QuestionID": "QID3035"
     },
     {
         "DataExportTag": "Q2_SexAtBirth",
-        "QuestionID": "QID3014"
+        "QuestionID": "QID3036"
     },
     {
         "DataExportTag": "Q3_GenderIdentity",
-        "QuestionID": "QID3015"
+        "QuestionID": "QID3037"
     },
     {
         "DataExportTag": "Q4_SexualOrientation",
-        "QuestionID": "QID3016"
+        "QuestionID": "QID3038"
     },
     {
         "DataExportTag": "Q5_RaceEthnicity",
-        "QuestionID": "QID3017"
+        "QuestionID": "QID3039"
     },
     {
         "DataExportTag": "Q6_Education",
-        "QuestionID": "QID3018"
+        "QuestionID": "QID3040"
     },
     {
         "DataExportTag": "Q7_StudentStatus",
-        "QuestionID": "QID3019"
+        "QuestionID": "QID3041"
     },
     {
         "DataExportTag": "Q8_HouseholdIncome",
-        "QuestionID": "QID3020"
+        "QuestionID": "QID3042"
     },
     {
         "DataExportTag": "Q9_PeopleInHousehold",
-        "QuestionID": "QID3021"
+        "QuestionID": "QID3043"
     },
     {
         "DataExportTag": "Q10_MaritalStatus",
-        "QuestionID": "QID3022"
+        "QuestionID": "QID3044"
     },
     {
         "DataExportTag": "Q11_UnMinoritization",
-        "QuestionID": "QID3023"
+        "QuestionID": "QID3045"
     }
 ]
