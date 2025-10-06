@@ -13,14 +13,6 @@ editor_options:
   chunk_output_type: console
 ---
 
-# To do
-
-Claire
- - update message_id tag
-
-Colin:
- - Add in context and survey_id tags
-
 ```{r}
 # library(stats)
 library(lme4)
@@ -45,600 +37,268 @@ Specifically, this project pursues the following aims:
 **AIM 3:** Analyze the data to compare tone and style preferences and to assess the relationship between stated preferences and actual message ratings. 
 
 ## Data
-
- - Future tense
  
-Five hundred individuals (50 pilot subjects) who score above XX on the Alcohol Use Disorder Identification Test (AUDIT) Self-Report (suggestive of possible alcohol use disorder) will be provided with a set of linguistic styles (6) and tones (2) designed to be applied to messages generated with the use of large language models (LLMs). They will be asked to rate each of these tones and styles on a 1 to 7 likert scale on how much they like each category. Then, participants will be prompted with a series of LLM-generated messages across a set of 4 simulated user contexts in which a lapse risk (high, low) and lapse risk change (increasing, decreasing) will be reported. They will be asked to rate each of these messages on a similar 1 to 7 likert scale on how much they find each of these messages to be helpful.
+Five hundred individuals (50 pilot subjects) who score above **INSERT HERE** on the Alcohol Use Disorder Identification Test (AUDIT) Self-Report (suggestive of possible alcohol use disorder) will be provided with a set of linguistic styles (6) and tones (2) designed to be applied to messages generated with the use of large language models (LLMs). They will be asked to rate each of these tones and styles on a 7-point Likert scale on how much they like each category. Then, participants will be prompted with a series of LLM-generated messages across a set of 4 simulated user contexts in which a lapse risk (high, low) and lapse risk change (increasing, decreasing) will be reported. They will be asked to rate each of these messages on a similar 1 to 7 likert scale on how much they find each of these messages to be helpful.
 
 We evaluated stated and actual preferences for each tone and style category, determined if there was an interaction between stated and actual preferences, and assessed the impact that demographic characteristics have on stated and actual preferences.
 
 # Purpose of Preregistration
 
+The purpose of this document is to **preregister analyses for evaluating individual differences in message helpfulness ratings across different tones and styles**.
+
 ## Outcomes
+
+We have four primary analyses of interest:
+
+::: {}
+1. Do participants have differences in message helpfulness ratings as a function of tone and style?
+2. If participants do demonstrate these differences, are they accounted for by demographic variables?
+3. Do tone and style preferences differ across *individuals*?
+4. Can solicited tone and style preferences predict ratings of message helpfulness?
+:::
+
+These analyses will inform 1) whether the increased burden of message customization is "worth" the cost in an automated recovery support and messaging system by revealing that there are in fact differences in how messages are rated; and 2) if these differences exist, what level these preferences exist at (e.g., broad demographic group or at the individual level). Results from this study will inform the need for personalization in an automated recovery support and messaging system.
+
+We plan to report the parameter estimates, test statistics, *p*-values, and confidence intervals for all effects from all models described below.
 
 ## Focal and Secondary Effects
 
-# Data Generation
+> CP: Do we need this section? Not sure if we really have a distinction here. This header is from Gaylen's preregistration.
 
+# Data Simulation
+
+We elect to simulate mock data and demonstrate our proposed analyses below to ensure feasibility and specificity. Our analyses following data collection will follow the subsequent script using real data.
+
+To simulate these data, we generated responses for 50 participants (the amount we will use as our pilot sample) across 48 messages. Participants in the real study will be exposed to 48 messages (6 tones x 2 styles x 4 contexts). A variable specifying message context is not simulated here as any analyses undertaken using this variable will be considered exploratory. While we will collect several demographic variables, we only simulate one demographic variable here (sex assigned at birth) for the purposes of later demonstrating proposed demographics analyses.
+
+All participants in this simulated data set have a different relative ordering in how much they prefer different tone and style categories. Tone categories are randomly sorted to determine tone preference ratings (`tone_base_rating`). Style ratings are generated with random integers from the uniform distribution (`style_base_rating`). All message ratings are generated based on style and tone ratings and sex assigned at birth with additional noise (residual variance) to emulate real data. These data were specified such that there will be an interactive effect of sex assigned at birth on style and tone, but no main effect, which we anticipate to be true in our real data.
+
+Though not included in our analyses, we include additional variables in our simulation to simulate shared variance across participants (`message_concept_effect`) and survey-specific differences in message wording (`survey_message_effect`) as we believe these may be theoretically present in our real data.
+
+First we define a function to simulate data.
 ```{r}
-set.seed(1)
-n_participants <- 500
-standard_deviation <- 0.3
-
-tones <- c("legitimizing", "caring_supportive", "self_efficacy",
-           "acknowledging", "value_affirmation", "norms")
-styles <- c("formal", "informal")
-contexts <- c(
-  "high_increasing", "high_decreasing",
-  "low_increasing", "low_decreasing"
-)
-```
-
-Preferences set-up.
-```{r}
-tone_means <- c(
-  legitimizing      = 1,
-  caring_supportive = 2,
-  self_efficacy     = 3,
-  acknowledging     = 4,
-  value_affirmation = 5,
-  norms             = 6
-)
-tone_sex_adj <- list(
-  male = c(
-    legitimizing = -0.3,
-    norms        =  0.8
-  ),
-  female = c(
-    legitimizing =  0.8,
-    norms        = -0.3
-  )
-)
-get_adjusted_tone_mean <- function(tone, sex) {
-  base_mean <- tone_means[tone]
-  adj <- 0
-  if (!is.null(tone_sex_adj[[sex]])) {
-    adj <- tone_sex_adj[[sex]][tone]
-    if (is.na(adj)) adj <- 0
-  }
-  return(base_mean + adj)
-}
-
-style_means <- c(
-  formal            = 3,
-  informal          = 5
-)
-style_sex_adj <- list(
-  male = c(
-    formal       = -0.3,
-    informal     =  0.8
-  ),
-  female = c(
-    formal       = 0.8,
-    informal     =  -0.3
-  )
-)
-get_adjusted_style_mean <- function(style, sex) {
-  base_mean <- style_means[style]
-  adj <- 0
-  if (!is.null(style_sex_adj[[sex]])) {
-    adj <- style_sex_adj[[sex]][style]
-    if (is.na(adj)) adj <- 0
-  }
-  return(base_mean + adj)
-}
-```
-
-Participant generation.
-```{r}
-n <- n_participants
-repeat_even <- function(x, total) {
-    rep(x, length.out = total)
-}
-participant_id <- 1:n
-age               <- sample(repeat_even(18:65, n))
-sex               <- sample(repeat_even(c("male", "female"), n))
-gender_id         <- sample(repeat_even(c("man", "woman", "nonbinary"), n))
-sexual_orientation<- sample(repeat_even(c("heterosexual", "gay/lesbian", "bisexual", "other"), n))
-race_ethn         <- sample(repeat_even(c("white", "black", "asian", "hispanic", "other"), n))
-education         <- sample(repeat_even(c("high_school", "bachelor", "master", "phd"), n))
-income            <- sample(repeat_even(seq(20000, 100000, by = 20000), n))
-marital_status    <- sample(repeat_even(c("single", "married", "divorced", "widowed"), n))
-no_in_household   <- sample(repeat_even(1:6, n))
-minoritized       <- sample(repeat_even(c("yes", "no"), n))
-income_adj <- as.integer(income / no_in_household)
-participants <- data.frame(
-    participant_id,
-    age,
-    sex,
-    gender_id,
-    sexual_orientation,
-    race_ethn,
-    education,
-    income,
-    marital_status,
-    no_in_household,
-    minoritized,
-    income_adj
-)
-```
-
-Tone preference generation
-```{r}
-participant_id <- rep(participants$participant_id, each = length(tones))
-participant_sex <- rep(participants$sex, each = length(tones))
-tone <- rep(tones, times = nrow(participants))
-
-adjusted_means <- mapply(get_adjusted_tone_mean, tone, participant_sex)
-
-tone_rating <- rnorm(length(tone), mean = adjusted_means, sd = standard_deviation)
-tone_rating <- pmin(pmax(tone_rating, 1), 7)
-tone_rating <- round(tone_rating)
-tone_preferences <- data.frame(
-  participant_id = participant_id,
-  tone = tone,
-  tone_rating = tone_rating
-)
-```
-
-
-Style preference generation
-```{r}
-participant_id <- rep(participants$participant_id, each = length(styles))
-participant_sex <- rep(participants$sex, each = length(styles))
-style <- rep(styles, times = nrow(participants))
-
-adjusted_means <- mapply(get_adjusted_style_mean, style, participant_sex)
-
-style_rating <- rnorm(length(style), mean = adjusted_means, sd = standard_deviation)
-style_rating <- pmin(pmax(style_rating, 1), 7)
-style_rating <- round(style_rating)
-style_preferences <- data.frame(
-  participant_id = participant_id,
-  style = style,
-  style_rating = style_rating
-)
-```
-
-
-Message preference generation for tone x style (x context eventually).
-```{r}
-participant_id <- rep(participants$participant_id, each = length(styles) * length(contexts) * length(tones))
-participant_sex <- rep(participants$sex, each = length(styles) * length(contexts) * length(tones))
-tone <- rep(rep(tones, each = length(styles) * length(contexts)), times = nrow(participants))
-style <- rep(rep(styles, each = length(contexts)), times = length(tones) * nrow(participants))
-context <- rep(contexts, times = length(tones) * length(styles) * nrow(participants))
-survey_id <- rep(1:4, length.out = length(context))  # simpler than num(1,4)
-
-adjusted_tone_means <- mapply(get_adjusted_tone_mean, tone, participant_sex)
-adjusted_style_means <- mapply(get_adjusted_style_mean, style, participant_sex)
-
-message_rating_tone <- rnorm(length(tone), mean = adjusted_tone_means, sd = standard_deviation)
-message_rating_style <- rnorm(length(style), mean = adjusted_style_means, sd = standard_deviation)
-message_rating <- (message_rating_tone + message_rating_style) / 2
-message_rating <- pmin(pmax(message_rating, 1), 7)
-message_rating <- round(message_rating)
-
-message_preferences <- data.frame(
-  participant_id = participant_id,
-  tone = tone,
-  style = style,
-  context = context,
-  survey_id = survey_id,
-  message_rating = message_rating
-)
-
-# lookup now includes context as well
-message_lookup <- message_preferences |> 
-  distinct(tone, style, context) |> 
-  arrange(tone, style, context) |> 
-  mutate(message_id = row_number())
-
-message_preferences <- message_preferences |> 
-  left_join(message_lookup, by = c("tone", "style", "context")) |> 
-  select(participant_id, survey_id, tone, style, context, message_id, message_rating)
-```
-
-Combine message, style, and tone preferences into one dataset:
-```{r}
-d <- participants |>
-  left_join(message_preferences, by = "participant_id") |> 
-  left_join(style_preferences, by = c("participant_id", "style")) |> 
-  left_join(tone_preferences, by = c("participant_id", "tone"))
-
-
-d |> glimpse()
-```
-
-```{r}
-d |> pull(age) |> hist()
-d |> pull(tone_rating) |> hist()
-d |> pull(style_rating) |> hist()
-d |> ggplot(aes(x = tone,
-                y = tone_rating)) +
-  geom_col()
-d |> ggplot(aes(x = style,
-                y = style_rating)) +
-  geom_col()
-```
-
-Simulated data should have:
-
- 1. We should see clear differences in actual ratings of messages. Within each tone/style, people's ratings should be pretty similar to one another (low variance) but between tone/style ratings should be noticeably different (high variance).
- 
- Example: people might rate the norms tone at around a 6/7 but the self-efficacy tone at around a 3/7.
-
- 2. Stated preferences should match actual ratings.
- 
- Example: if someone says they like "informal" messages, then their ratings of actual "informal" messages should be high, too.
-
- 3. We want to observe a demographic difference. Create a sex variable (male/female) where there is a clear difference in tone/style preferences.
- 
- Example: prefer "norms" messages and women prefer "legitimizing" messages.
-
- 4. We want tone and style to interact.
- 
- Example: all tones that are crossed with the "informal" style to have higher actual ratings than all tones crossed with the "formal" style.
-
-Some other notes for making it realistic!
-
- - Make sure there's a little bit of randomness (we don't want two given person's ratings to be identical, but we still want the patterns above to be obvious)
- - Make sure that not every person's stated preference perfectly matches their actual message ratings
- - Keep ratings in the real range of values we'll be collecting (e.g., 1-7 Likert scale)
-
-## Meeting data gen
-
-> Dataset w 24 helpfulness message ratings, 4 per tone category, with two patterns (one where people find some messages helpful and some not helpful, where helpfulness has nothing to do with tones AKA random; generate data participant-by-participant for 24 participants, each has a different relative ordering in how much they like different tone categories and so all message helpfulness ratings will parallel these categories (6/7s, 4/5s, 1/2s)) --> what analysis to confirm that a preference exists?
-
-> Randomly sort tone categories to determine preference ratings for each subject, give ratings that only vary by two
-
-Dataset with 24 helpfulness message ratings where there are 4 ratings per tone category. Participants find some messages helpful and some not helpful. Helpfulness has nothing to do with tones (AKA it's random!).
-```{r}
-# set up - set seed and define ranges, tone cats
-set.seed(81322)
-
-n_participants <- 50
-n_messages <- 24
-n_tones <- 6
-ratings_scale <- 1:7
-
-tones <- c("affirmation", "norms", "acknowledging", 
-           "selfefficacy", "caring", "legitimizing")
-
-# every participant rates 24 messages and each tone is rated 4 times
-tone_assignments <- rep(tones, each = n_messages / n_tones)
-
-# simulate some data
-random_data <- expand.grid(
-  participant_id = 1:n_participants,
-  message_id = 1:n_messages) |> 
-  mutate(tone = rep(tone_assignments, times = n_participants), # assign tone
-         helpfulness = sample(ratings_scale, # randomly assign helpfulness ratings
-                              size = n(),
-                              replace = TRUE))
-
-random_data |> head(10)
-```
-
-
-Dataset for 24 participants, each who has a different relative ordering in how much they like different tone categories. Tone categories are randomly sorted to determine these preference ratings.
-```{r}
-# function to simulate data for a given participant
-simulate_participant <- function(id) {
-  # random preference order
+simulate_participant <- function(participant_id) {
+  
+  # define participant-level variables
+  sex <- sample(c("male", "female"), 1)
+  style_base_rating <- sample(1:7, 1)
+  survey_id <- sample(1:n_surveys, 1)  # one survey per participant
+  
+  # randomize tone preference order for participant
   pref_order <- sample(tones, n_tones, replace = FALSE)
   
-  tibble(
-    participant_id = id,
-    message_id = 1:24,
-    tone = tone_assignments
-  ) |>
-    # chunk preference orders so we can assign them ratings
-    mutate(
-      preference_group = case_when(
-        tone %in% pref_order[1:2] ~ "top",
-        tone %in% pref_order[3:4] ~ "middle",
-        tone %in% pref_order[5:6] ~ "bottom"
-      ),
-      # assign ratings based on top/mid/low and also save group for our reference
-      ## NOTE TO ADD SOME NOISE WITHIN CATEGORIES and make preferences less strong
-      helpfulness = case_when(
-        preference_group == "top" ~ sample(6:7, 1),
-        preference_group == "middle" ~ sample(4:5, 1),
-        preference_group == "bottom" ~ sample(1:2, 1)
-      ),
-      preference_order = paste(pref_order, collapse = " > ")
+  # generate some tone base ratings
+  tone_base_rating_tbl <- tibble(
+    tone = tones,
+    tone_base_rating = case_when(
+      tone %in% pref_order[1:2] ~ sample(5:7, 1),  # top
+      tone %in% pref_order[3:4] ~ sample(3:5, 1),  # middle
+      tone %in% pref_order[5:6] ~ sample(1:3, 1)   # bottom
     )
+  )
+  
+  # create message-level data
+  df <- tibble(
+    participant_id = participant_id,
+    sex = sex,
+    style = rep(c("formal", "informal"), each = n_messages / 2),
+    tone = tone_assignments,
+    message_id = 1:n_messages,
+    survey_id = survey_id) |> 
+    left_join(tone_base_rating_tbl, by = "tone") |> 
+    left_join(survey_message_effect_tbl |> 
+                filter(survey_id == !!survey_id),
+              by = c("survey_id", "message_id")) |>
+    mutate(
+      style_num = if_else(style == "informal", 1, 0),
+      
+      # generate continuous rating for each participant
+      # enables us to manipulate effects more precisely
+      latent_rating = 4.5 +
+        0.35 * (style_base_rating - 4) * style_num +  # style effect
+        0.4 * (sex == "male") * style_num +           # sex × style
+        0.3 * (tone_base_rating - 4) +                # tone effect
+        message_effect[message_id] +                  # message effect
+        survey_message_effect +                       # survey x message effect (shared)
+        rnorm(n(), 0, 0.7),                           # residual noise for realism!!!
+      # round rating to a 7-point Likert integer
+      message_rating = pmin(pmax(round(latent_rating), 1), 7),
+      style_base_rating = style_base_rating) |> 
+    select(participant_id, sex, style, style_base_rating,
+           tone, tone_base_rating, message_id, survey_id, message_rating)
+  
+  return(df)
 }
-
-# set up - setting seed, defining params, and tones again for good measure
-set.seed(81322)
-
-n_participants <- 24
-n_tones <- 6
-n_messages <- 24
-tones <- c("affirmation", "norms", "acknowledging", 
-           "selfefficacy", "caring", "legitimizing")
-
-# same as above every tone is rated four times
-tone_assignments <- rep(tones, each = n_messages / n_tones)
-
-# apply function
-relative_data <- 1:n_participants |> 
-  map(\(id) simulate_participant(id)) |> 
-  bind_rows() |>
-  # comment these out to look at the preference orders participants were randomly assigned
-  select(-preference_order, -preference_group)
-
-relative_data |> glimpse()
 ```
 
-Some visuals.
 ```{r}
-ggplot(relative_data, aes(x = tone, y = helpfulness, fill = tone)) +
-  geom_boxplot(alpha = 0.6) +
-  geom_jitter(width = 0.2, size = 1, alpha = 0.5) +
-  theme_minimal(base_size = 14) +
-  theme(axis.text.x = element_text(angle = 30, hjust = 1)) +
-  labs(title = "Helpfulness Ratings by Tone",
-       x = "Tone Category", y = "Helpfulness Rating (1–7)")
+set.seed(81322)
 
-relative_data |> 
-  filter(participant_id <= 12) |> 
-  ggplot(aes(x = tone, y = helpfulness, fill = tone)) +
-    geom_boxplot(alpha = 0.6) +
-    geom_jitter(width = 0.2, size = 1, alpha = 0.5) +
-    theme_minimal(base_size = 14) +
-    theme(axis.text.x = element_text(angle = 30, hjust = 1, size = 6)) +
-    facet_grid(~ participant_id) +
-    labs(title = "Helpfulness Ratings by Tone",
-        x = "Tone Category", y = "Helpfulness Rating (1–7)")
+# specify simulation params
+n_participants <- 50
+n_tones <- 6
+n_messages <- 48
+n_surveys <- 4
+tones <- c("affirmation", "norms", "acknowledging",
+           "selfefficacy", "caring", "legitimizing")
 
-relative_data |> 
-  filter(participant_id >= 13) |> 
-  ggplot(aes(x = tone, y = helpfulness, fill = tone)) +
-    geom_boxplot(alpha = 0.6) +
-    geom_jitter(width = 0.2, size = 1, alpha = 0.5) +
-    theme_minimal(base_size = 14) +
-    theme(axis.text.x = element_text(angle = 30, hjust = 1, size = 6)) +
-    facet_grid(~ participant_id) +
-    labs(title = "Helpfulness Ratings by Tone",
-        x = "Tone Category", y = "Helpfulness Rating (1–7)")
+# ensure tones are equally assigned to messages
+tone_assignments <- rep(tones, each = n_messages / n_tones)
+
+# message effects shared across participants
+# represents the fact that some messages might be more helpful regardless of tone/style
+message_effect <- rnorm(n_messages, mean = 0, sd = 0.2)
+
+# survey-by-message effects that are shared across participants
+# represents how the wording of a message across survey versions might modify helpful ratings
+survey_message_effect_tbl <- expand.grid(
+  survey_id = 1:n_surveys,
+  message_id = 1:n_messages) |> 
+  mutate(survey_message_effect = rnorm(n(), mean = 0, sd = 0.3))
+
+# run function to simulate data
+d <- map_dfr(1:n_participants, simulate_participant)
+```
+
+Below we display a portion of the data for orientation purposes.
+```{r}
+d |>
+  head(n = 10) |>
+  knitr::kable()
 ```
 
 # Preregistered Analyses
 
-Variables:
- - participant_id
- - style_rating (how much would you like to receive a message in this style)
- - tone_rating (how much would you like to receive a message in this tone)
- - message_rating (how helpful do you find this message)
- - style (informal, formal)
- - tone (value affirmation, norms, acknowledging, self-efficacy, caring/supportive, legitimizing)
- - context (high/increasing, low/increasing, high/decreasing, low/decreasing)
- - age
- - sex
- - gender_id
- - sexual_orientation
- - race_ethn
- - education
- - income
- - marital_status
- - no_in_household
- - minoritized
- - income_adj (will be calculated as: income / no_in_household)
- 
-## Models 1 & 2 - Style and tone stated preferences
+## Q1: Are there differences in helpfulness by style and tone?
 
-Answers:
+First, we are interested in understanding if there are differences in rating helpfulness of message ratings by style and tone. We include several random effects to account for clustering among our variables. Random intercepts for participants (`participant_id`) are used to model individual differences in both tone and style ratings and random slopes of style and tone allow participants to vary in their preferences. We will also model random intercepts for the combined effect of survey and message (`survey_id:message_id`) to account for potential variation due to wording changes in messages across surveys.
 
- - Are there message tone and/or style preferences? (stated preferences from categories)
- - Are there demographic differences in these preferences? (demonstrated here using sex variable)
- 
-By testing:
+> CP: If we model survey_id and message_id like this I don't think we need message_id separately because the variance due to message_id is already accounted for by our more complex random effects term
 
- - The main effects of style and tone separately
- - The main effect of sex
- - The interaction between sex and style/tone (and any other demographic variables we wish to include)
+Models are presented separately for tone and style below. We are electing to explore style and tone separately, as we do not believe that participants realistically are able to consistently differentiate between tone and style combinations.
 
-For style:
+**Tone:**
 ```{r}
-m1 <- lmer(style_rating ~ style*sex + (style | participant_id), d)
+m1_t <- lmer(message_rating ~ tone +
+             (1 + tone | participant_id) + (1 | survey_id:message_id),
+           d)
 ```
 
-For tone:
-```{r}
-m2 <- lmer(tone_rating ~ tone*sex + (tone | participant_id), d)
-```
-
-## Model 3 - Style and tone actual ratings
-
-Answers:
-
- - Do people have actual message tone and/or style differences?
- - Is there an interaction between tone and style?
- - Are there demographic differences in actual message ratings?
- 
-By testing:
-
- - The main effects of style and tone condition on actual ratings
- - The interactive effect of style and tone
- - The main effect of sex on actual ratings
- - While accounting for individual differences by including random intercepts for participants and messages
- - While modeling individual variability in effects of style and tone with random slopes by participant
- - While accounting for variation on sex (or any other demographic characteristics we choose to measure) within the message_id grouping variable
-
-> For both of our LMEMs we need to decide how we are going to handle non-convergence and also put it in the preregistration. We should talk about what are the most important variables to retain at our next meeting.
-
-MAKE THIS FIRST QUESTION.
-
-> Overall, are there differences in helpfulness by style and tone?
-
+**Style:**
 ```{r}
 m1_s <- lmer(message_rating ~ style +
-             (1 + style | participant_id) + (1 | message_id),
+             (1 + style | participant_id) + (1 | survey_id:message_id),
            d)
-
-m1_t <- lmer(message_rating ~ tone +
-             (1 + tone | participant_id) + (1 | message_id),
-           d)
-
-# context goes in as a fixed effect and a random effect in participant_id
-
-summary(m3)
 ```
 
-SECOND: effect of demographics
+## Q2: Are there differences in helpfulness by style and tone as an effect of demographics?
 
-One variable at a time, only interested in the interaction sex and style, sex and tone
+Next, we are interested in understanding if potential differences in helpfulness ratings across style and tone could be due to demographics effects. These analyses will be conducted for all demographics variables which have sufficient variation, defined as **INSERT HERE**. If there are less than 10% of participants in a given demographic category, we will consider collapsing groups into fewer, yet still meaningful, categories.
 
-These analyses will be conducted for all demographics variables which have sufficient variation, defined as XX. Less than 10% of participants in a given category, we will consider collapsing groups into fewer categories.
+Below we present an example model of this with sex assigned at birth. We anticipate that the model structure will be consistent across all demographics variables. More complicated analyses (e.g., which handle interactions between demographic variables as a means of capturing intersectional identities) may be carried out in an exploratory fashion.
 
-THIRD: do preferences differ across individuals?
-
-Analyze if the variance of helpfulness scores less within a tone/style category than between tone/style categories
-
-Calculate the variances of helpfulness ratings within each of the tones within each participant, then average within a participant (six variances). Each participant will end up with one mean variance within tone categories. Then we can also calculate overall variance still within participants but across all tones that they have rated.
-
-
-
+**Tone:**
 ```{r}
-rd <- relative_data
+m2_t <- lmer(message_rating ~ tone*sex +
+             (1 + tone | participant_id) + (1 | survey_id:message_id),
+           d)
+```
 
+**Style:**
+```{r}
+m2_s <- lmer(message_rating ~ style*sex +
+             (1 + style | participant_id) + (1 | survey_id:message_id),
+           d)
+```
 
+## Q3: Do tone and style preferences differ across individuals?
 
-head(rd)
+Next, we plan to analyze if the variance of helpfulness scores is less within a tone/style category than between tone/style categories. We do this by calculating the variances of helpfulness ratings within each tone and style within each participant, and then average these within a participant (six variances for tone, two for style). Each participants will end up with one mean variance within tone categories and one mean variance within style categories. Then, we will also calculate the overall variance across all tones and styles that a participant has rated. We will evaluate whether or not the difference between variances is significant with a within-subjects t-test.
 
-
-v_w <- rd |>  
+**Tone:**
+```{r}
+var_within_tone <- d |>  
   group_by(participant_id, tone) |>
-  summarise(var_within = var(helpfulness),
+  summarise(var_within = var(message_rating),
             .groups = "drop") |>
   group_by(participant_id) |>
   summarise(mean_var_within = mean(var_within),
             .groups = "drop")
  
-v_b <- rd |>
+var_between_tone <- d |>
   group_by(participant_id) |>
-  summarise(var_between = var(helpfulness),
+  summarise(var_between = var(message_rating),
             .groups = "drop")
 
-# join the files
-v <- v_w |> 
-  left_join(v_b, by = "participant_id")
+var_tone <- var_within_tone |> 
+  left_join(var_between_tone, by = "participant_id")
 
-# within subject t-test comparing within and between variances
-t.test(v$mean_var_within, v$var_between, paired = TRUE)
+t.test(var_tone$mean_var_within, var_tone$var_between, paired = TRUE)
 ```
 
-If there are preferences among individuals, we will want to give people their preferred tones/styples
-
-Can our tone preference ratings predict their actual ratings?
-
-
-
-## Model 4 - Concordance between preferences and actual ratings
-
-Answers:
-
- - Do message tone and style preferences correspond to actual ratings?
- 
-By testing:
-
- - Main effects of style and tone preferences on actual ratings
- - While accounting for individual differences by including random intercepts for participants and messages
- - While modeling individual variability in effects of style and tone with random slopes by participant
-  - While accounting for variation on sex (or any other demographic characteristics we choose to measure) within the message_id grouping variable
-
-> Unsure if it conceptually makes sense to have an interaction here between tone_rating and style_rating.
-
-Model comparison: compact model is predicting message ratings based on style (same as above), augmented is can we do better including their style/tone ratings.
-
-Generate style ratings with random integers from the uniform distribution from 1 to 7.
-Message ratings should be generated based on style ratings + some noise. Could also be a function of what people prefer on average or maybe we want that to be a null effect. Ratings are also a function of demographics (sex at birth). Sex by style interaction but no main effect of sex.
-
+**Style:**
 ```{r}
-m2_s <- lmer(message_rating ~ informal_style_rating*style + formal_style_rating*style
-             (1 + style | participant_id) +
-             (1 | message_id),
-           d)
-
-m2_t <- lmer(message_rating ~ value_affirmation_tone_rating*tone + norms_tone_rating*tone +
-             acknowledging_tone_rating*tone + self_efficacy_tone_rating*tone +
-             caring_supportive_tone_rating*tone + legitimizing_tone_rating*tone +
-             (1 + tone | participant_id) +
-             (1 | message_id),
-           d)
-```
-
-## Within- and between-comparisons
-
- - Are participant ratings of messages more different across tone categories than within tone categories?
- - Are participant ratings of messages more different across style categories than within style categories?
- - Are participant ratings of messages more different across tone/style combinations than within tone/style combinations?
- 
-To answer these questions, we need to do some sort of variance decomposition.
-
-Outline:
-
-1) Nakagawa's R2: https://royalsocietypublishing.org/doi/10.1098/rsif.2017.0213 --> this produces a marginal R2 value (variance explained by fixed effects) and a conditional R2 value (variance explained by the combination of fixed and random effects). We could do this with our m3 model above. --> *quantify overall variance explained by fixed/random effects*
-
-2) Variance partitioning by factor where we successively add variables we want to compare --> *quantify how much variance each factor in our model contributes on average across all people*
-
-3) Extract variance components --> *quantify individual heterogeneity*
-```{r}
-summary(m3)$varcor
-```
- 
-# Notes
-
- - Are tone/style_rating and message_rating comparable? Should preferences also be "helpful" instead of like?
- - Should gender_id include specific categories?
- - Treat race/ethnicity as separate variables?
- - We need to add in a variable accounting for context and study iteration
-
-## Old but saving in case
-
-Answers:
-
- - Are participant ratings of messages more different across tone categories than within tone categories?
-  - Are participant ratings of messages more different across style categories than within style categories?
-  - Are participant ratings of messages more different across tone/style combinations than within tone/style combinations?
-  
-> I believe it would be appropriate for us to look at ICC2 or ICC3 here, but they would answer slightly different questions. ICC2 assumes a random sample of raters and ICC3 assumes a fixed sample. ICC2 is more appropriate if we want to generalize. ICC3 is more appropriate if we are interested in characterizing these particular participants. I'm leaning towards 2.
-
-> Instead of looking at systematic preferences look at person-by-person differences
-
-```{r}
-## this will look at tone and style separately
-d |> 
-  group_by(participant_id, tone) |>
-  # here I am summarizing across four contexts
-  summarise(mean_rating = mean(message_rating, na.rm = TRUE),
-            .groups = "drop") |> 
-  pivot_wider(names_from = participant_id, values_from = mean_rating) |>
-  select(-tone) |> view()
-  ICC()
-
-d |> 
-  group_by(participant_id, style) |> 
-  summarise(mean_rating = mean(message_rating, na.rm = TRUE),
-            .groups = "drop") |> 
-  pivot_wider(names_from = participant_id, values_from = mean_rating) |>
-  select(-style) |> 
-  ICC()
-
-## this will look at the within and between effect across tone/style combinations
-d |>
-  group_by(participant_id, message_id) |>
-  summarise(mean_rating = mean(message_rating, na.rm = TRUE),
+var_within_style <- d |>  
+  group_by(participant_id, style) |>
+  summarise(var_within = var(message_rating),
             .groups = "drop") |>
-  pivot_wider(names_from = participant_id, values_from = mean_rating) |>
-  select(-message_id) |>
-  ICC()
+  group_by(participant_id) |>
+  summarise(mean_var_within = mean(var_within),
+            .groups = "drop")
+ 
+var_between_style <- d |>
+  group_by(participant_id) |>
+  summarise(var_between = var(message_rating),
+            .groups = "drop")
+
+var_style <- var_within_style |> 
+  left_join(var_between_style, by = "participant_id")
+
+t.test(var_style$mean_var_within, var_style$var_between, paired = TRUE)
 ```
 
-> ICC does not work with ranked ordered categories, but there is a rank ICC package we could consider using: https://pmc.ncbi.nlm.nih.gov/articles/PMC10592008/ https://github.com/shengxintu/rankICC This paper has only been cited 10 times so might not be the best option.
+## Q4: Can solicited tone/style preference ratings predict actual ratings?
+
+Finally, we want to understand if participant ratings of their tone and style preferences can predict actual helpfulness ratings of messages. We do this using a model comparison approach wherein the compact model predicts message ratings based on tone and style (`m1_t` and `m1_s` above) and the augmented model includes participants' *own* tone and style ratings. In both augmented models, we assess this effect by adding the interaction of tone or style base ratings by the tone or style of a particular message. Again, we explore effects of tone and style separately for the same reasons detailed above.
+
+> We get a singular fit error here I think because we are trying to estimate the slopes for all of the different tones and they are quite correlated.
+
+**Tone:**
+```{r}
+## How we wrote it in our meeting:
+# m3_t <- lmer(message_rating ~ value_affirmation_tone_rating*tone + norms_tone_rating*tone +
+          #   acknowledging_tone_rating*tone + self_efficacy_tone_rating*tone +
+          #   caring_supportive_tone_rating*tone + legitimizing_tone_rating*tone +
+          #   (1 + tone | participant_id) +
+          #   (1 | survey_id:message_id),
+          # d)
+
+## How it would make sense to write given the mock data structure, which I believe captures the same variables
+m3_t <- lmer(message_rating ~ tone_base_rating*tone +
+             (1 + tone | participant_id) +
+             (1 | survey_id:message_id),
+           d)
 
 
- 
+anova(m1_t, m3_t)
+```
+
+**Style:**
+```{r}
+m3_s <- lmer(message_rating ~ style_base_rating*style +
+             (1 + style | participant_id) +
+             (1 | survey_id:message_id),
+           d)
+
+anova(m1_s, m3_s)
+```
+
+## Handling issues of convergence and singularity fit
+
+Due to the complex random effects structure of our data, we present below steps we will take in order to mitigate issues of convergence and singularity fit. We follow recommendations from [Brauer and Curtin (2018)](https://pubmed.ncbi.nlm.nih.gov/29172609/).
+
+ - As a preventative measure, we aim to recruit a sufficient sample size (500 subjects)
+ - We will carry out basic analytic changes which do not change our model structure, such as centering all predictions, increasing the number of iterations, changing the optimization procedure, and changing the model starting values
+ - Next, we will simplify our random effects structure in models which do not converge or produce singularity fit warnings (e.g., remove random intercepts for participants, which across models has the most complex structure by including random slopes for style and tone).
+ - Additionally, for tone in particular, instead of removing random intercepts for participants altogether, we may instead select several tones we are particularly interested in and choose to only model those tones as a means of simplifying our random effects structure. **This only works if we have a theoretical justification I think**
+ - Next, we will consider random slopes without correlations (i.e., assume all slopes are uncorrelated with each other)
