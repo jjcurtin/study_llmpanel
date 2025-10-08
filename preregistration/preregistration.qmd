@@ -38,7 +38,7 @@ Specifically, this project pursues the following aims:
 
 ## Data
  
-Five hundred individuals (50 pilot subjects) who score above **INSERT HERE** on the Alcohol Use Disorder Identification Test (AUDIT) Self-Report (suggestive of possible alcohol use disorder) will be provided with a set of linguistic styles (6) and tones (2) designed to be applied to messages generated with the use of large language models (LLMs). They will be asked to rate each of these tones and styles on a 7-point Likert scale on how much they like each category. Then, participants will be prompted with a series of LLM-generated messages across a set of 4 simulated user contexts in which a lapse risk (high, low) and lapse risk change (increasing, decreasing) will be reported. They will be asked to rate each of these messages on a similar 1 to 7 likert scale on how much they find each of these messages to be helpful.
+Five hundred individuals who score above **INSERT HERE** on the Alcohol Use Disorder Identification Test (AUDIT) Self-Report (suggestive of possible alcohol use disorder) will be provided with a set of linguistic styles (6) and tones (2) designed to be applied to messages generated with the use of large language models (LLMs). They will be asked to rate each of these tones and styles on a 7-point Likert scale on how much they like each category. Then, participants will be prompted with a series of LLM-generated messages across a set of 4 simulated user contexts in which a lapse risk (high, low) and lapse risk change (increasing, decreasing) will be reported. They will be asked to rate each of these messages on a similar 1 to 7 likert scale on how much they find each of these messages to be helpful.
 
 We evaluated stated and actual preferences for each tone and style category, determined if there was an interaction between stated and actual preferences, and assessed the impact that demographic characteristics have on stated and actual preferences.
 
@@ -61,20 +61,16 @@ These analyses will inform 1) whether the increased burden of message customizat
 
 We plan to report the parameter estimates, test statistics, *p*-values, and confidence intervals for all effects from all models described below.
 
-## Focal and Secondary Effects
-
-> CP: Do we need this section? Not sure if we really have a distinction here. This header is from Gaylen's preregistration.
-
 # Data Simulation
 
-We elect to simulate mock data and demonstrate our proposed analyses below to ensure feasibility and specificity. Our analyses following data collection will follow the subsequent script using real data.
+We elect to simulate mock data and demonstrate our proposed analyses below to ensure feasibility and specificity. Our analyses following data collection will follow the subsequent script using real data. <!--CP: make less obtuse; simulate data to preregister the exact code to make preregistration as exact/specific as possible-->
 
-To simulate these data, we generated responses for 50 participants (the amount we will use as our pilot sample) across 48 messages. Participants in the real study will be exposed to 48 messages (6 tones x 2 styles x 4 contexts). A variable specifying message context is not simulated here as any analyses undertaken using this variable will be considered exploratory. While we will collect several demographic variables, we only simulate one demographic variable here (sex assigned at birth) for the purposes of later demonstrating proposed demographics analyses.
+To simulate these data, we generated responses for 500 participants across 48 messages. Participants in the study will be exposed to 48 messages encompassing six tones and two styles. While we will collect several demographic variables, we only simulate one demographic variable here (sex assigned at birth) for the purposes of later demonstrating proposed demographics analyses.
 
 All participants in this simulated data set have a different relative ordering in how much they prefer different tone and style categories. Tone categories are randomly sorted to determine tone preference ratings (`tone_base_rating`). Style ratings are generated with random integers from the uniform distribution (`style_base_rating`). All message ratings are generated based on style and tone ratings and sex assigned at birth with additional noise (residual variance) to emulate real data. These data were specified such that there will be an interactive effect of sex assigned at birth on style and tone, but no main effect, which we anticipate to be true in our real data.
 
 Though not included in our analyses, we include additional variables in our simulation to simulate shared variance across participants (`message_concept_effect`) and survey-specific differences in message wording (`survey_message_effect`) as we believe these may be theoretically present in our real data.
-
+<!--CP: put in separate qmd file, save out data, and load it in for preregistration, include link to other script-->
 First we define a function to simulate data.
 ```{r}
 simulate_participant <- function(participant_id) {
@@ -135,7 +131,7 @@ simulate_participant <- function(participant_id) {
 set.seed(81322)
 
 # specify simulation params
-n_participants <- 50
+n_participants <- 500
 n_tones <- 6
 n_messages <- 48
 n_surveys <- 4
