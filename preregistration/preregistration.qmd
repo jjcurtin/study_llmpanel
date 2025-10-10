@@ -14,7 +14,6 @@ editor_options:
 ---
 
 ```{r}
-# library(stats)
 library(lme4)
 library(tidyverse) 
 library(psych) 
@@ -63,14 +62,16 @@ We plan to report the parameter estimates, test statistics, *p*-values, and conf
 
 # Data Simulation
 
-We elect to simulate mock data and demonstrate our proposed analyses below to ensure feasibility and specificity. Our analyses following data collection will follow the subsequent script using real data. <!--CP: make less obtuse; simulate data to preregister the exact code to make preregistration as exact/specific as possible-->
+<!--CP: Note that this section will be put in separate qmd file. Simulated data will be saved out and then loaded in. Other script will be linked/uploaded separately with preregistration-->
+
+We simulate data below to preregister the exact code we intend to use in our analyses for this project with the goal of making our preregistration as specific as possible.
 
 To simulate these data, we generated responses for 500 participants across 48 messages. Participants in the study will be exposed to 48 messages encompassing six tones and two styles. While we will collect several demographic variables, we only simulate one demographic variable here (sex assigned at birth) for the purposes of later demonstrating proposed demographics analyses.
 
 All participants in this simulated data set have a different relative ordering in how much they prefer different tone and style categories. Tone categories are randomly sorted to determine tone preference ratings (`tone_base_rating`). Style ratings are generated with random integers from the uniform distribution (`style_base_rating`). All message ratings are generated based on style and tone ratings and sex assigned at birth with additional noise (residual variance) to emulate real data. These data were specified such that there will be an interactive effect of sex assigned at birth on style and tone, but no main effect, which we anticipate to be true in our real data.
 
 Though not included in our analyses, we include additional variables in our simulation to simulate shared variance across participants (`message_concept_effect`) and survey-specific differences in message wording (`survey_message_effect`) as we believe these may be theoretically present in our real data.
-<!--CP: put in separate qmd file, save out data, and load it in for preregistration, include link to other script-->
+
 First we define a function to simulate data.
 ```{r}
 simulate_participant <- function(participant_id) {
@@ -169,7 +170,7 @@ d |>
 
 First, we are interested in understanding if there are differences in rating helpfulness of message ratings by style and tone. We include several random effects to account for clustering among our variables. Random intercepts for participants (`participant_id`) are used to model individual differences in both tone and style ratings and random slopes of style and tone allow participants to vary in their preferences. We will also model random intercepts for the combined effect of survey and message (`survey_id:message_id`) to account for potential variation due to wording changes in messages across surveys.
 
-> CP: If we model survey_id and message_id like this I don't think we need message_id separately because the variance due to message_id is already accounted for by our more complex random effects term
+> CP: If we model survey_id and message_id like this I don't think we need message_id separately because the variance due to message_id is already accounted for by our more complex random effects term. Alternatively, maybe we need a random slope for participant_id in survey_id?
 
 Models are presented separately for tone and style below. We are electing to explore style and tone separately, as we do not believe that participants realistically are able to consistently differentiate between tone and style combinations.
 
