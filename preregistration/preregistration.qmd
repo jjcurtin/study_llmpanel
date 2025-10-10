@@ -73,61 +73,102 @@ All participants in this simulated data set have a different relative ordering i
 Though not included in our analyses, we include additional variables in our simulation to simulate shared variance across participants (`message_concept_effect`) and survey-specific differences in message wording (`survey_message_effect`) as we believe these may be theoretically present in our real data.
 
 First we define a function to simulate data.
+
 ```{r}
 simulate_participant <- function(participant_id) {
   
-  # define participant-level variables
+  # participant-level variables
   sex <- sample(c("male", "female"), 1)
-  style_base_rating <- sample(1:7, 1)
-  survey_id <- sample(1:n_surveys, 1)  # one survey per participant
+  formal_rating <- sample(1:7, 1)
+  informal_rating <- sample(1:7, 1)
+  survey_id <- sample(1:n_surveys, 1)
   
-  # randomize tone preference order for participant
+  # assign tone preferences → tone ratings
   pref_order <- sample(tones, n_tones, replace = FALSE)
   
-  # generate some tone base ratings
   tone_base_rating_tbl <- tibble(
-    tone = tones,
-    tone_base_rating = case_when(
-      tone %in% pref_order[1:2] ~ sample(5:7, 1),  # top
-      tone %in% pref_order[3:4] ~ sample(3:5, 1),  # middle
-      tone %in% pref_order[5:6] ~ sample(1:3, 1)   # bottom
+    message_tone = tones,
+    tone_rating = case_when(
+      message_tone %in% pref_order[1:2] ~ sample(5:7, 1),
+      message_tone %in% pref_order[3:4] ~ sample(3:5, 1),
+      message_tone %in% pref_order[5:6] ~ sample(1:3, 1)
     )
   )
   
-  # create message-level data
+  # global message ID (1–192)
+  global_message_ids <- ((survey_id - 1) * n_messages + 1):(survey_id * n_messages)
+  
+  # build message-level data
   df <- tibble(
     participant_id = participant_id,
     sex = sex,
-    style = rep(c("formal", "informal"), each = n_messages / 2),
-    tone = tone_assignments,
-    message_id = 1:n_messages,
-    survey_id = survey_id) |> 
-    left_join(tone_base_rating_tbl, by = "tone") |> 
-    left_join(survey_message_effect_tbl |> 
-                filter(survey_id == !!survey_id),
-              by = c("survey_id", "message_id")) |>
+    message_style = rep(c("formal", "informal"), each = n_messages / 2),
+    message_tone = tone_assignments,
+    message_id = global_message_ids,
+    survey_id = survey_id
+  ) |>
+    left_join(tone_base_rating_tbl, by = "message_tone") |>
+    left_join(
+      survey_message_effect_tbl |> filter(survey_id == !!survey_id),
+      by = c("survey_id", "message_id")
+    ) |>
     mutate(
-      style_num = if_else(style == "informal", 1, 0),
-      
-      # generate continuous rating for each participant
-      # enables us to manipulate effects more precisely
-      latent_rating = 4.5 +
-        0.35 * (style_base_rating - 4) * style_num +  # style effect
-        0.4 * (sex == "male") * style_num +           # sex × style
-        0.3 * (tone_base_rating - 4) +                # tone effect
-        message_effect[message_id] +                  # message effect
-        survey_message_effect +                       # survey x message effect (shared)
-        rnorm(n(), 0, 0.7),                           # residual noise for realism!!!
-      # round rating to a 7-point Likert integer
-      message_rating = pmin(pmax(round(latent_rating), 1), 7),
-      style_base_rating = style_base_rating) |> 
-    select(participant_id, sex, style, style_base_rating,
-           tone, tone_base_rating, message_id, survey_id, message_rating)
+      message_rating = pmin(pmax(round(
+        4.5 +
+        0.35 * ((informal_rating - 4) * (message_style == "informal")) +
+        0.4  * ((sex == "male") * (message_style == "informal")) +
+        0.3  * (tone_rating - 4) +
+        message_effect[message_id %% n_messages + 1] +
+        survey_message_effect +
+        rnorm(n(), 0, 0.7)
+      ), 1), 7)
+    ) |>
+    select(-tone_rating, -survey_message_effect)  # drop temporary vars
+  
+  # add tone ratings as wide columns
+  tone_ratings_wide <- tone_base_rating_tbl |>
+    pivot_wider(
+      names_from = message_tone,
+      values_from = tone_rating,
+      names_glue = "{message_tone}_rating"
+    )
+  
+  # add style ratings
+  style_ratings <- tibble(
+    formal_rating = formal_rating,
+    informal_rating = informal_rating
+  )
+  
+  # bind everything together
+  df <- bind_cols(df, tone_ratings_wide[rep(1, nrow(df)), ],
+                      style_ratings[rep(1, nrow(df)), ])
+  
+  # reorder columns to match your request
+  df <- df |>
+    select(
+      participant_id,
+      sex,
+      affirmation_rating,
+      norms_rating,
+      acknowledging_rating,
+      selfefficacy_rating,
+      caring_rating,
+      legitimizing_rating,
+      formal_rating,
+      informal_rating,
+      survey_id,
+      message_id,
+      message_style,
+      message_tone,
+      message_rating
+    )
   
   return(df)
 }
+
 ```
 
+Run simulation.
 ```{r}
 set.seed(81322)
 
@@ -140,20 +181,19 @@ tones <- c("affirmation", "norms", "acknowledging",
            "selfefficacy", "caring", "legitimizing")
 
 # ensure tones are equally assigned to messages
-tone_assignments <- rep(tones, each = n_messages / n_tones)
+tone_assignments <- rep(tones, length.out = n_messages)
 
-# message effects shared across participants
-# represents the fact that some messages might be more helpful regardless of tone/style
+# message effects (shared)
 message_effect <- rnorm(n_messages, mean = 0, sd = 0.2)
 
-# survey-by-message effects that are shared across participants
-# represents how the wording of a message across survey versions might modify helpful ratings
+# survey-by-message effects
 survey_message_effect_tbl <- expand.grid(
   survey_id = 1:n_surveys,
-  message_id = 1:n_messages) |> 
+  message_id = 1:(n_messages * n_surveys)
+) |>
   mutate(survey_message_effect = rnorm(n(), mean = 0, sd = 0.3))
 
-# run function to simulate data
+# simulate data
 d <- map_dfr(1:n_participants, simulate_participant)
 ```
 
@@ -166,6 +206,8 @@ d |>
 
 # Preregistered Analyses
 
+> Initial step: look to see if survey_id ratings meaningfully differ. If so, include survey_id as grouping variable, then remove if model does not converge because we have no hypotheses about it.
+
 ## Q1: Are there differences in helpfulness by style and tone?
 
 First, we are interested in understanding if there are differences in rating helpfulness of message ratings by style and tone. We include several random effects to account for clustering among our variables. Random intercepts for participants (`participant_id`) are used to model individual differences in both tone and style ratings and random slopes of style and tone allow participants to vary in their preferences. We will also model random intercepts for the combined effect of survey and message (`survey_id:message_id`) to account for potential variation due to wording changes in messages across surveys.
@@ -176,15 +218,15 @@ Models are presented separately for tone and style below. We are electing to exp
 
 **Tone:**
 ```{r}
-m1_t <- lmer(message_rating ~ tone +
-             (1 + tone | participant_id) + (1 | survey_id:message_id),
+m1_t <- lmer(message_rating ~ message_tone +
+             (1 + message_tone | participant_id) + (1 | message_id),
            d)
 ```
 
 **Style:**
 ```{r}
-m1_s <- lmer(message_rating ~ style +
-             (1 + style | participant_id) + (1 | survey_id:message_id),
+m1_s <- lmer(message_rating ~ message_style +
+             (1 + message_style | participant_id) + (1 | message_id),
            d)
 ```
 
@@ -196,15 +238,15 @@ Below we present an example model of this with sex assigned at birth. We anticip
 
 **Tone:**
 ```{r}
-m2_t <- lmer(message_rating ~ tone*sex +
-             (1 + tone | participant_id) + (1 | survey_id:message_id),
+m2_t <- lmer(message_rating ~ message_tone*sex +
+             (1 + message_tone | participant_id) + (1 | message_id),
            d)
 ```
 
 **Style:**
 ```{r}
-m2_s <- lmer(message_rating ~ style*sex +
-             (1 + style | participant_id) + (1 | survey_id:message_id),
+m2_s <- lmer(message_rating ~ message_style*sex +
+             (1 + message_style | participant_id) + (1 | message_id),
            d)
 ```
 
@@ -214,8 +256,9 @@ Next, we plan to analyze if the variance of helpfulness scores is less within a 
 
 **Tone:**
 ```{r}
+# look into ratings literature for within/between comparisons
 var_within_tone <- d |>  
-  group_by(participant_id, tone) |>
+  group_by(participant_id, message_tone) |>
   summarise(var_within = var(message_rating),
             .groups = "drop") |>
   group_by(participant_id) |>
@@ -236,7 +279,7 @@ t.test(var_tone$mean_var_within, var_tone$var_between, paired = TRUE)
 **Style:**
 ```{r}
 var_within_style <- d |>  
-  group_by(participant_id, style) |>
+  group_by(participant_id, message_style) |>
   summarise(var_within = var(message_rating),
             .groups = "drop") |>
   group_by(participant_id) |>
@@ -267,24 +310,28 @@ Finally, we want to understand if participant ratings of their tone and style pr
           #   acknowledging_tone_rating*tone + self_efficacy_tone_rating*tone +
           #   caring_supportive_tone_rating*tone + legitimizing_tone_rating*tone +
           #   (1 + tone | participant_id) +
-          #   (1 | survey_id:message_id),
+          #   (1 | message_id),
           # d)
 
 ## How it would make sense to write given the mock data structure, which I believe captures the same variables
 m3_t <- lmer(message_rating ~ tone_base_rating*tone +
              (1 + tone | participant_id) +
-             (1 | survey_id:message_id),
+             (1 | message_id),
            d)
 
 
 anova(m1_t, m3_t)
+
+# separate tone into six models, style into two models
+# e.g., help ~ norms_vs_others*base_norm
+# norms_vs_others is a contrast code, norms is .5 everything else is -.5
 ```
 
 **Style:**
 ```{r}
 m3_s <- lmer(message_rating ~ style_base_rating*style +
              (1 + style | participant_id) +
-             (1 | survey_id:message_id),
+             (1 | survey_id),
            d)
 
 anova(m1_s, m3_s)
