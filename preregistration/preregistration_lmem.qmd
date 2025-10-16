@@ -212,8 +212,6 @@ d |>
 
 First, we are interested in understanding if there are differences in rating helpfulness of message ratings by style and tone. We include several random effects to account for clustering among our variables. Random intercepts for participants (`participant_id`) are used to model individual differences in both tone and style ratings and random slopes of style and tone allow participants to vary in their preferences. We will also model random intercepts for the combined effect of survey and message (`survey_id:message_id`) to account for potential variation due to wording changes in messages across surveys.
 
-> CP: If we model survey_id and message_id like this I don't think we need message_id separately because the variance due to message_id is already accounted for by our more complex random effects term. Alternatively, maybe we need a random slope for participant_id in survey_id?
-
 Models are presented separately for tone and style below. We are electing to explore style and tone separately, as we do not believe that participants realistically are able to consistently differentiate between tone and style combinations.
 
 **Tone:**
@@ -299,42 +297,60 @@ t.test(var_style$mean_var_within, var_style$var_between, paired = TRUE)
 
 ## Q4: Can solicited tone/style preference ratings predict actual ratings?
 
-Finally, we want to understand if participant ratings of their tone and style preferences can predict actual helpfulness ratings of messages. We do this using a model comparison approach wherein the compact model predicts message ratings based on tone and style (`m1_t` and `m1_s` above) and the augmented model includes participants' *own* tone and style ratings. In both augmented models, we assess this effect by adding the interaction of tone or style base ratings by the tone or style of a particular message. Again, we explore effects of tone and style separately for the same reasons detailed above.
+Finally, we want to understand if participant ratings of their tone and style preferences can predict actual helpfulness ratings of messages. We do this by modeling each contrast in a separate model (target tone/style versus all other tones/styles).
 
-> We get a singular fit error here I think because we are trying to estimate the slopes for all of the different tones and they are quite correlated.
+First, we specify the contrasts for these analyses.
+```{r}
+d <- d |> 
+  mutate(affirm_vs_others = if_else(message_tone == "affirmation", .5, -.5),
+         norms_vs_others = if_else(message_tone == "norms", .5, -.5),
+         ackn_vs_others = if_else(message_tone == "acknowledging", .5, -.5),
+         selfeff_vs_others = if_else(message_tone == "selfefficacy", .5, -.5),
+         care_vs_others = if_else(message_tone == "caring", .5, -.5),
+         legit_vs_others = if_else(message_tone == "legitimizing", .5, -.5),
+         formal_vs_others = if_else(message_style == "formal", .5, -.5),
+         informal_vs_others = if_else(message_style == "informal", .5, -.5) 
+         )
+```
 
 **Tone:**
 ```{r}
-## How we wrote it in our meeting:
-# m3_t <- lmer(message_rating ~ value_affirmation_tone_rating*tone + norms_tone_rating*tone +
-          #   acknowledging_tone_rating*tone + self_efficacy_tone_rating*tone +
-          #   caring_supportive_tone_rating*tone + legitimizing_tone_rating*tone +
-          #   (1 + tone | participant_id) +
-          #   (1 | message_id),
-          # d)
+m3_affirm <- lmer(message_rating ~ affirm_vs_others*affirmation_rating +
+                    (1 + affirm_vs_others | participant_id) +
+                    (1 | message_id), d)
 
-## How it would make sense to write given the mock data structure, which I believe captures the same variables
-m3_t <- lmer(message_rating ~ tone_base_rating*tone +
-             (1 + tone | participant_id) +
-             (1 | message_id),
-           d)
+m3_norms <- lmer(message_rating ~ norms_vs_others*norms_rating +
+                    (1 + norms_vs_others | participant_id) +
+                    (1 | message_id), d)
 
+m3_ackn <- lmer(message_rating ~ ackn_vs_others*acknowledging_rating +
+                    (1 + ackn_vs_others | participant_id) +
+                    (1 | message_id), d)
 
-anova(m1_t, m3_t)
+m3_selfeff <- lmer(message_rating ~ selfeff_vs_others*selfefficacy_rating +
+                    (1 + selfeff_vs_others | participant_id) +
+                    (1 | message_id), d)
 
-# separate tone into six models, style into two models
-# e.g., help ~ norms_vs_others*base_norm
-# norms_vs_others is a contrast code, norms is .5 everything else is -.5
+m3_care <- lmer(message_rating ~ care_vs_others*caring_rating +
+                    (1 + care_vs_others | participant_id) +
+                    (1 | message_id), d)
+
+m3_legit <- lmer(message_rating ~ legit_vs_others*legitimizing_rating +
+                    (1 + legit_vs_others | participant_id) +
+                    (1 | message_id), d)
 ```
 
 **Style:**
 ```{r}
-m3_s <- lmer(message_rating ~ style_base_rating*style +
-             (1 + style | participant_id) +
+m3_formal <- lmer(message_rating ~ formal_vs_others*formal_rating +
+             (1 + formal_vs_others | participant_id) +
              (1 | survey_id),
            d)
 
-anova(m1_s, m3_s)
+m3_informal <- lmer(message_rating ~ informal_vs_others*informal_rating +
+             (1 + informal_vs_others | participant_id) +
+             (1 | survey_id),
+           d)
 ```
 
 ## Handling issues of convergence and singularity fit
@@ -344,5 +360,4 @@ Due to the complex random effects structure of our data, we present below steps 
  - As a preventative measure, we aim to recruit a sufficient sample size (500 subjects)
  - We will carry out basic analytic changes which do not change our model structure, such as centering all predictions, increasing the number of iterations, changing the optimization procedure, and changing the model starting values
  - Next, we will simplify our random effects structure in models which do not converge or produce singularity fit warnings (e.g., remove random intercepts for participants, which across models has the most complex structure by including random slopes for style and tone).
- - Additionally, for tone in particular, instead of removing random intercepts for participants altogether, we may instead select several tones we are particularly interested in and choose to only model those tones as a means of simplifying our random effects structure. **This only works if we have a theoretical justification I think**
  - Next, we will consider random slopes without correlations (i.e., assume all slopes are uncorrelated with each other)
