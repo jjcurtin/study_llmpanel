@@ -1,0 +1,40 @@
+## Message tone
+* Participant characteristics
+* Covariate?
+* Measured at baseline
+
+### Response Scale
+
+- Strongly dislike
+- Dislike
+- Slightly dislike
+- No preference
+- Slightly prefer
+- Prefer
+- Strongly prefer
+
+### Items
+
+For the next series of questions, we will describe different ways that people might communicate to you when you need help. We want to know about *your* specific preferences. It is fine to prefer one or many of the communication styles we describe. Please rate each communication style independently. Simply select how much you prefer each communication style.
+
+**When I need help, I want to be talked to by someone who...**
+
+1. ...makes me feel heard and understood. I want to know that my feelings are normal and that it is okay to talk about my struggles.
+
+2. ...accepts me without judgment. I want to know that someone cares about what I'm going through and that help is available.
+
+3. ...makes me feel confident. I want someone to focus on my strengths. I want to be reminded that I have what it takes to keep going.
+
+4 ...really listens and helps me explore my feelings. I don't want someone to tell me what to think, but I want them to gently offer me ideas about things that might help.
+
+5. ...helps me connect with what matters most to me. I want to be reminded why I want to keep going.
+
+6. ...reminds me that I'm not alone. I want to be shown that others have had similar struggles to me before and that they have been successful, too.
+
+7. ...speaks to me in a more formal or professional way, like a doctor or a nurse.
+
+8. ...speaks to me in a more casual way, like a friend.
+
+### Source
+
+In-house measure
