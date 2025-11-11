@@ -8,32 +8,78 @@
 - Strongly dislike
 - Dislike
 - Slightly dislike
-- No preference
-- Slightly prefer
-- Prefer
-- Strongly prefer
+- Neutral 
+- Slightly like
+- like 
+- Strongly like
+
+<!-- using dislike on one end and prefer on the other seems problematic. Changed to all like focused-->
+<!-- OR GIVEN the I WATN TO BE TALKED TO ... It could be strongly disagree to strongly agree-->
+<!-- I also edited the instructions for like but could edit again if we want to go with disagree/agree approach-->
 
 ### Items
 
-For the next series of questions, we will describe different ways that people might communicate to you when you need help. We want to know about *your* specific preferences. It is fine to prefer one or many of the communication styles we describe. Please rate each communication style independently. Simply select how much you prefer each communication style.
+For the next series of questions, we will describe different ways that people might communicate with you when you need help. We want to know about *your* specific preferences. It is fine to like one or many of the communication styles we describe below. Please rate each communication style independently. Simply select how much you like each communication style when you need help.
 
 **When I need help, I want to be talked to by someone who...**
 
-1. ...makes me feel heard and understood. I want to know that my feelings are normal and that it is okay to talk about my struggles.
+<!--*Legitimizing*
 
-2. ...accepts me without judgment. I want to know that someone cares about what I'm going through and that help is available.
+This message tone helps people feel heard and understood by letting them know their feelings are normal. It means saying things like, “It makes sense to feel that way,” or “What you’re going through is really hard.” It also lets them know it’s okay to talk about their struggles. This kind of support can help people feel less ashamed, less alone, and more accepted as they work through tough times.
 
-3. ...makes me feel confident. I want someone to focus on my strengths. I want to be reminded that I have what it takes to keep going.
+"It's okay to talk about my struggles" dropped because felt like second issue/trying to avoid double barreled items-->
 
-4 ...really listens and helps me explore my feelings. I don't want someone to tell me what to think, but I want them to gently offer me ideas about things that might help.
+1. ...lets me know that my feelings are normal. I want to be reminded that it is okay to feel this way and not have my feelings minimized or dismissed.
 
-5. ...helps me connect with what matters most to me. I want to be reminded why I want to keep going.
+<!--
+*Caring/Supportive*
 
-6. ...reminds me that I'm not alone. I want to be shown that others have had similar struggles to me before and that they have been successful, too.
+This message tone focuses on building trust and showing real care. It means accepting the person without judging them, showing care about what they’re going through, and letting them know that help is available. It also means being a supportive teammate in their recovery, without pretending to know exactly how they feel. This helps the person feel safe, accepted, and not alone.
 
-7. ...speaks to me in a more formal or professional way, like a doctor or a nurse.
+Removed "help is available" component because not every participant is in a study condition where they might receive recommendations/active supports from the system-->
+2. ...cares about what I'm going through. I want to be reminded that I am valued and supported.
 
-8. ...speaks to me in a more casual way, like a friend.
+<!--
+*Self-Efficacy*
+
+This message tone helps people feel confident using the app. It focuses on their strengths and reminds them that they have what it takes to keep going. It shows that recovery is something they can do and that using the app is a helpful, doable part of that. The goal is to make things feel possible, not overwhelming, and to let them know they have the ability to take steps forward.
+-->
+3. ...makes me feel capable. I want to be reminded that I have what it takes to keep going and the strength to succeed.
+
+<!--
+*Acknowledging*
+
+This message tone is about really listening and helping someone explore their feelings without telling them what to think. It means showing care about what they’re feeling, gently offering ideas about their emotions, and repeating back what they say in a clear and caring way. It also means asking questions that help them think more, without making them feel pressured. This helps the person understand their feelings better and feel supported while they figure things out.
+-->
+4 ...acknowledges my feelings and experiences. I want to be reminded that I am heard and encouraged to self-reflect.
+
+<!--
+*Value Affirmation*
+
+
+This message tone helps people connect their recovery with what matters most to them. It doesn’t guess what their values are, but instead reminds them why they started this journey; like wanting to be there for family, do well at work, or feel healthier. It shows how using the app and working on recovery can help them reach those goals and stay true to what’s important in their life.
+-->
+5. ...helps me connect with what matters most to me. I want to be reminded to reflect on why I keep going and what's important in my life.
+
+<!--
+*Norms*
+
+This message tone lets people know they’re not alone. It shows that others like them have used the app and found it helpful for things like handling cravings and managing stress. By sharing that people with similar struggles have seen good results, it helps build hope and a sense of connection. It reminds them that they’re part of a shared journey and that others have been successful too.-->
+6. ...helps me remember that others have had similar struggles. I want to be reminded that others have had comparable feelings or experiences and I am not alone.
+
+
+<!--Seemed odd to ask the formality questions without saying who they are talking to.  I don't want a friend talking like a doctor or a doctor talking like my friend.  I think we need to give them the context of the messages for this one-->
+<!--should this be an either/or OR do we really want two ratings?  We will put them in one condition, correct?
+
+Put in one question, simplify preface-->
+The STAR system will be providing you with daily automated messages that are designed to support your recovery.  We want to know *your* specific preferences about the tone of those messages.  Again, it is fine to like one or both of the tones we describe below. Please rate each tone independently. Simply select how much you would like us to use that tone in the automated messages we send to you each day. 
+
+
+I want to receive messages that...
+7. ...are written in a more formal or professional way, like a doctor or a nurse.
+
+8. ...are written in a more casual way, like a friend.
+
 
 ### Source
 
