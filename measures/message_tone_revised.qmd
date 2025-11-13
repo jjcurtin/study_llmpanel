@@ -5,13 +5,13 @@
 
 ### Response Scale
 
-- Strongly dislike
-- Dislike
-- Slightly dislike
+- Strongly disagree
+- Disagree
+- Slightly disagree
 - Neutral 
-- Slightly like
-- like 
-- Strongly like
+- Slightly agree
+- Agree
+- Strongly agree
 
 ### Items
 
@@ -31,12 +31,8 @@ Current LLM prompt:
 The message should use a 'Legitimizing' approach by emphasizing that experiencing challenges, doubts, and strong feelings during recovery is normal and acceptable. Focus on conveying that these experiences are valid and expected, while maintaining a supportive and validating tone that reduces shame, blame, and isolation. Avoid naming specific emotions like guilt or fear and keep the overall message affirming.
 
 Original message tone survey description:
-This message tone helps people feel heard and understood by letting them know their feelings are normal. It means saying things like, “It makes sense to feel that way,” or “What you’re going through is really hard.” It also lets them know it’s okay to talk about their struggles. This kind of support can help people feel less ashamed, less alone, and more accepted as they work through tough times.
-
-Notes:
-"It's okay to talk about my struggles" dropped because felt like second issue/trying to avoid double barreled items-->
-
-1. ...lets me know that my feelings are normal. I want to be reminded that it is okay to feel this way and to not have my feelings minimized or dismissed.
+This message tone helps people feel heard and understood by letting them know their feelings are normal. It means saying things like, “It makes sense to feel that way,” or “What you’re going through is really hard.” It also lets them know it’s okay to talk about their struggles. This kind of support can help people feel less ashamed, less alone, and more accepted as they work through tough times.-->
+1. ...lets me know that my feelings and experiences are normal. I want to be reminded that it is okay to feel this way and to not have my feelings and experiences minimized or dismissed.
 
 <!--
 *Caring/Supportive*
@@ -51,10 +47,7 @@ Current LLM prompt:
 The message should use a 'Caring/Supportive' approach by emphasizing connection and genuine concern, expressing acceptance without judgment, showing specific concern for their current situation, communicating a willingness to provide support, and conveying a sense of partnership in their recovery path or road to change. This message should emphasize that this app is here to offer support.
 
 Original message tone survey description:
-This message tone focuses on building trust and showing real care. It means accepting the person without judging them, showing care about what they’re going through, and letting them know that help is available. It also means being a supportive teammate in their recovery, without pretending to know exactly how they feel. This helps the person feel safe, accepted, and not alone.
-
-Notes:
-Removed "help is available" component because not every participant is in a study condition where they might receive recommendations/active supports from the system-->
+This message tone focuses on building trust and showing real care. It means accepting the person without judging them, showing care about what they’re going through, and letting them know that help is available. It also means being a supportive teammate in their recovery, without pretending to know exactly how they feel. This helps the person feel safe, accepted, and not alone.-->
 2. ...cares about what I'm going through. I want to be reminded that I am valued and supported.
 
 <!--
@@ -89,7 +82,7 @@ The message should use an 'Acknowledgement of Feelings' approach by demonstratin
 Original message tone survey description:
 This message tone is about really listening and helping someone explore their feelings without telling them what to think. It means showing care about what they’re feeling, gently offering ideas about their emotions, and repeating back what they say in a clear and caring way. It also means asking questions that help them think more, without making them feel pressured. This helps the person understand their feelings better and feel supported while they figure things out.
 -->
-4 ...acknowledges my feelings and experiences. I want to be reminded that I am heard and be encouraged to self-reflect.
+4 ...acknowledges my feelings and experiences. I want to be reminded that I am heard and be encouraged to reflect on my emotions and what I'm going through.
 
 <!--
 *Value Affirmation*
@@ -122,7 +115,7 @@ The message should use a 'Norms' approach by emphasizing how others with compara
 
 Original message tone survey description:
 This message tone lets people know they’re not alone. It shows that others like them have used the app and found it helpful for things like handling cravings and managing stress. By sharing that people with similar struggles have seen good results, it helps build hope and a sense of connection. It reminds them that they’re part of a shared journey and that others have been successful too.-->
-6. ...helps me remember that others have had similar struggles. I want to be reminded that others have had comparable feelings or experiences and I am not alone.
+6. ...helps me remember that others have had similar feelings and experiences. I want to be reminded that others have had comparable struggles and I am not alone.
 
 ---
 
@@ -130,21 +123,15 @@ This message tone lets people know they’re not alone. It shows that others lik
 
 ### Response Scale
 
-<!--CP: I don't know that the response scale needs to be this fine grained, but I wanted it to match the granularity of the above scale for consistency.-->
-
 - Strongly prefer formal
 - Moderately prefer formal
 - Slightly prefer formal
-- No preference between formal and informal
 - Slightly prefer informal
 - Moderately prefer informal
 - Strongly prefer informal
 
 ### Item
-
-Next, we want to know what kinds of messages you like to receive from smartphone apps. Think about apps you have used that send you reminder messages (also called "push notifications"). We want to know *your* specific preferences about how those messages are written.
-
-Do you prefer these types of reminder messages to be more **formal** (for example, professional or polite -- like how your doctor might speak to you) or **informal** (for example, casual or conversational -- like how your friend might message you)?
+Next, we want to know what kinds of messages you would like to receive from our <!--recovery support app--> if you were using it.  We can write these message to be more **formal** (for example, professional or polite -- like how your doctor might speak to you) or **informal** (for example, casual or conversational -- like how your friend might message you).  We want to know *your* specific preferences about how formal vs. informal these messages should be.
 
 
 ### Source
