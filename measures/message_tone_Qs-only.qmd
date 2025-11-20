@@ -1,0 +1,51 @@
+## Message tone
+* Participant characteristics
+* Covariate?
+* Measured at baseline
+
+### Response Scale
+
+- Strongly disagree
+- Disagree
+- Slightly disagree
+- Neutral 
+- Slightly agree
+- Agree
+- Strongly agree
+
+### Items
+
+For the next series of questions, we will describe different ways that people might communicate with you when you need help. We want to know about *your* specific preferences. It is fine to like one or many of the communication styles we describe below. Please rate each communication style independently. Simply select how much you like each communication style when you need help.
+
+**When I need help, I want to be talked to by someone who...**
+
+1. ...lets me know that my feelings and experiences are an expected part of the process. I want to be reminded that it is okay to feel this way and not have my feelings and experiences minimized or dismissed.
+
+2. ...makes me feel capable. I want to be reminded that I have what it takes to keep going and the skills to succeed.
+
+3 ...listens to my feelings and experiences. I want to be reminded that I have been heard and be encouraged to reflect on my emotions.
+
+4. ...helps me connect with what matters most to me. I want to be reminded to think about what’s important in my life and why I keep going.
+
+5. ...helps me remember that others have had similar feelings and experiences. I want to be reminded that others have had comparable struggles and that mine are not unusual.
+
+---
+
+## Message style (formal versus informal)
+
+### Response Scale
+
+- Strongly prefer formal
+- Moderately prefer formal
+- Slightly prefer formal
+- Slightly prefer informal
+- Moderately prefer informal
+- Strongly prefer informal
+
+### Item
+Next, we want to know what kinds of messages you would like to receive from our <!--recovery support app--> if you were using it.  We can write these message to be more **formal** (for example, professional or polite -- like how your doctor might speak to you) or **informal** (for example, casual or conversational -- like how your friend might message you).  We want to know *your* specific preferences about how formal vs. informal these messages should be.
+
+
+### Source
+
+In-house measure

@@ -21,105 +21,43 @@ For the next series of questions, we will describe different ways that people mi
 
 <!--*Legitimizing*
 
-Lyn original description:
-This communication approach focuses on validating the individual’s emotional experience by explicitly recognizing their feelings as normal and appropriate. Key elements include acknowledging feelings as reasonable responses to their situation, validating the genuine difficulty of their experience, and assuring them that expressing these struggles is acceptable and expected in the recovery process. This approach helps reduce shame, blame, and isolation by normalizing emotional responses to recovery challenges.
-
-Lyn original prompt:
-The message should use a “Legitimization of Distress” approach by emphasizing that experiencing challenges, doubts, and strong feelings during recovery is normal and acceptable. Focus on conveying that these experiences are valid and expected, while maintaining a supportive and validating tone that reduces shame and isolation. Avoid naming specific emotions like guilt or fear, and do not provide direct advice using words such as “should” or “must.” Keep the overall message affirming and empathetic.
-
 Current LLM prompt:
-The message should use a 'Legitimizing' approach by emphasizing that experiencing challenges, doubts, and strong feelings during recovery is normal and acceptable. Focus on conveying that these experiences are valid and expected, while maintaining a supportive and validating tone that reduces shame, blame, and isolation. Avoid naming specific emotions like guilt or fear and keep the overall message affirming.
-
-Original message tone survey description:
-This message tone helps people feel heard and understood by letting them know their feelings are normal. It means saying things like, “It makes sense to feel that way,” or “What you’re going through is really hard.” It also lets them know it’s okay to talk about their struggles. This kind of support can help people feel less ashamed, less alone, and more accepted as they work through tough times.-->
+The message should use a 'Legitimizing' approach by emphasizing that experiencing challenges, doubts, and strong feelings during recovery is normal and acceptable. Focus on conveying that these experiences are valid and expected, while maintaining a supportive and validating tone that reduces shame, blame, and isolation. Avoid naming specific emotions like guilt or fear and keep the overall message affirming.-->
 1. ...lets me know that my feelings and experiences are an expected part of the process. I want to be reminded that it is okay to feel this way and not have my feelings and experiences minimized or dismissed.
-
-<!--
-*Caring/Supportive*
-
-Lyn original description:
-This communication approach emphasizes establishing connection and demonstrating genuine concern. Key elements include expressing acceptance without judgment, showing specific concern for the individual’s current situation, clearly communicating availability and willingness to provide support, and conveying partnership in their recovery journey. This approach creates psychological safety and sense of acceptance while avoiding claims of complete understanding of their unique experience. Reminder that this app is for supporting you.
-
-Lyn original prompt:
-The message should use a “Caring / Supportive” approach by emphasizing connection and genuine concern, expressing acceptance without judgment, showing specific concern for their current situation, communicating a willingness to provide support, and conveying a sense of partnership in their recovery path or road to change. Include a reminder that this app is here to offer support. Avoid giving direct advice using words like “should” or “must,” and maintain a warm, supportive, and non-judgmental tone.
-
-Current LLM prompt:
-The message should use a 'Caring/Supportive' approach by emphasizing connection and genuine concern, expressing acceptance without judgment, showing specific concern for their current situation, communicating a willingness to provide support, and conveying a sense of partnership in their recovery path or road to change. This message should emphasize that this app is here to offer support.
-
-Original message tone survey description:
-This message tone focuses on building trust and showing real care. It means accepting the person without judging them, showing care about what they’re going through, and letting them know that help is available. It also means being a supportive teammate in their recovery, without pretending to know exactly how they feel. This helps the person feel safe, accepted, and not alone.-->
-<!--POTENTIALLY DROP?-->
-2. ...cares about what I'm going through. I want to be reminded that I am valued and supported.
 
 <!--
 *Self-Efficacy*
 
-Lyn original description:
-This communication approach highlights the individual’s capabilities to use the app effectively. Key elements include focusing on the person’s existing strengths and abilities, emphasizing they have the capability to stick with the app, and reinforcing their capacity to navigate their recovery journey effectively. This approach builds self-efficacy by making recovery actions feel attainable rather than overwhelming. It highlights that they have the ability engage effectively with the app to manage their recovery. Statements that show recovery steps are within their reach (“You have the skills to handle these moments.” or “you have the ability to build on past success”).
-
-Lyn original prompt:
-Prompt: The message should use a “Self-Efficacy” approach by emphasizing the individual’s strengths and abilities to engage effectively with the app. Highlight that they have the capacity to stick with the app’s features, navigate recovery challenges, and build on their past successes. Avoid giving direct advice using words like “should” or “must.” Make the overall tone optimistic and focused on their personal capability and self-efficacy to stick with the app or improve.
-
 Current LLM prompt:
 The message should use a 'Self-Efficacy' approach by emphasizing the individual's strengths and abilities to engage effectively with the app. Highlight that they have the capacity to stick with the app's features, navigate recovery challenges, and build on their past successes. Make the overall tone optimistic and focused on their personal capability and self-efficacy to stick with the app or improve.
-
-Original message tone survey description:
-This message tone helps people feel confident using the app. It focuses on their strengths and reminds them that they have what it takes to keep going. It shows that recovery is something they can do and that using the app is a helpful, doable part of that. The goal is to make things feel possible, not overwhelming, and to let them know they have the ability to take steps forward.
 -->
-3. ...makes me feel capable. I want to be reminded that I have what it takes to keep going and the skills to succeed.
+2. ...makes me feel capable. I want to be reminded that I have what it takes to keep going and the skills to succeed.
 
 <!--
 *Acknowledging*
 
-Lyn original description:
-This communication approach centers on demonstrating attentive listening and encouraging emotional exploration without imposing interpretations. Key elements include showing genuine interest in the individual’s emotional experience, offering thoughtful hypotheses about their feelings without prescriptive language, reflecting their emotional responses accurately, and encouraging continued reflection in a non-interrogative manner. This approach facilitates emotional processing through validation and guided self-exploration.
-
-Lyn original prompt:
-The message should use an “Acknowledgement of Feelings” approach by demonstrating attentive listening and encouraging emotional exploration without imposing interpretations. Show genuine interest in the individual’s emotional experience, offer thoughtful hypotheses about their feelings without prescriptive language, reflect their emotional responses accurately, and encourage continued reflection in a non-interrogative manner. Avoid giving direct advice (such as saying “should” or “must”), and keep the overall tone supportive, validating, and focused on self-exploration.
-
 Current LLM prompt:
 The message should use an 'Acknowledgement of Feelings' approach by demonstrating attentive listening and encouraging emotional exploration without imposing interpretations. Show genuine interest in the individual's emotional experience, offer thoughtful hypotheses about their feelings without prescriptive language, reflect their emotional responses accurately, and encourage continued reflection in a non-interrogative manner. Keep the overall tone validating and focused on self-exploration.
-
-Original message tone survey description:
-This message tone is about really listening and helping someone explore their feelings without telling them what to think. It means showing care about what they’re feeling, gently offering ideas about their emotions, and repeating back what they say in a clear and caring way. It also means asking questions that help them think more, without making them feel pressured. This helps the person understand their feelings better and feel supported while they figure things out.
 -->
-4 ...listens to my feelings and experiences. I wat to be reminded that I have been heard and be encouraged to reflect on my emotions.
+3. ...listens to my feelings and experiences. I want to be reminded that I have been heard and be encouraged to reflect on my emotions.
 
 <!--
 *Value Affirmation*
 
-Lyn original description:
-Try to align working on recovery through the app with values that are important to them. Do not assume what these values are, but ask them to remember why they started on working on recovery and what values are guiding their recovery (family, career, well-being, health, etc.). Try to align recovery and change with what deeply matters to them and how recovery will help achieve those values. 
-
-Lyn original prompt:
-The message should use a “Value Affirmation” approach by highlighting the person’s deeper life priorities—such as family, career, health, or personal well-being—and connecting these values to engaging with the app. Emphasize how taking steps in recovery can support those values and strengthen their sense of purpose and work to affirm this values. Avoid giving direct advice and using words like “should” or “must,” and maintain a positive, respectful tone that encourages the individual to see how the app aligns with what matters most to them.
-
 Current LLM prompt:
 The message should use a 'Value Affirmation' approach by highlighting the person's deeper life priorities (such as family, career, health, or personal well-being) and connecting these values to engaging with the app. Emphasize how taking steps in recovery can support those values and strengthen their sense of purpose and work to affirm this values. Encourage the individual to see how the app aligns with what matters most to them.
 
-Original message tone survey description:
-This message tone helps people connect their recovery with what matters most to them. It doesn’t guess what their values are, but instead reminds them why they started this journey; like wanting to be there for family, do well at work, or feel healthier. It shows how using the app and working on recovery can help them reach those goals and stay true to what’s important in their life.
 -->
-5. ...helps me connect with what matters most to me. I want to be reminded to think about what’s important in my life and why I keep going.
+4. ...helps me connect with what matters most to me. I want to be reminded to think about what’s important in my life and why I keep going.
 
 <!--
 *Norms*
 
-Lyn original description:
-This communication approach uses social proof and normative influence to highlight that similar others have effectively used the app to reduce their cravings and manage stress. Acknowledge that others with comparable experiences have seen positive changes. Should let them know that they are not alone, that similar others are doing what they have done, and that similar others benefited from the app.  Reinforce a sense of belonging and shared journey.
-
-Lyn original prompt:
-The message should use a “Norms” approach by emphasizing how others with comparable experiences have successfully used the app to reduce cravings and manage stress, and by highlighting that the person is not alone in this process. Acknowledge that similar individuals have also faced challenges but found encouragement and progress through the app. Avoid giving direct advice using words like “should” or “must,” and reinforce a sense of belonging and shared progress.
-
 Current LLM prompt:
 The message should use a 'Norms' approach by emphasizing how others with comparable experiences have successfully used the app to reduce cravings and manage stress, and by highlighting that the person is not alone in this process. Acknowledge that similar individuals have also faced challenges but found encouragement and progress through the app. Reinforce a sense of belonging and shared progress.
+-->
+5. ...helps me remember that others have had similar feelings and experiences. I want to be reminded that others have had comparable struggles and that mine are not unusual.
 
-Original message tone survey description:
-This message tone lets people know they’re not alone. It shows that others like them have used the app and found it helpful for things like handling cravings and managing stress. By sharing that people with similar struggles have seen good results, it helps build hope and a sense of connection. It reminds them that they’re part of a shared journey and that others have been successful too.-->
-6. ...helps me remember that others have had similar feelings and experiences. I want to be reminded that others have had comparable struggles and that mine are not unusual.
-
-<!--"Just the facts" potential new tone-->
-...helps me focus on just the facts. I want to be reminded about the reality of my situation and told about my progress plainly.
 ---
 
 ## Message style (formal versus informal)
