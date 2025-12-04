@@ -6,6 +6,8 @@ import os
 import requests
 import pandas as pd
 import csv
+import time
+from openai import OpenAI
 
 # these functions are defined in separate files for modularity and help break up the code
 from _message_helper import get_credentials, load_existing_messages
@@ -38,6 +40,7 @@ class MessageGenerator:
             # print current settings
             clear()
             print("Current settings:\n")
+            print(f"Model: GPT-{self.model}o" if self.model == '4' else "GPT-5.1 chat")
             print(f"Message categories: {', '.join(self.tones_to_generate)}")
             print(f"User contexts: {', '.join([str(i + 1) for i in self.users_to_generate]) if not self.example_condition else 'Example Condition; No User Context'}")
             print(f"Formality levels: {', '.join(self.formalities_to_generate)}")
@@ -76,10 +79,11 @@ class MessageGenerator:
 
     def initialize_settings(self):
         # Load API credentials, message categories, and user contexts
-        self.model = input("Which model would you like to use? 4 for GPT-4o or 5 for GPT-5mini? (default: 4o): ")
+        self.model = input("Which model would you like to use? 4 for GPT-4o or 5 for GPT-5.1 chat? (default: 5): ")
         if self.model not in ['4', '5']:
-            self.model = '4'
-        print(f"Using model: {self.model}")
+            self.model = '5'
+        print(f"Using model: {'GPT-4o' if self.model == '4' else 'GPT-5.1 chat'}")
+        time.sleep(1)
         self.api_key, self.endpoint = get_credentials(model = self.model)
 
         # decide which tones to generate messages for
@@ -193,20 +197,31 @@ class MessageGenerator:
             messages.append({"role": "system", "content": self.system_prompt})
             messages.append({"role": "user", "content": user_prompt})
 
-            headers = {
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json"
-            }
-            payload = {
-                "messages": messages,
-            }
-            payload["model"] = "optimize-v2" if (self.model == 4) else "optimize-5-mini"
-            if self.model == '4':
+            if self.model == '5':
+                client = OpenAI(
+                    api_key = self.api_key,
+                    base_url = self.endpoint
+                )
+                response = client.chat.completions.create(
+                    model = "gpt-5.1-chat",
+                    messages = messages,
+                )
+                return response.model_dump()
+            else:
+                headers = {
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json"
+                }
+                payload = {
+                    "messages": messages,
+                }
+
+                payload["model"] = "optimize-v2"
                 payload["temperature"] = self.temperature
                 payload["max_tokens"] = 600
-            response = requests.post(self.endpoint, headers=headers, json=payload)
-            response.raise_for_status()
-            return response.json()
+                response = requests.post(self.endpoint, headers=headers, json=payload)
+                response.raise_for_status()
+                return response.json()
         except requests.RequestException as e:
             print(f"Error making API call: {e}\nPlease check your API key and endpoint.")
         except Exception as e:
