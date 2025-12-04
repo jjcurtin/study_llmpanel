@@ -149,6 +149,8 @@ class MessageGenerator:
                 user_request = f.read()
             with open('../input/user_prompt/2a_lapse_instruction.txt', 'r', encoding='utf-8') as f:
                 lapse_instruction = f.read()
+            with open('../input/user_prompt/2b_important_feature.txt', 'r', encoding='utf-8') as f:
+                important_feature = f.read()
             with open('../input/user_prompt/3_closing_remark.txt', 'r', encoding='utf-8') as f:
                 closing_remark = f.read()
         except Exception as e:
@@ -159,6 +161,7 @@ class MessageGenerator:
             f"{user_request}\n"
             f"{user_context_str + "\n" if not self.example_condition else ""}"
             f"{lapse_instruction + "\n" if not self.example_condition else ""}"
+            f"{important_feature + "\n" if not self.example_condition else ""}"
             f"Message category: {message_category}\n"
             f"Message prompt: {message_description}\n"
             f"{formality_prompt + "\n" if formality_prompt else ''}"
