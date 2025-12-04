@@ -6,7 +6,6 @@ import os
 import requests
 import pandas as pd
 import csv
-import time
 from openai import OpenAI
 
 # these functions are defined in separate files for modularity and help break up the code
@@ -83,7 +82,6 @@ class MessageGenerator:
         if self.model not in ['4', '5']:
             self.model = '5'
         print(f"Using model: {'GPT-4o' if self.model == '4' else 'GPT-5.1 chat'}")
-        time.sleep(1)
         self.api_key, self.endpoint = get_credentials(model = self.model)
 
         # decide which tones to generate messages for
