@@ -5,7 +5,7 @@ import pandas as pd
 @staticmethod
 def get_credentials(model = '4'):
     try:
-        file_path = '../azure4o.api' if model == '4' else '../azure5mini.api'
+        file_path = '../azure4o.api' if model == '4' else '../azure5_1chat.api'
         if os.path.exists(file_path):
             api = pd.read_csv(file_path)
             api_key = api.loc[0, 'key']
