@@ -133,7 +133,7 @@ def select_num_messages():
 def select_temperature():
     clear()
     while True:
-        temperature = input("Enter the temperature for message generation (ENTER is 0.7, max is 1.0, \"cross\" for cross over interval): ")
+        temperature = input("Enter the temperature for message generation (ENTER is 0.7 for 4o and 1.0 for 5.1 (only option), max is 1.0, \"cross\" for cross over interval): ")
         if temperature.lower() == 'cross':
             while True:
                 min_temp = input("Enter the minimum temperature for the cross over interval (default is 0.0): ")
@@ -206,11 +206,11 @@ def select_output_file():
     current_messages = load_existing_messages(output_file)
     if not current_messages.empty:
         while True:
-            choice = input("Output file already exists. Do you want to append to it (ENTER or a) or overwrite it (o)?: ")
-            if choice.lower() == 'o':
+            choice = input("Output file already exists. Do you want to append to it (a) or overwrite it (o or ENTER)?: ")
+            if choice.lower() == 'o' or choice == '':
                 print("Existing messages will be overwritten.")
                 write_mode = 'w'
-            elif choice.lower() == 'a' or choice == '':
+            elif choice.lower() == 'a':
                 print("New messages will be appended to existing messages.")
                 write_mode = 'a'
             else:
@@ -227,10 +227,10 @@ def select_output_file():
 def set_printing_options():
     clear()
     while True:
-        print_to_terminal = input("Would you like to print the generated messages to the terminal? (ENTER for no, y for yes): ")
-        if print_to_terminal.lower() == '':
+        print_to_terminal = input("Would you like to print the generated messages to the terminal? (y/n, ENTER for yes): ")
+        if print_to_terminal.lower() == 'n':
             print_to_terminal = False
-        elif print_to_terminal.lower() == 'y':
+        elif print_to_terminal.lower() == 'y' or print_to_terminal == '':
             print_to_terminal = True
         else:
             clear()
@@ -240,8 +240,8 @@ def set_printing_options():
 
     clear()
     while True:
-        print_prompt = input("Would you like to print the system and user prompts to the terminal? (ENTER for no, y for yes): ")
-        if print_prompt.lower() == '':
+        print_prompt = input("Would you like to print the system and user prompts to the terminal? (y/n, ENTER for no): ")
+        if print_prompt.lower() == '' or print_prompt.lower() == 'n':
             print_prompt = False
         elif print_prompt.lower() == 'y':
             print_prompt = True
