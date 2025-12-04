@@ -76,7 +76,11 @@ class SurveyHandler:
         try:
             config_df = pd.read_csv('../qualtrics.api', quotechar='"')
             api_token = config_df.loc[0, 'api_token']
-            survey_id = config_df.loc[0, 'survey_id']
+            survey_choice = int(input("Select survey to update (1, 2, 3, 4): "))
+            if survey_choice not in [1, 2, 3, 4]:
+                print("Invalid survey choice. Exiting.")
+                exit(1)
+            survey_id = config_df.loc[0, f'survey_id{survey_choice}']
             datacenter = config_df.loc[0, 'datacenter']
             demographic_survey_id = config_df.loc[0, 'demographic_survey_id']
             category_survey_id = config_df.loc[0, 'category_survey_id']
