@@ -1,5 +1,4 @@
 The message should be 3 to 4 sentences long.
-The message should be as simple as possible and minimize the use of compound sentences.
 The message should be written for someone with a 6th grade reading level.
 Regardless of how formal or informal the user prefers their message to be, the message should appear to have been written by a human.
 The message should use positive and engaging language that encourages the person to continue to read the daily messages.
