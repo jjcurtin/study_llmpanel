@@ -23,7 +23,7 @@ For the next series of questions, we will describe different ways that people mi
 
 Current LLM prompt:
 The message should use a 'Legitimizing' approach by emphasizing that experiencing challenges, doubts, and strong feelings during recovery is normal and acceptable. Focus on conveying that these experiences are valid and expected, while maintaining a supportive and validating tone that reduces shame, blame, and isolation. Avoid naming specific emotions like guilt or fear and keep the overall message affirming.-->
-1. ...lets me know that my feelings and experiences are an expected part of the process. I want to be reminded that it is okay to feel this way and not have my feelings and experiences minimized or dismissed.
+1. ...lets me know that my feelings and experiences are reasonable. I want to be reminded that it is okay to feel this way and not have my feelings and experiences minimized or dismissed.
 
 <!--
 *Self-Efficacy*
