@@ -2,3 +2,4 @@ tone preference survey before vs after messages themselves
 write 4 healthy questions and 1 limiting drinking question on likert scale (always - never)
     sleep, eating, exercise, cigarettes or e-cigarettes, alcohol
 plan for screening people out
+scrap recent feedback mode
