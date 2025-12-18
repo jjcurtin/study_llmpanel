@@ -5,3 +5,4 @@ plan for screening people out
 scrap recent feedback mode
 code timing per page/context
 attention check (explicit or hidden)
+ask to click layout on page (positional) rather than specific 
