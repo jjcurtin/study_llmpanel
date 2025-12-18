@@ -7,3 +7,4 @@ code timing per page/context
 attention check (explicit or hidden)
 ask to click layout on page (positional) rather than specific 
 figure out how to make different blocks per survey variant in same variant
+look into captcha research
