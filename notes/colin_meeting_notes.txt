@@ -3,3 +3,5 @@ write 4 healthy questions and 1 limiting drinking question on likert scale (alwa
     sleep, eating, exercise, cigarettes or e-cigarettes, alcohol, flossing
 plan for screening people out
 scrap recent feedback mode
+code timing per page/context
+attention check (explicit or hidden)
