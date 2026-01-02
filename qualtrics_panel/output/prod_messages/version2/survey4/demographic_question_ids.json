@@ -1,0 +1,50 @@
+[
+    {
+        "DataExportTag": "description",
+        "QuestionID": "QID3047"
+    },
+    {
+        "DataExportTag": "Q1_Age",
+        "QuestionID": "QID3048"
+    },
+    {
+        "DataExportTag": "Q2_SexAtBirth",
+        "QuestionID": "QID3049"
+    },
+    {
+        "DataExportTag": "Q3_GenderIdentity",
+        "QuestionID": "QID3050"
+    },
+    {
+        "DataExportTag": "Q4_SexualOrientation",
+        "QuestionID": "QID3051"
+    },
+    {
+        "DataExportTag": "Q5_RaceEthnicity",
+        "QuestionID": "QID3052"
+    },
+    {
+        "DataExportTag": "Q6_Education",
+        "QuestionID": "QID3053"
+    },
+    {
+        "DataExportTag": "Q7_StudentStatus",
+        "QuestionID": "QID3054"
+    },
+    {
+        "DataExportTag": "Q8_HouseholdIncome",
+        "QuestionID": "QID3055"
+    },
+    {
+        "DataExportTag": "Q9_PeopleInHousehold",
+        "QuestionID": "QID3056"
+    },
+    {
+        "DataExportTag": "Q10_MaritalStatus",
+        "QuestionID": "QID3057"
+    },
+    {
+        "DataExportTag": "Q11_UnMinoritization",
+        "QuestionID": "QID3058"
+    }
+]

@@ -1,0 +1,34 @@
+[
+    {
+        "DataExportTag": "description",
+        "QuestionID": "QID2986"
+    },
+    {
+        "DataExportTag": "Q1_Legitimizing",
+        "QuestionID": "QID2987"
+    },
+    {
+        "DataExportTag": "Q2_SelfEfficacy",
+        "QuestionID": "QID2988"
+    },
+    {
+        "DataExportTag": "Q3_Acknowledging",
+        "QuestionID": "QID2989"
+    },
+    {
+        "DataExportTag": "Q4_ValueAffirmation",
+        "QuestionID": "QID2990"
+    },
+    {
+        "DataExportTag": "Q5_Norms",
+        "QuestionID": "QID2991"
+    },
+    {
+        "DataExportTag": "Q6_Formality",
+        "QuestionID": "QID2992"
+    },
+    {
+        "DataExportTag": "Q7_UserInput",
+        "QuestionID": "QID2993"
+    }
+]
