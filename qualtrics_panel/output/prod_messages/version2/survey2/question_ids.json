@@ -2,181 +2,181 @@
     {
         "user_index": 1,
         "category": "Legitimizing",
-        "question_id": "QID3070",
+        "question_id": "QID2997",
         "formality": "formal"
     },
     {
         "user_index": 1,
         "category": "SelfEfficacy",
-        "question_id": "QID3071",
+        "question_id": "QID2998",
         "formality": "informal"
     },
     {
         "user_index": 1,
         "category": "Legitimizing",
-        "question_id": "QID3072",
+        "question_id": "QID2999",
         "formality": "informal"
     },
     {
         "user_index": 1,
         "category": "Norms",
-        "question_id": "QID3073",
+        "question_id": "QID3000",
         "formality": "formal"
     },
     {
         "user_index": 1,
         "category": "ValueAffirmation",
-        "question_id": "QID3074",
+        "question_id": "QID3001",
         "formality": "informal"
     },
     {
         "user_index": 1,
         "category": "ValueAffirmation",
-        "question_id": "QID3075",
+        "question_id": "QID3002",
         "formality": "formal"
     },
     {
         "user_index": 1,
         "category": "Acknowledging",
-        "question_id": "QID3076",
+        "question_id": "QID3003",
         "formality": "informal"
     },
     {
         "user_index": 1,
         "category": "SelfEfficacy",
-        "question_id": "QID3077",
+        "question_id": "QID3004",
         "formality": "formal"
     },
     {
         "user_index": 1,
         "category": "Norms",
-        "question_id": "QID3078",
+        "question_id": "QID3005",
         "formality": "informal"
     },
     {
         "user_index": 1,
         "category": "Acknowledging",
-        "question_id": "QID3079",
+        "question_id": "QID3006",
         "formality": "formal"
     },
     {
         "user_index": 2,
         "category": "Acknowledging",
-        "question_id": "QID3080",
+        "question_id": "QID3007",
         "formality": "formal"
     },
     {
         "user_index": 2,
         "category": "ValueAffirmation",
-        "question_id": "QID3081",
+        "question_id": "QID3008",
         "formality": "informal"
     },
     {
         "user_index": 2,
         "category": "Acknowledging",
-        "question_id": "QID3082",
+        "question_id": "QID3009",
         "formality": "informal"
     },
     {
         "user_index": 2,
         "category": "SelfEfficacy",
-        "question_id": "QID3083",
+        "question_id": "QID3010",
         "formality": "formal"
     },
     {
         "user_index": 2,
         "category": "Norms",
-        "question_id": "QID3084",
+        "question_id": "QID3011",
         "formality": "formal"
     },
     {
         "user_index": 2,
         "category": "Norms",
-        "question_id": "QID3085",
+        "question_id": "QID3012",
         "formality": "informal"
     },
     {
         "user_index": 2,
         "category": "Legitimizing",
-        "question_id": "QID3086",
+        "question_id": "QID3013",
         "formality": "informal"
     },
     {
         "user_index": 2,
         "category": "Legitimizing",
-        "question_id": "QID3087",
+        "question_id": "QID3014",
         "formality": "formal"
     },
     {
         "user_index": 2,
         "category": "SelfEfficacy",
-        "question_id": "QID3088",
+        "question_id": "QID3015",
         "formality": "informal"
     },
     {
         "user_index": 2,
         "category": "ValueAffirmation",
-        "question_id": "QID3089",
+        "question_id": "QID3016",
         "formality": "formal"
     },
     {
         "user_index": 3,
         "category": "ValueAffirmation",
-        "question_id": "QID3090",
+        "question_id": "QID3017",
         "formality": "informal"
     },
     {
         "user_index": 3,
         "category": "Acknowledging",
-        "question_id": "QID3091",
+        "question_id": "QID3018",
         "formality": "informal"
     },
     {
         "user_index": 3,
         "category": "Norms",
-        "question_id": "QID3092",
+        "question_id": "QID3019",
         "formality": "formal"
     },
     {
         "user_index": 3,
         "category": "Legitimizing",
-        "question_id": "QID3093",
+        "question_id": "QID3020",
         "formality": "informal"
     },
     {
         "user_index": 3,
         "category": "ValueAffirmation",
-        "question_id": "QID3094",
+        "question_id": "QID3021",
         "formality": "formal"
     },
     {
         "user_index": 3,
         "category": "Acknowledging",
-        "question_id": "QID3095",
+        "question_id": "QID3022",
         "formality": "formal"
     },
     {
         "user_index": 3,
         "category": "SelfEfficacy",
-        "question_id": "QID3096",
+        "question_id": "QID3023",
         "formality": "formal"
     },
     {
         "user_index": 3,
         "category": "Legitimizing",
-        "question_id": "QID3097",
+        "question_id": "QID3024",
         "formality": "formal"
     },
     {
         "user_index": 3,
         "category": "SelfEfficacy",
-        "question_id": "QID3098",
+        "question_id": "QID3025",
         "formality": "informal"
     },
     {
         "user_index": 3,
         "category": "Norms",
-        "question_id": "QID3099",
+        "question_id": "QID3026",
         "formality": "informal"
     }
 ]
