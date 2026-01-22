@@ -34,6 +34,7 @@ Participants will complete three surveys. The first survey will collect demograp
 The survey will present respondents with one of 4 randomly assigned sets of 30 questions, which consist of the same tone and style combinations for messages, but each set displays messages with different text.
 
 We have two primary aims:
+
 1. Across the 30 messages, do demographic characteristics (e.g., sex at birth, race) predict individuals' ratings of message helpfulness above and beyond the message tone and style?
 2. When controlling for demographic characteristics, do initial preference ratings of tone and style further improve our predictions of what message tone and style an individual will find most helpful? In other words, are individuals able to accurately assess the tone and style they prefer and does this better enable us to predict which message tone/style combination an individual should be assigned to?
 
