@@ -32,10 +32,10 @@ def add_participant_menu(self):
     phone_number = get_input(self, prompt = "Phone number (press enter to skip): ")
     times = {}
     default_times = {
-        'ema_time': '08:00:00',
-        'ema_reminder_time': '08:15:00',
-        'feedback_time': '18:00:00',
-        'feedback_reminder_time': '18:15:00'
+        'ema_time': '18:00:00',
+        'ema_reminder_time': '19:00:00',
+        'feedback_time': '08:00:00',
+        'feedback_reminder_time': '09:00:00'
     }
     for t in ['ema_time', 'ema_reminder_time', 'feedback_time', 'feedback_reminder_time']:
         val = get_input(self, prompt = f"Enter {t.replace('_', ' ')} (HH:MM:SS) ", default_value = default_times[t]) or default_times[t]
