@@ -1,0 +1,460 @@
+---
+title: "Panel EDA"
+format: html
+---
+
+Colin: If you want to view all output as HTML, just render this using the render button or by going unto the terminal tab and entering `quarto render check_panel.qmd`
+
+## Set up
+
+```{r setup, warning=FALSE}
+#| include: false
+
+options(conflicts.policy = "depends.ok")
+library(tidyverse) 
+
+devtools::source_url("https://github.com/jjcurtin/lab_support/blob/main/fun_eda.R?raw=true")
+devtools::source_url("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
+devtools::source_url("https://github.com/jjcurtin/lab_support/blob/main/get_credentials.R?raw=true")
+
+#source function file
+# source("functions/fun_opt.R")
+
+path_qualtrics <- format_path("optimize/data_raw/qualtrics")
+path_panel <- format_path("optimize/data_raw/panel")
+path_processed <- format_path("optimize/data_processed")
+path_credentials <- format_path("other")
+```
+
+
+## Get credentials
+```{r}
+token_qualtrics <- 
+  get_credentials("qualtrics", file.path(path_credentials, "credentials.csv")) |>
+  pull(token)
+```
+
+Looks like I'm not getting all responses via API - check the exported version
+```{r}
+panel_export <- read_csv(tibble(path = list.files(path_panel, pattern = "panel_2026", full.names = TRUE)) |> mutate(mdate = file.mtime(path)) |> filter(mdate == max(mdate)) |> pull(path)) |>
+  tail(-2) |> 
+  mutate(across(everything(), .fns = parse_guess)) |> #read_csv failed to correctly guess coltypes due to the two extra character headers, this re-guesses
+  janitor::clean_names("snake") |>
+  # something happened to the naming with the health survey variables - rename them appropriately
+  rename(health_brush = health_floss,
+         health_drink =x47280739) |>
+  glimpse()
+```
+
+
+Basic EDA
+```{r}
+panel_complete <- panel_export |> filter(!is.na(id_location_2)) 
+panel_export |> distinct(id_location_1)  #29 distinct + NA, which matches the above
+
+panel_export |> nrow()
+
+#Finished?
+finished <- panel_export |> filter(finished == "TRUE") |> nrow() 
+unfinished <- panel_export |> filter(finished == "FALSE") |> nrow() 
+
+table(panel_export$finished) 
+
+skimr::skim(panel_export$finished)
+
+skimr::skim(panel_export$progress) # progress is another way to measure how far through they got
+panel_export |> group_by(progress) |> tally()
+
+```
+1. With previous downloads, every survey is finished because any termination led to an end of survey block.
+2. As of 02/16/2025 there are 1815 responses, 9 are incomplete, 1806 are finished
+3. Of the incompletes, progress varies between 1% and 16%. 
+
+Colin: If you want to make an html report for John that updates automatically when we download a new dataset, use the inline R. This will generate the same info as point 2 above:
+
+As of `r today()` there are `r panel_export |> nrow()` responses, `r unfinished` are incomplete, `r finished` are finished
+
+
+# EDA - qualtrics variables
+
+These variables were all added by Qualtrics before launch. What do they mean? What are their values? Which ones do we need to use to filter people out of a "clean" dataset
+```{r}
+
+qualtrics_vars <- panel_export |> select(response_id, opp:project_token, starts_with("q_")) |> glimpse()
+
+qualtrics_vars |> skimr::skim()
+
+# These do not seem relevant to us
+
+panel_export$opp |> table()  # seems to be the name of our study in their records
+panel_export$q_url  |> table() #this seems to be the actual URLs used - guessing it sets many of the following values
+panel_export$qpmid  |> table() # qualtrics panel ID - probably their internal number for our study
+panel_export |> group_by(vendor) |> tally() #Kantar is a market research company - maybe who they are using to sample for us since NA for most
+
+## These I can't guess at the meanings
+panel_export$svid |> table()
+panel_export$kid |> table()
+panel_export$tg |> table()
+panel_export$gc |> table()
+panel_export$project_token_a |> table()
+panel_export$project_token_b  |> table()
+panel_export$supplier_id |> table()
+panel_export$os_api_transaction_id |> table()
+panel_export$ps |> table()
+panel_export$project_token |> table()
+
+# IMPORTANT VARIABLES
+panel_export$term |> table() # seems to have a rule-out value for everyone who did not complete, is NA for those who did complete
+panel_export$q_chl |> table() #distinguishes between preview surveys and regular - we need to exclude the previews
+panel_export$q_recaptcha_score |> table() # info on cutoffs below, need to exclude on this
+panel_export|> skimr::skim(q_duplicate_respondent) #duplicate respondents, need to exclude
+
+panel_export$q_total_duration |> table() # duration will be important 
+panel_export |> skimr::skim(q_total_duration)  # more info via skim
+panel_export |> skimr::skim(duration_in_seconds) #identical to q_total_duration. This is the default variable, not sure why qualtrics added the other one instead of using this directly
+
+# these will be important but are all NA right now
+panel_export$q_quality_score |> table()
+panel_export$q_ballot_box_stuffing |> table()
+panel_export$q_quality_timestamp |> table()
+```
+
+Another look at the panel_export$term (termination variable)
+```{r}
+panel_export |> group_by(term) |> tally()
+```
+
+1. 3 opted not to consent
+2. 1265 were non-alcoholic by the health screener.
+3. 21 selected all No's in the health survey
+4. 108 failed on the audit score
+5. `r panel_export |> group_by(term) |> tally() |> filter(str_detect(term, "survey")) |> pull(n) |> sum()` failed either the attention check or the timing variable in one of the 4 message surveys
+6. 52 failed the speed check in the tone survey
+7 69 NA meaning not terminated for any other reason
+
+# EDA - screening
+
+```{r}
+screening <- panel_export |> 
+  select(response_id, q_recaptcha_score, starts_with(c("health", "audit"))) |>
+  mutate(eligible_health = if_else(health_drink == "No" & !(all(3:7) == "No"), "eligible", "ineligible")) |>
+  mutate(eligible_audit = if_else(audit_score > 7, "eligible", "ineligible")) |> 
+  glimpse()
+
+screening |> skimr::skim(q_recaptcha_score)
+screening |> filter(is.na(q_recaptcha_score)) 
+
+#how many of those still finished the survey?
+panel_export |> filter(is.na(q_recaptcha_score)) |> filter(!is.na(id_location_2)) # One!!
+
+screening |> filter(q_recaptcha_score > .5) |> nrow() / nrow(panel_export)
+                                        
+screening |> group_by(eligible_health) |> tally()
+screening |> group_by(eligible_audit) |> tally()
+
+# let's go a little deeper and see how people filter out at each level
+screening <- screening |> 
+  mutate(na_captcha = is.na(q_recaptcha_score),
+         low_captcha = q_recaptcha_score < .5,
+         all_no = all(3:7) == "No",
+         no_drink = health_drink == "No",
+         fail_audit = eligible_audit == "ineligible") |> 
+  glimpse()
+
+screening |> group_by(na_captcha, low_captcha, all_no, no_drink, fail_audit) |> tally()
+
+
+#add the health screening eligiblity variable back into the main dataframe, for cleaning later
+panel_export <- panel_export |>
+  mutate(eligible_health = if_else(health_drink == "No" & !(all(3:7) == "No"), "eligible", "ineligible")) 
+
+```
+
+1. 74 of q_recaptcha score are NA
+2. ~87% are over .5: See https://pmc.ncbi.nlm.nih.gov/articles/PMC10818231/ for interpretation: returns a score (Q_RecaptchaScore) between 0.0 and 1.0 that Qualtrics records as part of the survey response. Recommended 0.5 score as the threshold for fraud, where a score under 0.5 is deemed likely to be a bot.
+3. 550 people were eligible via the health survey
+4. 414 of those were eligible via the AUDIT
+
+
+
+Look more at people marked Audit_score/not_alcoholic by the term variable
+https://www.niaaa.nih.gov/alcohols-effects-health/alcohol-topics/alcohol-facts-and-statistics/alcohol-use-disorder-aud-united-states-age-groups-and-demographic-characteristics:
+* As of 2024, 27.1 million adults ages 18 and older (10.3% in this age group) had AUD in the past year.
+
+```{r}
+alcohol_rule_out <-  panel_export |>
+  select(response_id, term, starts_with(c("health", "audit"))) |>
+  filter(term %in% c("audit_score", "not_alcoholic")) |>
+  glimpse()
+
+alcohol_rule_out |>
+  filter(term == "not_alcoholic") |>
+  group_by(health_drink) |>
+  tally()
+  
+
+  
+```
+
+* Most of the people who have a termination reason of "not alcoholic" indicated "Yes" to the alcohol question on the health survey
+* We need to look more closely at the remaining 7.
+
+
+# EDA - audit screener
+```{r}
+panel_audit <- panel_export |>
+  select(response_id, starts_with("audit")) |>
+  mutate(eligible_audit = if_else(audit_score > 7, "eligible", "ineligible")) |>
+  glimpse()
+
+panel_audit |> filter(eligible_audit == "ineligible") |> glimpse()
+
+
+panel_audit |> group_by(audit_1) |> tally()
+
+panel_audit |> filter(audit_1 == "Never") |> nrow()
+
+
+panel_audit |>
+  filter(audit_1 == "Never") |>
+  group_by(audit_9, audit_10) |>
+  tally()
+
+panel_audit |> filter(!is.na(audit_score)) |> skimr::skim(audit_score)
+
+```
+
+
+1. Of the 40 people who never drank per audit_1, only one was eligible
+2. Of 522 people who completed the audit. mean was 15.9, SD 9.47, range 0-40 - we might want to double check the 40s
+
+# EDA - our data integrity variables
+```{r}
+
+#first set up a tibble with the actual cutoff thresholds we set for our timing variables
+timing <- tibble(block = c(
+"tone",
+"`1_hi`",
+"`1_hd`",
+"`1_li`",
+"`2_hi`",
+"`2_hd`",
+"`2_li`",
+"`3_hi`",
+"`3_hd`",
+"`3_li`",
+"`4_hi`",
+"`4_hd`",
+"`4_li`"),
+threshold = c(
+59,
+101,
+104,
+94,
+102,
+104,
+98,
+102,
+106,
+98,
+100,
+105,
+99),
+max_100 = c(
+235,
+405,
+417,
+375,
+406,
+414,
+393,
+410,
+422,
+394,
+400,
+419,
+397)
+)
+
+
+
+panel_integrity <- panel_export |>
+  select(response_id, contains((c("last_click","attention")))) |>
+  rename_with(~ str_replace_all(.x, pattern = "_timing_last_click", replacement ="")) |>
+  rename_with(~ str_replace_all(.x, pattern = "x", replacement ="")) |>
+  glimpse()
+
+panel_integrity |> 
+  skimr::skim()
+
+#just timing, to graph. Remove outliers under 100wpm reading speed (beginning reader level)
+panel_timing <- panel_integrity |>
+  select(-contains("attention")) |> 
+  mutate({{timing$block}} := if_else({{timing$block}} < timing$max_100[1]), NA, {{timing$block[1]}}) |>
+  glimpse()
+
+#filter to the vars of interest and join with the timing values
+timing_checks <- panel_integrity |> 
+  skimr::skim() |>
+  select(block=skim_variable, skim_type, complete_rate, mean = numeric.mean, median = numeric.p50, sd = numeric.sd, min = numeric.p0, max = numeric.p100) |> 
+  select(-skim_type) |>
+  filter(!str_detect(block, "attention")) |>
+  full_join(timing) |>
+  mutate() |>
+  glimpse()
+```
+
+Colin:
+
+* How many people failed the attention checks
+* Use the timing_checks dataframe to figure out where the mean/median lie with respect to the threshold. It looks like we're being too aggressive and should raise our thresholds but until we can see how they go together more cleanly it's hard to tell
+* for the people that failed the timing checks (especially those in the 2nd or 3rd message block), would we want to preserve them for partial analysis?
+
+Graph of distributions, mean, median, and threshold
+```{r}
+
+ptone <- ggplot(panel_timing, aes(tone))+geom_density() + 
+ geom_vline(xintercept = timing_checks$mean[timing_checks$block == "tone"], linetype = 1, color = "green") +
+ geom_vline(xintercept = timing_checks$median[timing_checks$block == "tone"], linetype = 1, color = "blue") +
+ geom_vline(xintercept = timing_checks$threshold[timing_checks$block == "tone"], linetype = 1, color = "red")
+p_1_hi <- ggplot(panel_timing, aes(`1_hi`))+geom_density() + 
+ geom_vline(xintercept = timing_checks$mean[timing_checks$block == "1_hi"], linetype = 1, color = "green") +
+ geom_vline(xintercept = timing_checks$median[timing_checks$block == "1_hi"], linetype = 1, color = "blue") +
+ geom_vline(xintercept = timing_checks$threshold[timing_checks$block == "1_hi"], linetype = 1, color = "red")
+p_1_hd <- ggplot(panel_timing, aes(`1_hd`))+geom_density() + 
+ geom_vline(xintercept = timing_checks$mean[timing_checks$block == "1_hd"], linetype = 1, color = "green") +
+ geom_vline(xintercept = timing_checks$median[timing_checks$block == "1_hd"], linetype = 1, color = "blue") +
+ geom_vline(xintercept = timing_checks$threshold[timing_checks$block == "1_hd"], linetype = 1, color = "red")
+p_1_li <- ggplot(panel_timing, aes(`1_li`))+geom_density() + 
+ geom_vline(xintercept = timing_checks$mean[timing_checks$block == "1_li"], linetype = 1, color = "green") +
+ geom_vline(xintercept = timing_checks$median[timing_checks$block == "1_li"], linetype = 1, color = "blue") +
+ geom_vline(xintercept = timing_checks$threshold[timing_checks$block == "1_li"], linetype = 1, color = "red")
+p_2_hi <- ggplot(panel_timing, aes(`2_hi`))+geom_density() + 
+ geom_vline(xintercept = timing_checks$mean[timing_checks$block == "2_hi"], linetype = 1, color = "green") +
+ geom_vline(xintercept = timing_checks$median[timing_checks$block == "2_hi"], linetype = 1, color = "blue") +
+ geom_vline(xintercept = timing_checks$threshold[timing_checks$block == "2_hi"], linetype = 1, color = "red")
+p_2_hd <- ggplot(panel_timing, aes(`2_hd`))+geom_density() + 
+ geom_vline(xintercept = timing_checks$mean[timing_checks$block == "2_hd"], linetype = 1, color = "green") +
+ geom_vline(xintercept = timing_checks$median[timing_checks$block == "2_hd"], linetype = 1, color = "blue") +
+ geom_vline(xintercept = timing_checks$threshold[timing_checks$block == "2_hd"], linetype = 1, color = "red")
+p_2_li <- ggplot(panel_timing, aes(`2_li`))+geom_density() + 
+ geom_vline(xintercept = timing_checks$mean[timing_checks$block == "2_li"], linetype = 1, color = "green") +
+ geom_vline(xintercept = timing_checks$median[timing_checks$block == "2_li"], linetype = 1, color = "blue") +
+ geom_vline(xintercept = timing_checks$threshold[timing_checks$block == "2_li"], linetype = 1, color = "red")
+p_3_hi <- ggplot(panel_timing, aes(`3_hi`))+geom_density() + 
+ geom_vline(xintercept = timing_checks$mean[timing_checks$block == "3_hi"], linetype = 1, color = "green") +
+ geom_vline(xintercept = timing_checks$median[timing_checks$block == "3_hi"], linetype = 1, color = "blue") +
+ geom_vline(xintercept = timing_checks$threshold[timing_checks$block == "3_hi"], linetype = 1, color = "red")
+p_3_hd <- ggplot(panel_timing, aes(`3_hd`))+geom_density() + 
+ geom_vline(xintercept = timing_checks$mean[timing_checks$block == "3_hd"], linetype = 1, color = "green") +
+ geom_vline(xintercept = timing_checks$median[timing_checks$block == "3_hd"], linetype = 1, color = "blue") +
+ geom_vline(xintercept = timing_checks$threshold[timing_checks$block == "3_hd"], linetype = 1, color = "red")
+p_3_li <- ggplot(panel_timing, aes(`3_li`))+geom_density() + 
+ geom_vline(xintercept = timing_checks$mean[timing_checks$block == "3_li"], linetype = 1, color = "green") +
+ geom_vline(xintercept = timing_checks$median[timing_checks$block == "3_li"], linetype = 1, color = "blue") +
+ geom_vline(xintercept = timing_checks$threshold[timing_checks$block == "3_li"], linetype = 1, color = "red")
+p_4_hi <- ggplot(panel_timing, aes(`4_hi`))+geom_density() + 
+ geom_vline(xintercept = timing_checks$mean[timing_checks$block == "4_hi"], linetype = 1, color = "green") +
+ geom_vline(xintercept = timing_checks$median[timing_checks$block == "4_hi"], linetype = 1, color = "blue") +
+ geom_vline(xintercept = timing_checks$threshold[timing_checks$block == "4_hi"], linetype = 1, color = "red")
+p_4_hd <- ggplot(panel_timing, aes(`4_hd`))+geom_density() + 
+ geom_vline(xintercept = timing_checks$mean[timing_checks$block == "4_hd"], linetype = 1, color = "green") +
+ geom_vline(xintercept = timing_checks$median[timing_checks$block == "4_hd"], linetype = 1, color = "blue") +
+ geom_vline(xintercept = timing_checks$threshold[timing_checks$block == "4_hd"], linetype = 1, color = "red")
+p_4_li <- ggplot(panel_timing, aes(`4_li`))+geom_density() + 
+ geom_vline(xintercept = timing_checks$mean[timing_checks$block == "4_li"], linetype = 1, color = "green") +
+ geom_vline(xintercept = timing_checks$median[timing_checks$block == "4_li"], linetype = 1, color = "blue") +
+ geom_vline(xintercept = timing_checks$threshold[timing_checks$block == "4_li"], linetype = 1, color = "red")
+
+
+gridExtra::grid.arrange(p_1_hi,
+                        p_1_hd,
+                        p_1_li,
+                        p_2_hi,
+                        p_2_hd,
+                        p_2_li,
+                        p_3_hi,
+                        p_3_hd,
+                        p_3_li,
+                        p_4_hi,
+                        p_4_hd,
+                        p_4_li,
+                        ptone, ncol = 3)
+
+```
+
+
+
+# Cleaning the dataset
+
+Using what we found above, filter out responses that were ineligible
+
+Note: if preferred, you could do this step by step in the EDA above
+
+```{r}
+# panel_clean <- panel_export |>
+#   filter(q_chl == "anonymous") |> #filter out previews
+#   filter(finished) |> # keep only finished
+#   filter(progress == 100) |> # eliminate people not at 100% complete, in case that's different
+#   filter(q_recaptcha_score > .5) |> # keep only captcha score > .5
+#   filter(eligible_health == "eligible") |> #remove people who failed the health survey
+#   filter(audit_score > 7) |> # remove people who failed the AUDIT
+#   filter()
+# 
+# write_csv(panel_clean, file.path(path_processed, "panel_clean.csv"))
+```
+
+Colin: finish filtering out ineligible- you might be able to do this more simply by filtering to is.na(term)
+
+Once the dataset is clean you can set up the code to do basic EDA on our variables of interest - ie, does tone/style survey preference match the message ratings. 
+
+
+
+## API version
+
+Get survey by API & save out to data_raw (for now)
+For now, must be raw=TRUE so no columns are stripped
+
+```{r}
+# panel_api <- tidy_qualtrics("panel", token_qualtrics, raw=TRUE) |>
+#   janitor::clean_names("snake") |>
+#   # filter(is.na(practice)) |>
+#   select(-c(ip_address, recipient_last_name:external_data_reference, description, intro_1, audit_inst, intro_context, intro_tone, status,location_latitude:location_accuracy)) |>
+#   glimpse()
+```
+
+
+```{r}
+# write_csv(panel, "W:/irb/optimize/panel/change_2026_01/wpm/test_responses.csv")
+
+```
+
+
+
+# Prelaunch
+Verify new question labels match style/tone combo
+```{r}
+# 
+# new_q_labels <- readxl::read_xlsx(file.path("W:/irb/optimize/panel/change_2026_01/wpm/timing calcs.xlsx"), sheet="question_by_tone") |>
+#   arrange(survey, user_index, q_number) |>
+#   select(-c(`...9`,`...10`)) |>
+#   glimpse()
+# 
+# panel_data_raw <- read_csv(file.path("W:/irb/optimize/panel/change_2026_01/wpm/panel_study_messages_combined_January+23,+2026_21.32.csv")) |> 
+#   head(1) |>
+#   select(contains(c("_hi_", "_hd_", "_li_"))) |>
+#   select(-contains(c("timing", "attention"))) |>
+#   mutate(across(everything(), ~ str_remove_all(.x, "- I found this message to be helpful."))) |>
+#   mutate(across(everything(), ~ str_remove_all(.x, "\\\""))) |>
+#   mutate(across(everything(), ~ str_trim(.x, "both"))) |>
+#   pivot_longer(everything()) |>
+#   rename(online_q_label = name, generated_message = value) |>
+#   glimpse()
+# 
+# 
+# full_join(new_q_labels, panel_data_raw) |> 
+#   mutate(match = str_detect(online_q_label, new_q_label)) |>
+#   View()
+
+```
+
