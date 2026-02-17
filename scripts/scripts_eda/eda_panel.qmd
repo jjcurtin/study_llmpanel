@@ -327,14 +327,16 @@ panel_attention <- panel_integrity |>
                                              "Strongly Disagree", "Multiple Values"))) |>
   select(response_id, attention_check)
 
-# get counts
+# get counts of those who answered the attention check
 panel_attention |> count(attention_check)
 
+# get counts of those who failed the attention check
 attention_fail <- panel_attention |>
   filter(attention_check != "Strongly Disagree")
 
 cat(nrow(attention_fail))
 
+# get counts of those who passed the attention check
 attention_pass <- panel_attention |>
   filter(attention_check == "Strongly Disagree")
 
