@@ -345,6 +345,29 @@ nrow(attention_fail) / nrow(panel_attention)
 ```
 
 * Use the timing_checks dataframe to figure out where the mean/median lie with respect to the threshold. It looks like we're being too aggressive and should raise our thresholds but until we can see how they go together more cleanly it's hard to tell
+
+```{r}
+timing_summary <- timing_checks |>
+  select(block, mean, median, threshold) |>
+  mutate(block = str_remove_all(block, "`")) |>
+  filter(block != "tone" & !is.na(block) & block != "response_id") |>
+  group_by(block) |>
+  summarise(mean = mean(mean, na.rm = TRUE),
+            median = mean(median, na.rm = TRUE),
+            threshold = mean(threshold, na.rm = TRUE),
+            .groups = "drop")
+
+total_row <- tibble(block = "Total",
+                    mean = sum(timing_summary$mean, na.rm = TRUE),
+                    median = sum(timing_summary$median, na.rm = TRUE),
+                    threshold = sum(timing_summary$threshold, na.rm = TRUE))
+
+timing_summary <- bind_rows(timing_summary, total_row)
+
+timing_summary |>
+  knitr::kable(digits = 1, caption = "Mean, Median, and Threshold Comparison")
+```
+
 * for the people that failed the timing checks (especially those in the 2nd or 3rd message block), would we want to preserve them for partial analysis?
 
 Graph of distributions, mean, median, and threshold
