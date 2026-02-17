@@ -452,15 +452,19 @@ Using what we found above, filter out responses that were ineligible
 Note: if preferred, you could do this step by step in the EDA above
 
 ```{r}
-# panel_clean <- panel_export |>
-#   filter(q_chl == "anonymous") |> #filter out previews
-#   filter(finished) |> # keep only finished
-#   filter(progress == 100) |> # eliminate people not at 100% complete, in case that's different
-#   filter(q_recaptcha_score > .5) |> # keep only captcha score > .5
-#   filter(eligible_health == "eligible") |> #remove people who failed the health survey
-#   filter(audit_score > 7) |> # remove people who failed the AUDIT
-#   filter()
-# 
+panel_clean <- panel_export |>
+  filter(q_chl == "anonymous") |> #filter out previews
+  filter(finished) |> # keep only finished
+  filter(progress == 100) |> # eliminate people not at 100% complete, in case that's different
+  filter(q_recaptcha_score > .5) |> # keep only captcha score > .5
+  filter(eligible_health == "eligible") |> #remove people who failed the health survey
+  filter(audit_score > 7) |> # remove people who failed the AUDIT
+  filter(consent_agree == "I consent to participate and wish to proceed to the survey.") |> # only those who consented to survey
+  filter(is.na(q_duplicate_respondent)) |> # remove duplicate respondent field
+  inner_join(panel_attention, by = "response_id") |> # keep only those who passed attention check
+  filter(attention_check == "Strongly Disagree") |>
+  filter()
+
 # write_csv(panel_clean, file.path(path_processed, "panel_clean.csv"))
 ```
 
