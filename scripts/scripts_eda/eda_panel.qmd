@@ -36,19 +36,22 @@ token_qualtrics <-
 
 Looks like I'm not getting all responses via API - check the exported version
 ```{r}
-panel_export <- read_csv(tibble(path = list.files(path_panel, pattern = "panel_2026", full.names = TRUE)) |> mutate(mdate = file.mtime(path)) |> filter(mdate == max(mdate)) |> pull(path)) |>
+panel_export_raw <- read_csv(tibble(path = list.files(path_panel, pattern = "panel_2026", full.names = TRUE)) |> mutate(mdate = file.mtime(path)) |> filter(mdate == max(mdate)) |> pull(path)) |>
   tail(-2) |> 
   mutate(across(everything(), .fns = parse_guess)) |> #read_csv failed to correctly guess coltypes due to the two extra character headers, this re-guesses
   janitor::clean_names("snake") |>
   # something happened to the naming with the health survey variables - rename them appropriately
   rename(health_brush = health_floss,
-         health_drink =x47280739) |>
+         health_drink = x47280739) |>
   glimpse()
 ```
 
 
 Basic EDA
 ```{r}
+
+panel_export <-  panel_export_raw
+
 panel_complete <- panel_export |> filter(!is.na(id_location_2)) 
 panel_export |> distinct(id_location_1)  #29 distinct + NA, which matches the above
 
@@ -66,57 +69,81 @@ skimr::skim(panel_export$progress) # progress is another way to measure how far 
 panel_export |> group_by(progress) |> tally()
 
 ```
-1. With previous downloads, every survey is finished because any termination led to an end of survey block.
-2. As of 02/16/2025 there are 1815 responses, 9 are incomplete, 1806 are finished
+1. With previous downloads, every survey is finished because any termination led to an end of survey block, now there are a few incompletes
+2. As of `r today()` there are `r panel_export |> nrow()` responses, `r unfinished` are incomplete, `r finished` are finished
 3. Of the incompletes, progress varies between 1% and 16%. 
 
-Colin: If you want to make an html report for John that updates automatically when we download a new dataset, use the inline R. This will generate the same info as point 2 above:
-
-As of `r today()` there are `r panel_export |> nrow()` responses, `r unfinished` are incomplete, `r finished` are finished
-
+To improve the EDA as we go along I'm going to remove responses that shouldn't be kept, as we find them.
+```{r}
+# remove incomplete submissions
+panel_export <- panel_export |> filter(finished == "TRUE") 
+```
 
 # EDA - qualtrics variables
 
 These variables were all added by Qualtrics before launch. What do they mean? What are their values? Which ones do we need to use to filter people out of a "clean" dataset
 ```{r}
-
 qualtrics_vars <- panel_export |> select(response_id, opp:project_token, starts_with("q_")) |> glimpse()
 
 qualtrics_vars |> skimr::skim()
-
-# These do not seem relevant to us
-
-panel_export$opp |> table()  # seems to be the name of our study in their records
-panel_export$q_url  |> table() #this seems to be the actual URLs used - guessing it sets many of the following values
-panel_export$qpmid  |> table() # qualtrics panel ID - probably their internal number for our study
-panel_export |> group_by(vendor) |> tally() #Kantar is a market research company - maybe who they are using to sample for us since NA for most
-
-## These I can't guess at the meanings
-panel_export$svid |> table()
-panel_export$kid |> table()
-panel_export$tg |> table()
-panel_export$gc |> table()
-panel_export$project_token_a |> table()
-panel_export$project_token_b  |> table()
-panel_export$supplier_id |> table()
-panel_export$os_api_transaction_id |> table()
-panel_export$ps |> table()
-panel_export$project_token |> table()
 
 # IMPORTANT VARIABLES
 panel_export$term |> table() # seems to have a rule-out value for everyone who did not complete, is NA for those who did complete
 panel_export$q_chl |> table() #distinguishes between preview surveys and regular - we need to exclude the previews
 panel_export$q_recaptcha_score |> table() # info on cutoffs below, need to exclude on this
 panel_export|> skimr::skim(q_duplicate_respondent) #duplicate respondents, need to exclude
+panel_export$q_duplicate_respondent |> table()
 
-panel_export$q_total_duration |> table() # duration will be important 
+panel_export$q_total_duration |> table() |> head(5) # (long output truncated)- duration will be important 
 panel_export |> skimr::skim(q_total_duration)  # more info via skim
 panel_export |> skimr::skim(duration_in_seconds) #identical to q_total_duration. This is the default variable, not sure why qualtrics added the other one instead of using this directly
+
 
 # these will be important but are all NA right now
 panel_export$q_quality_score |> table()
 panel_export$q_ballot_box_stuffing |> table()
 panel_export$q_quality_timestamp |> table()
+
+
+```
+
+Remove previews and duplicates
+```{r}
+
+panel_export <- panel_export |> 
+  # remove preview submissions
+  filter(q_chl != "preview") |> 
+# remove duplicate respondents
+  filter(is.na(q_duplicate_respondent)) 
+
+```
+
+
+More qualtrics variables:
+```{r}
+
+# These do not seem relevant to us
+
+panel_export$opp |> table()  # seems to be the name of our study in their records
+panel_export$q_url |> table() |> head(5) # (long output truncated) this seems to be the actual URLs used - guessing it sets many of the following values
+panel_export$qpmid  |> table() # qualtrics panel ID - probably their internal number for our study
+panel_export |> group_by(vendor) |> tally() #Kantar is a market research company - maybe who they are using to sample for us since NA for most
+
+## These I can't guess at the meanings
+panel_export$svid |> table()
+panel_export$kid |> table() |> head(5) #  (long output truncated) 
+panel_export$tg |> table()
+panel_export$gc |> table()
+panel_export$project_token_a |> table()
+panel_export$project_token_b  |> table()
+panel_export$supplier_id |> table()
+panel_export$os_api_transaction_id|> table() |> head(5)  #  (long output truncated) 
+panel_export$ps |> table()
+panel_export$project_token |> table()
+
+
+
+
 ```
 
 Another look at the panel_export$term (termination variable)
@@ -125,28 +152,31 @@ panel_export |> group_by(term) |> tally()
 ```
 
 1. 3 opted not to consent
-2. 1265 were non-alcoholic by the health screener.
-3. 21 selected all No's in the health survey
-4. 108 failed on the audit score
+2. 1233 were non-alcoholic by the health screener.
+3. 19 selected all No's in the health survey
+4. 107 failed on the audit score
 5. `r panel_export |> group_by(term) |> tally() |> filter(str_detect(term, "survey")) |> pull(n) |> sum()` failed either the attention check or the timing variable in one of the 4 message surveys
-6. 52 failed the speed check in the tone survey
-7 69 NA meaning not terminated for any other reason
+6. 49 failed the speed check in the tone survey
+7. 59 are NA, meaning not terminated for any other reason
 
 # EDA - screening
 
 ```{r}
 screening <- panel_export |> 
-  select(response_id, q_recaptcha_score, starts_with(c("health", "audit"))) |>
+  select(response_id, term, q_recaptcha_score, starts_with(c("health", "audit"))) |>
   mutate(eligible_health = if_else(health_drink == "No" & !(all(3:7) == "No"), "eligible", "ineligible")) |>
   mutate(eligible_audit = if_else(audit_score > 7, "eligible", "ineligible")) |> 
   glimpse()
 
 screening |> skimr::skim(q_recaptcha_score)
-screening |> filter(is.na(q_recaptcha_score)) 
 
 #how many of those still finished the survey?
 panel_export |> filter(is.na(q_recaptcha_score)) |> filter(!is.na(id_location_2)) # One!!
 
+#how far did the others get? Use the qualtrics termination variable
+screening |> filter(is.na(q_recaptcha_score)) |> select(term) |> table()
+
+#How many passed captcha
 screening |> filter(q_recaptcha_score > .5) |> nrow() / nrow(panel_export)
                                         
 screening |> group_by(eligible_health) |> tally()
@@ -170,16 +200,23 @@ panel_export <- panel_export |>
 
 ```
 
-1. 74 of q_recaptcha score are NA
-2. ~87% are over .5: See https://pmc.ncbi.nlm.nih.gov/articles/PMC10818231/ for interpretation: returns a score (Q_RecaptchaScore) between 0.0 and 1.0 that Qualtrics records as part of the survey response. Recommended 0.5 score as the threshold for fraud, where a score under 0.5 is deemed likely to be a bot.
+1. 73 of q_recaptcha score are NA. Of those, only one finished the survey. What do we do with these?
+2. ~87% of recaptcha scores are over .5: See [this article](https://pmc.ncbi.nlm.nih.gov/articles/PMC10818231/) for interpretation: 
+   * Q_RecaptchaScore returns a score between 0.0 and 1.0 that Qualtrics records as part of the survey response.  Recommended 0.5 score as the threshold for fraud, where a score under 0.5 is deemed likely to be a bot.
 3. 550 people were eligible via the health survey
 4. 414 of those were eligible via the AUDIT
 
+Start a tibble showing participant flow
+```{r}
+flow <- tibble(total_submissions = nrow(panel_export),
+               passed_captcha = nrow(panel_export |> filter(q_recaptcha_score > .5 | is.na(q_recaptcha_score))),
+               passed_health_survey = nrow(panel_export |> filter(eligible_health == "eligible")),
+               passed_audit = nrow(panel_export |> filter(audit_score > 7)),
+               consented = nrow(panel_export |> filter((consent_agree == "I consent to participate and wish to proceed to the survey.")))) |> glimpse()
+```
 
 
 Look more at people marked Audit_score/not_alcoholic by the term variable
-https://www.niaaa.nih.gov/alcohols-effects-health/alcohol-topics/alcohol-facts-and-statistics/alcohol-use-disorder-aud-united-states-age-groups-and-demographic-characteristics:
-* As of 2024, 27.1 million adults ages 18 and older (10.3% in this age group) had AUD in the past year.
 
 ```{r}
 alcohol_rule_out <-  panel_export |>
@@ -192,12 +229,18 @@ alcohol_rule_out |>
   group_by(health_drink) |>
   tally()
   
+alcohol_rule_out |>  
+  filter(term == "not_alcoholic") |>
+  filter(health_drink == "No")
 
+panel_export |> filter(term == "no_Selected") |>
+  select(response_id, starts_with("health"))
   
 ```
 
 * Most of the people who have a termination reason of "not alcoholic" indicated "Yes" to the alcohol question on the health survey
-* We need to look more closely at the remaining 7.
+* However 7 answered all no's, but 19 people who did that too have "no_selected" as their termination reason. Maybe that was added later?
+* Epidemiology: per [NIAAA](https://www.niaaa.nih.gov/alcohols-effects-health/alcohol-topics/alcohol-facts-and-statistics/alcohol-use-disorder-aud-united-states-age-groups-and-demographic-characteristics): As of 2024, 27.1 million adults ages 18 and older (10.3% in this age group) had AUD in the past year. We're looking at about 25% in this sample - 1600 passed captcha, 402 passed audit
 
 
 # EDA - audit screener
@@ -206,6 +249,8 @@ panel_audit <- panel_export |>
   select(response_id, starts_with("audit")) |>
   mutate(eligible_audit = if_else(audit_score > 7, "eligible", "ineligible")) |>
   glimpse()
+
+panel_audit |> group_by(eligible_audit) |> tally()
 
 panel_audit |> filter(eligible_audit == "ineligible") |> glimpse()
 
@@ -220,13 +265,23 @@ panel_audit |>
   group_by(audit_9, audit_10) |>
   tally()
 
+#skim all audit scores
 panel_audit |> filter(!is.na(audit_score)) |> skimr::skim(audit_score)
+
+#skim just those eligible
+panel_audit |> filter(eligible_audit == "eligible") |> skimr::skim(audit_score)
+
+#people with 40 scores
+
+panel_export |> filter(audit_score >=35) |> group_by(term) |> tally()
 
 ```
 
 
 1. Of the 40 people who never drank per audit_1, only one was eligible
-2. Of 522 people who completed the audit. mean was 15.9, SD 9.47, range 0-40 - we might want to double check the 40s
+2. Of 509 people who completed the audit, mean was 15.9, SD 7.76, range 0-40
+3. Of the 402 eligible, mean was 19.2, SD 7.76, range 0-40
+4. Only 1 person got a 40 on the audit, and they screened out for a different reason. Only 2 people who got over 35 on the audit, finished the survey.
 
 # EDA - our data integrity variables
 ```{r}
@@ -234,18 +289,18 @@ panel_audit |> filter(!is.na(audit_score)) |> skimr::skim(audit_score)
 #first set up a tibble with the actual cutoff thresholds we set for our timing variables
 timing <- tibble(block = c(
 "tone",
-"`1_hi`",
-"`1_hd`",
-"`1_li`",
-"`2_hi`",
-"`2_hd`",
-"`2_li`",
-"`3_hi`",
-"`3_hd`",
-"`3_li`",
-"`4_hi`",
-"`4_hd`",
-"`4_li`"),
+"1_hi",
+"1_hd",
+"1_li",
+"2_hi",
+"2_hd",
+"2_li",
+"3_hi",
+"3_hd",
+"3_li",
+"4_hi",
+"4_hd",
+"4_li"),
 threshold = c(
 59,
 101,
@@ -287,11 +342,6 @@ panel_integrity <- panel_export |>
 panel_integrity |> 
   skimr::skim()
 
-#just timing, to graph. Remove outliers under 100wpm reading speed (beginning reader level)
-panel_timing <- panel_integrity |>
-  select(-contains("attention")) |> 
-  mutate({{timing$block}} := if_else({{timing$block}} < timing$max_100[1]), NA, {{timing$block[1]}}) |>
-  glimpse()
 
 #filter to the vars of interest and join with the timing values
 timing_checks <- panel_integrity |> 
@@ -372,63 +422,182 @@ timing_summary |>
 
 * for the people that failed the timing checks (especially those in the 2nd or 3rd message block), would we want to preserve them for partial analysis? (I think failing 1 message block is fine)
 
-Graph of distributions, mean, median, and threshold
+I think there's an order x block interaction effect with timing, let's look at that
+```{r}
+# block_order <- panel_export |>
+#   select(response_id, tone_order, survey_version, block_order_hi, block_order_hd, block_order_li, contains((c("last_click","attention")))) |>
+#   rename_with(~ str_replace_all(.x, pattern = "_timing_last_click", replacement ="")) |>
+#   rename_with(~ str_replace_all(.x, pattern = "x", replacement ="")) |>
+#   glimpse()
+# 
+# #difference in tone timing mean/sd by tone survey order
+# block_order |> group_by(tone_order) |> skimr::skim(tone)
+# 
+# 
+# # look at block order by survey
+# survey_1 <- block_order |>
+#   filter(survey_version == 1) |>
+#   select(-c(starts_with(c("2", "3", "4")))) |>
+#   mutate(block_1 = case_when(tone_order == 2 & block_order_hi == 1 ~ `1_hi`,
+#                               tone_order == 2 &  block_order_hd == 1 ~ `1_hd`,
+#                               tone_order == 2 &  block_order_hi == 1 ~ `1_hi`,
+#                               tone_order == 1 ~ tone,
+#                                .default = NA)) |>
+#   mutate(block_2 = case_when(tone_order == 1 & block_order_hi == 1 ~ `1_hi`,
+#                              tone_order == 1 &  block_order_hd == 1 ~ `1_hd`,
+#                              tone_order == 1 &  block_order_hi == 1 ~ `1_hi`,
+#                              tone_order == 2 & block_order_hi == 2 ~ `1_hi`,
+#                              tone_order == 2 &  block_order_hd == 2 ~ `1_hd`,
+#                              tone_order == 2 &  block_order_hi == 2 ~ `1_hi`,
+#                                .default = NA)) |>
+#   mutate(block_3 = case_when(tone_order == 1 & block_order_hi == 2 ~ `1_hi`,
+#                              tone_order == 1 &  block_order_hd == 2 ~ `1_hd`,
+#                              tone_order == 1 &  block_order_hi == 2 ~ `1_hi`,
+#                              tone_order == 2 & block_order_hi == 3 ~ `1_hi`,
+#                              tone_order == 2 & block_order_hd == 3 ~ `1_hd`,
+#                              tone_order == 2 & block_order_hi == 3 ~ `1_hi`,
+#                                .default = NA)) |>
+#   mutate(block_4 = case_when(tone_order == 1 & block_order_hi == 3 ~ `1_hi`,
+#                                tone_order == 1 & block_order_hd == 3 ~ `1_hd`,
+#                                tone_order == 1 & block_order_hi == 3 ~ `1_hi`,
+#                                tone_order == 2 ~ tone,
+#                                .default = NA)) |>
+#   
+#   glimpse()
+# 
+# survey_2 <- block_order |>
+#   filter(survey_version == 2) |>
+#   select(-c(starts_with(c("1", "3", "4"))))
+# 
+# survey_3 <- block_order |>
+#   filter(survey_version == 3) |>
+#   select(-c(starts_with(c("1", "2", "4"))))
+# 
+# survey_4 <- block_order |>
+#   filter(survey_version == 4) |>
+#   select(-c(starts_with(c("1", "2", "3"))))
+# 
+# 
+# block_order <- block_order |> 
+#   rowwise() |>
+#   mutate(block_1_timing = if_else(tone_order == 1, tone, if_else(, ,NA))) |>
+#   mutate(block_4_timing = if_else(tone_order == 2, tone, NA)) |>
+#   mutate(blc)
+#   glimpse()
+# 
+# tone_first_order = block_order |> 
+#   filter(tone_order == 1 & !is.na(survey_version)) |>
+#   mutate(hi_block = if_else(!is.na(block_order_hi), str_c(survey_version, "_", block_order_hi), NA),
+#          hd_block = if_else(!is.na(block_order_hd), str_c(survey_version, "_", block_order_hd), NA),
+#          li_block = if_else(!is.na(block_order_li), str_c(survey_version, "_", block_order_li), NA)) |>
+#   mutate(block_4_timing = if_else())
+# 
+# 
+#   
+# block_order |> select(response_id, tone_order, survey_version, block_order_hi, block_order_hd, block_order_li) |> View()
+# 
+# block_order |> select(response_id, tone_order, survey_version, block_order_hi, block_order_hd, block_order_li) |> 
+#   mutate()
+```
+
+
+
+Update the flow variable
 ```{r}
 
+```
+
+
+
+Filter out exceptionally long durations and graph distributions, mean, median, and threshold
+```{r}
+#just timing, to graph. Remove outliers under 100wpm reading speed (beginning reader level)
+panel_timing <- panel_integrity |>
+  select(-contains("attention")) |> 
+  mutate(tone = if_else(tone > timing$max_100[timing$block == "tone"], NA, tone),
+         `1_hi` = if_else(`1_hi` > timing$max_100[timing$block == "1_hi"], NA, `1_hi`),
+         `1_hd` = if_else(`1_hd` > timing$max_100[timing$block == "1_hd"], NA, `1_hd`),
+         `1_li` = if_else(`1_li` > timing$max_100[timing$block == "1_li"], NA, `1_li`),
+         `2_hi` = if_else(`2_hi` > timing$max_100[timing$block == "2_hi"], NA, `2_hi`),
+         `2_hd` = if_else(`2_hd` > timing$max_100[timing$block == "2_hd"], NA, `2_hd`),
+         `2_li` = if_else(`2_li` > timing$max_100[timing$block == "2_li"], NA, `2_li`),
+         `3_hi` = if_else(`3_hi` > timing$max_100[timing$block == "3_hi"], NA, `3_hi`),
+         `3_hd` = if_else(`3_hd` > timing$max_100[timing$block == "3_hd"], NA, `3_hd`),
+         `3_li` = if_else(`3_li` > timing$max_100[timing$block == "3_li"], NA, `3_li`),
+         `4_hi` = if_else(`4_hi` > timing$max_100[timing$block == "4_hi"], NA, `4_hi`),
+         `4_hd` = if_else(`4_hd` > timing$max_100[timing$block == "4_hd"], NA, `4_hd`),
+         `4_li` = if_else(`4_li` > timing$max_100[timing$block == "4_li"], NA, `4_li`), )|>
+  glimpse()
+
+skimr::skim(panel_timing)
+
+timing_checks2 <- panel_timing |> 
+  skimr::skim() |>
+  select(block=skim_variable, skim_type, complete_rate, mean = numeric.mean, median = numeric.p50, sd = numeric.sd, min = numeric.p0, max = numeric.p100) |> 
+  select(-skim_type) |>
+  full_join(timing) |>
+  mutate() |>
+  glimpse()
+```
+
+Generate the plots
+```{r}
 ptone <- ggplot(panel_timing, aes(tone))+geom_density() + 
- geom_vline(xintercept = timing_checks$mean[timing_checks$block == "tone"], linetype = 1, color = "green") +
- geom_vline(xintercept = timing_checks$median[timing_checks$block == "tone"], linetype = 1, color = "blue") +
- geom_vline(xintercept = timing_checks$threshold[timing_checks$block == "tone"], linetype = 1, color = "red")
+ geom_vline(xintercept = timing_checks2$mean[timing_checks2$block == "tone"], linetype = 1, color = "green") +
+ geom_vline(xintercept = timing_checks2$median[timing_checks2$block == "tone"], linetype = 1, color = "blue") +
+ geom_vline(xintercept = timing_checks2$threshold[timing_checks2$block == "tone"], linetype = 1, color = "red")
 p_1_hi <- ggplot(panel_timing, aes(`1_hi`))+geom_density() + 
- geom_vline(xintercept = timing_checks$mean[timing_checks$block == "1_hi"], linetype = 1, color = "green") +
- geom_vline(xintercept = timing_checks$median[timing_checks$block == "1_hi"], linetype = 1, color = "blue") +
- geom_vline(xintercept = timing_checks$threshold[timing_checks$block == "1_hi"], linetype = 1, color = "red")
+ geom_vline(xintercept = timing_checks2$mean[timing_checks2$block == "1_hi"], linetype = 1, color = "green") +
+ geom_vline(xintercept = timing_checks2$median[timing_checks2$block == "1_hi"], linetype = 1, color = "blue") +
+ geom_vline(xintercept = timing_checks2$threshold[timing_checks2$block == "1_hi"], linetype = 1, color = "red")
 p_1_hd <- ggplot(panel_timing, aes(`1_hd`))+geom_density() + 
- geom_vline(xintercept = timing_checks$mean[timing_checks$block == "1_hd"], linetype = 1, color = "green") +
- geom_vline(xintercept = timing_checks$median[timing_checks$block == "1_hd"], linetype = 1, color = "blue") +
- geom_vline(xintercept = timing_checks$threshold[timing_checks$block == "1_hd"], linetype = 1, color = "red")
+ geom_vline(xintercept = timing_checks2$mean[timing_checks2$block == "1_hd"], linetype = 1, color = "green") +
+ geom_vline(xintercept = timing_checks2$median[timing_checks2$block == "1_hd"], linetype = 1, color = "blue") +
+ geom_vline(xintercept = timing_checks2$threshold[timing_checks2$block == "1_hd"], linetype = 1, color = "red")
 p_1_li <- ggplot(panel_timing, aes(`1_li`))+geom_density() + 
- geom_vline(xintercept = timing_checks$mean[timing_checks$block == "1_li"], linetype = 1, color = "green") +
- geom_vline(xintercept = timing_checks$median[timing_checks$block == "1_li"], linetype = 1, color = "blue") +
- geom_vline(xintercept = timing_checks$threshold[timing_checks$block == "1_li"], linetype = 1, color = "red")
+ geom_vline(xintercept = timing_checks2$mean[timing_checks2$block == "1_li"], linetype = 1, color = "green") +
+ geom_vline(xintercept = timing_checks2$median[timing_checks2$block == "1_li"], linetype = 1, color = "blue") +
+ geom_vline(xintercept = timing_checks2$threshold[timing_checks2$block == "1_li"], linetype = 1, color = "red")
 p_2_hi <- ggplot(panel_timing, aes(`2_hi`))+geom_density() + 
- geom_vline(xintercept = timing_checks$mean[timing_checks$block == "2_hi"], linetype = 1, color = "green") +
- geom_vline(xintercept = timing_checks$median[timing_checks$block == "2_hi"], linetype = 1, color = "blue") +
- geom_vline(xintercept = timing_checks$threshold[timing_checks$block == "2_hi"], linetype = 1, color = "red")
+ geom_vline(xintercept = timing_checks2$mean[timing_checks2$block == "2_hi"], linetype = 1, color = "green") +
+ geom_vline(xintercept = timing_checks2$median[timing_checks2$block == "2_hi"], linetype = 1, color = "blue") +
+ geom_vline(xintercept = timing_checks2$threshold[timing_checks2$block == "2_hi"], linetype = 1, color = "red")
 p_2_hd <- ggplot(panel_timing, aes(`2_hd`))+geom_density() + 
- geom_vline(xintercept = timing_checks$mean[timing_checks$block == "2_hd"], linetype = 1, color = "green") +
- geom_vline(xintercept = timing_checks$median[timing_checks$block == "2_hd"], linetype = 1, color = "blue") +
- geom_vline(xintercept = timing_checks$threshold[timing_checks$block == "2_hd"], linetype = 1, color = "red")
+ geom_vline(xintercept = timing_checks2$mean[timing_checks2$block == "2_hd"], linetype = 1, color = "green") +
+ geom_vline(xintercept = timing_checks2$median[timing_checks2$block == "2_hd"], linetype = 1, color = "blue") +
+ geom_vline(xintercept = timing_checks2$threshold[timing_checks2$block == "2_hd"], linetype = 1, color = "red")
 p_2_li <- ggplot(panel_timing, aes(`2_li`))+geom_density() + 
- geom_vline(xintercept = timing_checks$mean[timing_checks$block == "2_li"], linetype = 1, color = "green") +
- geom_vline(xintercept = timing_checks$median[timing_checks$block == "2_li"], linetype = 1, color = "blue") +
- geom_vline(xintercept = timing_checks$threshold[timing_checks$block == "2_li"], linetype = 1, color = "red")
+ geom_vline(xintercept = timing_checks2$mean[timing_checks2$block == "2_li"], linetype = 1, color = "green") +
+ geom_vline(xintercept = timing_checks2$median[timing_checks2$block == "2_li"], linetype = 1, color = "blue") +
+ geom_vline(xintercept = timing_checks2$threshold[timing_checks2$block == "2_li"], linetype = 1, color = "red")
 p_3_hi <- ggplot(panel_timing, aes(`3_hi`))+geom_density() + 
- geom_vline(xintercept = timing_checks$mean[timing_checks$block == "3_hi"], linetype = 1, color = "green") +
- geom_vline(xintercept = timing_checks$median[timing_checks$block == "3_hi"], linetype = 1, color = "blue") +
- geom_vline(xintercept = timing_checks$threshold[timing_checks$block == "3_hi"], linetype = 1, color = "red")
+ geom_vline(xintercept = timing_checks2$mean[timing_checks2$block == "3_hi"], linetype = 1, color = "green") +
+ geom_vline(xintercept = timing_checks2$median[timing_checks2$block == "3_hi"], linetype = 1, color = "blue") +
+ geom_vline(xintercept = timing_checks2$threshold[timing_checks2$block == "3_hi"], linetype = 1, color = "red")
 p_3_hd <- ggplot(panel_timing, aes(`3_hd`))+geom_density() + 
- geom_vline(xintercept = timing_checks$mean[timing_checks$block == "3_hd"], linetype = 1, color = "green") +
- geom_vline(xintercept = timing_checks$median[timing_checks$block == "3_hd"], linetype = 1, color = "blue") +
- geom_vline(xintercept = timing_checks$threshold[timing_checks$block == "3_hd"], linetype = 1, color = "red")
+ geom_vline(xintercept = timing_checks2$mean[timing_checks2$block == "3_hd"], linetype = 1, color = "green") +
+ geom_vline(xintercept = timing_checks2$median[timing_checks2$block == "3_hd"], linetype = 1, color = "blue") +
+ geom_vline(xintercept = timing_checks2$threshold[timing_checks2$block == "3_hd"], linetype = 1, color = "red")
 p_3_li <- ggplot(panel_timing, aes(`3_li`))+geom_density() + 
- geom_vline(xintercept = timing_checks$mean[timing_checks$block == "3_li"], linetype = 1, color = "green") +
- geom_vline(xintercept = timing_checks$median[timing_checks$block == "3_li"], linetype = 1, color = "blue") +
- geom_vline(xintercept = timing_checks$threshold[timing_checks$block == "3_li"], linetype = 1, color = "red")
+ geom_vline(xintercept = timing_checks2$mean[timing_checks2$block == "3_li"], linetype = 1, color = "green") +
+ geom_vline(xintercept = timing_checks2$median[timing_checks2$block == "3_li"], linetype = 1, color = "blue") +
+ geom_vline(xintercept = timing_checks2$threshold[timing_checks2$block == "3_li"], linetype = 1, color = "red")
 p_4_hi <- ggplot(panel_timing, aes(`4_hi`))+geom_density() + 
- geom_vline(xintercept = timing_checks$mean[timing_checks$block == "4_hi"], linetype = 1, color = "green") +
- geom_vline(xintercept = timing_checks$median[timing_checks$block == "4_hi"], linetype = 1, color = "blue") +
- geom_vline(xintercept = timing_checks$threshold[timing_checks$block == "4_hi"], linetype = 1, color = "red")
+ geom_vline(xintercept = timing_checks2$mean[timing_checks2$block == "4_hi"], linetype = 1, color = "green") +
+ geom_vline(xintercept = timing_checks2$median[timing_checks2$block == "4_hi"], linetype = 1, color = "blue") +
+ geom_vline(xintercept = timing_checks2$threshold[timing_checks2$block == "4_hi"], linetype = 1, color = "red")
 p_4_hd <- ggplot(panel_timing, aes(`4_hd`))+geom_density() + 
- geom_vline(xintercept = timing_checks$mean[timing_checks$block == "4_hd"], linetype = 1, color = "green") +
- geom_vline(xintercept = timing_checks$median[timing_checks$block == "4_hd"], linetype = 1, color = "blue") +
- geom_vline(xintercept = timing_checks$threshold[timing_checks$block == "4_hd"], linetype = 1, color = "red")
+ geom_vline(xintercept = timing_checks2$mean[timing_checks2$block == "4_hd"], linetype = 1, color = "green") +
+ geom_vline(xintercept = timing_checks2$median[timing_checks2$block == "4_hd"], linetype = 1, color = "blue") +
+ geom_vline(xintercept = timing_checks2$threshold[timing_checks2$block == "4_hd"], linetype = 1, color = "red")
 p_4_li <- ggplot(panel_timing, aes(`4_li`))+geom_density() + 
- geom_vline(xintercept = timing_checks$mean[timing_checks$block == "4_li"], linetype = 1, color = "green") +
- geom_vline(xintercept = timing_checks$median[timing_checks$block == "4_li"], linetype = 1, color = "blue") +
- geom_vline(xintercept = timing_checks$threshold[timing_checks$block == "4_li"], linetype = 1, color = "red")
+ geom_vline(xintercept = timing_checks2$mean[timing_checks2$block == "4_li"], linetype = 1, color = "green") +
+ geom_vline(xintercept = timing_checks2$median[timing_checks2$block == "4_li"], linetype = 1, color = "blue") +
+ geom_vline(xintercept = timing_checks2$threshold[timing_checks2$block == "4_li"], linetype = 1, color = "red")
+```
 
-
+Display in a grid
+```{r}
 gridExtra::grid.arrange(p_1_hi,
                         p_1_hd,
                         p_1_li,
