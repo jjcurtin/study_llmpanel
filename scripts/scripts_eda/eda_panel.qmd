@@ -1,9 +1,23 @@
 ---
 title: "Panel EDA"
-format: html
+format: 
+  html:
+    page-layout: full
+    self-contained: true
+execute: 
+  warning: false
 ---
 
-Colin: If you want to view all output as HTML, just render this using the render button or by going unto the terminal tab and entering `quarto render check_panel.qmd`
+The purpose of this EDA to decide if there's anything WE need to change so qualtrics can launch again, or anything we need to tell qualtrics to change:
+
+
+* CAPTCHA fails
+* Healthy screen fails
+* AUDIT fails 
+* Attention check fails 
+* Timing check fails 
+* Exceptionally long duration surveys (since these are skewing the mean/median which we need to evaluate our timing checks)
+
 
 ## Set up
 
@@ -49,8 +63,12 @@ panel_export_raw <- read_csv(tibble(path = list.files(path_panel, pattern = "pan
 
 Basic EDA
 ```{r}
-
-panel_export <-  panel_export_raw
+#remove the leading X and trailing _1 from varnames
+panel_export <-  panel_export_raw |>
+    rename_with(~ str_replace_all(.x, pattern = "x", replacement ="")) |>
+    rename_with(~ str_replace_all(.x, pattern = "_1$", replacement ="")) |>
+    rename(id_location_1 = id_location,
+           audit_1 = audit)
 
 panel_complete <- panel_export |> filter(!is.na(id_location_2)) 
 panel_export |> distinct(id_location_1)  #29 distinct + NA, which matches the above
@@ -334,9 +352,8 @@ max_100 = c(
 
 
 panel_integrity <- panel_export |>
-  select(response_id, contains((c("last_click","attention")))) |>
+  select(response_id, contains((c("last_click","attention"))), starts_with("block_order"), tone_order) |>
   rename_with(~ str_replace_all(.x, pattern = "_timing_last_click", replacement ="")) |>
-  rename_with(~ str_replace_all(.x, pattern = "x", replacement ="")) |>
   glimpse()
 
 panel_integrity |> 
@@ -354,9 +371,8 @@ timing_checks <- panel_integrity |>
   glimpse()
 ```
 
-Colin:
 
-* How many people failed the attention checks (DONE, pending review)
+* How many people failed the attention checks 
 ```{r}
 
 # get people who answered the attention check
@@ -396,6 +412,9 @@ cat(nrow(attention_pass))
 nrow(attention_fail) / nrow(panel_attention) 
 ```
 
+
+
+
 * Use the timing_checks dataframe to figure out where the mean/median lie with respect to the threshold. It looks like we're being too aggressive and should raise our thresholds but until we can see how they go together more cleanly it's hard to tell (Done pending final review)
 
 ```{r}
@@ -422,99 +441,257 @@ timing_summary |>
 
 * for the people that failed the timing checks (especially those in the 2nd or 3rd message block), would we want to preserve them for partial analysis? (I think failing 1 message block is fine)
 
+
+Update the flow variable -just use the termination variable since it handles all the timing & attention vars
+
+```{r}
+flow <- flow |> mutate(passed_time_attention = panel_export |> filter(is.na(term)) |> nrow())
+```
+* S NOTE: Recalculate this to make sure their use of term is correct.
+
+panel_export |> group_by(term) |> tally()
+
+
+
 I think there's an order x block interaction effect with timing, let's look at that
 ```{r}
-# block_order <- panel_export |>
-#   select(response_id, tone_order, survey_version, block_order_hi, block_order_hd, block_order_li, contains((c("last_click","attention")))) |>
-#   rename_with(~ str_replace_all(.x, pattern = "_timing_last_click", replacement ="")) |>
-#   rename_with(~ str_replace_all(.x, pattern = "x", replacement ="")) |>
-#   glimpse()
-# 
-# #difference in tone timing mean/sd by tone survey order
-# block_order |> group_by(tone_order) |> skimr::skim(tone)
-# 
-# 
-# # look at block order by survey
-# survey_1 <- block_order |>
-#   filter(survey_version == 1) |>
-#   select(-c(starts_with(c("2", "3", "4")))) |>
-#   mutate(block_1 = case_when(tone_order == 2 & block_order_hi == 1 ~ `1_hi`,
-#                               tone_order == 2 &  block_order_hd == 1 ~ `1_hd`,
-#                               tone_order == 2 &  block_order_hi == 1 ~ `1_hi`,
-#                               tone_order == 1 ~ tone,
-#                                .default = NA)) |>
-#   mutate(block_2 = case_when(tone_order == 1 & block_order_hi == 1 ~ `1_hi`,
-#                              tone_order == 1 &  block_order_hd == 1 ~ `1_hd`,
-#                              tone_order == 1 &  block_order_hi == 1 ~ `1_hi`,
-#                              tone_order == 2 & block_order_hi == 2 ~ `1_hi`,
-#                              tone_order == 2 &  block_order_hd == 2 ~ `1_hd`,
-#                              tone_order == 2 &  block_order_hi == 2 ~ `1_hi`,
-#                                .default = NA)) |>
-#   mutate(block_3 = case_when(tone_order == 1 & block_order_hi == 2 ~ `1_hi`,
-#                              tone_order == 1 &  block_order_hd == 2 ~ `1_hd`,
-#                              tone_order == 1 &  block_order_hi == 2 ~ `1_hi`,
-#                              tone_order == 2 & block_order_hi == 3 ~ `1_hi`,
-#                              tone_order == 2 & block_order_hd == 3 ~ `1_hd`,
-#                              tone_order == 2 & block_order_hi == 3 ~ `1_hi`,
-#                                .default = NA)) |>
-#   mutate(block_4 = case_when(tone_order == 1 & block_order_hi == 3 ~ `1_hi`,
-#                                tone_order == 1 & block_order_hd == 3 ~ `1_hd`,
-#                                tone_order == 1 & block_order_hi == 3 ~ `1_hi`,
-#                                tone_order == 2 ~ tone,
-#                                .default = NA)) |>
-#   
-#   glimpse()
-# 
-# survey_2 <- block_order |>
-#   filter(survey_version == 2) |>
-#   select(-c(starts_with(c("1", "3", "4"))))
-# 
-# survey_3 <- block_order |>
-#   filter(survey_version == 3) |>
-#   select(-c(starts_with(c("1", "2", "4"))))
-# 
-# survey_4 <- block_order |>
-#   filter(survey_version == 4) |>
-#   select(-c(starts_with(c("1", "2", "3"))))
-# 
-# 
-# block_order <- block_order |> 
-#   rowwise() |>
-#   mutate(block_1_timing = if_else(tone_order == 1, tone, if_else(, ,NA))) |>
-#   mutate(block_4_timing = if_else(tone_order == 2, tone, NA)) |>
-#   mutate(blc)
-#   glimpse()
-# 
-# tone_first_order = block_order |> 
-#   filter(tone_order == 1 & !is.na(survey_version)) |>
-#   mutate(hi_block = if_else(!is.na(block_order_hi), str_c(survey_version, "_", block_order_hi), NA),
-#          hd_block = if_else(!is.na(block_order_hd), str_c(survey_version, "_", block_order_hd), NA),
-#          li_block = if_else(!is.na(block_order_li), str_c(survey_version, "_", block_order_li), NA)) |>
-#   mutate(block_4_timing = if_else())
-# 
-# 
-#   
-# block_order |> select(response_id, tone_order, survey_version, block_order_hi, block_order_hd, block_order_li) |> View()
-# 
-# block_order |> select(response_id, tone_order, survey_version, block_order_hi, block_order_hd, block_order_li) |> 
-#   mutate()
-```
+block_timing <- panel_integrity |> 
+  select(-contains("attention"), -response_id, -contains("block_order")) |> 
+  janitor::remove_empty(which = "rows") |> 
+  mutate(tone_order = if_else(is.na(tone_order), 2, tone_order))  #if tone order is blank but one of the message timing vars is not, it means tone was 2nd but they were eliminated prior to that
 
+block_timing |>
+  group_by(tone_order) |>
+  skimr::skim()
 
-
-Update the flow variable
-```{r}
+overlap_timing <- block_timing |> 
+  group_by(tone_order) |>
+  skimr::skim() |>
+  select(block=skim_variable, skim_type, tone_order, mean = numeric.mean, median = numeric.p50, sd = numeric.sd, min = numeric.p0, max = numeric.p100) |> 
+  select(-skim_type) |>
+  full_join(timing) |>
+  mutate() |>
+  glimpse()
 
 ```
 
-
-
-Filter out exceptionally long durations and graph distributions, mean, median, and threshold
+Graph the timing variables by block and tone order
 ```{r}
-#just timing, to graph. Remove outliers under 100wpm reading speed (beginning reader level)
-panel_timing <- panel_integrity |>
-  select(-contains("attention")) |> 
-  mutate(tone = if_else(tone > timing$max_100[timing$block == "tone"], NA, tone),
+#| echo: false
+
+tone_overlap <- block_timing |>
+  mutate(tone_order = as.factor(tone_order)) |>
+  ggplot(aes(x = tone, fill=tone_order)) +
+  geom_density(alpha = 1/3, show.legend = FALSE) +
+  geom_vline(xintercept = overlap_timing$mean[overlap_timing$block == "tone" & overlap_timing$tone_order == 1], linetype = 1, color = "red") +
+  geom_vline(xintercept = overlap_timing$median[overlap_timing$block == "tone" & overlap_timing$tone_order == 1], linetype = 2, color = "darkred") +
+  geom_vline(xintercept = overlap_timing$mean[overlap_timing$block == "tone" & overlap_timing$tone_order == 2], linetype = 1, color = "blue") +
+  geom_vline(xintercept = overlap_timing$median[overlap_timing$block == "tone" & overlap_timing$tone_order == 2], linetype = 2, color = "darkblue") +
+  geom_vline(xintercept = overlap_timing$threshold[overlap_timing$block == "tone"], linetype = 1, color = "green") +
+  theme(axis.text.y=element_blank(),
+        axis.ticks.y=element_blank() 
+        )
+
+
+hi1_overlap <- block_timing |>
+  mutate(tone_order = as.factor(tone_order)) |>
+  ggplot(aes(x = `1_hi`, fill=tone_order)) +
+  geom_density(alpha = 1/3, show.legend = FALSE) +
+    geom_vline(xintercept = overlap_timing$mean[overlap_timing$block == "1_hi" & overlap_timing$tone_order == 1], linetype = 1, color = "red") +
+  geom_vline(xintercept = overlap_timing$median[overlap_timing$block == "1_hi" & overlap_timing$tone_order == 1], linetype = 2, color = "darkred") +
+  geom_vline(xintercept = overlap_timing$mean[overlap_timing$block == "1_hi" & overlap_timing$tone_order == 2], linetype = 1, color = "blue") +
+  geom_vline(xintercept = overlap_timing$median[overlap_timing$block == "1_hi" & overlap_timing$tone_order == 2], linetype = 2, color = "darkblue") +
+  geom_vline(xintercept = overlap_timing$threshold[overlap_timing$block == "1_hi"], linetype = 1, color = "green") +
+  theme(axis.text.y=element_blank(),
+        axis.ticks.y=element_blank() 
+        )
+
+
+hd1_overlap <- block_timing |>
+  mutate(tone_order = as.factor(tone_order)) |>
+  ggplot(aes(x = `1_hd`, fill=tone_order)) +
+  geom_density(alpha = 1/3, show.legend = FALSE) +
+    geom_vline(xintercept = overlap_timing$mean[overlap_timing$block == "1_hd" & overlap_timing$tone_order == 1], linetype = 1, color = "red") +
+  geom_vline(xintercept = overlap_timing$median[overlap_timing$block == "1_hd" & overlap_timing$tone_order == 1], linetype = 2, color = "darkred") +
+  geom_vline(xintercept = overlap_timing$mean[overlap_timing$block == "1_hd" & overlap_timing$tone_order == 2], linetype = 1, color = "blue") +
+  geom_vline(xintercept = overlap_timing$median[overlap_timing$block == "1_hd" & overlap_timing$tone_order == 2], linetype = 2, color = "darkblue") +
+  geom_vline(xintercept = overlap_timing$threshold[overlap_timing$block == "1_hd"], linetype = 1, color = "green") +
+  theme(axis.text.y=element_blank(),
+        axis.ticks.y=element_blank() 
+        )
+
+
+li1_overlap <- block_timing |>
+  mutate(tone_order = as.factor(tone_order)) |>
+  ggplot(aes(x = `1_li`, fill=tone_order)) +
+  geom_density(alpha = 1/3, show.legend = FALSE) +
+    geom_vline(xintercept = overlap_timing$mean[overlap_timing$block == "1_li" & overlap_timing$tone_order == 1], linetype = 1, color = "red") +
+  geom_vline(xintercept = overlap_timing$median[overlap_timing$block == "1_li" & overlap_timing$tone_order == 1], linetype = 2, color = "darkred") +
+  geom_vline(xintercept = overlap_timing$mean[overlap_timing$block == "1_li" & overlap_timing$tone_order == 2], linetype = 1, color = "blue") +
+  geom_vline(xintercept = overlap_timing$median[overlap_timing$block == "1_li" & overlap_timing$tone_order == 2], linetype = 2, color = "darkblue") +
+  geom_vline(xintercept = overlap_timing$threshold[overlap_timing$block == "1_li"], linetype = 1, color = "green") +
+  theme(axis.text.y=element_blank(),
+        axis.ticks.y=element_blank() 
+        )
+
+
+
+hi2_overlap <- block_timing |>
+  mutate(tone_order = as.factor(tone_order)) |>
+  ggplot(aes(x = `2_hi`, fill=tone_order)) +
+  geom_density(alpha = 1/3, show.legend = FALSE) +
+    geom_vline(xintercept = overlap_timing$mean[overlap_timing$block == "2_hi" & overlap_timing$tone_order == 1], linetype = 1, color = "red") +
+  geom_vline(xintercept = overlap_timing$median[overlap_timing$block == "2_hi" & overlap_timing$tone_order == 1], linetype = 2, color = "darkred") +
+  geom_vline(xintercept = overlap_timing$mean[overlap_timing$block == "2_hi" & overlap_timing$tone_order == 2], linetype = 1, color = "blue") +
+  geom_vline(xintercept = overlap_timing$median[overlap_timing$block == "2_hi" & overlap_timing$tone_order == 2], linetype = 2, color = "darkblue") +
+  geom_vline(xintercept = overlap_timing$threshold[overlap_timing$block == "2_hi"], linetype = 1, color = "green") +
+  theme(axis.text.y=element_blank(),
+        axis.ticks.y=element_blank() 
+        )
+
+
+hd2_overlap <- block_timing |>
+  mutate(tone_order = as.factor(tone_order)) |>
+  ggplot(aes(x = `2_hd`, fill=tone_order)) +
+  geom_density(alpha = 1/3, show.legend = FALSE) +
+    geom_vline(xintercept = overlap_timing$mean[overlap_timing$block == "2_hd" & overlap_timing$tone_order == 1], linetype = 1, color = "red") +
+  geom_vline(xintercept = overlap_timing$median[overlap_timing$block == "2_hd" & overlap_timing$tone_order == 1], linetype = 2, color = "darkred") +
+  geom_vline(xintercept = overlap_timing$mean[overlap_timing$block == "2_hd" & overlap_timing$tone_order == 2], linetype = 1, color = "blue") +
+  geom_vline(xintercept = overlap_timing$median[overlap_timing$block == "2_hd" & overlap_timing$tone_order == 2], linetype = 2, color = "darkblue") +
+  geom_vline(xintercept = overlap_timing$threshold[overlap_timing$block == "2_hd"], linetype = 1, color = "green") +
+  theme(axis.text.y=element_blank(),
+        axis.ticks.y=element_blank() 
+        )
+
+
+li2_overlap <- block_timing |>
+  mutate(tone_order = as.factor(tone_order)) |>
+  ggplot(aes(x = `2_li`, fill=tone_order)) +
+  geom_density(alpha = 1/3, show.legend = FALSE) +
+    geom_vline(xintercept = overlap_timing$mean[overlap_timing$block == "2_li" & overlap_timing$tone_order == 1], linetype = 1, color = "red") +
+  geom_vline(xintercept = overlap_timing$median[overlap_timing$block == "2_li" & overlap_timing$tone_order == 1], linetype = 2, color = "darkred") +
+  geom_vline(xintercept = overlap_timing$mean[overlap_timing$block == "2_li" & overlap_timing$tone_order == 2], linetype = 1, color = "blue") +
+  geom_vline(xintercept = overlap_timing$median[overlap_timing$block == "2_li" & overlap_timing$tone_order == 2], linetype = 2, color = "darkblue") +
+  geom_vline(xintercept = overlap_timing$threshold[overlap_timing$block == "2_li"], linetype = 1, color = "green") +
+  theme(axis.text.y=element_blank(),
+        axis.ticks.y=element_blank() 
+        )
+
+
+
+hi3_overlap <- block_timing |>
+  mutate(tone_order = as.factor(tone_order)) |>
+  ggplot(aes(x = `3_hi`, fill=tone_order)) +
+  geom_density(alpha = 1/3, show.legend = FALSE) +
+    geom_vline(xintercept = overlap_timing$mean[overlap_timing$block == "3_hi" & overlap_timing$tone_order == 1], linetype = 1, color = "red") +
+  geom_vline(xintercept = overlap_timing$median[overlap_timing$block == "3_hi" & overlap_timing$tone_order == 1], linetype = 2, color = "darkred") +
+  geom_vline(xintercept = overlap_timing$mean[overlap_timing$block == "3_hi" & overlap_timing$tone_order == 2], linetype = 1, color = "blue") +
+  geom_vline(xintercept = overlap_timing$median[overlap_timing$block == "3_hi" & overlap_timing$tone_order == 2], linetype = 2, color = "darkblue") +
+  geom_vline(xintercept = overlap_timing$threshold[overlap_timing$block == "3_hi"], linetype = 1, color = "green") +
+  theme(axis.text.y=element_blank(),
+        axis.ticks.y=element_blank() 
+        )
+
+
+hd3_overlap <- block_timing |>
+  mutate(tone_order = as.factor(tone_order)) |>
+  ggplot(aes(x = `3_hd`, fill=tone_order)) +
+  geom_density(alpha = 1/3, show.legend = FALSE) +
+    geom_vline(xintercept = overlap_timing$mean[overlap_timing$block == "3_hd" & overlap_timing$tone_order == 1], linetype = 1, color = "red") +
+  geom_vline(xintercept = overlap_timing$median[overlap_timing$block == "3_hd" & overlap_timing$tone_order == 1], linetype = 2, color = "darkred") +
+  geom_vline(xintercept = overlap_timing$mean[overlap_timing$block == "3_hd" & overlap_timing$tone_order == 2], linetype = 1, color = "blue") +
+  geom_vline(xintercept = overlap_timing$median[overlap_timing$block == "3_hd" & overlap_timing$tone_order == 2], linetype = 2, color = "darkblue") +
+  geom_vline(xintercept = overlap_timing$threshold[overlap_timing$block == "3_hd"], linetype = 1, color = "green") +
+  theme(axis.text.y=element_blank(),
+        axis.ticks.y=element_blank() 
+        )
+
+
+li3_overlap <- block_timing |>
+  mutate(tone_order = as.factor(tone_order)) |>
+  ggplot(aes(x = `3_li`, fill=tone_order)) +
+  geom_density(alpha = 1/3, show.legend = FALSE) +
+    geom_vline(xintercept = overlap_timing$mean[overlap_timing$block == "3_li" & overlap_timing$tone_order == 1], linetype = 1, color = "red") +
+  geom_vline(xintercept = overlap_timing$median[overlap_timing$block == "3_li" & overlap_timing$tone_order == 1], linetype = 2, color = "darkred") +
+  geom_vline(xintercept = overlap_timing$mean[overlap_timing$block == "3_li" & overlap_timing$tone_order == 2], linetype = 1, color = "blue") +
+  geom_vline(xintercept = overlap_timing$median[overlap_timing$block == "3_li" & overlap_timing$tone_order == 2], linetype = 2, color = "darkblue") +
+  geom_vline(xintercept = overlap_timing$threshold[overlap_timing$block == "3_li"], linetype = 1, color = "green") +
+  theme(axis.text.y=element_blank(),
+        axis.ticks.y=element_blank() 
+        )
+
+
+
+hi4_overlap <- block_timing |>
+  mutate(tone_order = as.factor(tone_order)) |>
+  ggplot(aes(x = `4_hi`, fill=tone_order)) +
+  geom_density(alpha = 1/3, show.legend = FALSE) +
+    geom_vline(xintercept = overlap_timing$mean[overlap_timing$block == "4_hi" & overlap_timing$tone_order == 1], linetype = 1, color = "red") +
+  geom_vline(xintercept = overlap_timing$median[overlap_timing$block == "4_hi" & overlap_timing$tone_order == 1], linetype = 2, color = "darkred") +
+  geom_vline(xintercept = overlap_timing$mean[overlap_timing$block == "4_hi" & overlap_timing$tone_order == 2], linetype = 1, color = "blue") +
+  geom_vline(xintercept = overlap_timing$median[overlap_timing$block == "4_hi" & overlap_timing$tone_order == 2], linetype = 2, color = "darkblue") +
+  geom_vline(xintercept = overlap_timing$threshold[overlap_timing$block == "4_hi"], linetype = 1, color = "green") +
+  theme(axis.text.y=element_blank(),
+        axis.ticks.y=element_blank() 
+        )
+
+
+hd4_overlap <- block_timing |>
+  mutate(tone_order = as.factor(tone_order)) |>
+  ggplot(aes(x = `4_hd`, fill=tone_order)) +
+  geom_density(alpha = 1/3, show.legend = FALSE) +
+    geom_vline(xintercept = overlap_timing$mean[overlap_timing$block == "4_hd" & overlap_timing$tone_order == 1], linetype = 1, color = "red") +
+  geom_vline(xintercept = overlap_timing$median[overlap_timing$block == "4_hd" & overlap_timing$tone_order == 1], linetype = 2, color = "darkred") +
+  geom_vline(xintercept = overlap_timing$mean[overlap_timing$block == "4_hd" & overlap_timing$tone_order == 2], linetype = 1, color = "blue") +
+  geom_vline(xintercept = overlap_timing$median[overlap_timing$block == "4_hd" & overlap_timing$tone_order == 2], linetype = 2, color = "darkblue") +
+  geom_vline(xintercept = overlap_timing$threshold[overlap_timing$block == "4_hd"], linetype = 1, color = "green") +
+  theme(axis.text.y=element_blank(),
+        axis.ticks.y=element_blank() 
+        )
+
+
+li4_overlap <- block_timing |>
+  mutate(tone_order = as.factor(tone_order)) |>
+  ggplot(aes(x = `4_li`, fill=tone_order)) +
+  geom_density(alpha = 1/3, show.legend = FALSE) +
+    geom_vline(xintercept = overlap_timing$mean[overlap_timing$block == "4_li" & overlap_timing$tone_order == 1], linetype = 1, color = "red") +
+  geom_vline(xintercept = overlap_timing$median[overlap_timing$block == "4_li" & overlap_timing$tone_order == 1], linetype = 2, color = "darkred") +
+  geom_vline(xintercept = overlap_timing$mean[overlap_timing$block == "4_li" & overlap_timing$tone_order == 2], linetype = 1, color = "blue") +
+  geom_vline(xintercept = overlap_timing$median[overlap_timing$block == "4_li" & overlap_timing$tone_order == 2], linetype = 2, color = "darkblue") +
+  geom_vline(xintercept = overlap_timing$threshold[overlap_timing$block == "4_li"], linetype = 1, color = "green")+
+  theme(axis.text.y=element_blank(),
+        axis.ticks.y=element_blank() 
+        )
+```
+
+
+```{r}
+#| fig-asp: 1
+#| out-width: 100%
+#| fig-width: 15
+
+gridExtra::grid.arrange(hi1_overlap,
+                        hd1_overlap,
+                        li1_overlap,
+                        hi2_overlap,
+                        hd2_overlap,
+                        li2_overlap,
+                        hi3_overlap,
+                        hd3_overlap,
+                        li3_overlap,
+                        hi4_overlap,
+                        hd4_overlap,
+                        li4_overlap,
+                        tone_overlap, ncol = 3)
+
+```
+
+
+Remove outliers under 100wpm reading speed (beginning reader level) and re-graph 
+```{r}
+#| echo: false
+block_timing2 <-  block_timing |> 
+    mutate(tone = if_else(tone > timing$max_100[timing$block == "tone"], NA, tone),
          `1_hi` = if_else(`1_hi` > timing$max_100[timing$block == "1_hi"], NA, `1_hi`),
          `1_hd` = if_else(`1_hd` > timing$max_100[timing$block == "1_hd"], NA, `1_hd`),
          `1_li` = if_else(`1_li` > timing$max_100[timing$block == "1_li"], NA, `1_li`),
@@ -526,91 +703,228 @@ panel_timing <- panel_integrity |>
          `3_li` = if_else(`3_li` > timing$max_100[timing$block == "3_li"], NA, `3_li`),
          `4_hi` = if_else(`4_hi` > timing$max_100[timing$block == "4_hi"], NA, `4_hi`),
          `4_hd` = if_else(`4_hd` > timing$max_100[timing$block == "4_hd"], NA, `4_hd`),
-         `4_li` = if_else(`4_li` > timing$max_100[timing$block == "4_li"], NA, `4_li`), )|>
-  glimpse()
-
-skimr::skim(panel_timing)
-
-timing_checks2 <- panel_timing |> 
+         `4_li` = if_else(`4_li` > timing$max_100[timing$block == "4_li"], NA, `4_li`)) 
+ 
+ 
+overlap_timing2 <- block_timing2 |> 
+  group_by(tone_order) |>
   skimr::skim() |>
-  select(block=skim_variable, skim_type, complete_rate, mean = numeric.mean, median = numeric.p50, sd = numeric.sd, min = numeric.p0, max = numeric.p100) |> 
+  select(block=skim_variable, skim_type, tone_order, mean = numeric.mean, median = numeric.p50, sd = numeric.sd, min = numeric.p0, max = numeric.p100) |> 
   select(-skim_type) |>
   full_join(timing) |>
   mutate() |>
   glimpse()
+
 ```
 
-Generate the plots
+Graph the timing variables by block and tone order
 ```{r}
-ptone <- ggplot(panel_timing, aes(tone))+geom_density() + 
- geom_vline(xintercept = timing_checks2$mean[timing_checks2$block == "tone"], linetype = 1, color = "green") +
- geom_vline(xintercept = timing_checks2$median[timing_checks2$block == "tone"], linetype = 1, color = "blue") +
- geom_vline(xintercept = timing_checks2$threshold[timing_checks2$block == "tone"], linetype = 1, color = "red")
-p_1_hi <- ggplot(panel_timing, aes(`1_hi`))+geom_density() + 
- geom_vline(xintercept = timing_checks2$mean[timing_checks2$block == "1_hi"], linetype = 1, color = "green") +
- geom_vline(xintercept = timing_checks2$median[timing_checks2$block == "1_hi"], linetype = 1, color = "blue") +
- geom_vline(xintercept = timing_checks2$threshold[timing_checks2$block == "1_hi"], linetype = 1, color = "red")
-p_1_hd <- ggplot(panel_timing, aes(`1_hd`))+geom_density() + 
- geom_vline(xintercept = timing_checks2$mean[timing_checks2$block == "1_hd"], linetype = 1, color = "green") +
- geom_vline(xintercept = timing_checks2$median[timing_checks2$block == "1_hd"], linetype = 1, color = "blue") +
- geom_vline(xintercept = timing_checks2$threshold[timing_checks2$block == "1_hd"], linetype = 1, color = "red")
-p_1_li <- ggplot(panel_timing, aes(`1_li`))+geom_density() + 
- geom_vline(xintercept = timing_checks2$mean[timing_checks2$block == "1_li"], linetype = 1, color = "green") +
- geom_vline(xintercept = timing_checks2$median[timing_checks2$block == "1_li"], linetype = 1, color = "blue") +
- geom_vline(xintercept = timing_checks2$threshold[timing_checks2$block == "1_li"], linetype = 1, color = "red")
-p_2_hi <- ggplot(panel_timing, aes(`2_hi`))+geom_density() + 
- geom_vline(xintercept = timing_checks2$mean[timing_checks2$block == "2_hi"], linetype = 1, color = "green") +
- geom_vline(xintercept = timing_checks2$median[timing_checks2$block == "2_hi"], linetype = 1, color = "blue") +
- geom_vline(xintercept = timing_checks2$threshold[timing_checks2$block == "2_hi"], linetype = 1, color = "red")
-p_2_hd <- ggplot(panel_timing, aes(`2_hd`))+geom_density() + 
- geom_vline(xintercept = timing_checks2$mean[timing_checks2$block == "2_hd"], linetype = 1, color = "green") +
- geom_vline(xintercept = timing_checks2$median[timing_checks2$block == "2_hd"], linetype = 1, color = "blue") +
- geom_vline(xintercept = timing_checks2$threshold[timing_checks2$block == "2_hd"], linetype = 1, color = "red")
-p_2_li <- ggplot(panel_timing, aes(`2_li`))+geom_density() + 
- geom_vline(xintercept = timing_checks2$mean[timing_checks2$block == "2_li"], linetype = 1, color = "green") +
- geom_vline(xintercept = timing_checks2$median[timing_checks2$block == "2_li"], linetype = 1, color = "blue") +
- geom_vline(xintercept = timing_checks2$threshold[timing_checks2$block == "2_li"], linetype = 1, color = "red")
-p_3_hi <- ggplot(panel_timing, aes(`3_hi`))+geom_density() + 
- geom_vline(xintercept = timing_checks2$mean[timing_checks2$block == "3_hi"], linetype = 1, color = "green") +
- geom_vline(xintercept = timing_checks2$median[timing_checks2$block == "3_hi"], linetype = 1, color = "blue") +
- geom_vline(xintercept = timing_checks2$threshold[timing_checks2$block == "3_hi"], linetype = 1, color = "red")
-p_3_hd <- ggplot(panel_timing, aes(`3_hd`))+geom_density() + 
- geom_vline(xintercept = timing_checks2$mean[timing_checks2$block == "3_hd"], linetype = 1, color = "green") +
- geom_vline(xintercept = timing_checks2$median[timing_checks2$block == "3_hd"], linetype = 1, color = "blue") +
- geom_vline(xintercept = timing_checks2$threshold[timing_checks2$block == "3_hd"], linetype = 1, color = "red")
-p_3_li <- ggplot(panel_timing, aes(`3_li`))+geom_density() + 
- geom_vline(xintercept = timing_checks2$mean[timing_checks2$block == "3_li"], linetype = 1, color = "green") +
- geom_vline(xintercept = timing_checks2$median[timing_checks2$block == "3_li"], linetype = 1, color = "blue") +
- geom_vline(xintercept = timing_checks2$threshold[timing_checks2$block == "3_li"], linetype = 1, color = "red")
-p_4_hi <- ggplot(panel_timing, aes(`4_hi`))+geom_density() + 
- geom_vline(xintercept = timing_checks2$mean[timing_checks2$block == "4_hi"], linetype = 1, color = "green") +
- geom_vline(xintercept = timing_checks2$median[timing_checks2$block == "4_hi"], linetype = 1, color = "blue") +
- geom_vline(xintercept = timing_checks2$threshold[timing_checks2$block == "4_hi"], linetype = 1, color = "red")
-p_4_hd <- ggplot(panel_timing, aes(`4_hd`))+geom_density() + 
- geom_vline(xintercept = timing_checks2$mean[timing_checks2$block == "4_hd"], linetype = 1, color = "green") +
- geom_vline(xintercept = timing_checks2$median[timing_checks2$block == "4_hd"], linetype = 1, color = "blue") +
- geom_vline(xintercept = timing_checks2$threshold[timing_checks2$block == "4_hd"], linetype = 1, color = "red")
-p_4_li <- ggplot(panel_timing, aes(`4_li`))+geom_density() + 
- geom_vline(xintercept = timing_checks2$mean[timing_checks2$block == "4_li"], linetype = 1, color = "green") +
- geom_vline(xintercept = timing_checks2$median[timing_checks2$block == "4_li"], linetype = 1, color = "blue") +
- geom_vline(xintercept = timing_checks2$threshold[timing_checks2$block == "4_li"], linetype = 1, color = "red")
+#| echo: false
+
+tone_overlap <- block_timing2 |>
+  mutate(tone_order = as.factor(tone_order)) |>
+  ggplot(aes(x = tone, fill=tone_order)) +
+  geom_density(alpha = 1/3, show.legend = FALSE) +
+  geom_vline(xintercept = overlap_timing2$mean[overlap_timing2$block == "tone" & overlap_timing2$tone_order == 1], linetype = 1, color = "red") +
+  geom_vline(xintercept = overlap_timing2$median[overlap_timing2$block == "tone" & overlap_timing2$tone_order == 1], linetype = 2, color = "darkred") +
+  geom_vline(xintercept = overlap_timing2$mean[overlap_timing2$block == "tone" & overlap_timing2$tone_order == 2], linetype = 1, color = "blue") +
+  geom_vline(xintercept = overlap_timing2$median[overlap_timing2$block == "tone" & overlap_timing2$tone_order == 2], linetype = 2, color = "darkblue") +
+  geom_vline(xintercept = overlap_timing2$threshold[overlap_timing2$block == "tone"], linetype = 1, color = "green") +
+  theme(axis.text.y=element_blank(),
+        axis.ticks.y=element_blank() 
+        )
+
+
+hi1_overlap <- block_timing2 |>
+  mutate(tone_order = as.factor(tone_order)) |>
+  ggplot(aes(x = `1_hi`, fill=tone_order)) +
+  geom_density(alpha = 1/3, show.legend = FALSE) +
+    geom_vline(xintercept = overlap_timing2$mean[overlap_timing2$block == "1_hi" & overlap_timing2$tone_order == 1], linetype = 1, color = "red") +
+  geom_vline(xintercept = overlap_timing2$median[overlap_timing2$block == "1_hi" & overlap_timing2$tone_order == 1], linetype = 2, color = "darkred") +
+  geom_vline(xintercept = overlap_timing2$mean[overlap_timing2$block == "1_hi" & overlap_timing2$tone_order == 2], linetype = 1, color = "blue") +
+  geom_vline(xintercept = overlap_timing2$median[overlap_timing2$block == "1_hi" & overlap_timing2$tone_order == 2], linetype = 2, color = "darkblue") +
+  geom_vline(xintercept = overlap_timing2$threshold[overlap_timing2$block == "1_hi"], linetype = 1, color = "green") +
+  theme(axis.text.y=element_blank(),
+        axis.ticks.y=element_blank() 
+        )
+
+
+hd1_overlap <- block_timing2 |>
+  mutate(tone_order = as.factor(tone_order)) |>
+  ggplot(aes(x = `1_hd`, fill=tone_order)) +
+  geom_density(alpha = 1/3, show.legend = FALSE) +
+    geom_vline(xintercept = overlap_timing2$mean[overlap_timing2$block == "1_hd" & overlap_timing2$tone_order == 1], linetype = 1, color = "red") +
+  geom_vline(xintercept = overlap_timing2$median[overlap_timing2$block == "1_hd" & overlap_timing2$tone_order == 1], linetype = 2, color = "darkred") +
+  geom_vline(xintercept = overlap_timing2$mean[overlap_timing2$block == "1_hd" & overlap_timing2$tone_order == 2], linetype = 1, color = "blue") +
+  geom_vline(xintercept = overlap_timing2$median[overlap_timing2$block == "1_hd" & overlap_timing2$tone_order == 2], linetype = 2, color = "darkblue") +
+  geom_vline(xintercept = overlap_timing2$threshold[overlap_timing2$block == "1_hd"], linetype = 1, color = "green") +
+  theme(axis.text.y=element_blank(),
+        axis.ticks.y=element_blank() 
+        )
+
+
+li1_overlap <- block_timing2 |>
+  mutate(tone_order = as.factor(tone_order)) |>
+  ggplot(aes(x = `1_li`, fill=tone_order)) +
+  geom_density(alpha = 1/3, show.legend = FALSE) +
+    geom_vline(xintercept = overlap_timing2$mean[overlap_timing2$block == "1_li" & overlap_timing2$tone_order == 1], linetype = 1, color = "red") +
+  geom_vline(xintercept = overlap_timing2$median[overlap_timing2$block == "1_li" & overlap_timing2$tone_order == 1], linetype = 2, color = "darkred") +
+  geom_vline(xintercept = overlap_timing2$mean[overlap_timing2$block == "1_li" & overlap_timing2$tone_order == 2], linetype = 1, color = "blue") +
+  geom_vline(xintercept = overlap_timing2$median[overlap_timing2$block == "1_li" & overlap_timing2$tone_order == 2], linetype = 2, color = "darkblue") +
+  geom_vline(xintercept = overlap_timing2$threshold[overlap_timing2$block == "1_li"], linetype = 1, color = "green") +
+  theme(axis.text.y=element_blank(),
+        axis.ticks.y=element_blank() 
+        )
+
+
+
+hi2_overlap <- block_timing2 |>
+  mutate(tone_order = as.factor(tone_order)) |>
+  ggplot(aes(x = `2_hi`, fill=tone_order)) +
+  geom_density(alpha = 1/3, show.legend = FALSE) +
+    geom_vline(xintercept = overlap_timing2$mean[overlap_timing2$block == "2_hi" & overlap_timing2$tone_order == 1], linetype = 1, color = "red") +
+  geom_vline(xintercept = overlap_timing2$median[overlap_timing2$block == "2_hi" & overlap_timing2$tone_order == 1], linetype = 2, color = "darkred") +
+  geom_vline(xintercept = overlap_timing2$mean[overlap_timing2$block == "2_hi" & overlap_timing2$tone_order == 2], linetype = 1, color = "blue") +
+  geom_vline(xintercept = overlap_timing2$median[overlap_timing2$block == "2_hi" & overlap_timing2$tone_order == 2], linetype = 2, color = "darkblue") +
+  geom_vline(xintercept = overlap_timing2$threshold[overlap_timing2$block == "2_hi"], linetype = 1, color = "green") +
+  theme(axis.text.y=element_blank(),
+        axis.ticks.y=element_blank() 
+        )
+
+
+hd2_overlap <- block_timing2 |>
+  mutate(tone_order = as.factor(tone_order)) |>
+  ggplot(aes(x = `2_hd`, fill=tone_order)) +
+  geom_density(alpha = 1/3, show.legend = FALSE) +
+    geom_vline(xintercept = overlap_timing2$mean[overlap_timing2$block == "2_hd" & overlap_timing2$tone_order == 1], linetype = 1, color = "red") +
+  geom_vline(xintercept = overlap_timing2$median[overlap_timing2$block == "2_hd" & overlap_timing2$tone_order == 1], linetype = 2, color = "darkred") +
+  geom_vline(xintercept = overlap_timing2$mean[overlap_timing2$block == "2_hd" & overlap_timing2$tone_order == 2], linetype = 1, color = "blue") +
+  geom_vline(xintercept = overlap_timing2$median[overlap_timing2$block == "2_hd" & overlap_timing2$tone_order == 2], linetype = 2, color = "darkblue") +
+  geom_vline(xintercept = overlap_timing2$threshold[overlap_timing2$block == "2_hd"], linetype = 1, color = "green") +
+  theme(axis.text.y=element_blank(),
+        axis.ticks.y=element_blank() 
+        )
+
+
+li2_overlap <- block_timing2 |>
+  mutate(tone_order = as.factor(tone_order)) |>
+  ggplot(aes(x = `2_li`, fill=tone_order)) +
+  geom_density(alpha = 1/3, show.legend = FALSE) +
+    geom_vline(xintercept = overlap_timing2$mean[overlap_timing2$block == "2_li" & overlap_timing2$tone_order == 1], linetype = 1, color = "red") +
+  geom_vline(xintercept = overlap_timing2$median[overlap_timing2$block == "2_li" & overlap_timing2$tone_order == 1], linetype = 2, color = "darkred") +
+  geom_vline(xintercept = overlap_timing2$mean[overlap_timing2$block == "2_li" & overlap_timing2$tone_order == 2], linetype = 1, color = "blue") +
+  geom_vline(xintercept = overlap_timing2$median[overlap_timing2$block == "2_li" & overlap_timing2$tone_order == 2], linetype = 2, color = "darkblue") +
+  geom_vline(xintercept = overlap_timing2$threshold[overlap_timing2$block == "2_li"], linetype = 1, color = "green") +
+  theme(axis.text.y=element_blank(),
+        axis.ticks.y=element_blank() 
+        )
+
+
+
+hi3_overlap <- block_timing2 |>
+  mutate(tone_order = as.factor(tone_order)) |>
+  ggplot(aes(x = `3_hi`, fill=tone_order)) +
+  geom_density(alpha = 1/3, show.legend = FALSE) +
+    geom_vline(xintercept = overlap_timing2$mean[overlap_timing2$block == "3_hi" & overlap_timing2$tone_order == 1], linetype = 1, color = "red") +
+  geom_vline(xintercept = overlap_timing2$median[overlap_timing2$block == "3_hi" & overlap_timing2$tone_order == 1], linetype = 2, color = "darkred") +
+  geom_vline(xintercept = overlap_timing2$mean[overlap_timing2$block == "3_hi" & overlap_timing2$tone_order == 2], linetype = 1, color = "blue") +
+  geom_vline(xintercept = overlap_timing2$median[overlap_timing2$block == "3_hi" & overlap_timing2$tone_order == 2], linetype = 2, color = "darkblue") +
+  geom_vline(xintercept = overlap_timing2$threshold[overlap_timing2$block == "3_hi"], linetype = 1, color = "green") +
+  theme(axis.text.y=element_blank(),
+        axis.ticks.y=element_blank() 
+        )
+
+
+hd3_overlap <- block_timing2 |>
+  mutate(tone_order = as.factor(tone_order)) |>
+  ggplot(aes(x = `3_hd`, fill=tone_order)) +
+  geom_density(alpha = 1/3, show.legend = FALSE) +
+    geom_vline(xintercept = overlap_timing2$mean[overlap_timing2$block == "3_hd" & overlap_timing2$tone_order == 1], linetype = 1, color = "red") +
+  geom_vline(xintercept = overlap_timing2$median[overlap_timing2$block == "3_hd" & overlap_timing2$tone_order == 1], linetype = 2, color = "darkred") +
+  geom_vline(xintercept = overlap_timing2$mean[overlap_timing2$block == "3_hd" & overlap_timing2$tone_order == 2], linetype = 1, color = "blue") +
+  geom_vline(xintercept = overlap_timing2$median[overlap_timing2$block == "3_hd" & overlap_timing2$tone_order == 2], linetype = 2, color = "darkblue") +
+  geom_vline(xintercept = overlap_timing2$threshold[overlap_timing2$block == "3_hd"], linetype = 1, color = "green") +
+  theme(axis.text.y=element_blank(),
+        axis.ticks.y=element_blank() 
+        )
+
+
+li3_overlap <- block_timing2 |>
+  mutate(tone_order = as.factor(tone_order)) |>
+  ggplot(aes(x = `3_li`, fill=tone_order)) +
+  geom_density(alpha = 1/3, show.legend = FALSE) +
+    geom_vline(xintercept = overlap_timing2$mean[overlap_timing2$block == "3_li" & overlap_timing2$tone_order == 1], linetype = 1, color = "red") +
+  geom_vline(xintercept = overlap_timing2$median[overlap_timing2$block == "3_li" & overlap_timing2$tone_order == 1], linetype = 2, color = "darkred") +
+  geom_vline(xintercept = overlap_timing2$mean[overlap_timing2$block == "3_li" & overlap_timing2$tone_order == 2], linetype = 1, color = "blue") +
+  geom_vline(xintercept = overlap_timing2$median[overlap_timing2$block == "3_li" & overlap_timing2$tone_order == 2], linetype = 2, color = "darkblue") +
+  geom_vline(xintercept = overlap_timing2$threshold[overlap_timing2$block == "3_li"], linetype = 1, color = "green") +
+  theme(axis.text.y=element_blank(),
+        axis.ticks.y=element_blank() 
+        )
+
+
+
+hi4_overlap <- block_timing2 |>
+  mutate(tone_order = as.factor(tone_order)) |>
+  ggplot(aes(x = `4_hi`, fill=tone_order)) +
+  geom_density(alpha = 1/3, show.legend = FALSE) +
+    geom_vline(xintercept = overlap_timing2$mean[overlap_timing2$block == "4_hi" & overlap_timing2$tone_order == 1], linetype = 1, color = "red") +
+  geom_vline(xintercept = overlap_timing2$median[overlap_timing2$block == "4_hi" & overlap_timing2$tone_order == 1], linetype = 2, color = "darkred") +
+  geom_vline(xintercept = overlap_timing2$mean[overlap_timing2$block == "4_hi" & overlap_timing2$tone_order == 2], linetype = 1, color = "blue") +
+  geom_vline(xintercept = overlap_timing2$median[overlap_timing2$block == "4_hi" & overlap_timing2$tone_order == 2], linetype = 2, color = "darkblue") +
+  geom_vline(xintercept = overlap_timing2$threshold[overlap_timing2$block == "4_hi"], linetype = 1, color = "green") +
+  theme(axis.text.y=element_blank(),
+        axis.ticks.y=element_blank() 
+        )
+
+
+hd4_overlap <- block_timing2 |>
+  mutate(tone_order = as.factor(tone_order)) |>
+  ggplot(aes(x = `4_hd`, fill=tone_order)) +
+  geom_density(alpha = 1/3, show.legend = FALSE) +
+    geom_vline(xintercept = overlap_timing2$mean[overlap_timing2$block == "4_hd" & overlap_timing2$tone_order == 1], linetype = 1, color = "red") +
+  geom_vline(xintercept = overlap_timing2$median[overlap_timing2$block == "4_hd" & overlap_timing2$tone_order == 1], linetype = 2, color = "darkred") +
+  geom_vline(xintercept = overlap_timing2$mean[overlap_timing2$block == "4_hd" & overlap_timing2$tone_order == 2], linetype = 1, color = "blue") +
+  geom_vline(xintercept = overlap_timing2$median[overlap_timing2$block == "4_hd" & overlap_timing2$tone_order == 2], linetype = 2, color = "darkblue") +
+  geom_vline(xintercept = overlap_timing2$threshold[overlap_timing2$block == "4_hd"], linetype = 1, color = "green") +
+  theme(axis.text.y=element_blank(),
+        axis.ticks.y=element_blank() 
+        )
+
+
+li4_overlap <- block_timing2 |>
+  mutate(tone_order = as.factor(tone_order)) |>
+  ggplot(aes(x = `4_li`, fill=tone_order)) +
+  geom_density(alpha = 1/3, show.legend = FALSE) +
+    geom_vline(xintercept = overlap_timing2$mean[overlap_timing2$block == "4_li" & overlap_timing2$tone_order == 1], linetype = 1, color = "red") +
+  geom_vline(xintercept = overlap_timing2$median[overlap_timing2$block == "4_li" & overlap_timing2$tone_order == 1], linetype = 2, color = "darkred") +
+  geom_vline(xintercept = overlap_timing2$mean[overlap_timing2$block == "4_li" & overlap_timing2$tone_order == 2], linetype = 1, color = "blue") +
+  geom_vline(xintercept = overlap_timing2$median[overlap_timing2$block == "4_li" & overlap_timing2$tone_order == 2], linetype = 2, color = "darkblue") +
+  geom_vline(xintercept = overlap_timing2$threshold[overlap_timing2$block == "4_li"], linetype = 1, color = "green")+
+  theme(axis.text.y=element_blank(),
+        axis.ticks.y=element_blank() 
+        )
 ```
 
-Display in a grid
+
 ```{r}
-gridExtra::grid.arrange(p_1_hi,
-                        p_1_hd,
-                        p_1_li,
-                        p_2_hi,
-                        p_2_hd,
-                        p_2_li,
-                        p_3_hi,
-                        p_3_hd,
-                        p_3_li,
-                        p_4_hi,
-                        p_4_hd,
-                        p_4_li,
-                        ptone, ncol = 3)
+#| fig-asp: 1
+#| out-width: 100%
+#| fig-width: 15
+
+gridExtra::grid.arrange(hi1_overlap,
+                        hd1_overlap,
+                        li1_overlap,
+                        hi2_overlap,
+                        hd2_overlap,
+                        li2_overlap,
+                        hi3_overlap,
+                        hd3_overlap,
+                        li3_overlap,
+                        hi4_overlap,
+                        hd4_overlap,
+                        li4_overlap,
+                        tone_overlap, ncol = 3)
 
 ```
 
@@ -639,10 +953,18 @@ panel_clean <- panel_export |>
 # write_csv(panel_clean, file.path(path_processed, "panel_clean.csv"))
 ```
 
-Colin: finish filtering out ineligible- you might be able to do this more simply by filtering to is.na(term)
 
-Once the dataset is clean you can set up the code to do basic EDA on our variables of interest - ie, does tone/style survey preference match the message ratings. 
+#Location check - are all the locations in the US?
+```{r}
+devtools::source_url("https://github.com/jjcurtin/lab_support/blob/main/fun_gps.R?raw=true")
 
+panel_clean |>
+  select(response_id, lat = location_latitude, lon = location_longitude) |>
+  filter(!is.na(lat) & !is.na(lon)) |>
+  plot_places() 
+
+
+```
 
 
 ## API version
