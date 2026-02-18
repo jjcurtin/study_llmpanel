@@ -634,7 +634,7 @@ panel_clean <- panel_export |>
   filter(is.na(q_duplicate_respondent)) |> # remove duplicate respondent field
   inner_join(panel_attention, by = "response_id") |> # keep only those who passed attention check
   filter(attention_check == "Strongly Disagree") |>
-  filter()
+  filter(is.na(term))
 
 # write_csv(panel_clean, file.path(path_processed, "panel_clean.csv"))
 ```
