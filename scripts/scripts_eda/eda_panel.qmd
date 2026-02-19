@@ -966,6 +966,53 @@ panel_clean |>
 
 ```
 
+# location check 2 - does the city/state that they reported match their current lat/long?
+one person spelled tucson, arizona wrong (as tuscon). not sure how to handle this.
+```{r}
+# need tidygeocoder package this does take a while
+
+panel_location <- panel_clean |> 
+  select(response_id, actual_latitude = location_latitude, actual_longitude = location_longitude, 
+         ip = ip_address, grocery_name = q12_grocer,
+         grocery_location = q12_grocer_2, reported_city = id_location_1, reported_state = id_location_2) |>
+  tidygeocoder::geocode(city = reported_city, state = reported_state, method = "osm") |>
+  rename(reported_city_latitude = lat, reported_city_longitude = long) |>
+  mutate(euclidian_dist = sqrt((actual_latitude - reported_city_latitude)^2 + (actual_longitude - reported_city_longitude)^2))
+```
+
+plot euclidian distances in box and whisker plot
+note that the person who spelled tucson, arizona wrong is not included
+```{r}
+ggplot(panel_location, aes(x = euclidian_dist)) +
+  geom_boxplot(fill = "steelblue", alpha = 0.7) +
+  labs(title = "Distribution of Euclidean Distance",
+       subtitle = "Distance between reported city location and actual GPS coordinates",
+       x = "Euclidean Distance") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+Let's do this by miles since lat/long are not intuitive units of measurement for people
+Per Britannica, "the length of a degree of arc of latitude is approximately 111 km (69 miles), varying, because of the nonuniformity of Earth’s curvature
+The distance per degree of longitude at the Equator is about 111.32 km (69.18 miles) and at the poles, 0."
+Assuming the US is somewhere between the equator and the north pole, we can use the midpoint for longitude, which is 34 (surprisingly, changing this from 69 did not change much). 
+```{r}
+panel_location <- panel_location |>
+  mutate(
+    # Calculate distance in miles using 34 miles per degree for longitude and 69 for latitude
+    lat_diff_miles = (actual_latitude - reported_city_latitude) * 69,
+    lon_diff_miles = (actual_longitude - reported_city_longitude) * 34 * cos(mean(actual_latitude, na.rm = TRUE) * pi / 180),
+    euclidian_dist_miles = sqrt(lat_diff_miles^2 + lon_diff_miles^2)
+  )
+
+ggplot(panel_location, aes(x = euclidian_dist_miles)) +
+  geom_boxplot(fill = "steelblue", alpha = 0.7) +
+  labs(title = "Distribution of Distance in Miles",
+       subtitle = "Distance between reported city location and actual GPS coordinates",
+       x = "Distance (Miles)") +
+  theme_minimal()
+```
+
 
 ## API version
 
