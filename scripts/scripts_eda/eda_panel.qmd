@@ -875,4 +875,22 @@ panel_clean |> group_by(block_order_hi, block_order_hd, block_order_li) |> tally
 
 Message within block randomizer
 
-* Seem to have lost this variable! Maybe only available through API? Need to investigate more!
+* These variables seem to only be available through API? 
+
+```{r}
+source("../proj_optimize/functions/fun_opt.R")
+
+panel  <- "SV_dbAKSR75ATWSo2q"
+ 
+panel_api <- download_qualtrics(survey_id = panel, api_token = token_qualtrics,
+                             display_progress = FALSE) |>
+  janitor::clean_names("snake") 
+
+panel_api_clean <- panel_api |>
+  filter(response_id %in% panel_clean$response_id) |>
+  select(response_id, contains("_context_messages_")) |>
+  glimpse()
+
+```
+
+* Needs a bit of cleaning before we can make sense of it, but it does exist!
