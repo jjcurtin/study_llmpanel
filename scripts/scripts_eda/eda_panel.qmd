@@ -4,8 +4,11 @@ format:
   html:
     page-layout: full
     self-contained: true
+    toc: true
+    toc-depth: 3
 execute: 
   warning: false
+
 ---
 
 The purpose of this EDA to decide if there's anything WE need to change so qualtrics can launch again, or anything we need to tell qualtrics to change:
@@ -41,7 +44,7 @@ path_credentials <- format_path("other")
 ```
 
 
-## Get credentials
+ Get credentials
 ```{r}
 token_qualtrics <- 
   get_credentials("qualtrics", file.path(path_credentials, "credentials.csv")) |>
@@ -61,7 +64,7 @@ panel_export_raw <- read_csv(tibble(path = list.files(path_panel, pattern = "pan
 ```
 
 
-Basic EDA
+## Basic cleaning & EDA
 ```{r}
 #remove the leading X and trailing _1 from varnames
 panel_export <-  panel_export_raw |>
@@ -110,7 +113,7 @@ panel_export$term |> table() # seems to have a rule-out value for everyone who d
 
 ```
 
-Previews
+### Previews
 ```{r}
 
 panel_export$q_chl |> table() #distinguishes between preview surveys and regular - we need to exclude the previews
@@ -120,7 +123,7 @@ panel_export <- panel_export |>
   filter(q_chl != "preview") 
 ```
 
-Duplicate responses
+### Duplicate responses
 ```{r}
 panel_export$q_duplicate_respondent |> table()
 
@@ -135,7 +138,7 @@ flow <- tibble(total_submissions = nrow(panel_export))
 ```
 
 
-Recaptcha score
+### Recaptcha score
 ```{r}
 panel_export$q_recaptcha_score |> table() 
 
@@ -168,7 +171,8 @@ flow <- flow |>
 
 
 
-Qualtrics quality variables. these will be important but are all NA right now
+### Qualtrics quality variables. 
+These will be important but are all NA right now
 ```{r}
 panel_export$q_quality_score |> table()
 panel_export$q_ballot_box_stuffing |> table()
@@ -176,7 +180,8 @@ panel_export$q_quality_timestamp |> table()
 
 ```
 
-More qualtrics variables: These do not seem relevant to us
+### More qualtrics variables
+These do not seem relevant to us
 ```{r}
 panel_export$opp |> table()  # seems to be the name of our study in their records
 panel_export$q_url |> table() |> head(5) # (long output truncated) this seems to be the actual URLs used - guessing it sets many of the following values
@@ -199,7 +204,7 @@ panel_export$project_token |> table()
 
 ## EDA - screening surveys
 
-Health Screener
+### Health Screener
 ```{r}
 screening <- panel_export |> 
   select(response_id, term, starts_with(c("health", "audit"))) |>
@@ -242,7 +247,7 @@ flow <- flow |>
   mutate(passed_health_screen = nrow(panel_export))
 ```
 
-AUDIT Screener
+### AUDIT Screener
 ```{r}
 panel_audit <- panel_export |>
   select(response_id, starts_with("audit"), eligible_audit) |>
@@ -299,7 +304,7 @@ flow <- flow |>
   mutate(passed_audit = nrow(panel_export))
 ```
 
-Consent
+### Consent
 ```{r}
 panel_export |> filter(term == "consent") 
 panel_export |> group_by(consent_agree) |> tally()
@@ -340,11 +345,10 @@ panel_export |> group_by(term) |> tally()
 
 We won't do anything with this yet, but will instead look in more detail at our own variables:
 
-
-First set up a tibble with the actual cutoff thresholds we set for our timing variables
 ```{r}
 #| echo: false
 
+#get timing thresholds
 timing <- tibble(block = c(
 "tone",
 "1_hi",
@@ -412,7 +416,9 @@ timing_checks <- panel_integrity |>
   glimpse()
 ```
 
-How many people failed the attention checks?
+### Attention checks
+
+They got an attention check in their 2nd block only and should have answered "Strongly Disagree" (top answer)
 ```{r}
 
 # get people who answered the attention check
@@ -448,108 +454,41 @@ attention_pass <- panel_attention |>
 
 cat(nrow(attention_pass))
 
-#% who passed
-nrow(attention_pass)/ nrow(panel_integrity) 
-
-# calculate proportion of fails
-nrow(attention_fail) / nrow(panel_integrity) 
+# calculate proportion of passes
+nrow(attention_pass)/ nrow(panel_attention) 
 ```
-1. Only 78 people out of 358 passed an attention check
+1. Only `r nrow(panel_attention)` people out of `r nrow(panel_export)` answered an attention question. This means the rest (66%!) failed a timing check before getting to the first attention check.
+2. Of those who got to an attention check, `r scales::percent(nrow(attention_pass)/ nrow(panel_attention)) ` passed.
 
+I am not filtering these out yet because we want to do more EDA on the timing checks to determine if our thresholds are bad.
 
-* Use the timing_checks dataframe to figure out where the mean/median lie with respect to the threshold. It looks like we're being too aggressive and should raise our thresholds but until we can see how they go together more cleanly it's hard to tell (Done pending final review)
-
+Filter them out and update flow
 ```{r}
-timing_summary <- timing_checks |>
-  select(block, mean, median, threshold) |>
-  mutate(block = str_remove_all(block, "`")) |>
-  filter(block != "tone" & !is.na(block) & block != "response_id") |>
-  group_by(block) |>
-  summarise(mean = mean(mean, na.rm = TRUE),
-            median = mean(median, na.rm = TRUE),
-            threshold = mean(threshold, na.rm = TRUE),
-            .groups = "drop")
+panel_export <- panel_export |> 
+  filter(response_id %in% attention_pass$response_id)
 
-total_row <- tibble(block = "Total",
-                    mean = sum(timing_summary$mean, na.rm = TRUE),
-                    median = sum(timing_summary$median, na.rm = TRUE),
-                    threshold = sum(timing_summary$threshold, na.rm = TRUE))
-
-timing_summary <- bind_rows(timing_summary, total_row)
-
-timing_summary |>
-  knitr::kable(digits = 1, caption = "Mean, Median, and Threshold Comparison")
+flow <- flow |> 
+  mutate(passed_attention = nrow(panel_export))
 ```
 
-* for the people that failed the timing checks (especially those in the 2nd or 3rd message block), would we want to preserve them for partial analysis? (I think failing 1 message block is fine)
 
+### Timing
 
-Update the flow variable -just use the termination variable since it handles all the timing & attention vars
-
+Before we look in detail at timing, let's remove those who FAILED timing checks. We therefore only want to examine the final clean sample:
 ```{r}
-flow <- flow |> mutate(passed_time_attention = panel_export |> filter(is.na(term)) |> nrow())
-```
-* S NOTE: Recalculate this to make sure their use of term is correct.
-
-panel_export |> group_by(term) |> tally()
-
-
-
-I think there's an order x block interaction effect with timing, let's look at that
-```{r}
-block_timing <- panel_integrity |> 
-  select(-contains("attention"), -response_id, -contains("block_order")) |> 
-  janitor::remove_empty(which = "rows") |> 
-  mutate(tone_order = if_else(is.na(tone_order), 2, tone_order))  #if tone order is blank but one of the message timing vars is not, it means tone was 2nd but they were eliminated prior to that
-
-block_timing |>
-  group_by(tone_order) |>
-  skimr::skim()
-
-overlap_timing <- block_timing |> 
-  group_by(tone_order) |>
-  skimr::skim() |>
-  select(block=skim_variable, skim_type, tone_order, mean = numeric.mean, median = numeric.p50, sd = numeric.sd, min = numeric.p0, max = numeric.p100) |> 
-  select(-skim_type) |>
-  full_join(timing) |>
-  mutate() |>
-  glimpse()
-
+panel_clean <- panel_export |> filter(is.na(term))
 ```
 
+There's two ways to look at timing: 
 
+* by which specific survey & context (eg, survey 1, high/increasing context)
+* by block order (which block they completed first, second, & third, regardless of survey or context)
 
-# Cleaning the dataset
-
-Using what we found above, filter out responses that were ineligible
-
-Note: if preferred, you could do this step by step in the EDA above
-
-```{r}
-panel_clean <- panel_export |>
-  filter(q_chl == "anonymous") |> #filter out previews
-  filter(finished) |> # keep only finished
-  filter(progress == 100) |> # eliminate people not at 100% complete, in case that's different
-  filter(q_recaptcha_score > .5) |> # keep only captcha score > .5
-  filter(eligible_health == "eligible") |> #remove people who failed the health survey
-  filter(audit_score > 7) |> # remove people who failed the AUDIT
-  filter(consent_agree == "I consent to participate and wish to proceed to the survey.") |> # only those who consented to survey
-  filter(is.na(q_duplicate_respondent)) |> # remove duplicate respondent field
-  inner_join(panel_attention, by = "response_id") |> # keep only those who passed attention check
-  filter(attention_check == "Strongly Disagree") |>
-  filter(is.na(term))
-
-# write_csv(panel_clean, file.path(path_processed, "panel_clean.csv"))
-```
-
-
-
-Check timing for clean results
+### block order timing
 ```{r}
 #| echo: false
 
- 
- 
+
 clean_timing <- panel_clean |> 
   select(response_id, contains((c("last_click"))), starts_with("block_order"), tone_order, survey_version) |>
   rename_with(~ str_replace_all(.x, pattern = "_timing_last_click", replacement ="")) |>
@@ -582,11 +521,6 @@ clean_timing |> filter(tone > 300)
 clean_timing |> group_by(survey_version) |> tally()
 
 
-# 
-# #3 really long values. lets bring them back to the mean by making them equal to the lowest of that value
-# clean_timing <- clean_timing |>
-#   mutate(tone = if_else(tone > 600, 624, tone))
-
 clean_timing_skim <- clean_timing |>
   skimr::skim() |>
   select(block=skim_variable, skim_type, mean = numeric.mean, median = numeric.p50, sd = numeric.sd, min = numeric.p0, max = numeric.p100) |> 
@@ -597,192 +531,232 @@ clean_timing_skim <- clean_timing |>
 
 ```
 
+Graph the timing variables by block order + tone
+```{r}
+#| echo: false
+
+p_tone <- clean_timing |>
+  ggplot(aes(x = tone)) +
+  geom_histogram(binwidth = 60) +
+  geom_vline(xintercept = clean_timing_skim$mean[clean_timing_skim$block == "tone"], linetype = 1, color = "red") +
+  geom_vline(xintercept = clean_timing_skim$median[clean_timing_skim$block == "tone"], linetype = 2, color = "darkred") +
+   geom_vline(xintercept = clean_timing_skim$threshold[clean_timing_skim$block == "tone"], linetype = 1, color = "green") 
+
+p_1 <-  clean_timing |>
+  ggplot(aes(x = block_1)) +
+  geom_histogram(binwidth = 60) +
+  geom_vline(xintercept = clean_timing_skim$mean[clean_timing_skim$block == "block_1"], linetype = 1, color = "red") +
+  geom_vline(xintercept = clean_timing_skim$median[clean_timing_skim$block == "block_1"], linetype = 2, color = "darkred")
+
+p_2 <- clean_timing |>
+  ggplot(aes(x = block_2)) +
+  geom_histogram(binwidth = 60) +
+  geom_vline(xintercept = clean_timing_skim$mean[clean_timing_skim$block == "block_2"], linetype = 1, color = "red") +
+  geom_vline(xintercept = clean_timing_skim$median[clean_timing_skim$block == "block_2"], linetype = 2, color = "darkred") 
+
+p_3 <- clean_timing |>
+  ggplot(aes(x = block_3)) +
+  geom_histogram(binwidth = 60) +
+  geom_vline(xintercept = clean_timing_skim$mean[clean_timing_skim$block == "block_3"], linetype = 1, color = "red") +
+  geom_vline(xintercept = clean_timing_skim$median[clean_timing_skim$block == "block_3"], linetype = 2, color = "darkred") 
+
+```
+
+The timing threshold is shown for the tone survey but not the blocks, since those are comprised of multiple different blocks with different thresholds
+
+```{r}
+#| fig-asp: 1
+#| out-width: 100%
+#| fig-width: 15
+
+gridExtra::grid.arrange(p_tone,
+                        p_1,
+                        p_2,
+                        p_3, ncol = 2)
+```                        
+* We are considering preserving the responses for those who failed only their last timing block which would increase N a little          
+
+### Survey vs context timing
+```{r}
+#| echo: false
+
+clean_timing2 <- panel_clean |> 
+  select(response_id, contains((c("last_click"))), starts_with("block_order"), tone_order, survey_version) |>
+  rename_with(~ str_replace_all(.x, pattern = "_timing_last_click", replacement ="")) |>
+  glimpse()
+
+
+clean_timing_skim2 <- clean_timing2 |>
+  mutate(tone_order = if_else(is.na(tone_order), 2, tone_order)) |>
+  skimr::skim() |>
+  select(block=skim_variable, skim_type, mean = numeric.mean, median = numeric.p50, sd = numeric.sd, min = numeric.p0, max = numeric.p100) |> 
+  select(-skim_type) |>
+  full_join(timing) |>
+  mutate() |>
+  glimpse()
+
+```
+
+
+
 Graph the timing variables by block and tone order
 ```{r}
 #| echo: false
 
-tone_clean <- clean_timing |>
+tone_clean <- clean_timing2 |>
+  mutate(tone_order = as.factor(tone_order)) |>
   ggplot(aes(x = tone)) +
   geom_histogram() +
-  geom_vline(xintercept = clean_timing_skim$mean[clean_timing_skim$block == "tone"], linetype = 1, color = "red") +
-  geom_vline(xintercept = clean_timing_skim$median[clean_timing_skim$block == "tone"], linetype = 2, color = "darkred") +
-   geom_vline(xintercept = clean_timing_skim$threshold[clean_timing_skim$block == "tone"], linetype = 1, color = "green") +
+  geom_vline(xintercept = clean_timing_skim2$mean[clean_timing_skim2$block == "tone"], linetype = 1, color = "red") +
+  geom_vline(xintercept = clean_timing_skim2$median[clean_timing_skim2$block == "tone"], linetype = 2, color = "darkred") +
+  geom_vline(xintercept = clean_timing_skim2$threshold[clean_timing_skim2$block == "tone"], linetype = 1, color = "green") +
   theme(axis.text.y=element_blank(),
         axis.ticks.y=element_blank() 
         )
 
-block1_clean <- clean_timing |>
-  ggplot(aes(x = block_1)) +
-  geom_histogram() +
-  geom_vline(xintercept = clean_timing_skim$mean[clean_timing_skim$block == "block_1"], linetype = 1, color = "red") +
-  geom_vline(xintercept = clean_timing_skim$median[clean_timing_skim$block == "block_1"], linetype = 2, color = "darkred") +
-  # geom_vline(xintercept = clean_timing_skim$threshold[clean_timing_skim$block == "tone"], linetype = 1, color = "green") +
-  theme(axis.text.y=element_blank(),
-        axis.ticks.y=element_blank() 
-        )
 
-block_2_clean <- clean_timing |>
-  ggplot(aes(x = block_2)) +
-  geom_histogram() +
-  geom_vline(xintercept = clean_timing_skim$mean[clean_timing_skim$block == "block_2"], linetype = 1, color = "red") +
-  geom_vline(xintercept = clean_timing_skim$median[clean_timing_skim$block == "block_2"], linetype = 2, color = "darkred") +
-  # geom_vline(xintercept = clean_timing_skim$threshold[clean_timing_skim$block == "tone"], linetype = 1, color = "green") +
-  theme(axis.text.y=element_blank(),
-        axis.ticks.y=element_blank() 
-        )
-
-block_3_clean <- clean_timing |>
-  ggplot(aes(x = block_3)) +
-  geom_histogram() +
-  geom_vline(xintercept = clean_timing_skim$mean[clean_timing_skim$block == "block_3"], linetype = 1, color = "red") +
-  geom_vline(xintercept = clean_timing_skim$median[clean_timing_skim$block == "block_3"], linetype = 2, color = "darkred") +
-  # geom_vline(xintercept = clean_timing_skim$threshold[clean_timing_skim$block == "tone"], linetype = 1, color = "green") +
-  theme(axis.text.y=element_blank(),
-        axis.ticks.y=element_blank() 
-        )
-
-hi1_clean <- clean_timing |>
+hi1_clean <- clean_timing2 |>
   mutate(tone_order = as.factor(tone_order)) |>
   ggplot(aes(x = `1_hi`)) +
   geom_histogram() +
-    geom_vline(xintercept = clean_timing_skim$mean[clean_timing_skim$block == "1_hi"], linetype = 1, color = "red") +
-  geom_vline(xintercept = clean_timing_skim$median[clean_timing_skim$block == "1_hi"], linetype = 2, color = "darkred") +
-  geom_vline(xintercept = clean_timing_skim$threshold[clean_timing_skim$block == "1_hi"], linetype = 1, color = "green") +
+    geom_vline(xintercept = clean_timing_skim2$mean[clean_timing_skim2$block == "1_hi"], linetype = 1, color = "red") +
+  geom_vline(xintercept = clean_timing_skim2$median[clean_timing_skim2$block == "1_hi"], linetype = 2, color = "darkred") +
+  geom_vline(xintercept = clean_timing_skim2$threshold[clean_timing_skim2$block == "1_hi"], linetype = 1, color = "green") +
   theme(axis.text.y=element_blank(),
         axis.ticks.y=element_blank() 
         )
 
 
-hd1_clean <- clean_timing |>
+hd1_clean <- clean_timing2 |>
   mutate(tone_order = as.factor(tone_order)) |>
   ggplot(aes(x = `1_hd`)) +
   geom_histogram() +
-    geom_vline(xintercept = clean_timing_skim$mean[clean_timing_skim$block == "1_hd"], linetype = 1, color = "red") +
-  geom_vline(xintercept = clean_timing_skim$median[clean_timing_skim$block == "1_hd"], linetype = 2, color = "darkred") +
-  geom_vline(xintercept = clean_timing_skim$threshold[clean_timing_skim$block == "1_hd"], linetype = 1, color = "green") +
+    geom_vline(xintercept = clean_timing_skim2$mean[clean_timing_skim2$block == "1_hd"], linetype = 1, color = "red") +
+  geom_vline(xintercept = clean_timing_skim2$median[clean_timing_skim2$block == "1_hd"], linetype = 2, color = "darkred") +
+  geom_vline(xintercept = clean_timing_skim2$threshold[clean_timing_skim2$block == "1_hd"], linetype = 1, color = "green") +
   theme(axis.text.y=element_blank(),
         axis.ticks.y=element_blank() 
         )
 
 
-li1_clean <- clean_timing |>
+li1_clean <- clean_timing2 |>
   mutate(tone_order = as.factor(tone_order)) |>
   ggplot(aes(x = `1_li`)) +
   geom_histogram() +
-    geom_vline(xintercept = clean_timing_skim$mean[clean_timing_skim$block == "1_li"], linetype = 1, color = "red") +
-  geom_vline(xintercept = clean_timing_skim$median[clean_timing_skim$block == "1_li"], linetype = 2, color = "darkred") +
-  geom_vline(xintercept = clean_timing_skim$threshold[clean_timing_skim$block == "1_li"], linetype = 1, color = "green") +
+    geom_vline(xintercept = clean_timing_skim2$mean[clean_timing_skim2$block == "1_li"], linetype = 1, color = "red") +
+  geom_vline(xintercept = clean_timing_skim2$median[clean_timing_skim2$block == "1_li"], linetype = 2, color = "darkred") +
+  geom_vline(xintercept = clean_timing_skim2$threshold[clean_timing_skim2$block == "1_li"], linetype = 1, color = "green") +
   theme(axis.text.y=element_blank(),
         axis.ticks.y=element_blank() 
         )
 
 
 
-hi2_clean <- clean_timing |>
+hi2_clean <- clean_timing2 |>
   mutate(tone_order = as.factor(tone_order)) |>
   ggplot(aes(x = `2_hi`)) +
   geom_histogram() +
-    geom_vline(xintercept = clean_timing_skim$mean[clean_timing_skim$block == "2_hi"], linetype = 1, color = "red") +
-  geom_vline(xintercept = clean_timing_skim$median[clean_timing_skim$block == "2_hi"], linetype = 2, color = "darkred") +
-   geom_vline(xintercept = clean_timing_skim$threshold[clean_timing_skim$block == "2_hi"], linetype = 1, color = "green") +
+    geom_vline(xintercept = clean_timing_skim2$mean[clean_timing_skim2$block == "2_hi"], linetype = 1, color = "red") +
+  geom_vline(xintercept = clean_timing_skim2$median[clean_timing_skim2$block == "2_hi"], linetype = 2, color = "darkred") +
+   geom_vline(xintercept = clean_timing_skim2$threshold[clean_timing_skim2$block == "2_hi"], linetype = 1, color = "green") +
   theme(axis.text.y=element_blank(),
         axis.ticks.y=element_blank() 
         )
 
 
-hd2_clean <- clean_timing |>
+hd2_clean <- clean_timing2 |>
   mutate(tone_order = as.factor(tone_order)) |>
   ggplot(aes(x = `2_hd`)) +
   geom_histogram() +
-    geom_vline(xintercept = clean_timing_skim$mean[clean_timing_skim$block == "2_hd"], linetype = 1, color = "red") +
-  geom_vline(xintercept = clean_timing_skim$median[clean_timing_skim$block == "2_hd"], linetype = 2, color = "darkred") +
-  geom_vline(xintercept = clean_timing_skim$threshold[clean_timing_skim$block == "2_hd"], linetype = 1, color = "green") +
+    geom_vline(xintercept = clean_timing_skim2$mean[clean_timing_skim2$block == "2_hd"], linetype = 1, color = "red") +
+  geom_vline(xintercept = clean_timing_skim2$median[clean_timing_skim2$block == "2_hd"], linetype = 2, color = "darkred") +
+  geom_vline(xintercept = clean_timing_skim2$threshold[clean_timing_skim2$block == "2_hd"], linetype = 1, color = "green") +
   theme(axis.text.y=element_blank(),
         axis.ticks.y=element_blank() 
         )
 
 
-li2_clean <- clean_timing |>
+li2_clean <- clean_timing2 |>
   mutate(tone_order = as.factor(tone_order)) |>
   ggplot(aes(x = `2_li`)) +
   geom_histogram() +
-    geom_vline(xintercept = clean_timing_skim$mean[clean_timing_skim$block == "2_li"], linetype = 1, color = "red") +
-  geom_vline(xintercept = clean_timing_skim$median[clean_timing_skim$block == "2_li"], linetype = 2, color = "darkred") +
-  geom_vline(xintercept = clean_timing_skim$threshold[clean_timing_skim$block == "2_li"], linetype = 1, color = "green") +
+    geom_vline(xintercept = clean_timing_skim2$mean[clean_timing_skim2$block == "2_li"], linetype = 1, color = "red") +
+  geom_vline(xintercept = clean_timing_skim2$median[clean_timing_skim2$block == "2_li"], linetype = 2, color = "darkred") +
+  geom_vline(xintercept = clean_timing_skim2$threshold[clean_timing_skim2$block == "2_li"], linetype = 1, color = "green") +
   theme(axis.text.y=element_blank(),
         axis.ticks.y=element_blank() 
         )
 
 
 
-hi3_clean <- clean_timing |>
+hi3_clean <- clean_timing2 |>
   mutate(tone_order = as.factor(tone_order)) |>
   ggplot(aes(x = `3_hi`)) +
   geom_histogram() +
-    geom_vline(xintercept = clean_timing_skim$mean[clean_timing_skim$block == "3_hi"], linetype = 1, color = "red") +
-  geom_vline(xintercept = clean_timing_skim$median[clean_timing_skim$block == "3_hi"], linetype = 2, color = "darkred") +
-   geom_vline(xintercept = clean_timing_skim$threshold[clean_timing_skim$block == "3_hi"], linetype = 1, color = "green") +
+    geom_vline(xintercept = clean_timing_skim2$mean[clean_timing_skim2$block == "3_hi"], linetype = 1, color = "red") +
+  geom_vline(xintercept = clean_timing_skim2$median[clean_timing_skim2$block == "3_hi"], linetype = 2, color = "darkred") +
+   geom_vline(xintercept = clean_timing_skim2$threshold[clean_timing_skim2$block == "3_hi"], linetype = 1, color = "green") +
   theme(axis.text.y=element_blank(),
         axis.ticks.y=element_blank() 
         )
 
 
-hd3_clean <- clean_timing |>
+hd3_clean <- clean_timing2 |>
   mutate(tone_order = as.factor(tone_order)) |>
   ggplot(aes(x = `3_hd`)) +
   geom_histogram() +
-    geom_vline(xintercept = clean_timing_skim$mean[clean_timing_skim$block == "3_hd"], linetype = 1, color = "red") +
-  geom_vline(xintercept = clean_timing_skim$median[clean_timing_skim$block == "3_hd"], linetype = 2, color = "darkred") +
-   geom_vline(xintercept = clean_timing_skim$threshold[clean_timing_skim$block == "3_hd"], linetype = 1, color = "green") +
+    geom_vline(xintercept = clean_timing_skim2$mean[clean_timing_skim2$block == "3_hd"], linetype = 1, color = "red") +
+  geom_vline(xintercept = clean_timing_skim2$median[clean_timing_skim2$block == "3_hd"], linetype = 2, color = "darkred") +
+   geom_vline(xintercept = clean_timing_skim2$threshold[clean_timing_skim2$block == "3_hd"], linetype = 1, color = "green") +
   theme(axis.text.y=element_blank(),
         axis.ticks.y=element_blank() 
         )
 
 
-li3_clean <- clean_timing |>
+li3_clean <- clean_timing2 |>
   mutate(tone_order = as.factor(tone_order)) |>
   ggplot(aes(x = `3_li`)) +
   geom_histogram() +
-    geom_vline(xintercept = clean_timing_skim$mean[clean_timing_skim$block == "3_li"], linetype = 1, color = "red") +
-  geom_vline(xintercept = clean_timing_skim$median[clean_timing_skim$block == "3_li"], linetype = 2, color = "darkred") +
-  geom_vline(xintercept = clean_timing_skim$threshold[clean_timing_skim$block == "3_li"], linetype = 1, color = "green") +
+    geom_vline(xintercept = clean_timing_skim2$mean[clean_timing_skim2$block == "3_li"], linetype = 1, color = "red") +
+  geom_vline(xintercept = clean_timing_skim2$median[clean_timing_skim2$block == "3_li"], linetype = 2, color = "darkred") +
+  geom_vline(xintercept = clean_timing_skim2$threshold[clean_timing_skim2$block == "3_li"], linetype = 1, color = "green") +
   theme(axis.text.y=element_blank(),
         axis.ticks.y=element_blank() 
         )
 
 
 
-hi4_clean <- clean_timing |>
+hi4_clean <- clean_timing2 |>
   mutate(tone_order = as.factor(tone_order)) |>
   ggplot(aes(x = `4_hi`)) +
   geom_histogram() +
-    geom_vline(xintercept = clean_timing_skim$mean[clean_timing_skim$block == "4_hi"], linetype = 1, color = "red") +
-  geom_vline(xintercept = clean_timing_skim$median[clean_timing_skim$block == "4_hi"], linetype = 2, color = "darkred") +
-  geom_vline(xintercept = clean_timing_skim$threshold[clean_timing_skim$block == "4_hi"], linetype = 1, color = "green") +
+    geom_vline(xintercept = clean_timing_skim2$mean[clean_timing_skim2$block == "4_hi"], linetype = 1, color = "red") +
+  geom_vline(xintercept = clean_timing_skim2$median[clean_timing_skim2$block == "4_hi"], linetype = 2, color = "darkred") +
+  geom_vline(xintercept = clean_timing_skim2$threshold[clean_timing_skim2$block == "4_hi"], linetype = 1, color = "green") +
   theme(axis.text.y=element_blank(),
         axis.ticks.y=element_blank() 
         )
 
 
-hd4_clean <- clean_timing |>
+hd4_clean <- clean_timing2 |>
   mutate(tone_order = as.factor(tone_order)) |>
   ggplot(aes(x = `4_hd`)) +
   geom_histogram() +
-    geom_vline(xintercept = clean_timing_skim$mean[clean_timing_skim$block == "4_hd"], linetype = 1, color = "red") +
-  geom_vline(xintercept = clean_timing_skim$median[clean_timing_skim$block == "4_hd"], linetype = 2, color = "darkred") +
-  geom_vline(xintercept = clean_timing_skim$threshold[clean_timing_skim$block == "4_hd"], linetype = 1, color = "green") +
+    geom_vline(xintercept = clean_timing_skim2$mean[clean_timing_skim2$block == "4_hd"], linetype = 1, color = "red") +
+  geom_vline(xintercept = clean_timing_skim2$median[clean_timing_skim2$block == "4_hd"], linetype = 2, color = "darkred") +
+  geom_vline(xintercept = clean_timing_skim2$threshold[clean_timing_skim2$block == "4_hd"], linetype = 1, color = "green") +
   theme(axis.text.y=element_blank(),
         axis.ticks.y=element_blank() 
         )
 
 
-li4_clean <- clean_timing |>
+li4_clean <- clean_timing2 |>
   mutate(tone_order = as.factor(tone_order)) |>
   ggplot(aes(x = `4_li`)) +
   geom_histogram() +
-    geom_vline(xintercept = clean_timing_skim$mean[clean_timing_skim$block == "4_li"], linetype = 1, color = "red") +
-  geom_vline(xintercept = clean_timing_skim$median[clean_timing_skim$block == "4_li"], linetype = 2, color = "darkred") +
-  geom_vline(xintercept = clean_timing_skim$threshold[clean_timing_skim$block == "4_li"], linetype = 1, color = "green")+
+    geom_vline(xintercept = clean_timing_skim2$mean[clean_timing_skim2$block == "4_li"], linetype = 1, color = "red") +
+  geom_vline(xintercept = clean_timing_skim2$median[clean_timing_skim2$block == "4_li"], linetype = 2, color = "darkred") +
+  geom_vline(xintercept = clean_timing_skim2$threshold[clean_timing_skim2$block == "4_li"], linetype = 1, color = "green")+
   theme(axis.text.y=element_blank(),
         axis.ticks.y=element_blank() 
         )
@@ -810,11 +784,16 @@ gridExtra::grid.arrange(hi1_clean,
 
 ```
 
+* I think these graphs show we don't need to change our timing checks.
 
 
 
 
-#Location check - are all the locations in the US?
+
+
+### Location checks
+
+Are all the locations in the US?
 ```{r}
 devtools::source_url("https://github.com/jjcurtin/lab_support/blob/main/fun_gps.R?raw=true")
 
@@ -826,11 +805,13 @@ panel_clean |>
 
 ```
 
-# location check 2 - does the city/state that they reported match their current lat/long?
-one person spelled tucson, arizona wrong (as tuscon). not sure how to handle this.
-```{r}
-# need tidygeocoder package this does take a while
+Does the city/state that they reported match their current lat/long?
 
+```{r}
+#Fix a misspelling first
+panel_clean$id_location_1[panel_clean$id_location_1 == "Tuscon"] <-  "Tucson"
+
+# need tidygeocoder package this does take a while
 panel_location <- panel_clean |> 
   select(response_id, actual_latitude = location_latitude, actual_longitude = location_longitude, 
          ip = ip_address, grocery_name = q12_grocer,
@@ -840,8 +821,8 @@ panel_location <- panel_clean |>
   mutate(euclidian_dist = sqrt((actual_latitude - reported_city_latitude)^2 + (actual_longitude - reported_city_longitude)^2))
 ```
 
-plot euclidian distances in box and whisker plot
-note that the person who spelled tucson, arizona wrong is not included
+Plot euclidian distances in box and whisker plot
+
 ```{r}
 ggplot(panel_location, aes(x = euclidian_dist)) +
   geom_boxplot(fill = "steelblue", alpha = 0.7) +
@@ -873,52 +854,25 @@ ggplot(panel_location, aes(x = euclidian_dist_miles)) +
   theme_minimal()
 ```
 
+## EDA: Randomizers
 
-## API version
-
-Get survey by API & save out to data_raw (for now)
-For now, must be raw=TRUE so no columns are stripped
-
+Tone survey vs message survey randomizer
 ```{r}
-# panel_api <- tidy_qualtrics("panel", token_qualtrics, raw=TRUE) |>
-#   janitor::clean_names("snake") |>
-#   # filter(is.na(practice)) |>
-#   select(-c(ip_address, recipient_last_name:external_data_reference, description, intro_1, audit_inst, intro_context, intro_tone, status,location_latitude:location_accuracy)) |>
-#   glimpse()
+panel_clean |> group_by(tone_order) |> tally()
 ```
 
 
+Survey randomizer
 ```{r}
-# write_csv(panel, "W:/irb/optimize/panel/change_2026_01/wpm/test_responses.csv")
-
+panel_clean |> group_by(survey_version) |> tally()
 ```
 
 
-
-# Prelaunch
-Verify new question labels match style/tone combo
+Block order randomizer
 ```{r}
-# 
-# new_q_labels <- readxl::read_xlsx(file.path("W:/irb/optimize/panel/change_2026_01/wpm/timing calcs.xlsx"), sheet="question_by_tone") |>
-#   arrange(survey, user_index, q_number) |>
-#   select(-c(`...9`,`...10`)) |>
-#   glimpse()
-# 
-# panel_data_raw <- read_csv(file.path("W:/irb/optimize/panel/change_2026_01/wpm/panel_study_messages_combined_January+23,+2026_21.32.csv")) |> 
-#   head(1) |>
-#   select(contains(c("_hi_", "_hd_", "_li_"))) |>
-#   select(-contains(c("timing", "attention"))) |>
-#   mutate(across(everything(), ~ str_remove_all(.x, "- I found this message to be helpful."))) |>
-#   mutate(across(everything(), ~ str_remove_all(.x, "\\\""))) |>
-#   mutate(across(everything(), ~ str_trim(.x, "both"))) |>
-#   pivot_longer(everything()) |>
-#   rename(online_q_label = name, generated_message = value) |>
-#   glimpse()
-# 
-# 
-# full_join(new_q_labels, panel_data_raw) |> 
-#   mutate(match = str_detect(online_q_label, new_q_label)) |>
-#   View()
-
+panel_clean |> group_by(block_order_hi, block_order_hd, block_order_li) |> tally()
 ```
 
+Message within block randomizer
+
+* Seem to have lost this variable! Maybe only available through API? Need to investigate more!
