@@ -33,6 +33,8 @@ library(tidyverse)
 devtools::source_url("https://github.com/jjcurtin/lab_support/blob/main/fun_eda.R?raw=true")
 devtools::source_url("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
 devtools::source_url("https://github.com/jjcurtin/lab_support/blob/main/get_credentials.R?raw=true")
+devtools::source_url("https://github.com/jjcurtin/lab_support/blob/main/download_qualtrics.R?raw=true")
+devtools::source_url("https://github.com/jjcurtin/lab_support/blob/main/fun_gps.R?raw=true")
 
 #source function file
 # source("functions/fun_opt.R")
@@ -63,6 +65,74 @@ panel_export_raw <- read_csv(tibble(path = list.files(path_panel, pattern = "pan
   glimpse()
 ```
 
+However the randomizer variables seem to only be available through API? 
+
+```{r}
+# source("../proj_optimize/functions/fun_opt.R")
+# FL_99 = tone/message randomizer
+    # FL_146 = tone survey group
+    # FL_98 = message survey group
+# FL_12 = survey version randomizer
+    # 81, 82, 83, 84 are surveys 1-4
+# Survey 1 randomizer: ro_br_fl_85
+    # 86,87,88 are hi, hd, li
+# Survey 2 randomizer:  ro_br_fl_23 
+    # 70,71,72 are hi, hd, li
+# Survey 3 randomizer: ro_br_fl_35 
+    # 59,60,61 are hi, hd, li 
+# Survey 4 randomizer: ro_br_fl_47 
+    # 48, 49. 50 are hi, hd, li
+
+# Add variables to make it clearer what order the survey elements were presented in
+panel_api <- download_qualtrics(survey_id = "SV_dbAKSR75ATWSo2q", api_token = token_qualtrics,
+                             display_progress = FALSE) |>
+  janitor::clean_names("snake")  |> 
+  select(response_id, starts_with("ro_"), starts_with("block_order"))
+
+
+randomizer_vars <- panel_api |>
+  rename(tone_message_ro = ro_br_fl_99,
+         survey_version_ro = ro_br_fl_12,
+         survey1_block_ro = ro_br_fl_85,
+         survey2_block_ro = ro_br_fl_23,
+         survey3_block_ro = ro_br_fl_35,
+         survey4_block_ro = ro_br_fl_47) |>
+  mutate(tone_message_ro = if_else(tone_message_ro == "FL_146|FL_98", "tone first", "messages first")) |>
+  mutate(survey_version_ro = case_when(survey_version_ro == "FL_81" ~ 1,
+                                       survey_version_ro == "FL_82" ~ 2,
+                                       survey_version_ro == "FL_83" ~ 3,
+                                       survey_version_ro == "FL_84" ~ 4)) |>
+  mutate(across(survey1_block_ro:survey4_block_ro, ~ str_replace_all(string = .x,
+                                                                        pattern = "FL_86|FL_70|FL_59|FL_48",
+                                                                        replacement = "hi"))) |> 
+    mutate(across(survey1_block_ro:survey4_block_ro, ~ str_replace_all(string = .x,
+                                                                        pattern = "FL_87|FL_71|FL_60|FL_49",
+                                                                        replacement = "hd"))) |> 
+    mutate(across(survey1_block_ro:survey4_block_ro, ~ str_replace_all(string = .x,
+                                                                        pattern = "FL_88|FL_72|FL_61|FL_50",
+                                                                        replacement = "li"))) |> 
+   unite(context_order, survey1_block_ro:survey4_block_ro, sep = "") |>  
+   mutate(block_1 = case_when(tone_message_ro == "tone first" ~ "tone",
+                              tone_message_ro == "messages first" ~ str_c(survey_version_ro, "_", str_sub(context_order, 1,2)),
+                             .default = "")) |>
+   mutate(block_2= case_when(tone_message_ro == "tone first" ~ str_c(survey_version_ro, "_", str_sub(context_order, 1,2)),
+                               tone_message_ro == "messages first" ~ str_c(survey_version_ro, "_", str_sub(context_order, 4,5)),
+                             .default = "")) |>
+   mutate(block_3 = case_when(tone_message_ro == "tone first" ~ str_c(survey_version_ro, "_", str_sub(context_order, 4,5)),
+                              tone_message_ro == "messages first" ~ str_c(survey_version_ro, "_", str_sub(context_order, -2)),
+                             .default = "")) |>        
+   mutate(block_4 = case_when(tone_message_ro == "messages first" ~ "tone",
+                              tone_message_ro == "tone first" ~ str_c(survey_version_ro, "_", str_sub(context_order, -2)),
+                             .default = "")) |>  
+            glimpse()
+
+# rejoin to main dataframe
+panel_export_raw <- panel_export_raw |>
+  left_join(randomizer_vars )
+
+```
+
+
 
 ## Basic cleaning & EDA
 ```{r}
@@ -71,7 +141,8 @@ panel_export <-  panel_export_raw |>
     rename_with(~ str_replace_all(.x, pattern = "x", replacement ="")) |>
     rename_with(~ str_replace_all(.x, pattern = "_1$", replacement ="")) |>
     rename(id_location_1 = id_location,
-           audit_1 = audit)
+           audit_1 = audit,
+           block_1 = block)
 # 
 # panel_complete <- panel_export |> filter(!is.na(id_location_2)) 
 # panel_export |> distinct(id_location_1)  #29 distinct + NA, which matches the above
@@ -101,21 +172,9 @@ panel_export <- panel_export |> filter(finished == "TRUE")
 
 ```
 
-## EDA - qualtrics variables
-
-These variables were all added by Qualtrics before launch. What do they mean? What are their values? Which ones do we need to use to filter people out of a "clean" dataset
-```{r}
-qualtrics_vars <- panel_export |> select(response_id, opp:project_token, starts_with("q_")) |> glimpse()
-
-qualtrics_vars |> skimr::skim()
-
-panel_export$term |> table() # seems to have a rule-out value for everyone who did not complete, is NA for those who did complete
-
-```
 
 ### Previews
 ```{r}
-
 panel_export$q_chl |> table() #distinguishes between preview surveys and regular - we need to exclude the previews
 
 #remove previews
@@ -127,14 +186,19 @@ panel_export <- panel_export |>
 ```{r}
 panel_export$q_duplicate_respondent |> table()
 
+```
+* `r panel_export |> filter(q_duplicate_respondent) |> nrow()` duplicate responses - I'll remove these for now, but qualtrics will have to confirm that one of any duplicate was not retained
+
+Filter those out
+```{r}
 panel_export <- panel_export |> 
   filter(is.na(q_duplicate_respondent))
 ```
-* 41 duplicate responses - I'll remove these for now, but qualtrics will have to confirm that one of any duplicate was not retained
 
-Start a tibble to track participant flow now that we've removed non-real responses
+
+Start a tibble to track participant flow now that we've removed the most basic non-real responses
 ```{r}
-flow <- tibble(total_submissions = nrow(panel_export))
+flow <- tibble(total_submissions = nrow(panel_export)) |> print()
 ```
 
 
@@ -144,7 +208,7 @@ panel_export$q_recaptcha_score |> table()
 
 panel_export |> skimr::skim(q_recaptcha_score)
 
-#how many of those still finished the survey?
+#how many of those still finish the survey?
 panel_export |> filter(is.na(q_recaptcha_score)) |> filter(!is.na(id_location_2)) # One!!
 
 #how far did the others get? Use the qualtrics termination variable
@@ -166,7 +230,7 @@ panel_export <- panel_export |>
 Update flow
 ```{r}
 flow <- flow |>
-  mutate(passed_captcha = nrow(panel_export))
+  mutate(passed_captcha = nrow(panel_export)) |> print()
 ```
 
 
@@ -181,8 +245,10 @@ panel_export$q_quality_timestamp |> table()
 ```
 
 ### More qualtrics variables
-These do not seem relevant to us
+These do not seem relevant to us, disregard for now
 ```{r}
+#| echo: false
+
 panel_export$opp |> table()  # seems to be the name of our study in their records
 panel_export$q_url |> table() |> head(5) # (long output truncated) this seems to be the actual URLs used - guessing it sets many of the following values
 panel_export$qpmid  |> table() # qualtrics panel ID - probably their internal number for our study
@@ -244,7 +310,7 @@ mutate(all_no = health_food == "No" & health_brush == "No" & health_sleep == "No
 Update flow
 ```{r}
 flow <- flow |>
-  mutate(passed_health_screen = nrow(panel_export))
+  mutate(passed_health_screen = nrow(panel_export)) |> print()
 ```
 
 ### AUDIT Screener
@@ -301,35 +367,21 @@ panel_export <- panel_export |>
   filter(eligible_audit == "eligible")
 
 flow <- flow |> 
-  mutate(passed_audit = nrow(panel_export))
+  mutate(passed_audit = nrow(panel_export)) |> print()
 ```
 
 ### Consent
+* 3 opted not to consent - Filter out and update flow
 ```{r}
 panel_export |> filter(term == "consent") 
 panel_export |> group_by(consent_agree) |> tally()
-```
 
-* 3 opted not to consent
-
-Filter out  and update flow
-```{r}
 panel_export <- panel_export |> 
   filter(consent_agree != "I wish to exit the survey without providing consent.")
 
 flow <- flow |> 
-  mutate(consented = nrow(panel_export))
+  mutate(consented = nrow(panel_export)) |> print()
 ```
-
-
-
-
-
-#can't look at total duration till we've excluded everyone who dropped out.
-# panel_export |> skimr::skim(q_total_duration)  # more info via skim
-# panel_export |> skimr::skim(duration_in_seconds) #identical to q_total_duration. This is the default variable, not sure why qualtrics added the other one instead of using this directly
-
-
 
 
 ## EDA - our data integrity variables
@@ -343,78 +395,192 @@ panel_export |> group_by(term) |> tally()
 2. 44 failed the speed check in the tone survey
 3. 54 are NA, meaning not terminated for any other reason
 
-We won't do anything with this yet, but will instead look in more detail at our own variables:
+We won't do anything with this yet, but will instead look in more detail at our own variables.
+
+
+We want to look at drop outs PER BLOCK on timing & attention checks.
+
 
 ```{r}
 #| echo: false
 
 #get timing thresholds
 timing <- tibble(block = c(
-"tone",
-"1_hi",
-"1_hd",
-"1_li",
-"2_hi",
-"2_hd",
-"2_li",
-"3_hi",
-"3_hd",
-"3_li",
-"4_hi",
-"4_hd",
-"4_li"),
+"tone", 
+"1_hi", "1_hd", "1_li",
+"2_hi", "2_hd", "2_li", 
+"3_hi", "3_hd", "3_li", 
+"4_hi", "4_hd", "4_li"),
 threshold = c(
 59,
-101,
-104,
-94,
-102,
-104,
-98,
-102,
-106,
-98,
-100,
-105,
-99),
+101, 104, 94,
+102, 104, 98,
+102, 106, 98,
+100, 105, 99),
 max_100 = c(
 235,
-405,
-417,
-375,
-406,
-414,
-393,
-410,
-422,
-394,
-400,
-419,
-397)
-)
+405, 417, 375,
+406, 414, 393,
+410, 422, 394,
+400, 419, 397))
 ```
 
 Pull our attention and timing variables
 ```{r}
 panel_integrity <- panel_export |>
-  select(response_id, contains((c("last_click","attention"))), starts_with("block_order"), tone_order) |>
+  select(response_id, contains((c("last_click","attention"))), starts_with("block_order"), tone_order, survey_order, survey_version, block_1:block_4) |>
   rename_with(~ str_replace_all(.x, pattern = "_timing_last_click", replacement ="")) |>
   glimpse()
+```
 
-panel_integrity |> 
-  skimr::skim()
+### Block 1 fails
+Timing only
+```{r}
+block1 <- panel_integrity |>
+  rowwise() |>
+  mutate(block_1_timing = panel_integrity |> 
+           select(ends_with(block_1)) |> 
+           filter(response_id == panel_integrity$response_id) |> pull() ) |> 
+  mutate(block_1_threshold = if_else(is.na(block_1), NA, timing$threshold[timing$block == block_1])) |> 
+  mutate(block1_timing_fail = block_1_timing < block_1_threshold) |>
+  glimpse()
+
+block1 |> group_by(block_1, block1_timing_fail) |> 
+  summarise(n = n()) |>
+  mutate(prop_failed = scales::percent(n / sum(n))) |> 
+  filter(block1_timing_fail == TRUE) |>
+  select(block_1, prop_failed)
+
+```
+There's considerable variation between block in the percent of people who failed the block 1 timing check.
+* tone as block 1 had the lowest amount of fails
+* Survey 3, low-increasig had the highest
+* Overall of 358 consented, 205 passed block 1
 
 
-#filter to the vars of interest and join with the timing values
-timing_checks <- panel_integrity |> 
+Filter out people who failed at block1 and update flow
+```{r}
+panel_export <- panel_export |>
+  filter(response_id %in% (block1 |> filter(!block1_timing_fail) |> pull(response_id)))
+
+flow <- flow |>
+  mutate(passed_block1 = nrow(panel_export)) |> glimpse()
+  
+```
+
+
+### Block 2 fails
+```{r}
+block2 <- panel_integrity |>
+  filter(response_id %in% panel_export$response_id) |>
+  rowwise() |>
+  mutate(block_2_timing = panel_integrity |> 
+           select(ends_with(block_2)) |> 
+           filter(response_id == panel_integrity$response_id) |> pull() ) |> 
+  mutate(block_2_threshold = if_else(is.na(block_2), NA, timing$threshold[timing$block == block_2])) |> 
+  mutate(block2_timing_fail = block_2_timing < block_2_threshold) |>
+  mutate(block_2_attention = panel_integrity |> 
+           select(starts_with(block_2) & ends_with("_attention")) |> 
+           filter(response_id == panel_integrity$response_id) |> pull() ) |> 
+  glimpse()
+
+#timing:
+block2 |> group_by(block_2, block2_timing_fail) |> 
+  summarise(n = n()) |>
+  mutate(prop_failed = scales::percent(n / sum(n))) |> 
+  filter(block2_timing_fail == TRUE) |>
+  select(block_2, prop_failed)
+
+#attention:
+block2 |> 
+  filter(!is.na(block_2_attention)) |> nrow()
+
+block2 |> 
+  filter(!is.na(block_2_attention)) |>
+  filter(block_2_attention != "Strongly Disagree") |> nrow()
+
+#who failed both?
+block2 |> filter(block_2_attention != "Strongly Disagree" & block2_timing_fail) |> nrow()
+
+```
+* Again there is variability between surveys and contexts for how many people failed the timing check in their second block.
+   * In total, `r block2 |> filter(block2_timing_fail) |> nrow()` or `r scales::percent(block2 |> filter(block2_timing_fail) |> nrow() / block2 |> nrow())` failed the timing check 
+* Only `r block2 |> filter(!is.na(block_2_attention)) |> nrow()` people had an attention check in block 2 (those for whom the tone survey came second)
+   * `r block2 |> filter(!is.na(block_2_attention)) |> filter(block_2_attention != "Strongly Disagree") |> nrow()` of those (`r scales:: percent(block2 |> filter(!is.na(block_2_attention)) |> filter(block_2_attention != "Strongly Disagree") |> nrow()/block2 |> filter(!is.na(block_2_attention)) |> nrow())`) failed the attention check
+   * Only `r block2 |> filter(block_2_attention != "Strongly Disagree" & block2_timing_fail) |> nrow()` failed both   
+
+
+Filter out people who failed at block2 and update flow
+```{r}
+panel_export <- panel_export |>
+  filter(response_id %in% (block2 |> filter(block_2_attention == "Strongly Disagree") |> pull(response_id)))
+
+
+flow <- flow |>
+  mutate(passed_block2_attention = nrow(panel_export)) |> glimpse()
+
+panel_export <- panel_export |>
+  filter(response_id %in% (block2 |> filter(!block2_timing_fail) |> pull(response_id))) 
+
+flow <- flow |>
+  mutate(passed_block2_timing = nrow(panel_export)) |> glimpse()
+  
+
+
+```
+
+
+### block order 
+
+Set up block numbers
+```{r}
+#| echo: false
+
+
+panel_by_block <- panel_integrity |> 
+  pivot_longer(cols = c(`1_hi`,`2_hi`,`3_hi`,`4_hi`), names_to="block_id_hi", values_to = "hi_timing") |>
+  pivot_longer(cols = c(`1_hd`,`2_hd`,`3_hd`,`4_hd`), names_to="block_id_hd", values_to = "hd_timing") |>
+  pivot_longer(cols = c(`1_li`,`2_li`,`3_li`,`4_li`), names_to="block_id_li", values_to = "li_timing") |>
+  select(-c(starts_with("block_id"))) |> 
+  filter(!is.na(hi_timing) & !is.na(hd_timing) & !is.na(li_timing) ) |>
+  mutate(block_1 = case_when(tone_order == 1 ~ tone,
+                             block_order_hi == 1 ~ hi_timing,
+                             block_order_hd == 1 ~ hd_timing,
+                             block_order_li == 1 ~ li_timing,
+                             .default = NA),
+         block_2 = case_when(block_order_hi == 2 ~ hi_timing,
+                             block_order_hd == 2 ~ hd_timing,
+                             block_order_li == 2 ~ li_timing,
+                             .default = NA),
+         block_3 = case_when(block_order_hi == 3 ~ hi_timing,
+                             block_order_hd == 3 ~ hd_timing,
+                             block_order_li == 3 ~ li_timing,
+                             .default = NA)) |>
+  select(-c(hi_timing, hd_timing,li_timing) ) |>
+  glimpse()
+
+#check timing for just this group
+clean_timing |> group_by(tone_order) |>skimr::skim()
+
+#there are some very long durations, look in detail
+clean_timing |> filter(tone > 300)
+
+clean_timing |> group_by(survey_version) |> tally()
+
+
+clean_timing_skim <- clean_timing |>
   skimr::skim() |>
-  select(block=skim_variable, skim_type, complete_rate, mean = numeric.mean, median = numeric.p50, sd = numeric.sd, min = numeric.p0, max = numeric.p100) |> 
+  select(block=skim_variable, skim_type, mean = numeric.mean, median = numeric.p50, sd = numeric.sd, min = numeric.p0, max = numeric.p100) |> 
   select(-skim_type) |>
-  filter(!str_detect(block, "attention")) |>
   full_join(timing) |>
   mutate() |>
   glimpse()
+
 ```
+
+
+
+
 
 ### Attention checks
 
@@ -468,7 +634,7 @@ panel_export <- panel_export |>
   filter(response_id %in% attention_pass$response_id)
 
 flow <- flow |> 
-  mutate(passed_attention = nrow(panel_export))
+  mutate(passed_attention = nrow(panel_export)) |> print()
 ```
 
 
@@ -484,52 +650,6 @@ There's two ways to look at timing:
 * by which specific survey & context (eg, survey 1, high/increasing context)
 * by block order (which block they completed first, second, & third, regardless of survey or context)
 
-### block order timing
-```{r}
-#| echo: false
-
-
-clean_timing <- panel_clean |> 
-  select(response_id, contains((c("last_click"))), starts_with("block_order"), tone_order, survey_version) |>
-  rename_with(~ str_replace_all(.x, pattern = "_timing_last_click", replacement ="")) |>
-  pivot_longer(cols = c(`1_hi`,`2_hi`,`3_hi`,`4_hi`), names_to="block_id_hi", values_to = "hi_timing") |>
-  pivot_longer(cols = c(`1_hd`,`2_hd`,`3_hd`,`4_hd`), names_to="block_id_hd", values_to = "hd_timing") |>
-  pivot_longer(cols = c(`1_li`,`2_li`,`3_li`,`4_li`), names_to="block_id_li", values_to = "li_timing") |>
-  select(-c(starts_with("block_id"))) |> 
-  filter(!is.na(hi_timing) & !is.na(hd_timing) & !is.na(li_timing) ) |>
-  mutate(block_1 = case_when(block_order_hi == 1 ~ hi_timing,
-                             block_order_hd == 1 ~ hd_timing,
-                             block_order_li == 1 ~ li_timing,
-                             .default = NA),
-         block_2 = case_when(block_order_hi == 2 ~ hi_timing,
-                             block_order_hd == 2 ~ hd_timing,
-                             block_order_li == 2 ~ li_timing,
-                             .default = NA),
-         block_3 = case_when(block_order_hi == 3 ~ hi_timing,
-                             block_order_hd == 3 ~ hd_timing,
-                             block_order_li == 3 ~ li_timing,
-                             .default = NA)) |>
-  select(-c(hi_timing, hd_timing,li_timing) ) |>
-  glimpse()
-
-#check timing for just this group
-clean_timing |> group_by(tone_order) |>skimr::skim()
-
-#there are some very long durations, look in detail
-clean_timing |> filter(tone > 300)
-
-clean_timing |> group_by(survey_version) |> tally()
-
-
-clean_timing_skim <- clean_timing |>
-  skimr::skim() |>
-  select(block=skim_variable, skim_type, mean = numeric.mean, median = numeric.p50, sd = numeric.sd, min = numeric.p0, max = numeric.p100) |> 
-  select(-skim_type) |>
-  full_join(timing) |>
-  mutate() |>
-  glimpse()
-
-```
 
 Graph the timing variables by block order + tone
 ```{r}
@@ -795,7 +915,6 @@ gridExtra::grid.arrange(hi1_clean,
 
 Are all the locations in the US?
 ```{r}
-devtools::source_url("https://github.com/jjcurtin/lab_support/blob/main/fun_gps.R?raw=true")
 
 panel_clean |>
   select(response_id, lat = location_latitude, lon = location_longitude) |>
@@ -872,25 +991,3 @@ Block order randomizer
 ```{r}
 panel_clean |> group_by(block_order_hi, block_order_hd, block_order_li) |> tally()
 ```
-
-Message within block randomizer
-
-* These variables seem to only be available through API? 
-
-```{r}
-source("../proj_optimize/functions/fun_opt.R")
-
-panel  <- "SV_dbAKSR75ATWSo2q"
- 
-panel_api <- download_qualtrics(survey_id = panel, api_token = token_qualtrics,
-                             display_progress = FALSE) |>
-  janitor::clean_names("snake") 
-
-panel_api_clean <- panel_api |>
-  filter(response_id %in% panel_clean$response_id) |>
-  select(response_id, contains("_context_messages_")) |>
-  glimpse()
-
-```
-
-* Needs a bit of cleaning before we can make sense of it, but it does exist!
