@@ -196,9 +196,23 @@ panel_export <- panel_export |>
   filter(is.na(q_duplicate_respondent))
 ```
 
+## US only
+Is anyone outside the US?
+
+```{r}
+# check_geocode <- panel_export |>
+#   select(response_id, lat = location_latitude, lon = location_longitude) |>
+#   tidygeocoder::reverse_geocode(lat = lat, long = lon) 
+# 
+# not_us <- check_geocode |> filter(!str_detect(address, "United States")) |> left_join(panel_export) |> select(response_id, q_chl, term) |> glimpse()
+```
+* 2 not in the US. Neither is a preview. Both of these filtered out for other reasons later but we can remove them now.
+* I will comment out the geocoding code for rendering as it takes ~18m to run
 
 Start a tibble to track participant flow now that we've removed the most basic non-real responses
 ```{r}
+panel_export <- panel_export |> filter(!(response_id %in% c("R_9Qt4j0pRTUQjts7", "R_2pZjOsyx73ZBeEx")))
+
 flow <- tibble(total_submissions = nrow(panel_export)) |> print()
 ```
 
@@ -385,6 +399,13 @@ flow <- flow |>
   mutate(consented = nrow(panel_export)) |> print()
 ```
 
+## EDA - Age
+
+Has anyone got this far who was under 18 and screened out on demographics?
+```{r}
+panel_export |> select(response_id, q1_age ) |> group_by(q1_age ) |> tally() |> print(n=Inf)
+```
+* Nope!
 
 ## EDA - our data integrity variables
 
@@ -652,23 +673,37 @@ qualtrics_final |> filter(!finished) |> nrow()
 qualtrics_final |>filter(q_chl == "preview") 
 
 ```
-* No previews, but they didnt mark unfinished as having a termination reason. That's fine, take them out.
+* 9 people weren't finished which wasn't marked as a termination reason. That's fine, remove the unfinished people.
 
-Next check the people who they say finished who weren't in our final sample
+Next check the people who they say finished, but who weren't in our final sample
 ```{r}
 qualtrics_final <- qualtrics_final |> filter(finished)
+```
+* Now just `r qualtrics_final |> nrow()` people compared to our final sample of 54
 
-q_why <- qualtrics_final |> filter(!(response_id %in% panel_export$response_id)) |> glimpse()
+Explore those 6 more:
+```{r}
+q_why <- qualtrics_final |> filter(!(response_id %in% panel_export$response_id)) 
 
 screening |> filter(response_id %in% q_why$response_id)
 
 q_why$term
 q_why$finished
 q_why$q_recaptcha_score
+q_why$q_duplicate_respondent
 
 ```
 * All 6 were removed by us before the screening checks
-* One had a captcha score of 1, one was NA
+* Four had a recaptcha score < .5, and a 5th was NA on recaptcha (which we filtered out)
+* One was flagged as a duplicate respondent
+
+Filter those out and check again
+```{r}
+q_why |> filter(q_recaptcha_score > .5) |> filter(is.na(q_duplicate_respondent)) |> nrow()
+```
+
+None left, that explains all 
+
 
 ### Location checks
 
@@ -687,10 +722,10 @@ Does the city/state that they reported match their current lat/long?
 
 ```{r}
 #Fix a misspelling first
-panel_clean$id_location_1[panel_clean$id_location_1 == "Tuscon"] <-  "Tucson"
+panel_export$id_location_1[panel_export$id_location_1 == "Tuscon"] <-  "Tucson"
 
 # need tidygeocoder package this does take a while
-panel_location <- panel_clean |> 
+panel_location <- panel_export |> 
   select(response_id, actual_latitude = location_latitude, actual_longitude = location_longitude, 
          ip = ip_address, grocery_name = q12_grocer,
          grocery_location = q12_grocer_2, reported_city = id_location_1, reported_state = id_location_2) |>
@@ -736,17 +771,26 @@ ggplot(panel_location, aes(x = euclidian_dist_miles)) +
 
 Tone survey vs message survey randomizer
 ```{r}
-panel_clean |> group_by(tone_order) |> tally()
+panel_export |> group_by(tone_order) |> tally()
 ```
 
 
 Survey randomizer
 ```{r}
-panel_clean |> group_by(survey_version) |> tally()
+panel_export |> group_by(survey_version) |> tally()
 ```
 
 
 Block order randomizer
 ```{r}
-panel_clean |> group_by(block_order_hi, block_order_hd, block_order_li) |> tally()
+panel_export |> group_by(block_order_hi, block_order_hd, block_order_li) |> tally()
 ```
+
+* It's not as equally randomized as I'd hope but I'm guessing that's due to the huge number of exclusions and that it will even out by the time we get the full sample
+
+
+## Final summary of exclusions
+```{r}
+flow |> glimpse()
+```
+
