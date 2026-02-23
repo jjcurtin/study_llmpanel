@@ -707,17 +707,6 @@ None left, that explains all
 
 ### Location checks
 
-Are all the locations in the US?
-```{r}
-
-panel_export |>
-  select(response_id, lat = location_latitude, lon = location_longitude) |>
-  filter(!is.na(lat) & !is.na(lon)) |>
-  plot_places() 
-
-
-```
-
 Does the city/state that they reported match their current lat/long?
 
 ```{r}
@@ -766,6 +755,45 @@ ggplot(panel_location, aes(x = euclidian_dist_miles)) +
        x = "Distance (Miles)") +
   theme_minimal()
 ```
+
+
+Plot everyone's city and actual locations on a map
+```{r}
+
+panel_location <- panel_location |>
+  rowwise() |>
+  mutate(dist_miles = geosphere::distGeo(c(actual_longitude, actual_latitude), c(reported_city_longitude, reported_city_latitude))/1609.344) 
+
+panel_location |> select(dist_miles) |> arrange(desc(dist_miles)) |> print(n=Inf)
+
+```
+
+Plot just the longer distances (10 people at > 50 miles)
+```{r}
+map_places <- panel_location |>
+  filter(dist_miles > 50) |>
+  select(response_id, actual_latitude, actual_longitude, reported_city_latitude, reported_city_longitude, dist_miles, reported_city, reported_state) |>
+  rowwise() |> 
+  tidygeocoder::reverse_geocode(lat=actual_latitude, long = actual_longitude) |>
+  pivot_longer(c(actual_latitude, reported_city_latitude), names_to = "lat_type", values_to = "lat") |>
+  pivot_longer(c(actual_longitude, reported_city_longitude), names_to = "lon_type", values_to = "lon") |>  
+  rowwise() |>
+  mutate(color = case_when(str_detect(lat_type, "actual") ~ "red",
+                           str_detect(lat_type, "reported") ~ "blue"
+                           )) |>
+  ungroup() |>
+  mutate(lat_type = str_extract(lat_type, "actual|reported")) |>
+  mutate(lon_type = str_extract(lon_type, "actual|reported")) |>
+  filter(lat_type == lon_type)
+
+map_places |>  plot_places(color = "color", label_column = "response_id")
+```
+
+* The two most egregious are someone from Washington State in Las Vegas, and someone from Danbury CT in Raleigh, NC.
+* One person in Los Angeles replicates the EXACT LOCATION issue we saw in Risk2 screening - their actual location shows up in a random park south of LA!
+* Several people from near Lousiana are showing up in and around New Orleans - Mardi Gras?
+* The others mostly seem reasonable - their actual location shows up in a major city near their reported location.
+
 
 ## EDA: Randomizers
 
