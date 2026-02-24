@@ -35,7 +35,9 @@ Participants will be deemed ineligible for study participation using the followi
 
 ### Post-data Collection Exclusion Criteria
 
-<!--CP: include section on exclusion based on response patterns-->
+Participants will be asked in the demographics survey to identify the name of their favorite grocery store and the street it is on. At the end of the survey, participants will be asked to list the city and state in which they currently reside. Grocery store location will be cross-referenced with self-reported location to determine authenticity of responding.
+
+Additional exclusion criteria will be determined following extensive exploratory data analysis. No modeling will be completing until final post-data collection exclusion criteria have been determined. Any additional exclusion criteria determined will be reported in the final manuscript.
 
 ### Survey Structure
 
