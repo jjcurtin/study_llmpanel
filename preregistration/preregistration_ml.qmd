@@ -35,9 +35,11 @@ Participants will be deemed ineligible for study participation using the followi
 
 ### Post-data Collection Exclusion Criteria
 
-Participants will be asked in the demographics survey to identify the name of their favorite grocery store and the street it is on. At the end of the survey, participants will be asked to list the city and state in which they currently reside. Grocery store location will be cross-referenced with self-reported location to determine authenticity of responding.
+Participants will be asked in the demographics survey to identify the name of their favorite grocery store and the street it is on. At the end of the survey, participants will be asked to list the city and state in which they currently reside. Grocery store location will be cross-referenced with self-reported location to determine authenticity of responding. Latitude and longitude data collected via Qualtrics (based on city/zip code) will be compared against self-reported city.
 
-Additional exclusion criteria will be determined following extensive exploratory data analysis. No modeling will be completing until final post-data collection exclusion criteria have been determined. Any additional exclusion criteria determined will be reported in the final manuscript.
+Acceptable distance thresholds for both grocery store distance and Qualtrics-identified distance from self-reported location will be determined following exploratory data analysis completed using training data. Cross-validation leveraging training data will then be used to evaluate threshold and other decision rules, with exclusions being determined at the within-fold level.
+
+No modeling will be completing until final post-data collection exclusion criteria have been determined. Any additional exclusion criteria determined will be reported in the final manuscript.
 
 ### Survey Structure
 
