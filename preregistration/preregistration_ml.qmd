@@ -39,6 +39,10 @@ Participants will be asked in the demographics survey to identify the name of th
 
 Acceptable distance thresholds for both grocery store distance and Qualtrics-identified distance from self-reported location will be determined following exploratory data analysis completed using training data. Cross-validation leveraging training data will then be used to evaluate threshold and other decision rules, with exclusions being determined at the within-fold level.
 
+- Many additional criteria could be used to determine invalid data; given the myriad possibilities it is impossible to apriori define and preregister such criteria; instead we propose to use a simple cross validation process to identify those critera that result in training data that support training models that predict well into held-out data, i.e., models that are closest to the data generating process for message ratings. We will use simple kfold cross validation to evaluate model configurations for the baseline model that differ on exclusion criteria. We will select the exclusion criteria from the model configuration that produces the baseline model that predicts best into held-out data. We chose to use the baseline model for this decision-making process regarding exclusdion criteria to avoid any possible optimization bias surrounding this decision from impacting the performance of our demographics and preferences models.
+- Considering all statistical algorithms th at we will consider in primary nested loop, as many combinations of exclusion criteria
+- Might make the most sense to use the baseline model for this to protect against concerns that we are optimizing the exclusion criteria to produce a preferences model that performs better.
+
 No modeling will be completing until final post-data collection exclusion criteria have been determined. Any additional exclusion criteria determined will be reported in the final manuscript.
 
 ### Survey Structure
