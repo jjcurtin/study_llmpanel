@@ -1,0 +1,497 @@
+---
+title: "Clean Panel"
+format: 
+  html:
+    page-layout: full
+    self-contained: true
+    toc: true
+    toc-depth: 3
+execute: 
+  warning: false
+
+---
+
+## Code Status
+
+In progress
+
+## Notes
+
+***** NOTE: about 2/3s of the time I run this I get a 404 error from Qualtrics. Just retry until it works. ******
+
+
+## Purpose
+
+* Review incoming panel data
+* Remove dropouts by screening method:
+   * Unfinished
+   * Previews
+   * Duplicate Responses
+   * CAPTCHA fails
+   * Healthy screen fails
+   * AUDIT fails
+   * Consent declines
+   * Age fails
+   * Attention check fails 
+   * Timing check fails 
+* save out final clean dataset for modeling
+
+## Set up
+
+```{r setup, warning=FALSE}
+#| include: false
+
+options(conflicts.policy = "depends.ok")
+library(tidyverse) 
+
+devtools::source_url("https://github.com/jjcurtin/lab_support/blob/main/fun_eda.R?raw=true")
+devtools::source_url("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
+devtools::source_url("https://github.com/jjcurtin/lab_support/blob/main/get_credentials.R?raw=true")
+devtools::source_url("https://github.com/jjcurtin/lab_support/blob/main/download_qualtrics.R?raw=true")
+devtools::source_url("https://github.com/jjcurtin/lab_support/blob/main/fun_gps.R?raw=true")
+
+#source function file
+# source("functions/fun_opt.R")
+
+path_qualtrics <- format_path("optimize/data_raw/qualtrics")
+path_panel <- format_path("optimize/data_raw/panel")
+path_processed <- format_path("optimize/data_processed")
+path_credentials <- format_path("other")
+```
+
+
+ Get credentials
+```{r}
+token_qualtrics <- 
+  get_credentials("qualtrics", file.path(path_credentials, "credentials.csv")) |>
+  pull(token)
+```
+
+Download results by API and clean variable names
+
+```{r}
+panel_export_raw <- download_qualtrics(survey_id = "SV_dbAKSR75ATWSo2q", api_token = token_qualtrics,
+                             display_progress = FALSE) |>
+  janitor::clean_names("snake")  |> 
+  # something happened to the naming with the health survey variables - rename them appropriately
+  rename(health_brush = health_floss,
+         health_drink = x47280739) |>
+  # remove text intro variables
+  select(-c(intro_1, audit_inst, q89, description,intro_tone, intro_context, x, x_1, x_2, x_3, x_4, x_5, x_6, x_7, x_9, x_9, x_10, x_11)) |>
+    rename_with(~ str_replace_all(.x, pattern = ("^x"), replacement ="")) |>
+    rename_with(~ str_replace_all(.x, pattern = "_1$", replacement ="")) |>
+  #fix one that got caught by the rename  
+  rename(audit_1 = audit)   |>
+  glimpse()
+```
+
+Clean randomizer variables for easier reading (although I'm still leaving them in the dataframe)
+```{r}
+randomizer_vars <- panel_export_raw |>  select(response_id, starts_with("ro_"), starts_with("block_order")) |> 
+  rename(tone_message_ro = ro_br_fl_99,
+         survey_version_ro = ro_br_fl_12,
+         survey1_block_ro = ro_br_fl_85,
+         survey2_block_ro = ro_br_fl_23,
+         survey3_block_ro = ro_br_fl_35,
+         survey4_block_ro = ro_br_fl_47) |>
+  mutate(tone_message_ro = if_else(tone_message_ro == "FL_146|FL_98", "tone first", "messages first")) |>
+  mutate(survey_version_ro = case_when(survey_version_ro == "FL_81" ~ 1,
+                                       survey_version_ro == "FL_82" ~ 2,
+                                       survey_version_ro == "FL_83" ~ 3,
+                                       survey_version_ro == "FL_84" ~ 4)) |>
+  mutate(across(survey1_block_ro:survey4_block_ro, ~ str_replace_all(string = .x,
+                                                                        pattern = "FL_86|FL_70|FL_59|FL_48",
+                                                                        replacement = "hi"))) |> 
+    mutate(across(survey1_block_ro:survey4_block_ro, ~ str_replace_all(string = .x,
+                                                                        pattern = "FL_87|FL_71|FL_60|FL_49",
+                                                                        replacement = "hd"))) |> 
+    mutate(across(survey1_block_ro:survey4_block_ro, ~ str_replace_all(string = .x,
+                                                                        pattern = "FL_88|FL_72|FL_61|FL_50",
+                                                                        replacement = "li"))) |> 
+   unite(context_order, survey1_block_ro:survey4_block_ro, sep = "") |>  
+   mutate(block_1 = case_when(tone_message_ro == "tone first" ~ "tone",
+                              tone_message_ro == "messages first" ~ str_c(survey_version_ro, "_", str_sub(context_order, 1,2)),
+                             .default = "")) |>
+   mutate(block_2= case_when(tone_message_ro == "tone first" ~ str_c(survey_version_ro, "_", str_sub(context_order, 1,2)),
+                               tone_message_ro == "messages first" ~ str_c(survey_version_ro, "_", str_sub(context_order, 4,5)),
+                             .default = "")) |>
+   mutate(block_3 = case_when(tone_message_ro == "tone first" ~ str_c(survey_version_ro, "_", str_sub(context_order, 4,5)),
+                              tone_message_ro == "messages first" ~ str_c(survey_version_ro, "_", str_sub(context_order, -2)),
+                             .default = "")) |>        
+   mutate(block_4 = case_when(tone_message_ro == "messages first" ~ "tone",
+                              tone_message_ro == "tone first" ~ str_c(survey_version_ro, "_", str_sub(context_order, -2)),
+                             .default = "")) |>  
+            glimpse()
+
+# rejoin to main dataframe
+panel_export <- panel_export_raw |>
+  left_join(randomizer_vars)
+
+```
+
+There ARE variables in the export that aren't in the API download. Use the download to add them back in.
+```{r}
+panel_download <- read_csv(tibble(path = list.files(path_panel, pattern = "panel_2026", full.names = TRUE)) |> mutate(mdate = file.mtime(path)) |> filter(mdate == max(mdate)) |> pull(path)) |>
+  tail(-2) |> 
+    janitor::clean_names("snake")  |> 
+  # something happened to the naming with the health survey variables - rename them appropriately
+  rename(health_brush = health_floss,
+         health_drink = x47280739) |>
+  select(response_id, q_recaptcha_score, q_duplicate_respondent)
+
+
+panel_export <- panel_export |>
+  left_join(panel_download)
+  
+```
+
+
+
+
+## Filtering by screenout
+
+Start a tibble to track participant flow now that we've removed the most basic non-real responses
+```{r}
+
+panel_clean <- panel_export
+
+flow <- tibble(flow = "total_submissions", 
+               n_passed = nrow(panel_clean), 
+               n_failed = NA) |> print()
+
+```
+
+
+### Finished surveys
+```{r}
+# remove incomplete submissions and update flow
+flow <- flow |>
+  full_join(tibble(flow = "finished", 
+                   n_passed = nrow(panel_clean |> filter(finished == "1")), 
+                   n_failed = nrow(panel_clean |> filter(finished == "0") ))) |>
+  print()
+
+panel_clean <- panel_clean |> filter(finished == "1") 
+
+
+```
+
+
+### Previews
+```{r}
+flow <- flow |>
+  full_join(tibble(flow = "preview", 
+                   n_passed = nrow(panel_clean |> filter(q_chl  == "anonymous")), 
+                   n_failed = nrow(panel_clean |> filter(q_chl  == "preview") ))) |>
+  print()
+#remove previews
+panel_clean <- panel_clean |> 
+  filter(q_chl != "preview") 
+```
+
+### Duplicate responses
+
+Note: Email from Qualtrics 2026_0225 states they removed q_duplicate_respondent and now are only using q_ballot_box_stuffing to show duplicates.
+
+HOWEVER, all values of q_ballot_box_stuffing are NA. I will use the downloaded extra variables for now, which may be incomplete, and then continue to yell at qualtrics to provide me with valid information, since they seem to consistently ignore those requests.
+```{r}
+
+flow <- flow |>
+  full_join(tibble(flow = "duplicate respondents (not available by API)", 
+                   n_passed = panel_clean |> filter(is.na(q_duplicate_respondent)) |> nrow(),
+                   n_failed = panel_clean |> filter(q_duplicate_respondent == "true") |> nrow())) |>
+  print()
+
+#remove duplicates
+panel_clean <- panel_clean |> 
+  filter(is.na(q_duplicate_respondent))
+```
+
+### Recaptcha score
+
+- This variable is also missing from API pulls.
+- We are keeping NA values (they took a captcha from the panel provider before hitting our survey) and values > .5
+```{r}
+flow <- flow |>
+  full_join(tibble(flow = "captcha (not available by API)", 
+                   n_passed = panel_clean |> filter(is.na(q_recaptcha_score) | q_recaptcha_score >= .5) |> nrow(),
+                   n_failed = panel_clean |> filter(q_recaptcha_score <.5) |> nrow())) |>
+  print()
+
+#remove captcha fails
+panel_clean <- panel_clean |> 
+  filter(is.na(q_recaptcha_score) | q_recaptcha_score >= .5)
+
+
+```
+
+### Health Screener
+```{r}
+#add some summary variable
+panel_clean <- panel_clean |> 
+  mutate(all_no = health_food == "No" & health_brush == "No" & health_sleep == "No" & health_drink == "No" & health_water == "No") |>
+  mutate(eligible_health = if_else(health_drink == "No" & !all_no, "eligible", "ineligible")) 
+
+
+# All no's
+flow <- flow |>
+  full_join(tibble(flow = "health screener - all No's", 
+                   n_passed = panel_clean |> filter(!all_no) |> nrow(),
+                   n_failed = panel_clean |> filter(all_no) |> nrow())) |>
+  print()
+
+#remove 
+panel_clean <- panel_clean |> 
+   filter(!all_no) 
+
+# non drinkers
+flow <- flow |>
+  full_join(tibble(flow = "health screener - non-binge drinker", 
+                   n_passed = panel_clean |> filter(eligible_health == "eligible") |> nrow(),
+                   n_failed = panel_clean |> filter(eligible_health == "ineligible") |> nrow())) |>
+  print()
+
+#remove 
+panel_clean <- panel_clean |> 
+   filter(eligible_health == "eligible")
+
+```
+
+### AUDIT Screener
+```{r}
+flow <- flow |>
+  full_join(tibble(flow = "AUDIT screener", 
+                   n_passed = panel_clean |> filter(audit_score >= 8) |> nrow(),
+                   n_failed = panel_clean |> filter(audit_score < 8) |> nrow())) |>
+  print()
+
+#remove 
+panel_clean <- panel_clean |> 
+   filter(audit_score >= 8)
+```
+
+### Consent
+
+```{r}
+flow <- flow |>
+  full_join(tibble(flow = "consented", 
+                   n_passed = panel_clean |> 
+                     filter(consent_agree == "I consent to participate and wish to proceed to the survey.") |> nrow(),
+                   n_failed = panel_clean |> 
+                     filter(consent_agree == "I wish to exit the survey without providing consent.") |> nrow()
+                            )) |>
+  print()
+
+#remove 
+panel_clean <- panel_clean |> 
+   filter(consent_agree == "I consent to participate and wish to proceed to the survey.") 
+```
+
+### Age
+
+Has anyone got this far who was under 18 and screened out on demographics?
+```{r}
+flow <- flow |>
+  full_join(tibble(flow = "over 18", 
+                   n_passed = panel_clean |> 
+                     filter(q1_age >=18) |> nrow(),
+                   n_failed = panel_clean |> 
+                     filter(q1_age <18) |> nrow()
+                            )) |>
+  print()
+
+#remove 
+panel_clean <- panel_clean |> 
+   filter(q1_age >=18) 
+
+```
+
+
+### Per-block failures
+
+Set up thresholds and pull our attention and timing variables
+```{r}
+#| echo: false
+
+#get timing thresholds
+timing <- tibble(block = c(
+"tone", 
+"1_hi", "1_hd", "1_li",
+"2_hi", "2_hd", "2_li", 
+"3_hi", "3_hd", "3_li", 
+"4_hi", "4_hd", "4_li"),
+threshold = c(
+59,
+101, 104, 94,
+102, 104, 98,
+102, 106, 98,
+100, 105, 99),
+max_100 = c(
+235,
+405, 417, 375,
+406, 414, 393,
+410, 422, 394,
+400, 419, 397))
+
+panel_integrity <- panel_clean |>
+  select(response_id, contains((c("timing_2","attention"))), starts_with("block_order"), tone_order, survey_order, survey_version, block_1:block_4) |>
+  rename_with(~ str_replace_all(.x, pattern = "_timing_2", replacement ="")) |>
+  glimpse()
+```
+
+Block 1 fails (Timing only)
+```{r}
+block1 <- panel_integrity |>
+  rowwise() |>
+  mutate(block_1_timing = (panel_integrity |> 
+           select(ends_with(block_1)) |> 
+           filter(response_id == panel_integrity$response_id) |> pull()) ) |> 
+  mutate(block_1_threshold = if_else(is.na(block_1), NA, timing$threshold[timing$block == block_1])) |> 
+  mutate(block1_timing_fail = block_1_timing < block_1_threshold) |>
+  glimpse()
+
+block1 |> select(response_id, block1_timing_fail) |> glimpse()
+
+flow <- flow |>
+  full_join(tibble(flow = "block1 timing", 
+                   n_passed = panel_clean |> 
+                     filter(response_id %in% (block1 |> filter(!block1_timing_fail) |> pull(response_id))) |> nrow(),
+                   n_failed = panel_clean |> 
+                     filter(response_id %in% (block1 |> filter(block1_timing_fail) |> pull(response_id))) |> nrow()
+                            )) |>
+  print()
+
+#remove 
+panel_clean <- panel_clean |> 
+   filter(response_id %in% (block1 |> filter(!block1_timing_fail) |> pull(response_id)))
+
+```
+
+
+Block 2 Timing:
+```{r}
+block2 <- panel_integrity |>
+  filter(response_id %in% panel_clean$response_id) |>
+  rowwise() |>
+  mutate(block_2_timing = panel_integrity |> 
+           select(ends_with(block_2)) |> 
+           filter(response_id == panel_integrity$response_id) |> pull() ) |> 
+  mutate(block_2_threshold = if_else(is.na(block_2), NA, timing$threshold[timing$block == block_2])) |> 
+  mutate(block2_timing_fail = block_2_timing < block_2_threshold) |>
+  mutate(block_2_attention = panel_integrity |> 
+           select(starts_with(block_2) & ends_with("_attention")) |> 
+           filter(response_id == panel_integrity$response_id) |> pull() ) |> 
+  glimpse()
+
+flow <- flow |>
+  full_join(tibble(flow = "block2 timing", 
+                   n_passed = panel_clean |> 
+                     filter(response_id %in% (block2 |> filter(!block2_timing_fail) |> pull(response_id))) |> nrow(),
+                   n_failed = panel_clean |> 
+                     filter(response_id %in% (block2 |> filter(block2_timing_fail) |> pull(response_id))) |> nrow()
+                            )) |>
+  print()
+
+#remove 
+panel_clean <- panel_clean |> 
+   filter(response_id %in% (block2 |> filter(!block2_timing_fail) |> pull(response_id)))
+
+```
+
+Block 2 Attention: 
+```{r}
+flow <- flow |>
+  full_join(tibble(flow = "block2 attention", 
+                   n_passed = panel_clean |> 
+                     filter(response_id %in% (block2 |> filter(block_2_attention == "Strongly Disagree" || block_2_attention == "") |> pull(response_id))) |> nrow(),
+                   n_failed = panel_clean |> 
+                     filter(response_id %in% (block2 |> filter(block_2_attention != "Strongly Disagree" && !(block_2_attention == "")) |> pull(response_id)))  |> nrow()
+                            )) |>
+  print()
+
+#remove 
+panel_clean <- panel_clean |> 
+   filter(response_id %in% (block2 |> filter(block_2_attention == "Strongly Disagree" || block_2_attention == "") |> pull(response_id)))
+```
+
+
+
+Block 3 Timing:
+```{r}
+block3 <- panel_integrity |>
+  filter(response_id %in% panel_clean$response_id) |>
+  rowwise() |>
+  mutate(block_3_timing = panel_integrity |> 
+           select(ends_with(block_3)) |> 
+           filter(response_id == panel_integrity$response_id) |> pull() ) |> 
+  mutate(block_3_threshold = if_else(is.na(block_3), NA, timing$threshold[timing$block == block_3])) |> 
+  mutate(block3_timing_fail = block_3_timing < block_3_threshold) |>
+  mutate(block_3_attention = panel_integrity |> 
+           select(starts_with(block_3) & ends_with("_attention")) |> 
+           filter(response_id == panel_integrity$response_id) |> pull() ) |> 
+  glimpse()
+
+flow <- flow |>
+  full_join(tibble(flow = "block3 timing", 
+                   n_passed = panel_clean |> 
+                     filter(response_id %in% (block3 |> filter(!block3_timing_fail) |> pull(response_id))) |> nrow(),
+                   n_failed = panel_clean |> 
+                     filter(response_id %in% (block3 |> filter(block3_timing_fail) |> pull(response_id))) |> nrow()
+                            )) |>
+  print()
+
+#remove 
+panel_clean <- panel_clean |> 
+   filter(response_id %in% (block3 |> filter(!block3_timing_fail) |> pull(response_id)))
+
+```
+
+Block 3 Attention: 
+```{r}
+flow <- flow |>
+  full_join(tibble(flow = "block3 attention", 
+                   n_passed = panel_clean |> 
+                     filter(response_id %in% (block3 |> filter(block_3_attention == "Strongly Disagree" || block_3_attention == "") |> pull(response_id))) |> nrow(),
+                   n_failed = panel_clean |> 
+                     filter(response_id %in% (block3 |> filter(block_3_attention != "Strongly Disagree" && !(block_3_attention == "")) |> pull(response_id)))  |> nrow()
+                            )) |>
+  print()
+
+#remove 
+panel_clean <- panel_clean |> 
+   filter(response_id %in% (block3 |> filter(block_3_attention == "Strongly Disagree" || block_3_attention == "") |> pull(response_id)))
+```
+
+
+
+Block 4 (Timing only)
+```{r}
+block4 <- panel_integrity |>
+  filter(response_id %in% panel_clean$response_id) |>
+  rowwise() |>
+  mutate(block_4_timing = panel_integrity |> 
+           select(ends_with(block_4)) |> 
+           filter(response_id == panel_integrity$response_id) |> pull() ) |> 
+  mutate(block_4_threshold = if_else(is.na(block_4), NA, timing$threshold[timing$block == block_4])) |> 
+  mutate(block4_timing_fail = block_4_timing < block_4_threshold) |>
+  glimpse()
+
+flow <- flow |>
+  full_join(tibble(flow = "block4 timing", 
+                   n_passed = panel_clean |> 
+                     filter(response_id %in% (block4 |> filter(!block4_timing_fail) |> pull(response_id))) |> nrow(),
+                   n_failed = panel_clean |> 
+                     filter(response_id %in% (block4 |> filter(block4_timing_fail) |> pull(response_id))) |> nrow()
+                            )) |>
+  print()
+
+#remove 
+panel_clean <- panel_clean |> 
+   filter(response_id %in% (block4 |> filter(!block4_timing_fail) |> pull(response_id)))
+
+```
+
+Write out clean sample
+```{r}
+panel_clean |> write_csv(file.path(path_processed, str_c("panel/panel_clean_", today(), ".csv")))
+```
