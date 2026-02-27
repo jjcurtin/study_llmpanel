@@ -131,7 +131,7 @@ panel_export <- panel_export_raw |>
 
 There ARE variables in the export that aren't in the API download. Use the download to add them back in.
 ```{r}
-panel_download <- read_csv(tibble(path = list.files(path_panel, pattern = "panel_2026", full.names = TRUE)) |> mutate(mdate = file.mtime(path)) |> filter(mdate == max(mdate)) |> pull(path)) |>
+panel_download <- read_csv(tibble(path = list.files(path_panel, pattern = "^panel_2026", full.names = TRUE)) |> mutate(mdate = file.mtime(path)) |> filter(mdate == max(mdate)) |> pull(path)) |>
   tail(-2) |> 
     janitor::clean_names("snake")  |> 
   # something happened to the naming with the health survey variables - rename them appropriately
@@ -495,3 +495,4 @@ Write out clean sample
 ```{r}
 panel_clean |> write_csv(file.path(path_processed, str_c("panel/panel_clean_", today(), ".csv")))
 ```
+
