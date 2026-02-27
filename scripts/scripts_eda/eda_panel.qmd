@@ -507,7 +507,9 @@ panel_export |> filter(response_id %in% bad_completes) |> glimpse()
 ```
 
 * Qualtrics has still not filtered out all captcha fails and duplicate reponses. We need to regularly send them these response_ID_ids to be removed.
-* I need to add columns to determine the fail reason for the others
+
+Ask them to remove:
+* R_3dxTxqxUzeApWSt: captcha = .4
 
 
 ### Location checks
