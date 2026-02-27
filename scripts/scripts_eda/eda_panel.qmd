@@ -527,8 +527,8 @@ panel_clean$id_location_1_text[panel_clean$id_location_1_text == "Tuscon"] <-  "
 # need tidygeocoder package this does take a while
 panel_location <- panel_clean |> 
   select(response_id, actual_latitude = location_latitude, actual_longitude = location_longitude, 
-         ip = ip_address, grocery_name = q12_grocer,
-         grocery_location = q12_grocer_2, reported_city = id_location_1_text, reported_state = id_location_2_text) |>
+         ip = ip_address, grocery_name = q12_grocer_1_text,
+         grocery_location = q12_grocer_2_text, reported_city = id_location_1_text, reported_state = id_location_2_text) |>
   tidygeocoder::geocode(city = reported_city, state = reported_state, method = "osm") |>
   rename(reported_city_latitude = lat, reported_city_longitude = long) |>
   mutate(euclidian_dist = sqrt((actual_latitude - reported_city_latitude)^2 + (actual_longitude - reported_city_longitude)^2))
