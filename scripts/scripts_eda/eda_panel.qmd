@@ -124,7 +124,7 @@ panel_export <- panel_export_raw |>
 
 There ARE variables in the export that aren't in the API download. Use the download to add them back in.
 ```{r}
-panel_download <- read_csv(tibble(path = list.files(path_panel, pattern = "panel_2026", full.names = TRUE)) |> mutate(mdate = file.mtime(path)) |> filter(mdate == max(mdate)) |> pull(path)) |>
+panel_download <- read_csv(tibble(path = list.files(path_panel, pattern = "^panel_2026", full.names = TRUE)) |> mutate(mdate = file.mtime(path)) |> filter(mdate == max(mdate)) |> pull(path)) |>
   tail(-2) |> 
     janitor::clean_names("snake")  |> 
   # something happened to the naming with the health survey variables - rename them appropriately
@@ -577,6 +577,8 @@ panel_location <- panel_location |>
 
 panel_location |> select(dist_miles) |> arrange(desc(dist_miles)) |> print(n=Inf)
 
+panel_location |>  plot_places(lat = actual_latitude, lon = actual_longitude, label_column = "response_id")
+
 ```
 
 Plot just the longer distances (10 people at > 50 miles)
@@ -598,6 +600,12 @@ map_places <- panel_location |>
   filter(lat_type == lon_type)
 
 map_places |>  plot_places(color = "color", label_column = "response_id")
+
+map_places |> filter(dist_miles == max(dist_miles, na.rm=TRUE)) |>
+  glimpse()
+
+panel_clean |> filter(response_id == "R_50e1ISe5Bxq5yt1") |> glimpse()
+
 ```
 
 * The two most egregious are someone from Washington State in Las Vegas, and someone from Danbury CT in Raleigh, NC.
