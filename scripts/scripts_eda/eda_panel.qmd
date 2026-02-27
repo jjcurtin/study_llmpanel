@@ -11,16 +11,21 @@ execute:
 
 ---
 
-The purpose of this EDA to decide if there's anything WE need to change so qualtrics can launch again, or anything we need to tell qualtrics to change:
+## Code Status
+
+In progress
 
 
-* CAPTCHA fails
-* Healthy screen fails
-* AUDIT fails 
-* Attention check fails 
-* Timing check fails 
-* Exceptionally long duration surveys (since these are skewing the mean/median which we need to evaluate our timing checks)
+## Purpose
 
+* Review incoming panel data
+* remove dropouts by screening method:
+   * CAPTCHA fails
+   * Healthy screen fails
+   * AUDIT fails 
+   * Attention check fails 
+   * Timing check fails 
+* save out final clean dataset for modeling
 
 ## Set up
 
@@ -53,45 +58,29 @@ token_qualtrics <-
   pull(token)
 ```
 
-Looks like I'm not getting all responses via API - check the exported version
+Download results by API and clean variable names
+
+***** NOTE: about half the time I run this I get a 404 error from Qualtrics. Just retry. ******
+
 ```{r}
-panel_export_raw <- read_csv(tibble(path = list.files(path_panel, pattern = "panel_2026", full.names = TRUE)) |> mutate(mdate = file.mtime(path)) |> filter(mdate == max(mdate)) |> pull(path)) |>
-  tail(-2) |> 
-  mutate(across(everything(), .fns = parse_guess)) |> #read_csv failed to correctly guess coltypes due to the two extra character headers, this re-guesses
-  janitor::clean_names("snake") |>
+panel_export_raw <- download_qualtrics(survey_id = "SV_dbAKSR75ATWSo2q", api_token = token_qualtrics,
+                             display_progress = FALSE) |>
+  janitor::clean_names("snake")  |> 
   # something happened to the naming with the health survey variables - rename them appropriately
   rename(health_brush = health_floss,
          health_drink = x47280739) |>
+  # remove text intro variables
+  select(-c(intro_1, audit_inst, q89, description,intro_tone, intro_context, x, x_1, x_2, x_3, x_4, x_5, x_6, x_7, x_9, x_9, x_10, x_11)) |>
+    rename_with(~ str_replace_all(.x, pattern = ("^x"), replacement ="")) |>
+    rename_with(~ str_replace_all(.x, pattern = "_1$", replacement ="")) |>
+  #fix one that got caught by the rename  
+  rename(audit_1 = audit)   |>
   glimpse()
 ```
 
-However the randomizer variables seem to only be available through API? 
-
-Get them and add back into the raw dataframe
+Clean randomizer variables for easier reading (although I'm still leaving them in the dataframe)
 ```{r}
-# source("../proj_optimize/functions/fun_opt.R")
-# FL_99 = tone/message randomizer
-    # FL_146 = tone survey group
-    # FL_98 = message survey group
-# FL_12 = survey version randomizer
-    # 81, 82, 83, 84 are surveys 1-4
-# Survey 1 randomizer: ro_br_fl_85
-    # 86,87,88 are hi, hd, li
-# Survey 2 randomizer:  ro_br_fl_23 
-    # 70,71,72 are hi, hd, li
-# Survey 3 randomizer: ro_br_fl_35 
-    # 59,60,61 are hi, hd, li 
-# Survey 4 randomizer: ro_br_fl_47 
-    # 48, 49. 50 are hi, hd, li
-
-# Add variables to make it clearer what order the survey elements were presented in
-panel_api <- download_qualtrics(survey_id = "SV_dbAKSR75ATWSo2q", api_token = token_qualtrics,
-                             display_progress = FALSE) |>
-  janitor::clean_names("snake")  |> 
-  select(response_id, starts_with("ro_"), starts_with("block_order"))
-
-
-randomizer_vars <- panel_api |>
+randomizer_vars <- panel_export_raw |>  select(response_id, starts_with("ro_"), starts_with("block_order")) |> 
   rename(tone_message_ro = ro_br_fl_99,
          survey_version_ro = ro_br_fl_12,
          survey1_block_ro = ro_br_fl_85,
@@ -128,302 +117,179 @@ randomizer_vars <- panel_api |>
             glimpse()
 
 # rejoin to main dataframe
-panel_export_raw <- panel_export_raw |>
-  left_join(randomizer_vars )
+panel_export <- panel_export_raw |>
+  left_join(randomizer_vars)
 
+```
+
+There ARE variables in the export that aren't in the API download. Use the download to add them back in.
+```{r}
+panel_download <- read_csv(tibble(path = list.files(path_panel, pattern = "panel_2026", full.names = TRUE)) |> mutate(mdate = file.mtime(path)) |> filter(mdate == max(mdate)) |> pull(path)) |>
+  tail(-2) |> 
+    janitor::clean_names("snake")  |> 
+  # something happened to the naming with the health survey variables - rename them appropriately
+  rename(health_brush = health_floss,
+         health_drink = x47280739) |>
+  select(response_id, q_recaptcha_score, q_duplicate_respondent)
+
+
+panel_export <- panel_export |>
+  left_join(panel_download)
+  
 ```
 
 
 
-## Basic cleaning & EDA
+
+## Filtering by screenout
+
+Start a tibble to track participant flow now that we've removed the most basic non-real responses
 ```{r}
-#remove the leading X and trailing _1 from varnames
-panel_export <-  panel_export_raw |>
-    rename_with(~ str_replace_all(.x, pattern = "x", replacement ="")) |>
-    rename_with(~ str_replace_all(.x, pattern = "_1$", replacement ="")) |>
-    rename(id_location_1 = id_location,
-           audit_1 = audit,
-           block_1 = block)
-# 
-# panel_complete <- panel_export |> filter(!is.na(id_location_2)) 
-# panel_export |> distinct(id_location_1)  #29 distinct + NA, which matches the above
-# 
-# panel_export |> nrow()
 
-#Finished?
-finished <- panel_export |> filter(finished == "TRUE") |> nrow() 
-unfinished <- panel_export |> filter(finished == "FALSE") |> nrow() 
+panel_clean <- panel_export
 
-table(panel_export$finished) 
-
-skimr::skim(panel_export$finished)
-
-skimr::skim(panel_export$progress) # progress is another way to measure how far through they got
-panel_export |> group_by(progress) |> tally()
+flow <- tibble(flow = "total_submissions", 
+               n_passed = nrow(panel_clean), 
+               n_failed = NA) |> print()
 
 ```
-1. With previous downloads, every survey is finished because any termination led to an end of survey block, now there are a few incompletes
-2. As of `r today()` there are `r panel_export |> nrow()` responses, `r unfinished` are incomplete, `r finished` are finished
-3. Of the incompletes, progress varies between 1% and 16%. 
 
-To improve the EDA as we go along I'm going to remove responses that shouldn't be kept, as we find them.
+
+### Finished surveys
 ```{r}
-# remove incomplete submissions
-panel_export <- panel_export |> filter(finished == "TRUE") 
+# remove incomplete submissions and update flow
+flow <- flow |>
+  full_join(tibble(flow = "finished", 
+                   n_passed = nrow(panel_clean |> filter(finished == "1")), 
+                   n_failed = nrow(panel_clean |> filter(finished == "0") ))) |>
+  print()
+
+panel_clean <- panel_clean |> filter(finished == "1") 
+
 
 ```
 
 
 ### Previews
 ```{r}
-panel_export$q_chl |> table() #distinguishes between preview surveys and regular - we need to exclude the previews
-
+flow <- flow |>
+  full_join(tibble(flow = "preview", 
+                   n_passed = nrow(panel_clean |> filter(q_chl  == "anonymous")), 
+                   n_failed = nrow(panel_clean |> filter(q_chl  == "preview") ))) |>
+  print()
 #remove previews
-panel_export <- panel_export |> 
+panel_clean <- panel_clean |> 
   filter(q_chl != "preview") 
 ```
 
 ### Duplicate responses
-```{r}
-panel_export$q_duplicate_respondent |> table()
 
-```
-* `r panel_export |> filter(q_duplicate_respondent) |> nrow()` duplicate responses - I'll remove these for now, but qualtrics will have to confirm that one of any duplicate was not retained
+Note: Email from Qualtrics 2026_0225 states they removed q_duplicate_respondent and now are only using q_ballot_box_stuffing to show duplicates.
 
-Filter those out
+HOWEVER, all values of q_ballot_box_stuffing are NA. I will use the downloaded extra variables for now, which may be incomplete, and then continue to yell at qualtrics to provide me with valid information, since they seem to consistently ignore those requests.
 ```{r}
-panel_export <- panel_export |> 
+
+flow <- flow |>
+  full_join(tibble(flow = "duplicate respondents (not available by API)", 
+                   n_passed = panel_clean |> filter(is.na(q_duplicate_respondent)) |> nrow(),
+                   n_failed = panel_clean |> filter(q_duplicate_respondent == "true") |> nrow())) |>
+  print()
+
+#remove duplicates
+panel_clean <- panel_clean |> 
   filter(is.na(q_duplicate_respondent))
 ```
 
-## US only
-Is anyone outside the US?
-
-```{r}
-# check_geocode <- panel_export |>
-#   select(response_id, lat = location_latitude, lon = location_longitude) |>
-#   tidygeocoder::reverse_geocode(lat = lat, long = lon) 
-# 
-# not_us <- check_geocode |> filter(!str_detect(address, "United States")) |> left_join(panel_export) |> select(response_id, q_chl, term) |> glimpse()
-```
-* 2 not in the US. Neither is a preview. Both of these filtered out for other reasons later but we can remove them now.
-* I will comment out the geocoding code for rendering as it takes ~18m to run
-
-Start a tibble to track participant flow now that we've removed the most basic non-real responses
-```{r}
-panel_export <- panel_export |> filter(!(response_id %in% c("R_9Qt4j0pRTUQjts7", "R_2pZjOsyx73ZBeEx")))
-
-flow <- tibble(total_submissions = nrow(panel_export)) |> print()
-```
-
-
 ### Recaptcha score
-```{r}
-panel_export$q_recaptcha_score |> table() 
 
-panel_export |> skimr::skim(q_recaptcha_score)
-
-#how many of those still finish the survey?
-panel_export |> filter(is.na(q_recaptcha_score)) |> filter(!is.na(id_location_2)) # One!!
-
-#how far did the others get? Use the qualtrics termination variable
-panel_export |> filter(is.na(q_recaptcha_score)) |> select(term) |> table()
-
-#How many passed captcha
-panel_export |> filter(q_recaptcha_score >= .5) |> nrow() / nrow(panel_export)
-
-# filter out fails under .5 
-panel_export <- panel_export |> 
-  filter(q_recaptcha_score >= .5) 
-                                    
-```
-1. 73 of q_recaptcha score are NA. What do we do with these?
-   * Of those, only one finished the survey. 
-2. ~87% of recaptcha scores are over .5; 90% are .5 and over. See [this article](https://pmc.ncbi.nlm.nih.gov/articles/PMC10818231/) for interpretation:    
-   * Q_RecaptchaScore returns a score between 0.0 and 1.0 that Qualtrics records as part of the survey response.  Recommended 0.5 score as the threshold for fraud, where a score under 0.5 is deemed likely to be a bot.
-
-Update flow
+- This variable is also missing from API pulls.
+- We are keeping NA values (they took a captcha from the panel provider before hitting our survey) and values > .5
 ```{r}
 flow <- flow |>
-  mutate(passed_captcha = nrow(panel_export)) |> print()
-```
+  full_join(tibble(flow = "captcha (not available by API)", 
+                   n_passed = panel_clean |> filter(is.na(q_recaptcha_score) | q_recaptcha_score >= .5) |> nrow(),
+                   n_failed = panel_clean |> filter(q_recaptcha_score <.5) |> nrow())) |>
+  print()
 
+#remove captcha fails
+panel_clean <- panel_clean |> 
+  filter(is.na(q_recaptcha_score) | q_recaptcha_score >= .5)
 
-
-### Qualtrics quality variables. 
-These will be important but are all NA right now
-```{r}
-panel_export$q_quality_score |> table()
-panel_export$q_ballot_box_stuffing |> table()
-panel_export$q_quality_timestamp |> table()
 
 ```
-
-### More qualtrics variables
-These do not seem relevant to us, disregard for now
-```{r}
-#| echo: false
-#| evaluate: false
-
-panel_export$opp |> table()  # seems to be the name of our study in their records
-panel_export$q_url |> table() |> head(5) # (long output truncated) this seems to be the actual URLs used - guessing it sets many of the following values
-panel_export$qpmid  |> table() # qualtrics panel ID - probably their internal number for our study
-panel_export |> group_by(vendor) |> tally() #Kantar is a market research company - maybe who they are using to sample for us since NA for most
-
-## These I can't guess at the meanings
-panel_export$svid |> table()
-panel_export$kid |> table() |> head(5) #  (long output truncated) 
-panel_export$tg |> table()
-panel_export$gc |> table()
-panel_export$project_token_a |> table()
-panel_export$project_token_b  |> table()
-panel_export$supplier_id |> table()
-panel_export$os_api_transaction_id|> table() |> head(5)  #  (long output truncated) 
-panel_export$ps |> table()
-panel_export$project_token |> table()
-
-```
-
-## EDA - screening surveys
 
 ### Health Screener
 ```{r}
-screening <- panel_export |> 
-  select(response_id, term, starts_with(c("health", "audit"))) |>
+#add a summary variable
+panel_clean <- panel_clean |> 
   mutate(all_no = health_food == "No" & health_brush == "No" & health_sleep == "No" & health_drink == "No" & health_water == "No") |>
-  mutate(eligible_health = if_else(health_drink == "No" & !all_no, "eligible", "ineligible")) |>
-  mutate(eligible_audit = if_else(audit_score > 7, "eligible", "ineligible")) |> 
-  glimpse()
+  mutate(eligible_health = if_else(health_drink == "No" & !all_no, "eligible", "ineligible")) 
 
-screening |> group_by(eligible_health) |> tally()
-screening |> group_by(eligible_audit) |> tally()
-
-# let's go a little deeper and see how people filter out at each level
-screening |> group_by(all_no) |> tally()
-screening |> filter(term == "no_Selected") |> nrow()
-screening |> filter(all_no) |> pull(term)
-
-screening |> group_by(eligible_health) |> tally()
-screening |> filter(term == "not_alcoholic" | term == "no_Selected") |> nrow()
-screening |> filter(eligible_health == "eligible") |> group_by(term) |> tally()
-
-
-```
-* There is a discrepancy between the number of people who selected all No's on the health screener, by our count and by qualtrics' count. They counted seven of these people under "not_alcoholic"
-* However, our total counts agree on who failed the health screener.
-* Per [NIAAA](https://www.niaaa.nih.gov/alcohols-effects-health/alcohol-topics/alcohol-facts-and-statistics/alcohol-use-disorder-aud-united-states-age-groups-and-demographic-characteristics), 21.7% over 18 in the US reported binge drinking in the past month. We're looking at `r scales::percent(nrow(screening |> filter(eligible_health == "eligible"))/nrow(screening))` passing the health screener so that's still a little high as we discussed.
-
-Add the screening eligiblity variables back into the main dataframe, for cleaning later, and remove those who failed the health screener
-```{r}
-panel_export <- panel_export |>
-mutate(all_no = health_food == "No" & health_brush == "No" & health_sleep == "No" & health_drink == "No" & health_water == "No") |>
-  mutate(eligible_health = if_else(health_drink == "No" & !all_no, "eligible", "ineligible")) |>
-  mutate(eligible_audit = if_else(audit_score > 7, "eligible", "ineligible")) |> 
-  filter(eligible_health == "eligible")
-
-```
-
-Update flow
-```{r}
 flow <- flow |>
-  mutate(passed_health_screen = nrow(panel_export)) |> print()
+  full_join(tibble(flow = "health screener", 
+                   n_passed = panel_clean |> filter(eligible_health == "eligible") |> nrow(),
+                   n_failed = panel_clean |> filter(eligible_health == "ineligible") |> nrow())) |>
+  print()
+
+#remove 
+panel_clean <- panel_clean |> 
+   filter(eligible_health == "eligible")
+
 ```
 
 ### AUDIT Screener
 ```{r}
-panel_audit <- panel_export |>
-  select(response_id, starts_with("audit"), eligible_audit) |>
-  glimpse()
+flow <- flow |>
+  full_join(tibble(flow = "AUDIT screener", 
+                   n_passed = panel_clean |> filter(audit_score >= 8) |> nrow(),
+                   n_failed = panel_clean |> filter(audit_score < 8) |> nrow())) |>
+  print()
 
-panel_audit |> group_by(eligible_audit) |> tally()
-
-#stats on audit score by eligibility
-skim_audit <- panel_audit |> group_by(eligible_audit) |> skimr::skim(audit_score) |>
-  select(eligible_audit, skim_type, complete_rate, mean = numeric.mean, median = numeric.p50, sd = numeric.sd, min = numeric.p0, max = numeric.p100) |> 
-  ungroup() 
-
-panel_audit |> group_by(audit_1) |> tally()
-
-
-#how many people answering "Never" on audit_1 ended up eligible?
-panel_audit |>
-  filter(audit_1 == "Never") |>
-  group_by(audit_9, audit_10) |>
-  tally()
-
-# look at people with audit scores of 40
-
-panel_export |> filter(audit_score == 40) |> group_by(term) |> tally()
-panel_export |> filter(audit_score >= 30) |> group_by(term) |> tally()
-
-```
-1. 361 people passed the audit
-2. Of the 37 people who never drank per audit_1, only one was eligible
-3. Only 1 person got a 40 on the audit, and they screened out for a different reason. Of 48 people who got over 30 on the audit, 4 finished the survey.
-
-Graph audit scores
-```{r}
-#| echo: false
-#| fig-asp: 1
-#| out-width: 100%
-#| fig-width: 10
-
-
-panel_audit |>
-  ggplot(aes(x = audit_score, fill = eligible_audit)) +
-  ggtitle("AUDIT scores, by eligiblity, with means") +
-  geom_histogram(alpha=0.5, position="identity", binwidth = 4) +
-  geom_vline(xintercept = skim_audit$mean[skim_audit$eligible_audit == "eligible"], linetype = 1, color = "red") +
-  geom_vline(xintercept = skim_audit$mean[skim_audit$eligible_audit == "ineligible"], linetype = 1, color = "blue") 
-```
-
-Filter out AUDIT ineligible and update flow
-```{r}
-panel_export <- panel_export |> 
-  filter(eligible_audit == "eligible")
-
-flow <- flow |> 
-  mutate(passed_audit = nrow(panel_export)) |> print()
+#remove 
+panel_clean <- panel_clean |> 
+   filter(audit_score >= 8)
 ```
 
 ### Consent
-* 3 opted not to consent - Filter out and update flow
+
 ```{r}
-panel_export |> filter(term == "consent") 
-panel_export |> group_by(consent_agree) |> tally()
+flow <- flow |>
+  full_join(tibble(flow = "consented", 
+                   n_passed = panel_clean |> 
+                     filter(consent_agree == "I consent to participate and wish to proceed to the survey.") |> nrow(),
+                   n_failed = panel_clean |> 
+                     filter(consent_agree == "I wish to exit the survey without providing consent.") |> nrow()
+                            )) |>
+  print()
 
-panel_export <- panel_export |> 
-  filter(consent_agree != "I wish to exit the survey without providing consent.")
-
-flow <- flow |> 
-  mutate(consented = nrow(panel_export)) |> print()
+#remove 
+panel_clean <- panel_clean |> 
+   filter(consent_agree == "I consent to participate and wish to proceed to the survey.") 
 ```
 
-## EDA - Age
+### Age
 
 Has anyone got this far who was under 18 and screened out on demographics?
 ```{r}
-panel_export |> select(response_id, q1_age ) |> group_by(q1_age ) |> tally() |> print(n=Inf)
+flow <- flow |>
+  full_join(tibble(flow = "over 18", 
+                   n_passed = panel_clean |> 
+                     filter(q1_age >=18) |> nrow(),
+                   n_failed = panel_clean |> 
+                     filter(q1_age <18) |> nrow()
+                            )) |>
+  print()
+
+#remove 
+panel_clean <- panel_clean |> 
+   filter(q1_age >=18) 
+
 ```
-* Nope!
-
-## EDA - our data integrity variables
-
-First look at the remaining qualtrics termination reasons
-```{r}
-panel_export |> group_by(term) |> tally()
-```
-
-1. `r panel_export |> group_by(term) |> tally() |> filter(str_detect(term, "survey")) |> pull(n) |> sum()` failed either the attention check OR the timing variable in one of the 4 message surveys
-2. 44 failed the speed check in the tone survey
-3. 54 are NA, meaning not terminated for any other reason
-
-We won't do anything with this yet, but will instead look in more detail at our own variables.
 
 
-We want to look at drop outs PER BLOCK on timing & attention checks.
+### Per-block failures
 
-
+Set up thresholds and pull our attention and timing variables
 ```{r}
 #| echo: false
 
@@ -446,60 +312,46 @@ max_100 = c(
 406, 414, 393,
 410, 422, 394,
 400, 419, 397))
-```
 
-Pull our attention and timing variables
-```{r}
-panel_integrity <- panel_export |>
-  select(response_id, contains((c("last_click","attention"))), starts_with("block_order"), tone_order, survey_order, survey_version, block_1:block_4) |>
-  rename_with(~ str_replace_all(.x, pattern = "_timing_last_click", replacement ="")) |>
+panel_integrity <- panel_clean |>
+  select(response_id, contains((c("timing_2","attention"))), starts_with("block_order"), tone_order, survey_order, survey_version, block_1:block_4) |>
+  rename_with(~ str_replace_all(.x, pattern = "_timing_2", replacement ="")) |>
   glimpse()
 ```
 
-### Block 1 fails
-Timing only
+Block 1 fails (Timing only)
 ```{r}
 block1 <- panel_integrity |>
   rowwise() |>
-  mutate(block_1_timing = panel_integrity |> 
+  mutate(block_1_timing = (panel_integrity |> 
            select(ends_with(block_1)) |> 
-           filter(response_id == panel_integrity$response_id) |> pull() ) |> 
+           filter(response_id == panel_integrity$response_id) |> pull()) ) |> 
   mutate(block_1_threshold = if_else(is.na(block_1), NA, timing$threshold[timing$block == block_1])) |> 
   mutate(block1_timing_fail = block_1_timing < block_1_threshold) |>
   glimpse()
 
-block1 |> group_by(block_1, block1_timing_fail) |> 
-  summarise(n = n()) |>
-  mutate(prop_failed = scales::percent(n / sum(n))) |> 
-  filter(block1_timing_fail == TRUE) |>
-  select(block_1, prop_failed)
-
-
-block1 |> group_by(block1_timing_fail) |> tally()
-
-```
-There's considerable variation between block in the percent of people who failed the block 1 timing check.
-* tone as block 1 had the lowest amount of fails
-* Survey 3, low-increasig had the highest
-* Overall of `r flow$consented` consented, `r block1 |> filter(!block1_timing_fail) |> nrow()` (`r scales::percent(block1 |> filter(!block1_timing_fail) |> nrow() / flow$consented)`) passed block 1
-
-
-Filter out people who failed at block1 and update flow
-```{r}
-panel_export <- panel_export |>
-  filter(response_id %in% (block1 |> filter(!block1_timing_fail) |> pull(response_id)))
+block1 |> select(response_id, block1_timing_fail) |> glimpse()
 
 flow <- flow |>
-  mutate(passed_block1 = nrow(panel_export)) |> glimpse()
-  
+  full_join(tibble(flow = "block1 timing", 
+                   n_passed = panel_clean |> 
+                     filter(response_id %in% (block1 |> filter(!block1_timing_fail) |> pull(response_id))) |> nrow(),
+                   n_failed = panel_clean |> 
+                     filter(response_id %in% (block1 |> filter(block1_timing_fail) |> pull(response_id))) |> nrow()
+                            )) |>
+  print()
+
+#remove 
+panel_clean <- panel_clean |> 
+   filter(response_id %in% (block1 |> filter(!block1_timing_fail) |> pull(response_id)))
+
 ```
 
 
-### Block 2 fails
-This block had both timing and attention for at least some people
+Block 2 Timing:
 ```{r}
 block2 <- panel_integrity |>
-  filter(response_id %in% panel_export$response_id) |>
+  filter(response_id %in% panel_clean$response_id) |>
   rowwise() |>
   mutate(block_2_timing = panel_integrity |> 
            select(ends_with(block_2)) |> 
@@ -511,57 +363,43 @@ block2 <- panel_integrity |>
            filter(response_id == panel_integrity$response_id) |> pull() ) |> 
   glimpse()
 
-#timing:
-block2 |> group_by(block_2, block2_timing_fail) |> 
-  summarise(n = n()) |>
-  mutate(prop_failed = scales::percent(n / sum(n))) |> 
-  filter(block2_timing_fail == TRUE) |>
-  select(block_2, prop_failed)
+flow <- flow |>
+  full_join(tibble(flow = "block2 timing", 
+                   n_passed = panel_clean |> 
+                     filter(response_id %in% (block2 |> filter(!block2_timing_fail) |> pull(response_id))) |> nrow(),
+                   n_failed = panel_clean |> 
+                     filter(response_id %in% (block2 |> filter(block2_timing_fail) |> pull(response_id))) |> nrow()
+                            )) |>
+  print()
 
-#attention:
-block2 |> 
-  filter(!is.na(block_2_attention)) |> nrow()
-
-block2 |> 
-  filter(!is.na(block_2_attention)) |>
-  filter(block_2_attention != "Strongly Disagree") |> nrow()
-
-#who failed both?
-block2 |> filter(block_2_attention != "Strongly Disagree" & block2_timing_fail) |> nrow()
+#remove 
+panel_clean <- panel_clean |> 
+   filter(response_id %in% (block2 |> filter(!block2_timing_fail) |> pull(response_id)))
 
 ```
-* Again there is variability between surveys and contexts for how many people failed the timing check in their second block.
-   * In total, `r block2 |> filter(block2_timing_fail) |> nrow()` or `r scales::percent(block2 |> filter(block2_timing_fail) |> nrow() / block2 |> nrow())` failed the timing check 
-* Only `r block2 |> filter(!is.na(block_2_attention)) |> nrow()` people had an attention check in block 2 (those for whom the tone survey came second)
-   * `r block2 |> filter(!is.na(block_2_attention)) |> filter(block_2_attention != "Strongly Disagree") |> nrow()` of those (`r scales:: percent(block2 |> filter(!is.na(block_2_attention)) |> filter(block_2_attention != "Strongly Disagree") |> nrow()/block2 |> filter(!is.na(block_2_attention)) |> nrow())`) failed the attention check
-   * Only `r block2 |> filter(block_2_attention != "Strongly Disagree" & block2_timing_fail) |> nrow()` failed both   
 
-
-Filter out people who failed at block2 and update flow
+Block 2 Attention: 
 ```{r}
-panel_export <- panel_export |>
-  filter(response_id %in% (block2 |> filter(is.na(block_2_attention) | block_2_attention == "Strongly Disagree") |> pull(response_id)))
-
-
 flow <- flow |>
-  mutate(passed_block2_attention = nrow(panel_export)) |> glimpse()
+  full_join(tibble(flow = "block2 attention", 
+                   n_passed = panel_clean |> 
+                     filter(response_id %in% (block2 |> filter(block_2_attention == "Strongly Disagree" || block_2_attention == "") |> pull(response_id))) |> nrow(),
+                   n_failed = panel_clean |> 
+                     filter(response_id %in% (block2 |> filter(block_2_attention != "Strongly Disagree" && !(block_2_attention == "")) |> pull(response_id)))  |> nrow()
+                            )) |>
+  print()
 
-panel_export <- panel_export |>
-  filter(response_id %in% (block2 |> filter(!block2_timing_fail) |> pull(response_id))) 
-
-flow <- flow |>
-  mutate(passed_block2_timing = nrow(panel_export)) |> glimpse()
-  
-
-
+#remove 
+panel_clean <- panel_clean |> 
+   filter(response_id %in% (block2 |> filter(block_2_attention == "Strongly Disagree" || block_2_attention == "") |> pull(response_id)))
 ```
 
 
-### Block 3 fails
-This block had both timing and attention for at least some people
+
+Block 3 Timing:
 ```{r}
 block3 <- panel_integrity |>
-  filter(response_id %in% panel_export$response_id) |>
+  filter(response_id %in% panel_clean$response_id) |>
   rowwise() |>
   mutate(block_3_timing = panel_integrity |> 
            select(ends_with(block_3)) |> 
@@ -573,53 +411,43 @@ block3 <- panel_integrity |>
            filter(response_id == panel_integrity$response_id) |> pull() ) |> 
   glimpse()
 
-#timing:
-block3 |> group_by(block_3, block3_timing_fail) |> 
-  summarise(n = n()) |>
-  mutate(prop_failed = scales::percent(n / sum(n))) |> 
-  filter(block3_timing_fail == TRUE) |>
-  select(block_3, prop_failed)
+flow <- flow |>
+  full_join(tibble(flow = "block3 timing", 
+                   n_passed = panel_clean |> 
+                     filter(response_id %in% (block3 |> filter(!block3_timing_fail) |> pull(response_id))) |> nrow(),
+                   n_failed = panel_clean |> 
+                     filter(response_id %in% (block3 |> filter(block3_timing_fail) |> pull(response_id))) |> nrow()
+                            )) |>
+  print()
 
-#attention:
-block3 |> 
-  filter(!is.na(block_3_attention)) |> nrow()
-
-
-block3 |> 
-  filter(!is.na(block_3_attention)) |>
-  filter(block_3_attention != "Strongly Disagree") |> nrow()
+#remove 
+panel_clean <- panel_clean |> 
+   filter(response_id %in% (block3 |> filter(!block3_timing_fail) |> pull(response_id)))
 
 ```
-* Proportions failing the timing check in the third block continue to dwindle.
-   * In total, `r block3 |> filter(block3_timing_fail) |> nrow()` or `r scales::percent(block3 |> filter(block3_timing_fail) |> nrow() / block3 |> nrow())` failed the timing check 
-* `r block3 |> filter(!is.na(block_3_attention)) |> nrow()` people had an attention check in block 3 (those for whom the tone survey came first)
-   * `r block3 |> filter(!is.na(block_3_attention)) |> filter(block_3_attention != "Strongly Disagree") |> nrow()` of those (`r scales:: percent(block3 |> filter(!is.na(block_3_attention)) |> filter(block_3_attention != "Strongly Disagree") |> nrow()/block3 |> filter(!is.na(block_3_attention)) |> nrow())`) failed the attention check
-   * `r block3 |> filter(block_3_attention != "Strongly Disagree" & block3_timing_fail) |> nrow()` failed both   
 
-
-
-Filter out people who failed at block3 and update flow
+Block 3 Attention: 
 ```{r}
-panel_export <- panel_export |>
-  filter(response_id %in% (block3 |> filter(is.na(block_3_attention) | block_3_attention == "Strongly Disagree") |> pull(response_id)))
-
-
 flow <- flow |>
-  mutate(passed_block3_attention = nrow(panel_export)) |> glimpse()
+  full_join(tibble(flow = "block3 attention", 
+                   n_passed = panel_clean |> 
+                     filter(response_id %in% (block3 |> filter(block_3_attention == "Strongly Disagree" || block_3_attention == "") |> pull(response_id))) |> nrow(),
+                   n_failed = panel_clean |> 
+                     filter(response_id %in% (block3 |> filter(block_3_attention != "Strongly Disagree" && !(block_3_attention == "")) |> pull(response_id)))  |> nrow()
+                            )) |>
+  print()
 
-panel_export <- panel_export |>
-  filter(response_id %in% (block3 |> filter(!block3_timing_fail) |> pull(response_id))) 
-
-flow <- flow |>
-  mutate(passed_block3_timing = nrow(panel_export)) |> glimpse()
+#remove 
+panel_clean <- panel_clean |> 
+   filter(response_id %in% (block3 |> filter(block_3_attention == "Strongly Disagree" || block_3_attention == "") |> pull(response_id)))
 ```
 
 
-### Block 4 fails
-This block had only timing checks
+
+Block 4 (Timing only)
 ```{r}
 block4 <- panel_integrity |>
-  filter(response_id %in% panel_export$response_id) |>
+  filter(response_id %in% panel_clean$response_id) |>
   rowwise() |>
   mutate(block_4_timing = panel_integrity |> 
            select(ends_with(block_4)) |> 
@@ -628,81 +456,58 @@ block4 <- panel_integrity |>
   mutate(block4_timing_fail = block_4_timing < block_4_threshold) |>
   glimpse()
 
-#timing:
-block4 |> group_by(block_4, block4_timing_fail) |> 
-  summarise(n = n()) |>
-  mutate(prop_failed = scales::percent(n / sum(n))) |> 
-  filter(block4_timing_fail == TRUE) |>
-  select(block_4, prop_failed)
-
-
-```
-* Proportions failing the timing check in the third block continue to dwindle.
-   * In total, `r block3 |> filter(block3_timing_fail) |> nrow()` or `r scales::percent(block3 |> filter(block3_timing_fail) |> nrow() / block3 |> nrow())` failed the timing check 
-
-Filter out people who failed at block 4 and update flow. This should be the final clean sample!
-```{r}
-
-panel_export <- panel_export |>
-  filter(response_id %in% (block4 |> filter(!block4_timing_fail) |> pull(response_id))) 
-
 flow <- flow |>
-  mutate(passed_block4 = nrow(panel_export)) |> glimpse()
-  
+  full_join(tibble(flow = "block4 timing", 
+                   n_passed = panel_clean |> 
+                     filter(response_id %in% (block4 |> filter(!block4_timing_fail) |> pull(response_id))) |> nrow(),
+                   n_failed = panel_clean |> 
+                     filter(response_id %in% (block4 |> filter(block4_timing_fail) |> pull(response_id))) |> nrow()
+                            )) |>
+  print()
 
+#remove 
+panel_clean <- panel_clean |> 
+   filter(response_id %in% (block4 |> filter(!block4_timing_fail) |> pull(response_id)))
 
 ```
 
-
-### Check our final sample against qualtric's
+Write out clean sample
 ```{r}
-panel_export_raw |> group_by(term) |> tally()
-
-panel_export |> nrow()
-
-qualtrics_final <- panel_export_raw |> filter(is.na(term)) 
+panel_clean |> write_csv(file.path(path_processed, str_c("panel/panel_clean_", today(), ".csv")))
 ```
 
-* qualtrics termination variable says 69 people passed. Why the discrepancy?
 
+
+## SUSAN EDA: Check our final sample against qualtric's 
 ```{r}
-#are all finished?
-qualtrics_final |> filter(!finished) |> nrow()
+qualtrics_completes <- panel_export |> filter(term == "") 
+nrow(qualtrics_completes)
 
-# any previews?
-qualtrics_final |>filter(q_chl == "preview") 
+bad_qualtrics <- qualtrics_completes |> filter(!(response_id %in% panel_clean$response_id)) 
 
-```
-* 9 people weren't finished which wasn't marked as a termination reason. That's fine, remove the unfinished people.
 
-Next check the people who they say finished, but who weren't in our final sample
-```{r}
-qualtrics_final <- qualtrics_final |> filter(finished)
-```
-* Now just `r qualtrics_final |> nrow()` people compared to our final sample of 54
+panel_export |>
+  filter(response_id %in% bad_qualtrics$response_id) |>
+  select(response_id, q_recaptcha_score, q_duplicate_respondent) |>
+  print(n=Inf)
 
-Explore those 6 more:
-```{r}
-q_why <- qualtrics_final |> filter(!(response_id %in% panel_export$response_id)) 
+#Check the completes export
+q_completes <- read_csv(tibble(path = list.files(path_panel, pattern = "completes_panel_2026", full.names = TRUE)) |> mutate(mdate = file.mtime(path)) |> filter(mdate == max(mdate)) |> pull(path)) |>
+  tail(-2) |> 
+    janitor::clean_names("snake")  |> 
+  # something happened to the naming with the health survey variables - rename them appropriately
+  rename(health_brush = health_floss,
+         health_drink = x47280739) |>
+  select(response_id, q_recaptcha_score, q_duplicate_respondent)
 
-screening |> filter(response_id %in% q_why$response_id)
+bad_completes <- q_completes$response_id[which(!(q_completes$response_id %in% panel_clean$response_id ))] |> unique()
 
-q_why$term
-q_why$finished
-q_why$q_recaptcha_score
-q_why$q_duplicate_respondent
+panel_export |> filter(response_id %in% bad_completes) |> glimpse()
 
 ```
-* All 6 were removed by us before the screening checks
-* Four had a recaptcha score < .5, and a 5th was NA on recaptcha (which we filtered out)
-* One was flagged as a duplicate respondent
 
-Filter those out and check again
-```{r}
-q_why |> filter(q_recaptcha_score > .5) |> filter(is.na(q_duplicate_respondent)) |> nrow()
-```
-
-None left, that explains all 
+* Qualtrics has still not filtered out all captcha fails and duplicate reponses. We need to regularly send them these response_ID_ids to be removed.
+* I need to add columns to determine the fail reason for the others
 
 
 ### Location checks
