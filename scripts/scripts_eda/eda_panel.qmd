@@ -517,14 +517,18 @@ Ask them to remove:
 Does the city/state that they reported match their current lat/long?
 
 ```{r}
+#Check for errors
+panel_clean$id_location_1_text
+panel_clean$id_location_2_text
+
 #Fix a misspelling first
-panel_export$id_location_1[panel_export$id_location_1 == "Tuscon"] <-  "Tucson"
+panel_clean$id_location_1_text[panel_clean$id_location_1_text == "Tuscon"] <-  "Tucson"
 
 # need tidygeocoder package this does take a while
-panel_location <- panel_export |> 
+panel_location <- panel_clean |> 
   select(response_id, actual_latitude = location_latitude, actual_longitude = location_longitude, 
          ip = ip_address, grocery_name = q12_grocer,
-         grocery_location = q12_grocer_2, reported_city = id_location_1, reported_state = id_location_2) |>
+         grocery_location = q12_grocer_2, reported_city = id_location_1_text, reported_state = id_location_2_text) |>
   tidygeocoder::geocode(city = reported_city, state = reported_state, method = "osm") |>
   rename(reported_city_latitude = lat, reported_city_longitude = long) |>
   mutate(euclidian_dist = sqrt((actual_latitude - reported_city_latitude)^2 + (actual_longitude - reported_city_longitude)^2))
@@ -606,19 +610,19 @@ map_places |>  plot_places(color = "color", label_column = "response_id")
 
 Tone survey vs message survey randomizer
 ```{r}
-panel_export |> group_by(tone_order) |> tally()
+panel_clean |> group_by(tone_order) |> tally()
 ```
 
 
 Survey randomizer
 ```{r}
-panel_export |> group_by(survey_version) |> tally()
+panel_clean |> group_by(survey_version) |> tally()
 ```
 
 
 Block order randomizer
 ```{r}
-panel_export |> group_by(block_order_hi, block_order_hd, block_order_li) |> tally()
+panel_clean |> group_by(block_order_hi, block_order_hd, block_order_li) |> tally()
 ```
 
 * It's not as equally randomized as I'd hope but I'm guessing that's due to the huge number of exclusions and that it will even out by the time we get the full sample
