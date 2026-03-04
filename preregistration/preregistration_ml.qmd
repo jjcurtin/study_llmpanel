@@ -33,18 +33,6 @@ Participants will be deemed ineligible for study participation using the followi
 
 4. **Failure to accurately respond to an attention check** which will be presented near the middle of the survey.
 
-### Post-data Collection Exclusion Criteria
-
-Participants will be asked in the demographics survey to identify the name of their favorite grocery store and the street it is on. At the end of the survey, participants will be asked to list the city and state in which they currently reside. Grocery store location will be cross-referenced with self-reported location to determine authenticity of responding. Latitude and longitude data collected via Qualtrics (based on city/zip code) will be compared against self-reported city.
-
-Acceptable distance thresholds for both grocery store distance and Qualtrics-identified distance from self-reported location will be determined following exploratory data analysis completed using training data. Cross-validation leveraging training data will then be used to evaluate threshold and other decision rules, with exclusions being determined at the within-fold level.
-
-- Many additional criteria could be used to determine invalid data; given the myriad possibilities it is impossible to apriori define and preregister such criteria; instead we propose to use a simple cross validation process to identify those critera that result in training data that support training models that predict well into held-out data, i.e., models that are closest to the data generating process for message ratings. We will use simple kfold cross validation to evaluate model configurations for the baseline model that differ on exclusion criteria. We will select the exclusion criteria from the model configuration that produces the baseline model that predicts best into held-out data. We chose to use the baseline model for this decision-making process regarding exclusdion criteria to avoid any possible optimization bias surrounding this decision from impacting the performance of our demographics and preferences models.
-- Considering all statistical algorithms th at we will consider in primary nested loop, as many combinations of exclusion criteria
-- Might make the most sense to use the baseline model for this to protect against concerns that we are optimizing the exclusion criteria to produce a preferences model that performs better.
-
-No modeling will be completing until final post-data collection exclusion criteria have been determined. Any additional exclusion criteria determined will be reported in the final manuscript.
-
 ### Survey Structure
 
 After completing the two screening surveys, participants will complete three additional surveys. The first survey will collect demographic characteristics (e.g., age, sex, race, income). The next two surveys will be presented in a randomized order.
@@ -80,6 +68,20 @@ The first model ("baseline" model) will predict message helpfulness ratings base
 The first primary aim will be assessed by comparing the performance of the demographics model against the baseline model. The second primary aim will be assessed by comparing the performance of the preferences model against the demographics model.
 
 The secondary aim will compare performance of the preferences model fit separately in the two halves of the survey sample: participants who completed the preferences survey *prior* to rating messages and those who rated messages *prior* to identifying their preferences.
+
+### Post-data Collection Exclusion Criteria 
+
+Prior to conducting a formal evaluation of our models, our first step will be to identify invalid data which was not captured via our extensive screening and response-checking process. Here we consider two scenarios we expect to encounter during this process.
+
+First, participants will be asked in the demographics survey to identify the name of their favorite grocery store and the street it is on. At the end of the survey, participants will be asked to list the city and state in which they currently reside. Grocery store location will be cross-referenced with self-reported location to determine authenticity of responding. Latitude and longitude data collected via Qualtrics (based on city/zip code) will be compared against self-reported city. Acceptable distance thresholds for both grocery store distance and Qualtrics-identified distance from self-reported location will be determined following data collection.
+
+Second, many additional criteria could be used to determine other indicators of invalid data. Given the myriad possibilities, it is impossible to a priori define and preregister such criteria.
+
+To critically evaluate potential post-data collection exclusion criteria, we propose to use a simple cross validation approach to identify criteria that result in training data which lead to models that predict well into held-out data (i.e., models that are closest to the data generating process for message ratings). We will use simple *k* fold cross validation to evaluate model configurations for the baseline model that differ on exclusion criteria.
+
+We will select the final exclusion criteria from the model configuration that produces the baseline model that predicts best into held-out data. We elect to use the baseline model for this decision-making process to minimize potential impacts of optimization bias on the performance of our demographics and preferences models.
+
+No model evaluation, only model selection, will be completed until final post-data collection exclusion criteria have been determined. Any additional exclusion criteria determined will be reported in the final manuscript.
 
 ### Model Selection and Evaluation
 
