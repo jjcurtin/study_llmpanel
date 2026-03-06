@@ -42,6 +42,7 @@ Open the cleaned dataframe and remove variables that aren't needed for modelling
 
 panel_clean <- read_csv(tibble(path = list.files(str_c(path_processed, "/panel"), pattern = "^panel_clean_", full.names = TRUE)) |> mutate(mdate = file.mtime(path)) |> filter(mdate == max(mdate)) |> pull(path)) |>
   select(-c(response_set:ip_address,
+            start_date, end_date, # remove start and end dates?
             recipient_last_name:q_quality_score, 
             q_ballot_box_stuffing,
             message_order:block_order_li,
@@ -51,7 +52,6 @@ panel_clean <- read_csv(tibble(path = list.files(str_c(path_processed, "/panel")
             q12_grocer_1_text,q12_grocer_2_text,
             contains("timing"),
             ends_with("attention"),
-            `_8`,
             id_location_1_text, id_location_2_text,
             starts_with("ro_"),
             location_latitude:location_accuracy,
@@ -66,13 +66,23 @@ panel_clean <- read_csv(tibble(path = list.files(str_c(path_processed, "/panel")
 
 Combine all messages into a single column, pivoting longer so person has 30 rows
 ```{r}
-
-
-
 panel_long <- panel_clean |>
   pivot_longer(cols= `1_hi_1_fl`:`4_li_10_in`, values_to = "message_rating", names_to = "message_type") |>
   distinct() |>
   filter(!is.na(message_rating)) |>
+  mutate(q4_sexual_orientation = coalesce(q4_sexual_orientation_text, q4_sexual_orientation)) |>
+  select(-q4_sexual_orientation_text) |> # coalesce these two columns if the text is not NA (should we code this as NA?)
+  mutate(numeric_household_income = case_when(
+    q8_household_income == "Less than $25,000" ~ 15000,
+    q8_household_income == "$25,000 - $37,499" ~ 30000,
+    q8_household_income == "$37,500 - $49,999" ~ 45000,
+    q8_household_income == "$50,000 - $74,999" ~ 60000,
+    q8_household_income == "$75,000 - $99,999" ~ 75000,
+    q8_household_income == "$100,000 - $149,999" ~ 125000,
+    q8_household_income == "$150,000 - $199,999" ~ 175000,
+    q8_household_income == "$200,000 or more" ~ 200000,
+    .default = NA_real_)) |>
+  mutate(estimated_average_income = numeric_household_income / as.numeric(q9_people_in_household)) |>
   separate(message_type, sep ="_", into = c("survey_version", "context", "q_num", "tone_style")) |> 
   mutate(style = substr(tone_style, 1,1)) |>
   mutate(tone = substr(tone_style, 2,2)) |>  
@@ -93,6 +103,6 @@ panel_long <- panel_clean |>
 
 Save out
 ```{r}
-panel_long |> write_csv(file.path(path_processed, "panel/panel_long.csv"))
+# panel_long |> write_csv(file.path(path_processed, "panel/panel_long.csv"))
 ```
 
