@@ -502,7 +502,9 @@ q_completes <- read_csv(tibble(path = list.files(path_panel, pattern = "complete
 
 bad_completes <- q_completes$response_id[which(!(q_completes$response_id %in% panel_clean$response_id ))] |> unique()
 
-panel_export |> filter(response_id %in% bad_completes) |> glimpse()
+panel_clean |> filter(response_id %in% bad_completes) |> 
+  select(response_id, end_date, q_recaptcha_score, q_duplicate_respondent) |> 
+  arrange(q_recaptcha_score, q_duplicate_respondent) |>print(n=Inf)
 
 ```
 
@@ -511,6 +513,22 @@ panel_export |> filter(response_id %in% bad_completes) |> glimpse()
 Ask them to remove:
 * 2026_0227: R_3dxTxqxUzeApWSt, captcha = .4
 
+* 2026-0302:
+Low Captcha:
+R_6rk3ttwoIH9iBXN 2026-03-01 14:04:43 0.20000000298023224 NA                    
+R_7QSrDuxb5geoExg 2026-03-01 17:10:05 0.20000000298023224 NA                    
+R_196SKPJamOK692f 2026-03-01 18:38:42 0.20000000298023224 NA                    
+R_6QcS94QBIpbsGYC 2026-03-01 11:26:53 0.4000000059604645  NA                    
+R_1OgrFZaKCJHnUwp 2026-03-01 18:34:47 0.4000000059604645  NA                    
+R_3M4K8HL6ZdX6FUO 2026-03-01 19:09:24 0.4000000059604645  NA                    
+
+Duplicates:
+R_7U4rzxse0Bg2zbp 2026-03-01 18:34:28 0.5                 true                  
+R_7kyT9KXmbsIVSQw 2026-03-01 00:24:11 0.6000000238418579  true                  
+R_1iPvdyduFeYj87n 2026-03-01 16:50:25 0.800000011920929   true                  
+R_30uZ89aliPuZzjY 2026-03-01 14:12:07 1                   true                  
+R_1agkcq4KNRhiP11 2026-03-01 17:08:18 1                   true                  
+R_6fRAK48Z7vpUn05 2026-03-01 22:52:46 1                   true    
 
 ### Location checks
 
