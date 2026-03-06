@@ -70,8 +70,35 @@ token_qualtrics <-
 Download results by API and clean variable names
 
 ```{r}
-panel_export_raw <- download_qualtrics(survey_id = "SV_dbAKSR75ATWSo2q", api_token = token_qualtrics,
-                             display_progress = FALSE) |>
+panel_export_raw <- NULL
+
+# Retry on intermittent 404s from Qualtrics until a successful download. I haven't gotten a 404 so I don't know if this works fully
+# but it works on successful runs
+repeat {
+  panel_export_raw <- tryCatch(
+    {
+      download_qualtrics(
+        survey_id = "SV_dbAKSR75ATWSo2q",
+        api_token = token_qualtrics,
+        display_progress = FALSE
+      )
+    },
+    error = function(e) {
+      if (str_detect(conditionMessage(e), "404")) {
+        message("Qualtrics returned 404. Retrying in 5 seconds...")
+        Sys.sleep(5)
+        return(NULL)
+      }
+      stop(e)
+    }
+  )
+
+  if (!is.null(panel_export_raw)) {
+    break
+  }
+}
+
+panel_export_raw <- panel_export_raw |>
   janitor::clean_names("snake")  |> 
   # something happened to the naming with the health survey variables - rename them appropriately
   rename(health_brush = health_floss,
