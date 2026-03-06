@@ -77,7 +77,7 @@ panel_export_raw <- download_qualtrics(survey_id = "SV_dbAKSR75ATWSo2q", api_tok
   rename(health_brush = health_floss,
          health_drink = x47280739) |>
   # remove text intro variables
-  select(-c(intro_1, audit_inst, q89, description,intro_tone, intro_context, x, x_1, x_2, x_3, x_4, x_5, x_6, x_7, x_9, x_9, x_10, x_11)) |>
+  select(-c(intro_1, audit_inst, q89, description,intro_tone, intro_context, x, x_1, x_2, x_3, x_4, x_5, x_6, x_7, x_8, x_9, x_10, x_11)) |>
     rename_with(~ str_replace_all(.x, pattern = ("^x"), replacement ="")) |>
     rename_with(~ str_replace_all(.x, pattern = "_1$", replacement ="")) |>
   #fix one that got caught by the rename  
@@ -494,5 +494,9 @@ panel_clean <- panel_clean |>
 Write out clean sample
 ```{r}
 panel_clean |> write_csv(file.path(path_processed, str_c("panel/panel_clean_", today(), ".csv")))
+```
+
+```{r}
+
 ```
 
