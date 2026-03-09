@@ -318,6 +318,9 @@ panel_clean <- panel_clean |>
 
 Has anyone got this far who was under 18 and screened out on demographics?
 ```{r}
+panel_clean <- panel_clean |>
+  mutate(q1_age = as.numeric(q1_age))
+
 flow <- flow |>
   full_join(tibble(flow = "over 18", 
                    n_passed = panel_clean |> 
@@ -517,6 +520,45 @@ panel_clean <- panel_clean |>
    filter(response_id %in% (block4 |> filter(!block4_timing_fail) |> pull(response_id)))
 
 ```
+
+Clean some variable names
+```{r}
+panel_clean <-
+  panel_clean |> 
+  mutate(across(q4_sexual_orientation:q5_race_ethnicity_7_text, ~na_if(.x, ""))) |> 
+  mutate(dem_orientation = if_else(!is.na(q4_sexual_orientation), q4_sexual_orientation, q4_sexual_orientation_text)) |>
+  select(-q4_sexual_orientation, -q4_sexual_orientation_text) |>
+  rowwise() |>
+  mutate(sum_race = sum(!is.na(q5_race_ethnicity), !is.na(q5_race_ethnicity_2), !is.na(q5_race_ethnicity_4), !is.na(q5_race_ethnicity_5), !is.na(q5_race_ethnicity_6))) |> 
+  rowwise() |>
+  mutate(dem_race_other = if_else(q5_race_ethnicity_7 == "Other:", "Other", NA),
+           dem_hispanic = if_else(!is.na(q5_race_ethnicity_3), "Yes", "No")) |>
+  select(-q5_race_ethnicity_3, -q5_race_ethnicity_7, -q5_race_ethnicity_7_text) |>
+  rowwise() |>
+       mutate(dem_race = case_when(!is.na(q5_race_ethnicity) & sum_race == 1 ~ q5_race_ethnicity,
+                                   !is.na(q5_race_ethnicity_2) & sum_race == 1 ~ q5_race_ethnicity_2,
+                                   !is.na(q5_race_ethnicity_4) & sum_race == 1 ~ q5_race_ethnicity_4,
+                                   !is.na(q5_race_ethnicity_5)  & sum_race == 1 ~ q5_race_ethnicity_5,
+                                   !is.na(q5_race_ethnicity_6)  & sum_race == 1 ~ q5_race_ethnicity_6)) |> 
+  rowwise() |>
+        mutate(dem_race = if_else(sum_race > 1,"More than one race", dem_race)) |>
+        mutate(dem_race = if_else(dem_race_other == "Other", "Other", dem_race)) |>
+         select(-c(sum_race, dem_race_other, q5_race_ethnicity, q5_race_ethnicity_2,q5_race_ethnicity_4, q5_race_ethnicity_5, q5_race_ethnicity_6)) |>
+  rename(dem_age = q1_age,
+         dem_sex = q2_sex_at_birth ,
+         dem_identity = q3_gender_identity , 
+         dem_education = q6_education, 
+         dem_student = q7_student_status,
+         dem_income = q8_household_income,
+         dem_n_household = q9_people_in_household,
+         dem_marital_status = q10_marital_status, 
+         dem_minority = q11_un_minoritization) |> 
+  relocate(starts_with("dem_"), .after = consent_agree) |>
+  glimpse()
+```
+
+
+
 
 Write out clean sample
 ```{r}
