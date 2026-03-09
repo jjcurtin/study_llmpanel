@@ -54,8 +54,8 @@ devtools::source_url("https://github.com/jjcurtin/lab_support/blob/main/fun_gps.
 # source("functions/fun_opt.R")
 
 path_qualtrics <- format_path("optimize/data_raw/qualtrics")
-path_panel <- format_path("optimize/data_raw/panel")
-path_processed <- format_path("optimize/data_processed")
+path_panel <- format_path("llmpanel/data_raw/panel")
+path_processed <- format_path("llmpanel/data_processed")
 path_credentials <- format_path("other")
 ```
 

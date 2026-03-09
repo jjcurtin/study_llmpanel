@@ -1,0 +1,28 @@
+---
+title: "check_features"
+format: html
+---
+
+# open up clean data file
+
+# load packages
+
+# source training_controls_panel.R for access to format_data and build_recipe
+```{r}
+source("training_controls_panel.R")
+```
+
+```{r}
+
+# make a loop here for each of 3
+config <- tibble(algorithm = "glmnet", feature_set = "base")
+
+df <- df |> format_data(config)
+
+rec <- build_recipe(df, config)
+
+rec_prep <- rec |> prep(training = df)
+
+train <- rec_prep |> bake(new_data = NULL)
+
+```
