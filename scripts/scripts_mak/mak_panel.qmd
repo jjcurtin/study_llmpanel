@@ -72,8 +72,6 @@ panel_long <- panel_clean |>
   pivot_longer(cols= `1_hi_1_fl`:`4_li_10_in`, values_to = "message_rating", names_to = "message_type") |>
   distinct() |>
   filter(!is.na(message_rating)) |>
-  mutate(q4_sexual_orientation = coalesce(q4_sexual_orientation_text, q4_sexual_orientation)) |>
-  select(-q4_sexual_orientation_text) |> # coalesce these two columns if the text is not NA (should we code this as NA?)
   #mutate(numeric_household_income = case_when(
     #q8_household_income == "Less than $25,000" ~ 15000,
     #q8_household_income == "$25,000 - $37,499" ~ 30000,
