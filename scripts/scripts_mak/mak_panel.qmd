@@ -72,17 +72,17 @@ panel_long <- panel_clean |>
   pivot_longer(cols= `1_hi_1_fl`:`4_li_10_in`, values_to = "message_rating", names_to = "message_type") |>
   distinct() |>
   filter(!is.na(message_rating)) |>
-  #mutate(numeric_household_income = case_when(
-    #q8_household_income == "Less than $25,000" ~ 15000,
-    #q8_household_income == "$25,000 - $37,499" ~ 30000,
-    #q8_household_income == "$37,500 - $49,999" ~ 45000,
-    #q8_household_income == "$50,000 - $74,999" ~ 60000,
-    #q8_household_income == "$75,000 - $99,999" ~ 75000,
-    #q8_household_income == "$100,000 - $149,999" ~ 125000,
-    #q8_household_income == "$150,000 - $199,999" ~ 175000,
-    #q8_household_income == "$200,000 or more" ~ 200000,
-    #.default = NA_real_)) |>
-  #mutate(estimated_average_income = numeric_household_income / as.numeric(q9_people_in_household)) #|>
+  mutate(numeric_household_income = case_when(
+  dem_income == "Less than $25,000" ~ 15000,
+  dem_income == "$25,000 - $37,499" ~ 30000,
+  dem_income == "$37,500 - $49,999" ~ 45000,
+  dem_income == "$50,000 - $74,999" ~ 60000,
+  dem_income == "$75,000 - $99,999" ~ 75000,
+  dem_income == "$100,000 - $149,999" ~ 125000,
+  dem_income == "$150,000 - $199,999" ~ 175000,
+  dem_income == "$200,000 or more" ~ 200000,
+  .default = NA_real_)) |>
+  mutate(estimated_average_income = numeric_household_income / as.numeric(dem_n_household)) #|>
   separate(message_type, sep ="_", into = c("survey_version", "context", "q_num", "tone_style")) |> 
   mutate(style = substr(tone_style, 1,1)) |>
   mutate(tone = substr(tone_style, 2,2)) |>  
