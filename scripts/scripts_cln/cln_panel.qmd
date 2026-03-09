@@ -53,7 +53,7 @@ devtools::source_url("https://github.com/jjcurtin/lab_support/blob/main/fun_gps.
 #source function file
 # source("functions/fun_opt.R")
 
-path_qualtrics <- format_path("optimize/data_raw/qualtrics")
+# path_qualtrics <- format_path("optimize/data_raw/qualtrics")
 path_panel <- format_path("llmpanel/data_raw/panel")
 path_processed <- format_path("llmpanel/data_processed")
 path_credentials <- format_path("other")
@@ -531,29 +531,35 @@ panel_clean <-
   rowwise() |>
   mutate(sum_race = sum(!is.na(q5_race_ethnicity), !is.na(q5_race_ethnicity_2), !is.na(q5_race_ethnicity_4), !is.na(q5_race_ethnicity_5), !is.na(q5_race_ethnicity_6))) |> 
   rowwise() |>
-  mutate(dem_race_other = if_else(q5_race_ethnicity_7 == "Other:", "Other", NA),
-           dem_hispanic = if_else(!is.na(q5_race_ethnicity_3), "Yes", "No")) |>
-  select(-q5_race_ethnicity_3, -q5_race_ethnicity_7, -q5_race_ethnicity_7_text) |>
+        mutate(dem_race_multiple = if_else(sum_race > 1,"More than one race", NA), 
+               dem_hispanic = if_else(!is.na(q5_race_ethnicity_3), "Yes", "No")) |>
+  select(-sum_race, -q5_race_ethnicity_3) |>
   rowwise() |>
-       mutate(dem_race = case_when(!is.na(q5_race_ethnicity) & sum_race == 1 ~ q5_race_ethnicity,
-                                   !is.na(q5_race_ethnicity_2) & sum_race == 1 ~ q5_race_ethnicity_2,
-                                   !is.na(q5_race_ethnicity_4) & sum_race == 1 ~ q5_race_ethnicity_4,
-                                   !is.na(q5_race_ethnicity_5)  & sum_race == 1 ~ q5_race_ethnicity_5,
-                                   !is.na(q5_race_ethnicity_6)  & sum_race == 1 ~ q5_race_ethnicity_6)) |> 
-  rowwise() |>
-        mutate(dem_race = if_else(sum_race > 1,"More than one race", dem_race)) |>
-        mutate(dem_race = if_else(dem_race_other == "Other", "Other", dem_race)) |>
-         select(-c(sum_race, dem_race_other, q5_race_ethnicity, q5_race_ethnicity_2,q5_race_ethnicity_4, q5_race_ethnicity_5, q5_race_ethnicity_6)) |>
+       mutate(dem_race = case_when(!is.na(q5_race_ethnicity) & is.na(dem_race_multiple) ~ q5_race_ethnicity,
+                                   !is.na(q5_race_ethnicity_2) & is.na(dem_race_multiple) ~ q5_race_ethnicity_2,
+                                   !is.na(q5_race_ethnicity_4) & is.na(dem_race_multiple) ~ q5_race_ethnicity_4,
+                                   !is.na(q5_race_ethnicity_5)  & is.na(dem_race_multiple) ~ q5_race_ethnicity_5,
+                                   !is.na(q5_race_ethnicity_6)  & is.na(dem_race_multiple) ~ q5_race_ethnicity_6,
+                                   !is.na(q5_race_ethnicity_7)  & is.na(dem_race_multiple) ~ q5_race_ethnicity_7,
+                                   !is.na(dem_race_multiple) ~ dem_race_multiple,
+                                   !is.na(dem_race_multiple) & is.na(q5_race_ethnicity_7) & !is.na(dem_hispanic) ~ "Hispanic or Latino")) |> 
   rename(dem_age = q1_age,
          dem_sex = q2_sex_at_birth ,
          dem_identity = q3_gender_identity , 
+         dem_race_native_alaskan = q5_race_ethnicity, 
+         dem_race_asian = q5_race_ethnicity_2 ,
+         dem_race_hawaiian_pacific = q5_race_ethnicity_4 ,
+         dem_race_black = q5_race_ethnicity_5 ,
+         dem_race_white = q5_race_ethnicity_6 ,
+         dem_race_other = q5_race_ethnicity_7 ,
+         dem_race_other_text = q5_race_ethnicity_7_text ,
          dem_education = q6_education, 
          dem_student = q7_student_status,
          dem_income = q8_household_income,
          dem_n_household = q9_people_in_household,
          dem_marital_status = q10_marital_status, 
          dem_minority = q11_un_minoritization) |> 
-  relocate(starts_with("dem_"), .after = consent_agree) |>
+    relocate(starts_with("dem_"), .after = consent_agree) |>
   glimpse()
 ```
 
@@ -562,7 +568,7 @@ panel_clean <-
 
 Write out clean sample
 ```{r}
-panel_clean |> write_csv(file.path(path_processed, str_c("panel/panel_clean_", today(), ".csv")))
+panel_clean |> write_csv(file.path(path_processed, str_c("panel_clean_", today(), ".csv")))
 ```
 
 ```{r}
