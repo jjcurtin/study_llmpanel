@@ -9,13 +9,17 @@ format: html
 
 # source training_controls_panel.R for access to format_data and build_recipe
 ```{r}
-source("training_controls_panel.R")
+source("./_chtc/training_controls_panel.R")
 ```
 
 ```{r}
 
 # make a loop here for each of 3
 config <- tibble(algorithm = "glmnet", feature_set = "base")
+
+path_data <- format_path("llmpanel/data_processed/")
+path_trn <- "panel_long.csv"
+df <- read_csv(file.path(path_data, path_trn))
 
 df <- df |> format_data(config)
 
