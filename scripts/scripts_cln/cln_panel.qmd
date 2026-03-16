@@ -559,6 +559,17 @@ panel_clean <-
          dem_n_household = q9_people_in_household,
          dem_marital_status = q10_marital_status, 
          dem_minority = q11_un_minoritization) |> 
+  
+  # clean up gender identity column (TODO: how to handle "Trans" entry)
+  mutate(
+    dem_identity = case_when(
+      is.na(dem_identity) ~ NA_character_,
+      str_to_lower(dem_identity) %in% c("man", "male") ~ "Male",
+      str_to_lower(dem_identity) %in% c("woman", "female", "female born female") ~ "Female",
+      TRUE ~ str_to_sentence(str_to_lower(dem_identity))
+    )
+  ) |>
+  
     relocate(starts_with("dem_"), .after = consent_agree) |>
   glimpse()
 ```
@@ -570,8 +581,3 @@ Write out clean sample
 ```{r}
 panel_clean |> write_csv(file.path(path_processed, str_c("panel_clean_", today(), ".csv")))
 ```
-
-```{r}
-
-```
-
