@@ -2,9 +2,12 @@
 
 # NOTES------------------------------
 
-library(stringr)
-library(dplyr)
 library(tidymodels)
+
+options(conflicts.policy = "depends.ok")
+library(stringr, exclude = "fixed")
+library(dplyr)
+library(recipes)
 source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
 
 # SET GLOBAL PARAMETERS--------------------
@@ -132,7 +135,7 @@ format_data <- function (df, config){
   
   df <- df |> 
     select(-subid, -audit_score, -tone_order, -context, 
-           -survey_version, -q_total_duration, -message_rating, -q7_user_input)  # TODO: review unused vars 
+           -survey_version, -q_total_duration, -message_rating, -q7_user_input, -dem_income)
   
   if (str_detect(config$feature_set, "base")) {
     df <- df |> 
@@ -159,7 +162,7 @@ build_recipe <- function(d, config) {
   feature_set <- config$feature_set
   
   # Set recipe steps generalizable to all model configurations
-  rec <- recipe(y ~ ., data = d)
+  rec <- recipes::recipe(y ~ ., data = d)
 
   rec <- rec |> 
     step_impute_median(all_numeric_predictors()) |>  
