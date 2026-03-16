@@ -3,23 +3,34 @@ title: "check_features"
 format: html
 ---
 
-# open up clean data file
-
 # load packages
+```{r}
+library(tidyverse)
+
+options(conflicts.policy = "depends.ok")
+library(stringr, exclude = "fixed")
+library(dplyr, exclude = "col_factor")
+library(recipes, exclude = "fixed")
+
+devtools::source_url("https://github.com/jjcurtin/lab_support/blob/main/fun_eda.R?raw=true")
+devtools::source_url("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
+```
 
 # source training_controls_panel.R for access to format_data and build_recipe
 ```{r}
 source("./_chtc/training_controls_panel.R")
 ```
 
+# open up clean data file
 ```{r}
-
-# make a loop here for each of 3
-config <- tibble(algorithm = "glmnet", feature_set = "base")
-
 path_data <- format_path("llmpanel/data_processed/")
 path_trn <- "panel_long.csv"
 df <- read_csv(file.path(path_data, path_trn))
+```
+
+```{r}
+
+config <- tibble(algorithm = "glmnet", feature_set = "base")
 
 df <- df |> format_data(config)
 
