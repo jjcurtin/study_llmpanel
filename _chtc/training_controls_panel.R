@@ -80,14 +80,59 @@ hp3_xgboost <-  seq(33, 200, by = 33)  # mtry <- note: will change
 # FORMAT DATA-----------------------------------------
 format_data <- function (df, config){
   
-  df <- df |>  
-    rename(y = !!y_col_name)
+  # df <- df |>  
+  #   rename(y = !!y_col_name)
   
-  # TODO: make y numeric
+  # make y numeric
+  df <- df |> 
+    mutate(y = case_when(
+      message_rating == "Strongly Disagree" ~ 0,
+      message_rating == "Disagree" ~ 1,
+      message_rating == "Somewhat Disagree" ~ 2,
+      message_rating == "Neutral" ~ 3,
+      message_rating == "Somewhat Agree" ~ 4,
+      message_rating == "Agree" ~ 5,
+      message_rating == "Strongly Agree" ~ 6,
+      .default = NA_real_))
+  
+  # also make the message preferences numeric
+  q_cols <- c(
+    "q1_legitimizing",
+    "q2_self_efficacy",
+    "q3_acknowledging",
+    "q4_value_affirmation",
+    "q5_norms"
+  )
+  
+  for (col in intersect(q_cols, names(df))) {
+    df[[col]] <- case_when(
+      df[[col]] == "Strongly Disagree" ~ 0,
+      df[[col]] == "Disagree" ~ 1,
+      df[[col]] == "Somewhat Disagree" ~ 2,
+      df[[col]] == "Neutral" ~ 3,
+      df[[col]] == "Somewhat Agree" ~ 4,
+      df[[col]] == "Agree" ~ 5,
+      df[[col]] == "Strongly Agree" ~ 6,
+      .default = NA_real_
+    )
+  }
+  
+  # and formality
+  df <- df |> 
+    mutate(q6_formality = case_when(
+      q6_formality == "Strongly Prefer Informal" ~ 0,
+      q6_formality == "Moderately Prefer Informal" ~ 1,
+      q6_formality == "Slightly Prefer Informal" ~ 2,
+      q6_formality == "Neutral" ~ 3,
+      q6_formality == "Slightly Prefer Formal" ~ 4,
+      q6_formality == "Moderately Prefer Formal" ~ 5,
+      q6_formality == "Strongly Prefer Formal" ~ 6,
+      .default = NA_real_
+    ))
   
   df <- df |> 
     select(-subid, -audit_score, -tone_order, -context, 
-           -survey_version, -q_total_duration)  # TODO: review unused vars 
+           -survey_version, -q_total_duration, -message_rating, -q7_user_input)  # TODO: review unused vars 
   
   if (str_detect(config$feature_set, "base")) {
     df <- df |> 
@@ -95,7 +140,7 @@ format_data <- function (df, config){
   }
   if (str_detect(config$feature_set, "demo")) {
     df <- df |> 
-      select(y, tone, style, starts_with("q")) 
+      select(y, tone, style, starts_with("dem_")) 
   }
   # pref model uses all features so no need to remove
   
