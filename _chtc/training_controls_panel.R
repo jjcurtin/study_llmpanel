@@ -16,7 +16,7 @@ algorithm <- "glmnet"  # glmnet, random_forest, xgboost
 feature_set <- c("base", "demo", "pref")
 seed_splits <- 102030
 ml_mode <- "regression"   # regression or classification
-configs_per_job <- 50 # reduced from 50 to 10 for 1 hour rolls bc took almost 2 days.  Back to 50 for 24 hour rolls
+configs_per_job <- 50
 
 # CHTC SPECIFIC CONTROLS----------------------------
 username <- "jjcurtin" # for setting staging directory (until we have group staging folder)
@@ -37,9 +37,9 @@ resample <- "none" # no resampling; regression problem
 # CV SETTINGS---------------------------------
 cv_resample_type <- "nested" # can be boot, kfold, or nested
 cv_resample = NULL # can be repeats_x_folds (e.g., 1_x_10, 10_x_10) or number of bootstraps (e.g., 100)
-cv_inner_resample <- "1_x_10" # can also be a single number for bootstrapping (i.e., 100)
+cv_inner_resample <- "2_x_5" # can also be a single number for bootstrapping (i.e., 100)
 cv_outer_resample <- "6_x_5" # outer resample will always be kfold
-cv_group <- NULL # set to NULL if not grouping
+cv_group <- "subid" # set to NULL if not grouping
 cv_strat <- FALSE 
 
 cv_name <- if_else(cv_resample_type == "nested",
@@ -59,7 +59,7 @@ path_data <- format_path("llmpanel/data_processed/")
 data_trn <- "panel_long.csv"
 
 # ALGORITHM-SPECIFIC HYPERPARAMETERS-----------
-hp1_glmnet <- c(0, seq(.1, 1, length.out = 11)) # alpha (mixture)
+hp1_glmnet <- seq(0, 1, length.out = 11) # alpha (mixture)
 hp2_glmnet_min <- -8 # min for penalty grid - will be passed into exp(seq(min, max, length.out = out))
 hp2_glmnet_max <- 2 # max for penalty grid
 hp2_glmnet_out <- 200 # length of penalty grid
@@ -81,7 +81,7 @@ hp3_xgboost <-  seq(33, 200, by = 33)  # mtry <- note: will change
  
 
 # FORMAT DATA-----------------------------------------
-format_data <- function (df, config){
+format_data <- function (df){
   
   # df <- df |>  
   #   rename(y = !!y_col_name)
@@ -134,17 +134,10 @@ format_data <- function (df, config){
     ))
   
   df <- df |> 
-    select(-subid, -audit_score, -tone_order, -context, 
+    select(-audit_score, -tone_order, -context, 
            -survey_version, -q_total_duration, -message_rating, -q7_user_input, -dem_income)
   
-  if (str_detect(config$feature_set, "base")) {
-    df <- df |> 
-      select(y, tone, style) 
-  }
-  if (str_detect(config$feature_set, "demo")) {
-    df <- df |> 
-      select(y, tone, style, starts_with("dem_")) 
-  }
+
   # pref model uses all features so no need to remove
   
   return(df)
@@ -161,8 +154,19 @@ build_recipe <- function(d, config) {
   algorithm <- config$algorithm
   feature_set <- config$feature_set
   
+  # use tidyverse (rather than recipe) for selection because its easier
+  if (str_detect(config$feature_set, "base")) {
+    d <- d |> 
+      select(subid, y, tone, style) 
+  }
+  if (str_detect(config$feature_set, "demo")) {
+    d <- d |> 
+      select(subid, y, tone, style, starts_with("dem_")) 
+  }
+  
   # Set recipe steps generalizable to all model configurations
-  rec <- recipes::recipe(y ~ ., data = d)
+  rec <- recipe(y ~ ., data = d) |> 
+    step_rm(subid)  # needed to retain until now for grouped CV in splits
 
   rec <- rec |> 
     step_impute_median(all_numeric_predictors()) |>  
