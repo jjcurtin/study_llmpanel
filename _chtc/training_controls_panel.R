@@ -1,9 +1,6 @@
 # Training controls for EMA study
 
 # NOTES------------------------------
-
-library(tidymodels)
-
 options(conflicts.policy = "depends.ok")
 library(stringr, exclude = "fixed")
 library(dplyr)
