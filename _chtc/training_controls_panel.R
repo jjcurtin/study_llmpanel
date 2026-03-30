@@ -1,16 +1,12 @@
-# Training controls for EMA study
+# Training controls for LLMPanel study
 
 # NOTES------------------------------
-options(conflicts.policy = "depends.ok")
-library(stringr, exclude = "fixed")
-library(dplyr)
-library(recipes)
 source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
 
 # SET GLOBAL PARAMETERS--------------------
 version <- "v1"
-algorithm <- "glmnet"  # glmnet, random_forest, xgboost
-feature_set <- c("base", "demo", "pref")
+algorithm <- "xgboost"  # glmnet, random_forest, xgboost
+feature_set <- c("base", "dem", "pref")
 seed_splits <- 102030
 ml_mode <- "regression"   # regression or classification
 configs_per_job <- 50
@@ -56,90 +52,18 @@ path_data <- format_path("llmpanel/data_processed/")
 data_trn <- "panel_long.csv"
 
 # ALGORITHM-SPECIFIC HYPERPARAMETERS-----------
-hp1_glmnet <- seq(0, 1, length.out = 11) # alpha (mixture)
-hp2_glmnet_min <- -8 # min for penalty grid - will be passed into exp(seq(min, max, length.out = out))
-hp2_glmnet_max <- 2 # max for penalty grid
-hp2_glmnet_out <- 200 # length of penalty grid
-# 
-# hp1_knn <- seq(5, 255, length.out = 26) # neighbors (must be integer)
-# 
-hp1_rf <- c(2, 10, 20, 30, 40) # mtry (p/3 for reg or square root of p for class)
-hp2_rf <- c(2, 15, 30) # min_n
-hp3_rf <- 1500 # trees (10 x's number of predictors)
-
-#hp1_xgboost <- c(0.000001, 0.00001, 0.0001, 0.001, 0.01)  # learn_rate
-hp1_xgboost <- c(.001, .01, 0.1, .33, .67, 1)  # learn_rate
-#hp2_xgboost <-  c(1, 2, 3, 4, 5, 6, 7) # tree_depth
-hp2_xgboost <-  c(1, 2, 3) # tree_depth
-#hp3_xgboost <-  seq(50, 300, by = 50)  # mtry
-hp3_xgboost <-  seq(33, 200, by = 33)  # mtry <- note: will change
+hp1_xgboost <- c(0.000001, 0.00001, 0.0001, 0.001, 0.01)  # learn_rate
+hp2_xgboost <-  c(1, 2, 3, 4) # tree_depth
+hp3_xgboost <-  seq(2, 30, by = 2)  # mtry <- note: will change
 # trees = 500 (included in fit function by default)
 # early stopping = 20 (included in fit function by default)
  
 
 # FORMAT DATA-----------------------------------------
 format_data <- function (df){
-  
-  # df <- df |>  
-  #   rename(y = !!y_col_name)
-  
-  # make y numeric
-  df <- df |> 
-    mutate(y = case_when(
-      message_rating == "Strongly Disagree" ~ 0,
-      message_rating == "Disagree" ~ 1,
-      message_rating == "Somewhat Disagree" ~ 2,
-      message_rating == "Neutral" ~ 3,
-      message_rating == "Somewhat Agree" ~ 4,
-      message_rating == "Agree" ~ 5,
-      message_rating == "Strongly Agree" ~ 6,
-      .default = NA_real_))
-  
-  # also make the message preferences numeric
-  q_cols <- c(
-    "q1_legitimizing",
-    "q2_self_efficacy",
-    "q3_acknowledging",
-    "q4_value_affirmation",
-    "q5_norms"
-  )
-  
-  for (col in intersect(q_cols, names(df))) {
-    df[[col]] <- case_when(
-      df[[col]] == "Strongly Disagree" ~ 0,
-      df[[col]] == "Disagree" ~ 1,
-      df[[col]] == "Somewhat Disagree" ~ 2,
-      df[[col]] == "Neutral" ~ 3,
-      df[[col]] == "Somewhat Agree" ~ 4,
-      df[[col]] == "Agree" ~ 5,
-      df[[col]] == "Strongly Agree" ~ 6,
-      .default = NA_real_
-    )
-  }
-  
-  # and formality
-  df <- df |> 
-    mutate(q6_formality = case_when(
-      q6_formality == "Strongly Prefer Informal" ~ 0,
-      q6_formality == "Moderately Prefer Informal" ~ 1,
-      q6_formality == "Slightly Prefer Informal" ~ 2,
-      q6_formality == "Neutral" ~ 3,
-      q6_formality == "Slightly Prefer Formal" ~ 4,
-      q6_formality == "Moderately Prefer Formal" ~ 5,
-      q6_formality == "Strongly Prefer Formal" ~ 6,
-      .default = NA_real_
-    ))
-  
-  df <- df |> 
-    select(-audit_score, -tone_order, -context, 
-           -survey_version, -q_total_duration, -message_rating, -q7_user_input, -dem_income)
-  
-
-  # pref model uses all features so no need to remove
-  
   return(df)
 }
-
+  
 
 # BUILD RECIPE---------------------------------------
 # Script should have a single build_recipe function to be compatible with fit script. 
@@ -151,42 +75,78 @@ build_recipe <- function(d, config) {
   algorithm <- config$algorithm
   feature_set <- config$feature_set
   
-  # use tidyverse (rather than recipe) for selection because its easier
-  if (str_detect(config$feature_set, "base")) {
-    d <- d |> 
-      select(subid, y, tone, style) 
-  }
-  if (str_detect(config$feature_set, "demo")) {
-    d <- d |> 
-      select(subid, y, tone, style, starts_with("dem_")) 
-  }
+  d <- d |> 
+    select(-subid, -dem_identity, -contains("other_text"), -dem_race_multiple, -dem_student,
+           -dem_n_household, -dem_minority, -q7_user_input, -survey_version,
+           -context)
+  
+  
+  d <- d |> rename(y = message_rating)
+
+  # COLIN: income and education are ordinal and can be engineered with single feature here
+
   
   # Set recipe steps generalizable to all model configurations
-  rec <- recipe(y ~ ., data = d) |> 
-    step_rm(subid)  # needed to retain until now for grouped CV in splits
+  rec <- recipe(y ~ ., data = d)
 
   rec <- rec |> 
     step_impute_median(all_numeric_predictors()) |>  
     step_impute_mode(all_nominal_predictors()) 
-  
-  # this is where we'll do additional recipe steps that are feature dependent
-  # but we don't have them yet
 
-  #if (str_detect(feature_set, "valaro")) {
-    #rec <- rec |> 
-      #step_rm(contains("ema_na")) |> 
-      #step_rm(contains("ema_pa")) 
-  #}
+  
+  # base model features
+  if (str_detect(feature_set, "base")) {
+    d <- d |> 
+      select(y, tone, style) 
+  }
   
   
-  # algorithm specific steps
-  if (algorithm == "glmnet") {
-    rec <- rec  |> 
-      step_zv(all_predictors()) |> 
-      step_normalize(all_numeric_predictors()) |> 
-      step_dummy(all_nominal_predictors(), 
-                 one_hot = TRUE) 
-  } 
+  # dem model features
+  if (str_detect(feature_set, "dem")) {
+    d <- d |> 
+      select(y, tone, style, starts_with("dem_")) 
+  }
+  
+  # feature engineering for pref models
+  if (str_detect(feature_set, "pref")) {
+    
+    # also make the message preferences numeric
+    q_cols <- c(
+      "q1_legitimizing",
+      "q2_self_efficacy",
+      "q3_acknowledging",
+      "q4_value_affirmation",
+      "q5_norms"
+    )
+    
+    for (col in intersect(q_cols, names(d))) {
+      df[[col]] <- case_when(
+        df[[col]] == "Strongly Disagree" ~ 0,
+        df[[col]] == "Disagree" ~ 1,
+        df[[col]] == "Somewhat Disagree" ~ 2,
+        df[[col]] == "Neutral" ~ 3,
+        df[[col]] == "Somewhat Agree" ~ 4,
+        df[[col]] == "Agree" ~ 5,
+        df[[col]] == "Strongly Agree" ~ 6,
+        .default = NA_real_
+      )
+    }
+    
+    # and formality
+    d <- d |> 
+      mutate(q6_formality = case_when(
+        q6_formality == "Strongly Prefer Informal" ~ 0,
+        q6_formality == "Moderately Prefer Informal" ~ 1,
+        q6_formality == "Slightly Prefer Informal" ~ 2,
+        q6_formality == "Neutral" ~ 3,
+        q6_formality == "Slightly Prefer Formal" ~ 4,
+        q6_formality == "Moderately Prefer Formal" ~ 5,
+        q6_formality == "Strongly Prefer Formal" ~ 6,
+        .default = NA_real_
+      ))
+    
+  }
+  
   
   if (algorithm == "random_forest") {
     # no algorithm specific steps
@@ -194,7 +154,7 @@ build_recipe <- function(d, config) {
   
   if (algorithm == "xgboost") {
     rec <- rec  |>  
-      step_dummy(all_nominal_predictors(), one_hot = TRUE) 
+      step_dummy(all_nominal_predictors(), one_hot = FALSE) 
   } 
   
   # final steps for all algorithms

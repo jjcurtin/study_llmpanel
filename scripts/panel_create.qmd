@@ -8,6 +8,8 @@ format:
     toc-depth: 3
 execute: 
   warning: false
+editor_options: 
+  chunk_output_type: console
 ---
 
 ## Code Status
@@ -34,17 +36,17 @@ Fully functional, not the cleanest still.
 
 ## Set up
 
-```{r setup, warning=FALSE}
+```{r}
 #| include: false
 
-options(conflicts.policy = "depends.ok")
 library(tidyverse) 
+options(conflicts.policy = "depends.ok")
 
-devtools::source_url("https://github.com/jjcurtin/lab_support/blob/main/fun_eda.R?raw=true")
-devtools::source_url("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
-devtools::source_url("https://github.com/jjcurtin/lab_support/blob/main/get_credentials.R?raw=true")
-devtools::source_url("https://github.com/jjcurtin/lab_support/blob/main/download_qualtrics.R?raw=true")
-devtools::source_url("https://github.com/jjcurtin/lab_support/blob/main/fun_gps.R?raw=true")
+source("https://github.com/jjcurtin/lab_support/blob/main/fun_eda.R?raw=true")
+source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
+source("https://github.com/jjcurtin/lab_support/blob/main/get_credentials.R?raw=true")
+source("https://github.com/jjcurtin/lab_support/blob/main/download_qualtrics.R?raw=true")
+# source("https://github.com/jjcurtin/lab_support/blob/main/fun_gps.R?raw=true")
 
 # source function file
 # source("functions/fun_opt.R")

@@ -12,3 +12,4 @@ all_generated_messages.csv
 TODO
 *.api
 *.pyc
+.positai
