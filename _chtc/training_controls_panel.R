@@ -60,8 +60,55 @@ hp3_xgboost <-  seq(2, 30, by = 2)  # mtry <- note: will change
  
 
 # FORMAT DATA-----------------------------------------
-format_data <- function (df){
-  return(df)
+format_data <- function (d){
+  d <- d |> 
+    rename(y = message_rating) |> 
+    mutate(y = case_when(
+      y == "strongly_disagree" ~ 1,
+      y =="disagree" ~ 2,
+      y == "somewhat_disagree" ~ 3,
+      y == "neutral" ~ 4,
+      y == "somewhat_agree" ~ 5,
+      y == "agree" ~ 6,
+      y == "strongly_agree" ~ 7,
+      .default = NA_real_
+    ))
+  
+  
+  # also make the message preferences numeric
+  q_cols <- c(
+    "q1_legitimizing",
+    "q2_self_efficacy",
+    "q3_acknowledging",
+    "q4_value_affirmation",
+    "q5_norms"
+  )
+  
+  for (col in intersect(q_cols, names(d))) {
+    d[[col]] <- case_when(
+      d[[col]] == "strongly_disagree" ~ 0,
+      d[[col]] == "disagree" ~ 1,
+      d[[col]] == "somewhat_disagree" ~ 2,
+      d[[col]] == "neutral" ~ 3,
+      d[[col]] == "somewhat_agree" ~ 4,
+      d[[col]] == "agree" ~ 5,
+      d[[col]] == "strongly_agree" ~ 6,
+      .default = NA_real_
+    )
+  }
+  
+  # and formality
+  d <- d |> 
+    mutate(q6_formality = case_when(
+      q6_formality == "strongly_prefer_informal" ~ 1,
+      q6_formality == "moderately_prefer_informal" ~ 2,
+      q6_formality == "slightly_prefer_informal" ~ 3,
+      q6_formality == "neutral" ~ 4,
+      q6_formality == "slightly_prefer_formal" ~ 5,
+      q6_formality == "moderately_prefer_formal" ~ 6,
+      q6_formality == "strongly_prefer_formal" ~ 7,
+      .default = NA_real_
+    ))
 }
   
 
@@ -74,14 +121,16 @@ build_recipe <- function(d, config) {
   # get relevant info from config (algorithm, feature_set, resample, under_ratio)
   algorithm <- config$algorithm
   feature_set <- config$feature_set
+ 
   
+  # NOTE: Tmp remove of dem_orientation.  consider adding again with step_novel 
   d <- d |> 
     select(-subid, -dem_identity, -contains("other_text"), -dem_race_multiple, -dem_student,
            -dem_n_household, -dem_minority, -q7_user_input, -survey_version,
-           -context)
+           -context, -dem_orientation)
   
   
-  d <- d |> rename(y = message_rating)
+
 
   # COLIN: income and education are ordinal and can be engineered with single feature here
 
@@ -90,6 +139,7 @@ build_recipe <- function(d, config) {
   rec <- recipe(y ~ ., data = d)
 
   rec <- rec |> 
+    step_zv(all_predictors()) |> 
     step_impute_median(all_numeric_predictors()) |>  
     step_impute_mode(all_nominal_predictors()) 
 
@@ -107,46 +157,7 @@ build_recipe <- function(d, config) {
       select(y, tone, style, starts_with("dem_")) 
   }
   
-  # feature engineering for pref models
-  if (str_detect(feature_set, "pref")) {
-    
-    # also make the message preferences numeric
-    q_cols <- c(
-      "q1_legitimizing",
-      "q2_self_efficacy",
-      "q3_acknowledging",
-      "q4_value_affirmation",
-      "q5_norms"
-    )
-    
-    for (col in intersect(q_cols, names(d))) {
-      df[[col]] <- case_when(
-        df[[col]] == "Strongly Disagree" ~ 0,
-        df[[col]] == "Disagree" ~ 1,
-        df[[col]] == "Somewhat Disagree" ~ 2,
-        df[[col]] == "Neutral" ~ 3,
-        df[[col]] == "Somewhat Agree" ~ 4,
-        df[[col]] == "Agree" ~ 5,
-        df[[col]] == "Strongly Agree" ~ 6,
-        .default = NA_real_
-      )
-    }
-    
-    # and formality
-    d <- d |> 
-      mutate(q6_formality = case_when(
-        q6_formality == "Strongly Prefer Informal" ~ 0,
-        q6_formality == "Moderately Prefer Informal" ~ 1,
-        q6_formality == "Slightly Prefer Informal" ~ 2,
-        q6_formality == "Neutral" ~ 3,
-        q6_formality == "Slightly Prefer Formal" ~ 4,
-        q6_formality == "Moderately Prefer Formal" ~ 5,
-        q6_formality == "Strongly Prefer Formal" ~ 6,
-        .default = NA_real_
-      ))
-    
-  }
-  
+ 
   
   if (algorithm == "random_forest") {
     # no algorithm specific steps
