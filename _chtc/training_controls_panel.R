@@ -133,6 +133,26 @@ build_recipe <- function(d, config) {
 
 
   # COLIN: income and education are ordinal and can be engineered with single feature here
+  d <- d |> 
+    mutate(dem_education = case_when(
+      dem_education == "high_school_or_ged" ~ 1,
+      dem_education == "some_college" ~ 2,
+      dem_education == "2-year_degree" ~ 3,
+      dem_education == "4-year_degree" ~ 4,
+      dem_education == "advanced_degree" ~ 5,
+      .default = NA_real_
+    )) |> 
+    mutate(dem_income = case_when(
+      dem_income == "Less than $25,000" ~ 1,
+      dem_income == "$25,000 - $37,499" ~ 2,
+      dem_income == "$37,500 - $49,999" ~ 3,
+      dem_income == "$50,000 - $74,999" ~ 4,
+      dem_income == "$75,000 - $99,999" ~ 5,
+      dem_income == "$100,000 - $149,999" ~ 6,
+      dem_income == "$150,000 - $199,999" ~ 7,
+      dem_income == "$200,000 or more" ~ 8,
+      .default = NA_real_
+    ))
 
   
   # Set recipe steps generalizable to all model configurations
