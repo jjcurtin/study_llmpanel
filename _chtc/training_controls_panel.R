@@ -9,15 +9,15 @@ algorithm <- "xgboost"  # glmnet, random_forest, xgboost
 feature_set <- c("base", "dem", "pref")
 seed_splits <- 102030
 ml_mode <- "regression"   # regression or classification
-configs_per_job <- 50
+configs_per_job <- 100 
 
 # CHTC SPECIFIC CONTROLS----------------------------
 username <- "jjcurtin" # for setting staging directory (until we have group staging folder)
 stage_data <- FALSE # If FALSE .sif will still be staged, just not data_trn
 max_idle <- 1000
 request_cpus <- 1 
-request_memory <- "10000MB"
-request_disk <- "2000MB" # <- tune the memory and disk
+request_memory <- "2000MB"
+request_disk <- "1000MB" # <- tune the memory and disk
 want_campus_pools <- TRUE 
 want_ospool <- TRUE 
 
