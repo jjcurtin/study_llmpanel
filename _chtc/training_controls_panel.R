@@ -112,29 +112,7 @@ format_data <- function (d){
       q6_formality == "strongly_prefer_formal" ~ 7,
       .default = NA_real_
     ))
-}
   
-
-# BUILD RECIPE---------------------------------------
-# Script should have a single build_recipe function to be compatible with fit script. 
-build_recipe <- function(d, config) {
-  # d: (training) dataset from which to build recipe
-  # config: single-row job-specific tibble
-  
-  # get relevant info from config (algorithm, feature_set, resample, under_ratio)
-  algorithm <- config$algorithm
-  feature_set <- config$feature_set
- 
-  
-  # NOTE: Tmp remove of dem_orientation.  consider adding again with step_novel 
-  d <- d |> 
-    select(-subid, -dem_identity, -contains("other_text"), -dem_race_multiple, -dem_student,
-           -dem_n_household, -dem_minority, -q7_user_input, -survey_version,
-           -context, -dem_orientation)
-  
-  
-
-
   # COLIN: income and education are ordinal and can be engineered with single feature here
   d <- d |> 
     mutate(dem_education = case_when(
@@ -156,6 +134,25 @@ build_recipe <- function(d, config) {
       dem_income == "$200,000 or more" ~ 8,
       .default = NA_real_
     ))
+}
+  
+
+# BUILD RECIPE---------------------------------------
+# Script should have a single build_recipe function to be compatible with fit script. 
+build_recipe <- function(d, config) {
+  # d: (training) dataset from which to build recipe
+  # config: single-row job-specific tibble
+  
+  # get relevant info from config (algorithm, feature_set, resample, under_ratio)
+  algorithm <- config$algorithm
+  feature_set <- config$feature_set
+ 
+  
+  # NOTE: Tmp remove of dem_orientation.  consider adding again with step_novel 
+  d <- d |> 
+    select(-subid, -dem_identity, -contains("other_text"), -dem_race_multiple, -dem_student,
+           -dem_n_household, -dem_minority, -q7_user_input, -survey_version,
+           -context, -dem_orientation)
 
   
   # base model features
