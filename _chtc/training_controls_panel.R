@@ -155,21 +155,11 @@ build_recipe <- function(d, config) {
     ))
 
   
-  # Set recipe steps generalizable to all model configurations
-  rec <- recipe(y ~ ., data = d)
-
-  rec <- rec |> 
-    step_zv(all_predictors()) |> 
-    step_impute_median(all_numeric_predictors()) |>  
-    step_impute_mode(all_nominal_predictors()) 
-
-  
   # base model features
   if (str_detect(feature_set, "base")) {
     d <- d |> 
       select(y, tone, style) 
   }
-  
   
   # dem model features
   if (str_detect(feature_set, "dem")) {
@@ -177,7 +167,16 @@ build_recipe <- function(d, config) {
       select(y, tone, style, starts_with("dem_")) 
   }
   
+  # no selection needed for pref because uses all features
  
+   
+  # Set recipe steps generalizable to all model configurations
+  rec <- recipe(y ~ ., data = d)
+
+  rec <- rec |> 
+    step_zv(all_predictors()) |> 
+    step_impute_median(all_numeric_predictors()) |>  
+    step_impute_mode(all_nominal_predictors()) 
   
   if (algorithm == "random_forest") {
     # no algorithm specific steps

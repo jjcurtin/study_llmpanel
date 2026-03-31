@@ -1,0 +1,140 @@
+---
+title: "Analyze performance for `r params$algorithm` in `r params$version` "
+author: "Madison Herrmann and JJC`" 
+date: "`r lubridate::today()`"
+format: 
+  html:
+    toc: true 
+    toc_depth: 2
+    embed-resources: true
+editor_options: 
+  chunk_output_type: console
+params:
+  version: "v1"
+---
+
+## Notes
+
+The following code calculates the median AUROC across held-out folds. It identifies the single best-performing model and visualizes the distribution of its AUROC scores across all folds. The top 50 performing models based on median AUROC, along with their corresponding resampling method, feature set, and hyperparameters are written out to a file. Performance is also evaluated using only 4 am predictions. 
+
+This script can be rendered in terminal as follows:  `quarto render mak_best_config.qmd -o [outputname].html  -P version:v1`
+
+# Setup 
+```{r}
+#| include: false
+
+library(tidyverse)
+options(conflicts.policy = "depends.ok")
+
+source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
+source("https://github.com/jjcurtin/lab_support/blob/main/my_skim.R?raw=true")
+source("https://github.com/jjcurtin/lab_support/blob/main/fun_eda.R?raw=true")
+
+path_in <- format_path(str_c("llmpanel/chtc/train_", 
+                                 params$version, "/output"))
+path_out <- format_path("llmpanel/data_processed")
+
+theme_set(theme_classic()) 
+```
+
+Read in data
+```{r}
+d <- read_csv(here::here(path_in, str_c("batch_results_", 
+                                            params$version, ".csv")), 
+              show_col_types = FALSE) |> glimpse()
+```
+
+```{r}
+d |> tab(outer_split_num) |> print(n = Inf)
+d |> tab(inner_split_num) |> print(n = Inf)
+d |> tab(hp1)
+d |> tab(hp2)
+d |> tab(hp3)
+d |> tab(feature_set)
+```
+
+## Overall Performance
+
+Calculate median AUROC
+```{r}
+avg <- d |>
+  group_by(feature_set, hp1, hp2, hp3) |>
+  summarise(
+    rsq = median(rsq),
+    mae = median(mae),
+    n = n(),
+   .groups = "drop") |> 
+  arrange(mae)
+
+head(avg, 25) |> print(n = 25)
+```
+
+best models with configs
+```{r}
+auroc_avg |> 
+  group_by(feature_set) |>
+  arrange(desc(auroc)) |>
+  slice_head(n = 10) |> 
+  print (n = Inf)
+```
+
+
+Best config
+```{r}
+auroc_best <- auroc_avg |>
+  slice(1) |> 
+  print()
+```
+
+Histogram of folds
+```{r}
+if (params$algorithm == "glmnet") {
+  d_hist <- d |> 
+    filter(feature_set == auroc_best$feature_set,
+           hp1 == auroc_best$hp1,
+           hp2 == auroc_best$hp2,
+           resample == auroc_best$resample) |> 
+    arrange(split_num) |> 
+  select(roc_auc) 
+} else {
+  d_hist <- d |> 
+    filter(feature_set == auroc_best$feature_set,
+           hp1 == auroc_best$hp1,
+           hp2 == auroc_best$hp2,
+           hp3 == auroc_best$hp3,
+           resample == auroc_best$resample) |> 
+    arrange(split_num) |> 
+  select(roc_auc) 
+}
+  
+  
+d_hist |>  
+  ggplot(aes(x = roc_auc)) + 
+    geom_histogram(breaks = seq(0.5, 1, by = 0.05), 
+                   color = "black", fill = "blue") +
+    theme(plot.title = element_text(hjust = 0.5, size = 24), 
+          axis.text = element_text(size = 18), 
+          axis.title = element_text(size = 20))
+```
+
+
+## Among raw configs
+
+Top raw low regularized model for each config 
+NOTE: >= .860
+```{r}
+auroc_avg |> 
+  filter(auroc >= 0.860) |>
+  group_by(feature_set) |>
+  arrange(hp1, hp2, desc(auroc)) |>
+  slice_head(n = 1)
+```
+
+
+Write out file all
+```{r}
+auroc_avg |> 
+  arrange(desc(auroc)) |>
+  write_csv(here::here(path_models,
+                       str_c("auroc_", params$version, ".csv")))
+```
