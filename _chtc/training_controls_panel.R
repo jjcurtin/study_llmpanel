@@ -1,5 +1,8 @@
 # Training controls for LLMPanel study
 
+# version 1: first version
+# version 2: corrected problem with feature selection for the three configurations
+
 # NOTES------------------------------
 source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
 
