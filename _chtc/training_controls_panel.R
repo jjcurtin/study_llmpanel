@@ -4,7 +4,7 @@
 source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
 
 # SET GLOBAL PARAMETERS--------------------
-version <- "v1"
+version <- "v2"
 algorithm <- "xgboost"  # glmnet, random_forest, xgboost
 feature_set <- c("base", "dem", "pref")
 seed_splits <- 102030
