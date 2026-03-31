@@ -70,7 +70,7 @@ token_qualtrics <- get_credentials("qualtrics",
 ```{r}
 panel_export_raw <- NULL
 
-# Retry on intermittent 404s from Qualtrics until a successful download. I haven't gotten a 404 so I don't know if this works fully, but it works on successful runs.
+# Retry on intermittent 404s from Qualtrics until a successful download. 
 
 repeat {
   panel_export_raw <- tryCatch(
