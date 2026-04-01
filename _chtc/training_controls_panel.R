@@ -3,11 +3,12 @@
 # version 1: first version
 # version 2: corrected problem with feature selection for the three configurations
 # version 3: change hyperparameters to better tune models
+# version 4: more hyperparameter tuning
 # NOTES------------------------------
 source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
 
 # SET GLOBAL PARAMETERS--------------------
-version <- "v3"
+version <- "v4"
 algorithm <- "xgboost"  # glmnet, random_forest, xgboost
 feature_set <- c("base", "dem", "pref")
 seed_splits <- 102030
@@ -55,10 +56,10 @@ path_data <- format_path("llmpanel/data_processed/")
 data_trn <- "panel_long.csv"
 
 # ALGORITHM-SPECIFIC HYPERPARAMETERS-----------
-hp1_xgboost <- c(0.0001, 0.001, 0.01, .1, 1)  # learn_rate
+hp1_xgboost <- c(0.001, 0.01, .1, 1, 1.5, 2)  # learn_rate
 
-hp2_xgboost <-  c(2, 3, 4, 5, 6) # tree_depth
-hp3_xgboost <-  seq(2, 20, by = 2)  # mtry <- note: will change
+hp2_xgboost <-  c(2, 3, 4, 5, 6, 7, 8) # tree_depth
+hp3_xgboost <-  seq(2, 22, by = 2)  # mtry <- note: will change
 # trees = 500 (included in fit function by default)
 # early stopping = 20 (included in fit function by default)
  
