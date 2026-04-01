@@ -1,0 +1,131 @@
+---
+title: "Demographic Analysis"
+author: "Colin Maggard"
+date: "`r lubridate::today()`"
+output: 
+  html_document:
+    toc: true 
+    toc_depth: 2
+format:
+  html:
+    embed-resources: true
+editor_options: 
+  chunk_output_type: console
+params:
+  version: "v1"
+---
+
+## Set up
+
+```{r}
+#| include: false
+
+library(tidyverse) 
+library(dplyr)
+options(conflicts.policy = "depends.ok")
+
+source("https://github.com/jjcurtin/lab_support/blob/main/fun_eda.R?raw=true")
+source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
+
+path_panel <- format_path("llmpanel/data_raw/panel")
+path_processed <- format_path("llmpanel/data_processed")
+path_credentials <- format_path("other")
+```
+
+## get data
+```{r}
+panel_long <- read_csv(file.path(path_processed, "panel_long.csv"))
+```
+
+## select dem columns, remove other 29 rows per participant
+```{r}
+panel_collapsed <- panel_long |>
+  distinct(subid, .keep_all = TRUE)
+
+panel_dem <- panel_collapsed |>
+  select(starts_with("dem"))
+```
+
+## Age Histogram
+```{r}
+summary(panel_dem$dem_age)
+
+ggplot(panel_dem, aes(x = dem_age)) +
+  geom_histogram(binwidth = 5, fill = "steelblue", color = "white") +
+  theme_minimal() +
+  labs(title = "Age Distribution", x = "Age", y = "Count")
+```
+
+## Sex at Birth Pie Chart
+```{r}
+table(panel_dem$dem_sex)
+
+panel_dem |>
+  count(dem_sex) |>
+  mutate(pct = n / sum(n),
+         label = scales::percent(pct, accuracy = 0.1)) |>
+  ggplot(aes(x = "", y = n, fill = dem_sex)) +
+  geom_col(width = 1) +
+  coord_polar(theta = "y") +
+  geom_text(aes(label = label),
+            position = position_stack(vjust = 0.5)) +
+  theme_void() +
+  labs(title = "Sex at Birth", fill = "Sex at Birth")
+```
+
+## Sexual Orientation Bar Chart
+```{r}
+panel_dem |>
+  count(dem_orientation) |>
+  mutate(pct = n / sum(n),
+         dem_orientation = fct_reorder(dem_orientation, pct)) |>
+  ggplot(aes(x = pct, y = dem_orientation, fill = dem_orientation)) +
+  geom_col(show.legend = FALSE) +
+  geom_text(aes(label = scales::percent(pct, accuracy = 1)), hjust = -0.1) +
+  scale_x_continuous(labels = scales::percent, expand = expansion(mult = c(0, 0.15))) +
+  theme_minimal() +
+  labs(title = "Sexual Orientation", x = NULL, y = NULL)
+```
+
+## Race Bar Chart
+```{r}
+panel_dem_race <- panel_dem |>
+  select(starts_with("dem_race"), dem_hispanic) |>
+  mutate(race = case_when(
+    dem_race_multiple == "yes"          ~ "Multiracial",
+    dem_race_white == "yes"             ~ "White",
+    dem_race_black == "yes"             ~ "Black",
+    dem_race_asian == "yes"             ~ "Asian",
+    dem_hispanic == "yes"               ~ "Hispanic/Latinx",
+    dem_race_native_alaskan == "yes"    ~ "Native/Alaskan",
+    dem_race_hawaiian_pacific == "yes"  ~ "Hawaiian/Pacific Islander",
+    TRUE                                ~ NA_character_
+  ))
+
+panel_dem_race |>
+  filter(!is.na(race)) |>
+  count(race) |>
+  mutate(pct = n / sum(n),
+         race = fct_reorder(race, pct, .desc = TRUE)) |>
+  ggplot(aes(x = race, y = pct, fill = race)) +
+  geom_col(show.legend = FALSE) +
+  geom_text(aes(label = scales::percent(pct, accuracy = 1)), vjust = -0.5) +
+  scale_y_continuous(labels = scales::percent, expand = expansion(mult = c(0, 0.1))) +
+  theme_minimal() +
+  labs(title = "Race/Ethnicity", x = NULL, y = NULL)
+# note: race_other had only one entry, which said Portuguese
+```
+
+## Education Bar Chart
+```{r}
+panel_dem |>
+  count(dem_education) |>
+  mutate(pct = n / sum(n),
+         dem_education = fct_reorder(dem_education, pct)) |>
+  ggplot(aes(x = pct, y = dem_education, fill = dem_education)) +
+  geom_col(show.legend = FALSE) +
+  geom_text(aes(label = scales::percent(pct, accuracy = 1)), hjust = -0.1) +
+  scale_x_continuous(labels = scales::percent, expand = expansion(mult = c(0, 0.15))) +
+  theme_minimal() +
+  labs(title = "Education", x = NULL, y = NULL)
+```
