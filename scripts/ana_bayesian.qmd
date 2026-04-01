@@ -21,13 +21,10 @@ params:
 
 library(tidyverse)
 library(tidyposterior)
-options(conflicts.policy = "depends.ok")
 
 source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
-source("https://github.com/jjcurtin/lab_support/blob/main/my_skim.R?raw=true")
 
-path_in <- format_path(str_c("llmpanel/chtc/train_", 
-                                 params$version, "/output"))
+path_in <- format_path(str_c("llmpanel/chtc/train_", params$version, "/output"))
 path_out <- format_path("llmpanel/data_processed")
 theme_set(theme_classic()) 
 ```
@@ -49,6 +46,8 @@ best <- folds |>
   group_by(feature_set) |>
   arrange(mae) |> 
   slice_head(n = 1)
+
+best
 
 folds_base <- folds |> 
   filter(feature_set == "base") |> 
