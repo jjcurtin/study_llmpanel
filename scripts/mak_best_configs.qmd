@@ -10,7 +10,7 @@ format:
 editor_options: 
   chunk_output_type: console
 params:
-  version: "v1"
+  version: "v2"
 ---
 
 ## Notes
@@ -39,9 +39,10 @@ theme_set(theme_classic())
 
 Read in data
 ```{r}
-d <- read_csv(here::here(path_in, str_c("batch_results_", 
-                                            params$version, ".csv")), 
-              show_col_types = FALSE) |> glimpse()
+d <- read_csv(here::here(path_in, 
+                         str_c("batch_results_", params$version, ".csv")), 
+              show_col_types = FALSE) |> 
+  glimpse()
 ```
 
 ```{r}
@@ -55,23 +56,25 @@ d |> tab(feature_set)
 
 ## Overall Performance
 
-Calculate median AUROC
+Calculate median performance metrics 
 ```{r}
-avg <- d |>
+best <- d |>
   group_by(feature_set, hp1, hp2, hp3) |>
   summarise(
     rsq = median(rsq),
     mae = median(mae),
     n = n(),
    .groups = "drop") |> 
-  arrange(mae)
+  group_by(feature_set) |>
+  arrange(mae) |> 
+  slice_head(n = 1)
 
-head(avg, 25) |> print(n = 25)
+best
 ```
 
 best models with configs
 ```{r}
-auroc_avg |> 
+avg |> 
   group_by(feature_set) |>
   arrange(desc(auroc)) |>
   slice_head(n = 10) |> 
@@ -133,8 +136,8 @@ auroc_avg |>
 
 Write out file all
 ```{r}
-auroc_avg |> 
-  arrange(desc(auroc)) |>
-  write_csv(here::here(path_models,
-                       str_c("auroc_", params$version, ".csv")))
+best |> 
+  arrange(mae) |>
+  write_csv(here::here(path_out,
+                       str_c("configs_", params$version, ".csv")))
 ```
