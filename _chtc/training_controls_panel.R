@@ -2,12 +2,12 @@
 
 # version 1: first version
 # version 2: corrected problem with feature selection for the three configurations
-
+# version 3: change hyperparameters to better tune models
 # NOTES------------------------------
 source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
 
 # SET GLOBAL PARAMETERS--------------------
-version <- "v2"
+version <- "v3"
 algorithm <- "xgboost"  # glmnet, random_forest, xgboost
 feature_set <- c("base", "dem", "pref")
 seed_splits <- 102030
@@ -15,7 +15,7 @@ ml_mode <- "regression"   # regression or classification
 configs_per_job <- 100 
 
 # CHTC SPECIFIC CONTROLS----------------------------
-username <- "jjcurtin" # for setting staging directory (until we have group staging folder)
+username <- "c/cmaggard" # for setting staging directory (until we have group staging folder)
 stage_data <- FALSE # If FALSE .sif will still be staged, just not data_trn
 max_idle <- 1000
 request_cpus <- 1 
@@ -55,9 +55,10 @@ path_data <- format_path("llmpanel/data_processed/")
 data_trn <- "panel_long.csv"
 
 # ALGORITHM-SPECIFIC HYPERPARAMETERS-----------
-hp1_xgboost <- c(0.000001, 0.00001, 0.0001, 0.001, 0.01)  # learn_rate
-hp2_xgboost <-  c(1, 2, 3, 4) # tree_depth
-hp3_xgboost <-  seq(2, 30, by = 2)  # mtry <- note: will change
+hp1_xgboost <- c(0.0001, 0.001, 0.01, .1, 1)  # learn_rate
+
+hp2_xgboost <-  c(2, 3, 4, 5, 6) # tree_depth
+hp3_xgboost <-  seq(2, 20, by = 2)  # mtry <- note: will change
 # trees = 500 (included in fit function by default)
 # early stopping = 20 (included in fit function by default)
  
