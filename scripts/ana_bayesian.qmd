@@ -12,7 +12,7 @@ format:
 editor_options: 
   chunk_output_type: console
 params:
-  version: "v2"
+  version: "v3"
 ---
 
 ## Setup 
@@ -86,6 +86,8 @@ folds_rsq <-folds_base |>
 ## RSQ
 
 ```{r}
+#| output: false
+ 
 # Repeated CV (id = repeat, id2 = fold within repeat)
 # with a common variance:  statistic ~ model + (model | id2/id)
 set.seed(101)
@@ -95,8 +97,10 @@ pp_rsq <- folds_rsq |>
          transform = tidyposterior::logit_trans,  # for skewed & bounded RSQ 
          iter = 3000, chains = 4, adapt_delta = .9, 
          family = gaussian)  
+```
 
-# Model contrasts
+Model contrasts
+```{r}
 pp_rsq |>
   contrast_models(list("Preferences", "Demographics"), 
                   list("Demographics", "Baseline")) |> 
@@ -135,6 +139,8 @@ pp_tidy_rsq |>
 ## MAE
 
 ```{r}
+#| output: false
+
 # Repeated CV (id = repeat, id2 = fold within repeat)
 # with a common variance:  statistic ~ model + (model | id2/id)
 set.seed(101)
@@ -143,8 +149,10 @@ pp_mae <- folds_mae |>
          # increased iteration from 2000 to fix divergence issues
          iter = 4000, chains = 4, adapt_delta = .9, 
          family = gaussian)  
+```
 
-# Model contrasts
+Model contrasts
+```{r}
 pp_mae |>
   contrast_models(list("Preferences", "Demographics"), 
                   list("Demographics", "Baseline")) |> 
