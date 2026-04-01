@@ -118,7 +118,7 @@ Histogram by model
 ```{r}
 pp_tidy_rsq |> 
   ggplot(aes(x = posterior)) +
-  geom_histogram() +
+  geom_histogram(binwidth = 50) +
   xlab("R-Squared") +
   facet_wrap(vars(model), nrow = 3)
 ```
@@ -169,7 +169,7 @@ pp_tidy_mae <- pp_mae |>
 ```{r}
 pp_tidy_mae |> 
   ggplot(aes(x = posterior)) +
-  geom_histogram() +
+  geom_histogram(binwidth = 50) +
   xlab("Mean Absolute Error") +
   facet_wrap(vars(model), nrow = 3)
 ```
