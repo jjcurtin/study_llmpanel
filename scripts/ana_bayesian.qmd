@@ -12,7 +12,7 @@ format:
 editor_options: 
   chunk_output_type: console
 params:
-  version: "v5"
+  version: "v4"
 ---
 
 ## Setup 
