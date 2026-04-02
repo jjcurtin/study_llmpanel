@@ -30,6 +30,8 @@ theme_set(theme_classic())
 ```
 
 ## Fold data
+
+Get 300 validation sets for the best configuration for each of the three models
 ```{r}
 folds <- read_csv(here::here(path_in, 
                          str_c("batch_results_", params$version, ".csv")), 
@@ -84,6 +86,7 @@ folds_rsq <-folds_base |>
 
 ## RSQ
 
+Calculate posterior probability distribution for RSQ
 ```{r}
 #| output: false
  
@@ -98,7 +101,11 @@ pp_rsq <- folds_rsq |>
          family = gaussian)  
 ```
 
-Tidy posterior object
+Sample from the posterior distribution
+
+- get median and %5 and 95% quantiles for the models
+- get median and %5 and 95% quantiles for the two model comparisons 
+
 ```{r}
 pp_tidy_rsq <- pp_rsq |> 
   tidy(seed = 123) 
@@ -145,7 +152,7 @@ pp_wide_rsq |>
             pp_upper = quantile(preferences, probs = q[3]))
 ```
 
-Model contrasts
+Model contrasts 
 ```{r}
 pp_rsq |>
   contrast_models(list("Preferences", "Demographics"), 
@@ -169,6 +176,7 @@ pp_tidy_rsq |>
 
 ## MAE
 
+300 validation sets
 ```{r}
 #| output: false
 
@@ -182,6 +190,7 @@ pp_mae <- folds_mae |>
          family = gaussian)  
 ```
 
+Sample and get stats for posterior  
 ```{r}
 # COLIN UPDATE AS WITH RSQ
 
@@ -199,12 +208,12 @@ pp_mae |>
   mutate(probability = 1 - probability)
 ```
 
-
+Histogram
 ```{r}
 pp_tidy_mae |> 
   ggplot(aes(x = posterior)) +
   geom_histogram(bins = 30) +
+  scale_fill_manual(values = c("red", "darkgoldenrod1", "green")) +
   xlab("Mean Absolute Error") +
   facet_wrap(vars(model), nrow = 3)
 ```
-
