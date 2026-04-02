@@ -124,14 +124,14 @@ q = c(.025, .5, .975)
 # baseline
 pp_wide_rsq |> 
   summarize(pp_median = quantile(baseline, probs = q[2]),
-            pp_lower = quantile(preferences, probs = q[1]), 
-            pp_upper = quantile(preferences, probs = q[3]))
+            pp_lower = quantile(baseline, probs = q[1]), 
+            pp_upper = quantile(baseline, probs = q[3]))
 
 # demographics
 pp_wide_rsq |> 
   summarize(pp_median = quantile(demographics, probs = q[2]),
-            pp_lower = quantile(preferences, probs = q[1]), 
-            pp_upper = quantile(preferences, probs = q[3]))
+            pp_lower = quantile(demographics, probs = q[1]), 
+            pp_upper = quantile(demographics, probs = q[3]))
 
 # preferences
 pp_wide_rsq |> 
@@ -142,14 +142,14 @@ pp_wide_rsq |>
 # dem vs base
 pp_wide_rsq |> 
   summarize(pp_median = quantile(dem_v_base, probs = q[2]),
-            pp_lower = quantile(preferences, probs = q[1]), 
-            pp_upper = quantile(preferences, probs = q[3]))
+            pp_lower = quantile(dem_v_base, probs = q[1]), 
+            pp_upper = quantile(dem_v_base, probs = q[3]))
 
 # pref vs dem 
 pp_wide_rsq |> 
   summarize(pp_median = quantile(pref_v_dem, probs = q[2]),
-            pp_lower = quantile(preferences, probs = q[1]), 
-            pp_upper = quantile(preferences, probs = q[3]))
+            pp_lower = quantile(pref_v_dem, probs = q[1]), 
+            pp_upper = quantile(pref_v_dem, probs = q[3]))
 ```
 
 Model contrasts 
@@ -195,7 +195,47 @@ Sample and get stats for posterior
 # COLIN UPDATE AS WITH RSQ
 
 pp_tidy_mae <- pp_mae |> 
-  tidy(seed = 123) 
+  tidy(seed = 123)
+
+pp_wide_mae <- tibble(
+  sample = 1:(nrow(pp_tidy_mae)/3),
+  baseline = pp_tidy_mae |> filter(model == "Baseline") |> pull(posterior),
+  demographics = pp_tidy_mae |> filter(model == "Demographics") |> pull(posterior),
+  preferences = pp_tidy_mae |> filter(model == "Preferences") |> pull(posterior)) |> 
+  mutate(dem_v_base = demographics - baseline,
+         pref_v_dem = preferences - demographics)
+
+q = c(.025, .5, .975)
+
+# baseline
+pp_wide_mae |> 
+  summarize(pp_median = quantile(baseline, probs = q[2]),
+            pp_lower = quantile(baseline, probs = q[1]), 
+            pp_upper = quantile(baseline, probs = q[3]))
+
+# demographics
+pp_wide_mae |> 
+  summarize(pp_median = quantile(demographics, probs = q[2]),
+            pp_lower = quantile(demographics, probs = q[1]), 
+            pp_upper = quantile(demographics, probs = q[3]))
+
+# preferences
+pp_wide_mae |> 
+  summarize(pp_median = quantile(preferences, probs = q[2]),
+            pp_lower = quantile(preferences, probs = q[1]), 
+            pp_upper = quantile(preferences, probs = q[3]))
+
+# dem vs base
+pp_wide_mae |> 
+  summarize(pp_median = quantile(dem_v_base, probs = q[2]),
+            pp_lower = quantile(dem_v_base, probs = q[1]), 
+            pp_upper = quantile(dem_v_base, probs = q[3]))
+
+# pref vs dem 
+pp_wide_mae |> 
+  summarize(pp_median = quantile(pref_v_dem, probs = q[2]),
+            pp_lower = quantile(pref_v_dem, probs = q[1]), 
+            pp_upper = quantile(pref_v_dem, probs = q[3]))
 ```
 
 Model contrasts
