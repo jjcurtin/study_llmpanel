@@ -12,7 +12,7 @@ format:
 editor_options: 
   chunk_output_type: console
 params:
-  version: "v3"
+  version: "v4"
 ---
 
 ## Setup 
@@ -98,6 +98,53 @@ pp_rsq <- folds_rsq |>
          family = gaussian)  
 ```
 
+Tidy posterior object
+```{r}
+pp_tidy_rsq <- pp_rsq |> 
+  tidy(seed = 123) 
+
+pp_wide_rsq <- tibble(
+  sample = 1:(nrow(pp_tidy_rsq)/3),
+  baseline = pp_tidy_rsq |> filter(model == "Baseline") |> pull(posterior),
+  demographics = pp_tidy_rsq |> filter(model == "Demographics") |> pull(posterior),
+  preferences = pp_tidy_rsq |> filter(model == "Preferences") |> pull(posterior)) |> 
+  mutate(dem_v_base = demographics - baseline,
+         pref_v_dem = preferences - demographics)
+
+# Colin - UPDATE THIS AND ALSO UPDATE LATER FOR MAE
+q = c(.025, .5, .975)
+
+# baseline
+pp_wide_rsq |> 
+  summarize(pp_median = quantile(baseline, probs = q[2]),
+            pp_lower = quantile(preferences, probs = q[1]), 
+            pp_upper = quantile(preferences, probs = q[3]))
+
+# demographics
+pp_wide_rsq |> 
+  summarize(pp_median = quantile(demographics, probs = q[2]),
+            pp_lower = quantile(preferences, probs = q[1]), 
+            pp_upper = quantile(preferences, probs = q[3]))
+
+# preferences
+pp_wide_rsq |> 
+  summarize(pp_median = quantile(preferences, probs = q[2]),
+            pp_lower = quantile(preferences, probs = q[1]), 
+            pp_upper = quantile(preferences, probs = q[3]))
+
+# dem vs base
+pp_wide_rsq |> 
+  summarize(pp_median = quantile(dem_v_base, probs = q[2]),
+            pp_lower = quantile(preferences, probs = q[1]), 
+            pp_upper = quantile(preferences, probs = q[3]))
+
+# pref vs dem 
+pp_wide_rsq |> 
+  summarize(pp_median = quantile(pref_v_dem, probs = q[2]),
+            pp_lower = quantile(preferences, probs = q[1]), 
+            pp_upper = quantile(preferences, probs = q[3]))
+```
+
 Model contrasts
 ```{r}
 pp_rsq |>
@@ -107,32 +154,17 @@ pp_rsq |>
   select(contrast, probability, mean, lower, upper)
 ```
 
-Tidy posterior object
-```{r}
-pp_tidy_rsq <- pp_rsq |> 
-  tidy(seed = 123) 
-```
 
 Histogram by model
 ```{r}
 pp_tidy_rsq |> 
-  ggplot(aes(x = posterior)) +
-  geom_histogram(binwidth = 50) +
+  ggplot(aes(x = posterior, fill = model)) +
+  geom_histogram(bins = 30) +
+  scale_fill_manual(values = c("red", "darkgoldenrod1", "green")) +
   xlab("R-Squared") +
   facet_wrap(vars(model), nrow = 3)
 ```
 
-Stats per model
-```{r}
-q = c(.025, .5, .975)
-pp_tidy_rsq |> 
-  group_by(model) |> 
-  summarize(pp_median = quantile(posterior, probs = q[2]),
-            pp_lower = quantile(posterior, probs = q[1]), 
-            pp_upper = quantile(posterior, probs = q[3])) |> 
-  mutate(model = factor(model)) |> 
-  arrange(model)
-```
 
 
 ## MAE
@@ -146,8 +178,15 @@ set.seed(101)
 pp_mae <- folds_mae |> 
   perf_mod(formula = statistic ~ model + (1 | id2/id),
          # increased iteration from 2000 to fix divergence issues
-         iter = 4000, chains = 4, adapt_delta = .9, 
+         iter = 4000, chains = 4, adapt_delta = .99, 
          family = gaussian)  
+```
+
+```{r}
+# COLIN UPDATE AS WITH RSQ
+
+pp_tidy_mae <- pp_mae |> 
+  tidy(seed = 123) 
 ```
 
 Model contrasts
@@ -160,26 +199,12 @@ pp_mae |>
   mutate(probability = 1 - probability)
 ```
 
-```{r}
-pp_tidy_mae <- pp_mae |> 
-  tidy(seed = 123) 
-```
 
 ```{r}
 pp_tidy_mae |> 
   ggplot(aes(x = posterior)) +
-  geom_histogram(binwidth = 50) +
+  geom_histogram(bins = 30) +
   xlab("Mean Absolute Error") +
   facet_wrap(vars(model), nrow = 3)
 ```
 
-```{r}
-q = c(.025, .5, .975)
-pp_tidy_mae |> 
-  group_by(model) |> 
-  summarize(pp_median = quantile(posterior, probs = q[2]),
-            pp_lower = quantile(posterior, probs = q[1]), 
-            pp_upper = quantile(posterior, probs = q[3])) |> 
-  mutate(model = factor(model)) |> 
-  arrange(model)
-```

@@ -1,0 +1,88 @@
+---
+title: "shaps"
+author: "John Curtin"
+date: "`r lubridate::today()`"
+output: 
+  html_document:
+    toc: true 
+    toc_depth: 2
+format:
+  html:
+    embed-resources: true
+params:
+  version: "v1"
+editor_options: 
+  chunk_output_type: console
+---
+
+# Set up environment
+```{r}
+library(tidyverse)
+library(tidymodels)
+
+theme_set(theme_classic()) 
+source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
+
+path_chtc <- format_path(str_c("llmpanel/chtc/train_", params$version))
+path_configs <- format_path("llmpanel/data_processed")
+```
+
+## Best config 
+```{r}
+folds <- read_csv(here::here(path_configs, 
+                         str_c("batch_results_", params$version, ".csv")), 
+              show_col_types = FALSE) |> 
+  filter(feature_set == "pref") |> 
+  glimpse()
+
+best <- folds |>
+  group_by(hp1, hp2, hp3) |>
+  summarise(
+    rsq = median(rsq),
+    mae = median(mae),
+    n = n(),
+   .groups = "drop") |> 
+  arrange(mae) |> 
+  slice_head(n = 1)
+
+best
+```
+
+```{r}
+source(here::here(path_chtc, "input"))
+d <- read_csv(here::here(path_chtc, "input", "data_trn.csv")) |> 
+  glimpse()
+
+d <- format_data(d)  
+rec <- build_recipe(d = d, config = best)
+rec_prep <- rec |> 
+  prep(training)
+
+feat <- 
+shaps_grp <- read_rds(file.path(path_models, str_c("inner_shapsgrp_", 
+                                           version, "_", cv, ".rds"))) |>
+
+  glimpse()
+```
+
+
+```{r}
+shaps <- shaps_grp |>
+  group_by(variable_grp) |> 
+  summarize(mean_value = (mean(abs(value)))) |> 
+  mutate(group = reorder(variable_grp, mean_value)) |> 
+  arrange(desc(mean_value))
+```
+
+```{r}
+#| label: fig-shaps
+#| fig-cap: "Shapley Value"
+
+shaps |>
+  head(30) |> 
+  ggplot() +
+  geom_bar(aes(x = group, y = mean_value), stat = "identity", fill = "#af1f21") +
+  ylab("Mean |SHAP| value (in Log-Odds)") +
+  xlab("") +
+  coord_flip()
+```
