@@ -104,9 +104,13 @@ d |>
 
 ```{r}
 d |>
-  summarise(mean_rating = mean(message_rating_num), .by = c(tone, style)) |>
+  summarise(mean_rating = mean(message_rating_num),
+            sd = sd(message_rating_num),
+            .by = c(tone, style)) |>
   ggplot(aes(x = tone, y = mean_rating, fill = style)) +
   geom_bar(stat = "identity", position = "dodge") +
+  geom_errorbar(aes(ymin = mean_rating - sd, ymax = mean_rating + sd),
+                position = position_dodge(width = 0.9), width = 0.25) +
   labs(x = "Tone", y = "Mean Message Rating", fill = "Style",
        title = "Mean Message Rating by Tone and Style") +
   ylim(0, 7) +
