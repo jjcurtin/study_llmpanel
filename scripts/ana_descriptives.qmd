@@ -14,6 +14,8 @@ editor_options:
 params:
   version: "v4"
 ---
+
+## Setup
 ```{r}
 #| include: false
 
@@ -24,6 +26,7 @@ path_in <- format_path(str_c("llmpanel/chtc/train_", params$version, "/input"))
 theme_set(theme_classic()) 
 ```
 
+## Data
 ```{r}
 # using data_trn for now.  Need to get a clean version of panel_long.csv somewhere
 d <- read_csv(here::here(path_in, "data_trn.csv"), show_col_types = FALSE) |> 
@@ -39,9 +42,22 @@ d <- d |>
   mutate(message_rating_num = recode_values(message_rating,
                                             from = likert_txt,
                                             to = likert_num),
-         message_rating = factor(message_rating,
-                                 levels = likert_txt))
+         message_rating = factor(message_rating, levels = likert_txt),
+         q1_legitimizing = factor(q1_legitimizing, levels = likert_txt),
+         q2_self_efficacy = factor(q2_self_efficacy, levels = likert_txt),
+         q3_acknowledging = factor(q3_acknowledging, levels = likert_txt),
+         q4_value_affirmation = factor(q4_value_affirmation, levels = likert_txt),
+         q5_norms = factor(q5_norms, levels = likert_txt),
+         q6_formality = factor(q6_formality, 
+                               levels = c("strongly_prefer_informal",
+                                          "moderately_prefer_informal",
+                                          "slightly_prefer_informal",
+                                          "slightly_prefer_formal",
+                                          "moderately_prefer_formal",
+                                          "strongly_prefer_formal")))
 ```
+
+## Message ratings
 
 General descriptives for message_rating_num
 ```{r}
@@ -95,4 +111,39 @@ d |>
        title = "Mean Message Rating by Tone and Style") +
   ylim(0, 7) +
   theme(axis.text.x = element_text(angle = 30, hjust = 1))
+```
+
+## Preferences survey responses
+
+```{r}
+d |>
+  ggplot(aes(x = q1_legitimizing)) +
+  geom_bar() +
+  scale_x_discrete(guide = guide_axis(angle = 30)) +
+  labs(x = "Legitimizing Tone", y = "Count")
+d |>
+  ggplot(aes(x = q2_self_efficacy)) +
+  geom_bar() +
+  scale_x_discrete(guide = guide_axis(angle = 30)) +
+  labs(x = "Self-Efficacy Tone", y = "Count")
+d |>
+  ggplot(aes(x = q3_acknowledging)) +
+  geom_bar() +
+  scale_x_discrete(guide = guide_axis(angle = 30)) +
+  labs(x = "Acknowledging Tone", y = "Count")
+d |>
+  ggplot(aes(x = q4_value_affirmation)) +
+  geom_bar() +
+  scale_x_discrete(guide = guide_axis(angle = 30)) +
+  labs(x = "Value-Affirmation Tone", y = "Count")
+d |>
+  ggplot(aes(x = q5_norms)) +
+  geom_bar() +
+  scale_x_discrete(guide = guide_axis(angle = 30)) +
+  labs(x = "Norms Tone", y = "Count")
+d |>
+  ggplot(aes(x = q6_formality)) +
+  geom_bar() +
+  scale_x_discrete(guide = guide_axis(angle = 30)) +
+  labs(x = "Style", y = "Count")
 ```
