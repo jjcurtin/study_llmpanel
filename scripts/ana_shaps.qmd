@@ -10,7 +10,7 @@ format:
   html:
     embed-resources: true
 params:
-  version: "v1"
+  version: "v4"
 editor_options: 
   chunk_output_type: console
 ---
@@ -29,7 +29,7 @@ path_configs <- format_path("llmpanel/data_processed")
 
 ## Best config 
 ```{r}
-folds <- read_csv(here::here(path_configs, 
+folds <- read_csv(here::here(path_chtc, "output",
                          str_c("batch_results_", params$version, ".csv")), 
               show_col_types = FALSE) |> 
   filter(feature_set == "pref") |> 
@@ -45,33 +45,63 @@ best <- folds |>
   arrange(mae) |> 
   slice_head(n = 1)
 
-best
+best$algorithm <- "xgboost"
+best$feature_set <- "pref"
 ```
 
+Fit model to full dataset
 ```{r}
-source(here::here(path_chtc, "input"))
+source(here::here(path_chtc, "input", "training_controls.R"))
 d <- read_csv(here::here(path_chtc, "input", "data_trn.csv")) |> 
   glimpse()
 
 d <- format_data(d)  
 rec <- build_recipe(d = d, config = best)
 rec_prep <- rec |> 
-  prep(training)
+  prep(training = d)
+feat <- rec_prep |> 
+  bake(new_data = d)
 
-feat <- 
-shaps_grp <- read_rds(file.path(path_models, str_c("inner_shapsgrp_", 
-                                           version, "_", cv, ".rds"))) |>
+model <- boost_tree(learn_rate = best$hp1,
+                        tree_depth = best$hp2,
+                        mtry = best$hp3,
+                        trees = 500,  # set high but use early stopping
+                        stop_iter = 20) |>  
+      set_engine("xgboost",
+                 validation = 0.2) |>  
+      set_mode("regression") |> 
+      fit(y ~ ., data = feat)
 
-  glimpse()
 ```
 
 
 ```{r}
-shaps <- shaps_grp |>
+shaps <- SHAPforxgboost::shap.prep(xgb_model = extract_fit_engine(model),
+                                   X_train = feat |> select(-y) |>  as.matrix()) 
+
+shaps <- shaps |> 
+  mutate(variable = as.character(variable),
+         variable = replace_values(variable,
+                           "q1_legitimizing" ~ "pref_legitimizing_tone",
+                           "q2_self_efficacy" ~ "pref_self-efficacy_tone", 
+                           "q3_acknowledging" ~ "pref_acknowledging_tone", 
+                           "q4_value_affirmation" ~ "pref_value-affirmation_tone", 
+                           "q5_norms" ~ "pref_norms_tone",
+                           "q6_formality" ~ "pref_style",
+                           "style_informal" ~ "message_style",
+                           "dem_sex_male" ~ "dem_sex",
+                           "dem_hispanic_yes" ~ "dem_hispanic")) |> 
+  mutate(variable_grp = variable,
+         variable_grp = if_else(str_detect(variable_grp, "race"), 
+                                "dem_race", variable_grp),
+         variable_grp = if_else(str_detect(variable_grp, "marital"), 
+                                "dem_marital_status", variable_grp),
+         variable_grp = if_else(str_detect(variable_grp, "tone_"), 
+                                "message_tone", variable_grp)) |> 
   group_by(variable_grp) |> 
-  summarize(mean_value = (mean(abs(value)))) |> 
-  mutate(group = reorder(variable_grp, mean_value)) |> 
-  arrange(desc(mean_value))
+  summarize(shap_global = (mean(abs(value))))
+
+
 ```
 
 ```{r}
@@ -79,10 +109,11 @@ shaps <- shaps_grp |>
 #| fig-cap: "Shapley Value"
 
 shaps |>
-  head(30) |> 
+  mutate(variable_grp = reorder(variable_grp, shap_global)) |> 
+  arrange(shap_global) |> 
   ggplot() +
-  geom_bar(aes(x = group, y = mean_value), stat = "identity", fill = "#af1f21") +
-  ylab("Mean |SHAP| value (in Log-Odds)") +
+  geom_bar(aes(x = variable_grp, y = shap_global), stat = "identity", fill = "#af1f21") +
+  ylab("Mean |SHAP| value") +
   xlab("") +
   coord_flip()
 ```
