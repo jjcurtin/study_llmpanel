@@ -167,7 +167,7 @@ Histogram by model
 pp_tidy_rsq |> 
   ggplot(aes(x = posterior, fill = model)) +
   geom_histogram(bins = 30) +
-  scale_fill_manual(values = c("red", "darkgoldenrod1", "green")) +
+  scale_fill_manual(values = c("#dadfe1", "#646569", "#9b0000"), guide = "none") +
   xlab("R-Squared") +
   facet_wrap(vars(model), nrow = 3)
 ```
@@ -251,9 +251,9 @@ pp_mae |>
 Histogram
 ```{r}
 pp_tidy_mae |> 
-  ggplot(aes(x = posterior)) +
+  ggplot(aes(x = posterior, fill = model)) +
   geom_histogram(bins = 30) +
-  scale_fill_manual(values = c("red", "darkgoldenrod1", "green")) +
+  scale_fill_manual(values = c("#dadfe1", "#646569", "#9b0000"), guide = "none") +
   xlab("Mean Absolute Error") +
   facet_wrap(vars(model), nrow = 3)
 ```
