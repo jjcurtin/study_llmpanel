@@ -83,3 +83,14 @@ d |>
   labs(x = "Mean Message Rating", y = "Style", title = "Mean Message Rating by Style") +
   ylim(0,7)
 ```
+
+```{r}
+d |>
+  summarise(mean_rating = mean(message_rating_num), .by = c(tone, style)) |>
+  ggplot(aes(x = tone, y = mean_rating, fill = style)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(x = "Tone", y = "Mean Message Rating", fill = "Style",
+       title = "Mean Message Rating by Tone and Style") +
+  ylim(0, 7) +
+  theme(axis.text.x = element_text(angle = 30, hjust = 1))
+```
