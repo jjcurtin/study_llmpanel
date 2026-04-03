@@ -1,0 +1,85 @@
+---
+title: "Descriptives"
+author: "John Curtin"
+date: "`r lubridate::today()`"
+output: 
+  html_document:
+    toc: true 
+    toc_depth: 2
+format:
+  html:
+    embed-resources: true
+editor_options: 
+  chunk_output_type: console
+params:
+  version: "v4"
+---
+```{r}
+#| include: false
+
+library(tidyverse)
+source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
+
+path_in <- format_path(str_c("llmpanel/chtc/train_", params$version, "/input"))
+theme_set(theme_classic()) 
+```
+
+```{r}
+# using data_trn for now.  Need to get a clean version of panel_long.csv somewhere
+d <- read_csv(here::here(path_in, "data_trn.csv"), show_col_types = FALSE) |> 
+  glimpse()
+```
+
+```{r}
+likert_num <- 1:7
+likert_txt <- c("strongly_disagree", "disagree", "somewhat_disagree",
+               "neutral", "somewhat_agree", "agree", "strongly_agree")
+
+d <- d |> 
+  mutate(message_rating_num = recode_values(message_rating,
+                                            from = likert_txt,
+                                            to = likert_num),
+         message_rating = factor(message_rating,
+                                 levels = likert_txt))
+```
+
+General descriptives for message_rating_num
+```{r}
+d |> 
+  select(message_rating_num) |> 
+  skimr::skim_without_charts()
+```
+
+
+MAE for mean only model
+```{r}
+sum(abs(d$message_rating_num - mean(d$message_rating_num))) / nrow(d)
+```
+
+Histogram
+```{r}
+d |>
+  ggplot(aes(x = message_rating)) +
+  geom_bar() +
+  scale_x_discrete(guide = guide_axis(angle = 30)) +
+  labs(x = "Message Rating", y = "Count", title = "Distribution of Message Ratings")
+```
+
+Bar plots for mean message rating by tone and style
+```{r}
+d |>
+  summarise(mean_rating = mean(message_rating_num), .by = tone) |>
+  ggplot(aes(x = tone, y = mean_rating)) +
+  geom_bar(stat = "identity") +
+  labs(x = "Tone", y = "Mean Message Rating", title = "Mean Message Rating by Tone") + 
+  ylim(0,7)
+```
+
+```{r}
+d |>
+  summarise(mean_rating = mean(message_rating_num), .by = style) |>
+  ggplot(aes(x = style, y = mean_rating)) +
+  geom_bar(stat = "identity") +
+  labs(x = "Mean Message Rating", y = "Style", title = "Mean Message Rating by Style") +
+  ylim(0,7)
+```
