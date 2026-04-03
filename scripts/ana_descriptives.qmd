@@ -48,6 +48,8 @@ General descriptives for message_rating_num
 d |> 
   select(message_rating_num) |> 
   skimr::skim_without_charts()
+
+d |> janitor::tabyl(message_rating)
 ```
 
 
