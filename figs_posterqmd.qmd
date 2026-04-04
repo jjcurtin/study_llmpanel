@@ -1,0 +1,364 @@
+---
+title: "Fits and final model selected from inner resampling method on all data and calculates Shapley values"
+author: "Kendra Wyant"
+date: "`r lubridate::today()`"
+output: 
+  html_document:
+    toc: true 
+    toc_depth: 4
+format:
+  html:
+    embed-resources: true
+params:
+  study: "lag"
+  window: "1day"
+  lead: 168
+  version: "v3"
+  cv: "kfold"
+  model: "strat_lh_final"
+editor_options: 
+  chunk_output_type: console
+---
+
+### Code Status
+
+In use for Lag study
+
+### Notes
+This script fits and evaluates final model selected from inner resampling method and fit on all data. It uses 1 x 5-fold CV to return a single set of shapley values for each participant.
+
+This script creates the following files in the `models` folder
+
+* final_shaps_*.rds
+* final_shapsgrp_*.rds
+
+
+
+### Set Up Environment
+
+```{r}
+study <- params$study
+data_type <- params$data_type
+window <- params$window
+lead <- params$lead 
+version <- params$version
+cv <- params$cv
+model <- params$model
+```
+
+
+Packages for script
+```{r}
+#| message: false
+#| warning: false
+
+library(tidyverse)
+library(tidymodels)
+options(conflicts.policy = "depends.ok")
+library(probably)
+library(betacal)
+```
+
+Source support functions
+```{r}
+# EDA
+source("https://github.com/jjcurtin/lab_support/blob/main/fun_eda.R?raw=true")
+devtools::source_url("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
+
+# CHTC support functions
+devtools::source_url("https://github.com/jjcurtin/lab_support/blob/main/chtc/static_files/fun_chtc.R?raw=true")
+```
+
+Absolute paths
+```{r}
+path_processed <- format_path(str_c("risk/data_processed/", study))
+path_input <- format_path(str_c("risk/chtc/", study))
+path_models <- format_path(str_c("risk/models/", study))
+```
+
+
+Chunk Defaults
+```{r}
+#| include: false
+
+knitr::opts_chunk$set(attr.output='style="max-height: 500px;"')
+
+options(tibble.width = Inf)
+options(tibble.print_max = Inf)
+```
+
+### Script Functions
+
+Function to fit and extract shapley values
+```{r}
+fit_predict_eval <- function(split_num, splits, config_best, rec){
+
+
+  d_in <- training(splits$splits[[split_num]])
+  
+  d_out <- testing(splits$splits[[split_num]])
+
+  rec_prepped <- rec |> 
+    prep(training = d_in)
+
+  feat_in <- rec_prepped |> 
+    bake(new_data = NULL)
+
+  model_best <- fit_best_model(config_best, feat = feat_in, "classification")
+
+  feat_out <- rec_prepped |> 
+    bake(new_data = d_out)   # no id_obs because not included in d_in
+
+  SHAPforxgboost::shap.prep(xgb_model = extract_fit_engine(model_best),
+                     X_train = feat_out |> select(-y) |>  as.matrix()) |>
+    # add id_obs by multiple of number of features
+    mutate(id_obs = rep(d_out$label_num, times = ncol(feat_out) - 1)) |>
+    relocate(id_obs)
+}
+```
+
+Function to clean up poor choices for feature names for SHAPs!!
+```{r function_1}
+clean_feature_names <- function(feat_name){
+  new_name <- gsub(".l0", "", feat_name)
+  new_name <- gsub("rratecount.count", "raw_count", new_name)
+  new_name <- gsub("dratecount.count", "diff_count", new_name)
+  new_name <- gsub("drecent_response", "diff_recent", new_name)
+  new_name <- gsub("rrecent_response", "raw_recent", new_name)
+  new_name <- gsub("dmin_response", "diff_min", new_name)
+  new_name <- gsub("rmin_response", "raw_min", new_name)
+  new_name <- gsub("dmax_response", "diff_max", new_name)
+  new_name <- gsub("rmax_response", "raw_max", new_name)
+  new_name <- gsub("dmedian_response", "diff_median", new_name)
+  new_name <- gsub("rmedian_response", "raw_median", new_name)
+  new_name <- gsub("label_", "", new_name)
+  new_name <- gsub("demo_", "", new_name)
+  new_name <- gsub("High.school.or.less", "high.school", new_name)
+  new_name <- gsub("Some.college", "some.college", new_name)
+  new_name <- gsub("Mon", "mon", new_name)
+  new_name <- gsub("Tue", "tue", new_name)
+  new_name <- gsub("Wed", "wed", new_name)
+  new_name <- gsub("Thu", "thu", new_name)
+  new_name <- gsub("Fri", "fri", new_name)
+  new_name <- gsub("Sat", "sat", new_name)
+  new_name <- gsub("Sun", "sun", new_name)
+  new_name <- gsub("Never.Married", "never.married", new_name)
+  new_name <- gsub("Never.Other", "never.other", new_name)
+  new_name <- gsub("White.Caucasian", "caucasian", new_name)
+  new_name <- gsub("Male", "male", new_name)
+  new_name <- gsub("p12.raw_count.lapse", "lapse.p12.raw_count", new_name)
+  new_name <- gsub("p24.raw_count.lapse", "lapse.p24.raw_count", new_name)
+  new_name <- gsub("p48.raw_count.lapse", "lapse.p48.raw_count", new_name)
+  new_name <- gsub("p72.raw_count.lapse", "lapse.p72.raw_count", new_name)
+  new_name <- gsub("p168.raw_count.lapse", "lapse.p168.raw_count", new_name)
+  new_name <- gsub("p12.diff_count.lapse", "lapse.p12.diff_count", new_name)
+  new_name <- gsub("p24.diff_count.lapse", "lapse.p24.diff_count", new_name)
+  new_name <- gsub("p48.diff_count.lapse", "lapse.p48.diff_count", new_name)
+  new_name <- gsub("p72.diff_count.lapse", "lapse.p72.diff_count", new_name)
+  new_name <- gsub("p168.diff_count.lapse", "lapse.p168.diff_count", new_name)
+  new_name <- gsub("p12.raw_count.ema", "missing.p12.raw_count", new_name)
+  new_name <- gsub("p24.raw_count.ema", "missing.p24.raw_count", new_name)
+  new_name <- gsub("p48.raw_count.ema", "missing.p48.raw_count", new_name)
+  new_name <- gsub("p72.raw_count.ema", "missing.p72.raw_count", new_name)
+  new_name <- gsub("p168.raw_count.ema", "missing.p168.raw_count", new_name)
+  new_name <- gsub("p12.diff_count.ema", "missing.p12.diff_count", new_name)
+  new_name <- gsub("p24.diff_count.ema", "missing.p24.diff_count", new_name)
+  new_name <- gsub("p48.diff_count.ema", "missing.p48.diff_count", new_name)
+  new_name <- gsub("p72.diff_count.ema", "missing.p72.diff_count", new_name)
+  new_name <- gsub("p168.diff_count.ema", "missing.p168.diff_count", new_name)
+  return(new_name) 
+}
+```
+
+### Read in aggregate CHTC metrics for inner folds
+```{r}
+# rename inner_metrics
+metrics_raw <- 
+  read_csv(here::here(path_models, str_c("inner_metrics_", window, 
+                                   "_", lead, "_", version, "_", cv, "_",
+                                   model, ".csv")), 
+           col_types = "iiiiccdddcdddddddi") |> 
+  glimpse()
+```
+
+
+### Identify best config for each outer fold (i.e., across inner folds)
+
+Average metrics for each configuration across inner folds for each outer fold (XGBOOST only)
+```{r}
+metrics_avg <- metrics_raw |> 
+  filter(algorithm == "xgboost") |> 
+  group_by(algorithm, feature_set, hp1, hp2, hp3, resample) |> 
+   summarize(across(c(accuracy, bal_accuracy, roc_auc, sens, spec, ppv, npv),
+                     median),
+              n_jobs = n(), .groups = "drop") |> 
+  relocate(n_jobs) |> 
+  arrange(desc(roc_auc))
+```
+
+Best configuration from kfold
+```{r best_model_2}
+config_best <- metrics_avg |> 
+  slice(1) 
+
+config_best |> glimpse()
+```
+
+
+### Fit best model for each outer fold and get/save shapley values
+
+ASSUMPTIONS: 
+
+* Data are same for all batches
+* format_data() is same for all batches
+* Assumes full recipe is for all algorithms is present in all training controls with branches/ifs to select proper algorithm specific steps
+
+Map over all outer splits to get shapley values from held out folds.
+
+```{r}
+# can source any training control given assumptions above
+batch_names <- list.dirs(path_input, full.names = FALSE, recursive = FALSE)
+batch_names <- batch_names[str_detect(batch_names, "train") & 
+                           str_detect(batch_names, cv) &
+                           str_detect(batch_names, version) &
+                           str_detect(batch_names, window) &
+                           str_detect(batch_names, model) &
+                           str_detect(batch_names, 
+                                      str_c(as.character(lead), "lag"))]
+  
+batch_name <- batch_names[1] # can source any batch given assumptions above
+path_batch <- here::here(path_input, batch_name)
+source(here::here(path_batch, "input", "training_controls.R"))
+source("https://github.com/jjcurtin/lab_support/blob/main/chtc/static_files/fun_chtc.R?raw=true")
+# NOTE: training controls overwrites path_batch but it matches   
+  
+chunks <- str_split_fixed(data_trn, "\\.", n = Inf) # parse name from extensions
+if (length(chunks) == 2) {
+  fn <- str_c("data_trn.", chunks[[2]])
+} else {
+  fn <- str_c("data_trn.", chunks[[2]], ".", chunks[[3]])
+}
+
+
+# open based on file type
+if (str_detect(fn, "csv")) {
+  d <- read_csv(here::here(path_batch, "input", fn), show_col_types = FALSE) 
+} else {
+  d <- read_rds(here::here(path_batch, "input", fn))
+}
+  
+  
+
+d <- format_data(d) |> 
+  arrange(label_num) 
+
+# can use any data to build recipe  
+rec <- build_recipe(d = d, config = config_best)
+
+splits <- d |> 
+    make_splits(cv_resample_type = "kfold", cv_resample = "1_x_5", 
+                cv_outer_resample = NULL, cv_inner_resample = NULL, 
+                cv_group, cv_strat = cv_strat, the_seed = seed_splits)
+
+    
+all <- 1:length(splits$splits) |> 
+  map(\(split_num) fit_predict_eval(split_num, splits, config_best, rec)) |> 
+  list_rbind() |> 
+  mutate(variable = fct_relabel(variable, clean_feature_names))
+
+all |> 
+  write_rds(here::here(path_models, str_c("final_shaps_", cv, "_1_x_5",
+                                           "_", window, "_", lead, "_", 
+                                           version, "_", model, ".rds")))
+```
+
+Group Shaps
+```{r}
+shaps_out_grp <- all |>
+  mutate(variable_grp = if_else(str_detect(variable, ".lapse"),
+                                "past use (EMA item)",
+                                variable),
+         variable_grp = if_else(str_detect(variable_grp, "ema_2"), 
+                                "craving (EMA item)", 
+                                variable_grp),
+         variable_grp = if_else(str_detect(variable_grp, "ema_3"), 
+                                "past/future risky situation (EMA item)", 
+                                variable_grp),
+         variable_grp = if_else(str_detect(variable_grp, "ema_4"), 
+                                "past/future stressful event (EMA item)",
+                                variable_grp),
+         variable_grp = if_else(str_detect(variable_grp, "ema_5"), 
+                                "past pleasant event (EMA item)",
+                                variable_grp),
+         variable_grp = if_else(str_detect(variable_grp, "ema_6"), 
+                                "valence/arousal (EMA item)", 
+                                variable_grp),
+         variable_grp = if_else(str_detect(variable_grp, "ema_7"),
+                                "valence/arousal (EMA item)", 
+                                variable_grp),
+         variable_grp = if_else(str_detect(variable_grp, "ema_8"), 
+                                "past/future risky situation (EMA item)",
+                                variable_grp),
+         variable_grp = if_else(str_detect(variable_grp, "ema_9"), 
+                                "past/future stressful event (EMA item)",
+                                variable_grp),
+         variable_grp = if_else(str_detect(variable_grp, "ema_10"), 
+                                "future efficacy (EMA item)", 
+                                variable_grp),
+         variable_grp = if_else(str_detect(variable_grp, "count.ema"),
+                                "missing surveys (other)", 
+                                variable_grp),
+         variable_grp = if_else(str_detect(variable_grp, "day"), 
+                                "lapse day (other)", 
+                                variable_grp),
+         variable_grp = if_else(str_detect(variable_grp, "hour"), 
+                                "lapse hour (other)",
+                                variable_grp),
+         variable_grp = if_else(str_detect(variable_grp, "age"),
+                                "age (demographic)",
+                                variable_grp),
+         variable_grp = if_else(str_detect(variable_grp, "sex"), 
+                                "sex (demographic)",
+                                variable_grp),
+         variable_grp = if_else(str_detect(variable_grp, "marital"), 
+                                "marital (demographic)", 
+                                variable_grp),
+         variable_grp = if_else(str_detect(variable_grp, "race"), 
+                                "race (demographic)", 
+                                variable_grp),
+         variable_grp = if_else(str_detect(variable_grp, "educ"),
+                                "education (demographic)",
+                                variable_grp),
+         variable_grp = if_else(str_detect(variable_grp, "income"), 
+                                "income (demographic)", 
+                                variable_grp),
+         variable_grp = if_else(str_detect(variable_grp, "employ"), 
+                                "employment (demographic)",
+                                variable_grp)) |>
+  mutate(variable_grp = factor(variable_grp)) |> 
+  group_by(id_obs, variable_grp) |> 
+  summarize(value = sum(value))
+  
+shaps_out_grp |>
+  write_rds(here::here(path_models, str_c("final_shapsgrp_", cv, "_1_x_5",
+                                           "_", window, "_", lead, "_", 
+                                           version, "_", model, ".rds")))
+```
+
+Look at Shaps as check  
+
+Global importance SHAP plot for grouped features
+```{r shap_grouped_plot}
+shaps_out_grp |>
+  group_by(variable_grp) |>
+  summarize(mean_value = mean(abs(value)), .groups = "drop") |>
+  arrange(mean_value) |>
+  mutate(variable_grp = factor(variable_grp),
+         variable_grp = fct_inorder(variable_grp)) |>
+  ggplot(mapping = aes(x = variable_grp, y = mean_value)) +
+  geom_point(size = 2, color = "red") +
+  geom_segment(aes(x = variable_grp, y = mean_value, xend = variable_grp),
+               yend = 0, colour = "grey50")  +
+  ylab("Mean |SHAP| value") +
+  coord_flip()
+```
