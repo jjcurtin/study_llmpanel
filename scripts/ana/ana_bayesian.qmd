@@ -118,6 +118,8 @@ pp_wide_rsq <- tibble(
   mutate(dem_v_base = demographics - baseline,
          pref_v_dem = preferences - demographics)
 
+pp_wide_rsq |> write_csv(here::here(path_out, "posterior_rsq.csv"))
+
 # Colin - UPDATE THIS AND ALSO UPDATE LATER FOR MAE
 q = c(.025, .5, .975)
 

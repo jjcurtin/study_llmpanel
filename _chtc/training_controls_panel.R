@@ -8,15 +8,16 @@
 source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
 
 # SET GLOBAL PARAMETERS--------------------
-version <- "v4"
-algorithm <- "xgboost"  # glmnet, random_forest, xgboost
-feature_set <- c("base", "dem", "pref")
+version <- "v5"
+algorithm <- "glmnet"  # glmnet, random_forest, xgboost
+# feature_set <- c("base", "dem", "pref")
+feature_set <- c("pref")
 seed_splits <- 102030
 ml_mode <- "regression"   # regression or classification
 configs_per_job <- 100 
 
 # CHTC SPECIFIC CONTROLS----------------------------
-username <- "c/cmaggard" # for setting staging directory (until we have group staging folder)
+username <- "c/jjcurtin" # for setting staging directory (until we have group staging folder)
 stage_data <- FALSE # If FALSE .sif will still be staged, just not data_trn
 max_idle <- 1000
 request_cpus <- 1 
@@ -63,11 +64,25 @@ hp3_xgboost <-  seq(2, 22, by = 2)  # mtry <- note: will change
 # trees = 500 (included in fit function by default)
 # early stopping = 20 (included in fit function by default)
  
+hp1_glmnet <- seq(0, 1, length.out = 11) # alpha (mixture)
+hp2_glmnet_min <- -8 # min for penalty grid - will be passed into c(0, exp(seq(min, max, length.out = out)))
+hp2_glmnet_max <- 2 # max for penalty grid
+hp2_glmnet_out <- 200 # length of penalty grid
 
 # FORMAT DATA-----------------------------------------
 format_data <- function (d){
+  
+  # remove variables we will not use at all
+  # UPDATE AS NEEDED
+  d <- d |> 
+    select(-contains(c("identity", "orientation", "text", "input")), 
+           -dem_student, -dem_n_household, -dem_minority, -context, 
+           -survey_version, -dem_race_multiple)
+
+  # handle outcome  
   d <- d |> 
     rename(y = message_rating) |> 
+    relocate(y) |> 
     mutate(y = case_when(
       y == "strongly_disagree" ~ 1,
       y =="disagree" ~ 2,
@@ -79,39 +94,47 @@ format_data <- function (d){
       .default = NA_real_
     ))
   
+ 
+  # handle prefs rename and recode
+  d <- d |> 
+    rename(pref_legitimizing = q1_legitimizing,
+           pref_self_efficacy = q2_self_efficacy,
+           pref_acknowledging = q3_acknowledging,
+           pref_value_affirmation = q4_value_affirmation,
+           pref_norms = q5_norms,
+           pref_formality = q6_formality)
   
-  # also make the message preferences numeric
   q_cols <- c(
-    "q1_legitimizing",
-    "q2_self_efficacy",
-    "q3_acknowledging",
-    "q4_value_affirmation",
-    "q5_norms"
+    "pref_legitimizing",
+    "pref_self_efficacy",
+    "pref_acknowledging",
+    "pref_value_affirmation",
+    "pref_norms"
   )
   
   for (col in intersect(q_cols, names(d))) {
     d[[col]] <- case_when(
-      d[[col]] == "strongly_disagree" ~ 0,
-      d[[col]] == "disagree" ~ 1,
-      d[[col]] == "somewhat_disagree" ~ 2,
-      d[[col]] == "neutral" ~ 3,
-      d[[col]] == "somewhat_agree" ~ 4,
-      d[[col]] == "agree" ~ 5,
-      d[[col]] == "strongly_agree" ~ 6,
+      d[[col]] == "strongly_disagree" ~ 1,
+      d[[col]] == "disagree" ~ 2,
+      d[[col]] == "somewhat_disagree" ~ 3,
+      d[[col]] == "neutral" ~ 4,
+      d[[col]] == "somewhat_agree" ~ 5,
+      d[[col]] == "agree" ~ 6,
+      d[[col]] == "strongly_agree" ~ 7,
       .default = NA_real_
     )
   }
   
   # and formality
   d <- d |> 
-    mutate(q6_formality = case_when(
-      q6_formality == "strongly_prefer_informal" ~ 1,
-      q6_formality == "moderately_prefer_informal" ~ 2,
-      q6_formality == "slightly_prefer_informal" ~ 3,
-      q6_formality == "neutral" ~ 4,
-      q6_formality == "slightly_prefer_formal" ~ 5,
-      q6_formality == "moderately_prefer_formal" ~ 6,
-      q6_formality == "strongly_prefer_formal" ~ 7,
+    mutate(pref_formality = case_when(
+      pref_formality == "strongly_prefer_informal" ~ 1,
+      pref_formality == "moderately_prefer_informal" ~ 2,
+      pref_formality == "slightly_prefer_informal" ~ 3,
+      pref_formality == "neutral" ~ 4,
+      pref_formality == "slightly_prefer_formal" ~ 5,
+      pref_formality == "moderately_prefer_formal" ~ 6,
+      pref_formality == "strongly_prefer_formal" ~ 7,
       .default = NA_real_
     ))
   
@@ -150,12 +173,9 @@ build_recipe <- function(d, config) {
   feature_set <- config$feature_set
  
   
-  # NOTE: Tmp remove of dem_orientation.  consider adding again with step_novel 
+  # NOTE: remove subid here because needed to keep after format data for splits 
   d <- d |> 
-    select(-subid, -dem_identity, -contains("other_text"), -dem_race_multiple, -dem_student,
-           -dem_n_household, -dem_minority, -q7_user_input, -survey_version,
-           -context, -dem_orientation)
-
+    select(-subid) 
   
   # base model features
   if (str_detect(feature_set, "base")) {
@@ -189,6 +209,14 @@ build_recipe <- function(d, config) {
       step_dummy(all_nominal_predictors(), one_hot = FALSE) 
   } 
   
+  if (algorithm == "glmnet") {
+    rec <- rec  |>  
+      step_dummy(all_nominal_predictors(), one_hot = FALSE) |>
+      step_interact(terms = ~ matches("^tone_(legitimizing|norms|value_affirmation|self_efficacy)$"):starts_with("pref_")) |> 
+      step_interact(terms = ~ matches("^style_informal$"):starts_with("pref_")) |> 
+      step_interact(terms = ~ matches("^tone_(legitimizing|norms|value_affirmation|self_efficacy)$"):starts_with("dem_")) |> 
+      step_interact(terms = ~ matches("^style_informal$"):starts_with("dem_"))
+  } 
   # final steps for all algorithms
   rec <- rec |> 
     # drop columns with NA values after imputation (100% NA)

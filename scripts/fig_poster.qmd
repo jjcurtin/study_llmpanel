@@ -1,0 +1,182 @@
+---
+title: "Descriptives"
+author: "John Curtin"
+date: "`r lubridate::today()`"
+output: 
+  html_document:
+    toc: true 
+    toc_depth: 2
+format:
+  html:
+    embed-resources: true
+editor_options: 
+  chunk_output_type: console
+params:
+  version: "v4"
+---
+
+## Setup
+```{r}
+#| include: false
+
+library(tidyverse)
+source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
+
+path_chtc <- format_path(str_c("llmpanel/chtc/train_", params$version))
+path_data <- format_path("llmpanel/data_processed")
+theme_set(theme_classic()) 
+```
+
+## Data
+```{r}
+d <- read_csv(here::here(path_chtc, "input", "data_trn.csv"), show_col_types = FALSE) |> 
+  glimpse()
+
+f <- read_csv(here::here(path_chtc, "output",
+                         str_c("batch_results_", params$version, ".csv")), 
+              show_col_types = FALSE) |> 
+  glimpse()
+
+p <- read_csv(here::here(path_data, "posterior_rsq.csv"))
+
+```
+
+```{r}
+likert_num <- 1:7
+likert_txt <- c("strongly_disagree", "disagree", "somewhat_disagree",
+               "neutral", "somewhat_agree", "agree", "strongly_agree")
+likert_style = c("strongly_prefer_informal",
+                                          "moderately_prefer_informal",
+                                          "slightly_prefer_informal",
+                                          "slightly_prefer_formal",
+                                          "moderately_prefer_formal",
+                                          "strongly_prefer_formal")
+
+d <- d |> 
+  mutate(message_rating_num = recode_values(message_rating,
+                                            from = likert_txt,
+                                            to = likert_num),
+         q1_legitimizing_num = recode_values(q1_legitimizing,
+                                            from = likert_txt,
+                                            to = likert_num),
+         q2_self_efficacy_num = recode_values(q2_self_efficacy,
+                                            from = likert_txt,
+                                            to = likert_num),
+         q3_acknowledging_num = recode_values(q3_acknowledging,
+                                            from = likert_txt,
+                                            to = likert_num),
+         q4_value_affirmation_num = recode_values(q4_value_affirmation,
+                                            from = likert_txt,
+                                            to = likert_num),
+         q5_norms_num = recode_values(q5_norms,
+                                            from = likert_txt,
+                                            to = likert_num),
+         q6_formality_num = recode_values(q6_formality,
+                                            from = likert_style,
+                                            to = 1:6),
+         message_rating = factor(message_rating, levels = likert_txt),
+         q1_legitimizing = factor(q1_legitimizing, levels = likert_txt),
+         q2_self_efficacy = factor(q2_self_efficacy, levels = likert_txt),
+         q3_acknowledging = factor(q3_acknowledging, levels = likert_txt),
+         q4_value_affirmation = factor(q4_value_affirmation, levels = likert_txt),
+         q5_norms = factor(q5_norms, levels = likert_txt),
+         q6_formality = factor(q6_formality, 
+                               levels = c("strongly_prefer_informal",
+                                          "moderately_prefer_informal",
+                                          "slightly_prefer_informal",
+                                          "slightly_prefer_formal",
+                                          "moderately_prefer_formal",
+                                          "strongly_prefer_formal")))
+```
+
+## Message ratings Histogram
+
+```{r}
+d |>
+  ggplot(aes(x = message_rating)) +
+  geom_bar() +
+  scale_x_discrete(guide = guide_axis(angle = 30)) +
+  labs(x = "Message Rating", y = "Count", title = "Distribution of Message Ratings")
+```
+
+## Messages by tone and style
+
+```{r}
+d |>
+  summarise(mean_rating = mean(message_rating_num),
+            sd = sd(message_rating_num),
+            .by = c(tone, style)) |> 
+  ggplot(aes(x = tone, y = mean_rating, fill = style)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_errorbar(aes(ymin = mean_rating - sd, ymax = mean_rating + sd),
+                position = position_dodge(width = 0.9), width = 0.25) +
+  labs(x = "Tone", y = "Mean Message Rating", fill = "Style",
+       title = "Mean Message Rating by Tone and Style") +
+  ylim(0, 7) +
+  theme(axis.text.x = element_text(angle = 30, hjust = 1))
+```
+
+
+## Posterior
+
+
+
+
+
+## Assignment
+
+```{r}
+assign <- d |> 
+  mutate(min_tone = pmin(q1_legitimizing_num, q2_self_efficacy_num, q3_acknowledging_num,
+                         q4_value_affirmation_num, q5_norms_num, na.rm = TRUE)) |> 
+  mutate(max_tone = pmax(q1_legitimizing_num, q2_self_efficacy_num, q3_acknowledging_num,
+                         q4_value_affirmation_num, q5_norms_num, na.rm = TRUE)) |> 
+  mutate(diff = max_tone - min_tone) 
+
+assign_best <- assign |>
+  group_by(subid) |>
+  filter((style == "formal" & str_detect(q6_formality, "_formal")) |
+         (style == "informal" & str_detect(q6_formality, "_informal"))) |>
+  ungroup() |>
+  filter_out(tone == "legitimizing" & q1_legitimizing_num < max_tone) |> 
+  filter_out(tone == "self_efficacy" & q2_self_efficacy_num < max_tone) |> 
+  filter_out(tone == "acknowledging" & q3_acknowledging_num < max_tone) |> 
+  filter_out(tone == "value_affirmation" & q4_value_affirmation_num < max_tone) |> 
+  filter_out(tone == "norms" & q5_norms_num < max_tone)  |> 
+  mutate(assign = "preferred")
+
+
+mean(assign_best$message_rating_num)
+
+assign_other <- assign |>
+  group_by(subid) |>
+  filter((style == "formal" & str_detect(q6_formality, "_informal")) |
+         (style == "informal" & str_detect(q6_formality, "_formal"))) |>
+  ungroup() |>
+  filter_out(tone == "legitimizing" & q1_legitimizing_num == max_tone) |> 
+  filter_out(tone == "self_efficacy" & q2_self_efficacy_num == max_tone) |> 
+  filter_out(tone == "acknowledging" & q3_acknowledging_num == max_tone) |> 
+  filter_out(tone == "value_affirmation" & q4_value_affirmation_num == max_tone) |> 
+  filter_out(tone == "norms" & q5_norms_num == max_tone)  |> 
+  mutate(assign = "other")
+
+mean(assign_other$message_rating_num)
+
+assign_all <- assign_best |> 
+  bind_rows(assign_other)
+
+
+assign_all |>
+  summarise(mean_rating = mean(message_rating_num),
+            sd = sd(message_rating_num) / sqrt(n()),
+            .by = assign) |> 
+  ggplot(aes(x = assign, y = mean_rating)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_errorbar(aes(ymin = mean_rating - sd, ymax = mean_rating + sd),
+                position = position_dodge(width = 0.9), width = 0.25) +
+  labs(x = "Message Category", y = "Mean Message Rating", fill = "Style",
+       title = "Mean Message Rating by Tone and Style") +
+  ylim(0, 7) +
+  theme(axis.text.x = element_text(angle = 30, hjust = 1))
+```
+
