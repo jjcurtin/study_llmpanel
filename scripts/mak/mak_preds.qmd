@@ -1,5 +1,5 @@
 ---
-title: "shaps"
+title: "model and preds"
 author: "John Curtin"
 date: "`r lubridate::today()`"
 output: 
@@ -23,15 +23,15 @@ library(tidymodels)
 theme_set(theme_classic()) 
 source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
 
-path_chtc <- format_path(str_c("llmpanel/chtc/train_", params$version))
-path_configs <- format_path("llmpanel/data_processed")
+path_in <- format_path("llmpanel/data_processed")
+path_chtc <- format_path(str_c("llmpanel/chtc/train_", 
+                                 params$version))
 ```
 
 ## Best config 
 ```{r}
-folds <- read_csv(here::here(path_chtc, "output",
-                         str_c("batch_results_", params$version, ".csv")), 
-              show_col_types = FALSE) |> 
+folds <- read_csv(here::here(path_in,
+                       str_c("configs_", params$version, ".csv"))) |> 
   filter(feature_set == "pref") |> 
   glimpse()
 
@@ -42,10 +42,10 @@ best <- folds |>
     mae = median(mae),
     n = n(),
    .groups = "drop") |> 
-  arrange(mae) |> 
+  arrange(desc(rsq)) |> 
   slice_head(n = 1)
 
-best$algorithm <- "xgboost"
+best$algorithm <- "glmnet"
 best$feature_set <- "pref"
 ```
 
@@ -60,44 +60,120 @@ rec <- build_recipe(d = d, config = best)
 rec_prep <- rec |> 
   prep(training = d)
 feat <- rec_prep |> 
-  bake(new_data = d)
+  bake(new_data = NULL)
 
-model <- boost_tree(learn_rate = best$hp1,
-                        tree_depth = best$hp2,
-                        mtry = best$hp3,
-                        trees = 500,  # set high but use early stopping
-                        stop_iter = 20) |>  
-      set_engine("xgboost",
-                 validation = 0.2) |>  
-      set_mode("regression") |> 
+model <- linear_reg(mixture = best$hp1,
+                    penalty = best$hp2) |>
+      set_engine("glmnet") |>
+      set_mode("regression") |>
       fit(y ~ ., data = feat)
+
+# model <- boost_tree(learn_rate = best$hp1,
+#                         tree_depth = best$hp2,
+#                         mtry = best$hp3,
+#                         trees = 500,  # set high but use early stopping
+#                         stop_iter = 20) |>  
+#       set_engine("xgboost",
+#                  validation = 0.2) |>  
+#       set_mode("regression") |> 
+#       fit(y ~ ., data = feat)
 
 
 ```
 
 
+```{r}
+model |>
+  tidy() |>
+  filter(term != "(Intercept)") |>
+  arrange(desc(abs(estimate))) |> 
+  view()
+```
 
 ```{r}
-preds <- d |> 
-  group_by(subid) |> 
-  slice_head(n = 1)
+model |>
+  tidy() |>
+  filter(term != "(Intercept)", estimate != 0) |>
+  slice_max(abs(estimate), n = 30) |>
+  mutate(term = reorder(term, estimate)) |>
+  ggplot(aes(x = estimate, y = term)) +
+  geom_col() +
+  geom_vline(xintercept = 0, linewidth = 0.3) +
+  labs(x = "Coefficient", y = NULL)
+```
 
+
+```{r}
 tones <- c("legitimizing", "self_efficacy", "norms", "value_affirmation", "acknowledging")
 styles <- c("formal", "informal")
 
-conds <- expand_grid(subid = unique(d$subid), tones, styles)
+preds_id <- d |> 
+  group_by(subid) |> 
+  slice_head(n = 1) |> 
+  select(-style, -tone)
+
+conds <- expand_grid(subid = unique(d$subid), tone = tones, style = styles)
 
 preds <- conds |> 
-  left_join(preds, by = "subid")
+  left_join(preds_id, by = "subid")
+
 
 feat_preds <- rec_prep |> 
-  bake(new_data = preds) |> 
-  mutate(tone = preds$tones,
-         style = preds$styles,
-         subid = preds$subid)
+  bake(new_data = preds)
 
 assign <- feat_preds |> 
   mutate(predicted  = predict(model, feat_preds)$.pred) |> 
+  mutate(tone = preds$tone,
+         style = preds$style,
+         subid = preds$subid) |> 
   relocate(subid, tone, style, predicted)
+
+assign_best <- assign |> 
+  group_by(subid) |> 
+  slice_max(predicted) |> 
+  select(subid, tone_best = tone, style_best = style)
+```
+
+```{r}
+assign |> 
+  group_by(subid) |> 
+  summarize(min = min(predicted),
+            max = max(predicted),
+            dif = max  - min) |> 
+  summarize(mean(dif), median(dif), max(dif), min(dif))
+```
+
+```{r}
+top <- d |> 
+  left_join(assign_best, by = "subid") |> 
+  filter(tone == tone_best,
+         style == style_best) |> 
+  mutate(cond = "best")
+
+other <- d |> 
+  left_join(assign_best, by = "subid") |> 
+  filter(tone != tone_best,
+         style != style_best) |> 
+  mutate(cond = "other")
+```
+
+```{r}
+
+all <- top |> 
+  bind_rows(other)
+
+
+all |>
+  summarise(mean_rating = mean(y),
+            sd = sd(y) / sqrt(n()),
+            .by = cond) |> view()
+  ggplot(aes(x = cond, y = mean_rating)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_errorbar(aes(ymin = mean_rating - sd, ymax = mean_rating + sd),
+                position = position_dodge(width = 0.9), width = 0.25) +
+  labs(x = "Message Category", y = "Mean Message Rating", fill = "Style",
+       title = "Mean Message Rating by Tone and Style") +
+  ylim(0, 7) +
+  theme(axis.text.x = element_text(angle = 30, hjust = 1))
 ```
 

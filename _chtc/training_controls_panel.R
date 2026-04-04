@@ -8,16 +8,15 @@
 source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
 
 # SET GLOBAL PARAMETERS--------------------
-version <- "v5"
+version <- "v6"
 algorithm <- "glmnet"  # glmnet, random_forest, xgboost
-# feature_set <- c("base", "dem", "pref")
-feature_set <- c("pref")
+feature_set <- c("base", "dem", "pref")
 seed_splits <- 102030
 ml_mode <- "regression"   # regression or classification
 configs_per_job <- 100 
 
 # CHTC SPECIFIC CONTROLS----------------------------
-username <- "c/jjcurtin" # for setting staging directory (until we have group staging folder)
+username <- "jjcurtin" # for setting staging directory (until we have group staging folder)
 stage_data <- FALSE # If FALSE .sif will still be staged, just not data_trn
 max_idle <- 1000
 request_cpus <- 1 
@@ -58,15 +57,14 @@ data_trn <- "panel_long.csv"
 
 # ALGORITHM-SPECIFIC HYPERPARAMETERS-----------
 hp1_xgboost <- c(0.001, 0.01, .1, 1, 1.5, 2)  # learn_rate
-
 hp2_xgboost <-  c(2, 3, 4, 5, 6, 7, 8) # tree_depth
 hp3_xgboost <-  seq(2, 22, by = 2)  # mtry <- note: will change
 # trees = 500 (included in fit function by default)
 # early stopping = 20 (included in fit function by default)
  
-hp1_glmnet <- seq(0, 1, length.out = 11) # alpha (mixture)
+hp1_glmnet <- seq(0, 1, by = .1) # alpha (mixture)
 hp2_glmnet_min <- -8 # min for penalty grid - will be passed into c(0, exp(seq(min, max, length.out = out)))
-hp2_glmnet_max <- 2 # max for penalty grid
+hp2_glmnet_max <- 0 # max for penalty grid
 hp2_glmnet_out <- 200 # length of penalty grid
 
 # FORMAT DATA-----------------------------------------
@@ -139,6 +137,7 @@ format_data <- function (d){
     ))
   
   # COLIN: income and education are ordinal and can be engineered with single feature here
+  # later consider target or dummy
   d <- d |> 
     mutate(dem_education = case_when(
       dem_education == "high_school_or_ged" ~ 1,
@@ -211,12 +210,22 @@ build_recipe <- function(d, config) {
   
   if (algorithm == "glmnet") {
     rec <- rec  |>  
-      step_dummy(all_nominal_predictors(), one_hot = FALSE) |>
-      step_interact(terms = ~ matches("^tone_(legitimizing|norms|value_affirmation|self_efficacy)$"):starts_with("pref_")) |> 
-      step_interact(terms = ~ matches("^style_informal$"):starts_with("pref_")) |> 
-      step_interact(terms = ~ matches("^tone_(legitimizing|norms|value_affirmation|self_efficacy)$"):starts_with("dem_")) |> 
-      step_interact(terms = ~ matches("^style_informal$"):starts_with("dem_"))
+      step_dummy(all_nominal_predictors(), one_hot = FALSE)
+    
+    if (str_detect(feature_set, "dem") | str_detect(feature_set, "pref")) {
+      rec <- rec |>   
+        step_interact(terms = ~ matches("^tone_(legitimizing|norms|value_affirmation|self_efficacy)$"):starts_with("dem_")) |> 
+        step_interact(terms = ~ matches("^style_informal$"):starts_with("dem_"))
+      
+    }
+    
+    if (str_detect(feature_set, "pref")) {
+      rec <- rec |>  
+        step_interact(terms = ~ matches("^tone_(legitimizing|norms|value_affirmation|self_efficacy)$"):starts_with("pref_")) |> 
+        step_interact(terms = ~ matches("^style_informal$"):starts_with("pref_")) 
+    } 
   } 
+  
   # final steps for all algorithms
   rec <- rec |> 
     # drop columns with NA values after imputation (100% NA)
