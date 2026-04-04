@@ -12,7 +12,7 @@ format:
 editor_options: 
   chunk_output_type: console
 params:
-  version: "v4"
+  version: "v5"
 ---
 
 ## Setup
@@ -21,95 +21,100 @@ params:
 
 library(tidyverse)
 source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
+source("https://github.com/jjcurtin/lab_support/blob/main/fun_eda.R?raw=true")
 
 path_chtc <- format_path(str_c("llmpanel/chtc/train_", params$version))
 path_data <- format_path("llmpanel/data_processed")
+
+source(here::here(path_chtc, "input", "training_controls.R"))
 theme_set(theme_classic()) 
+
+likert_num <- 1:7
+likert_txt <- c("strongly_disagree", "disagree", "somewhat_disagree",
+               "neutral", "somewhat_agree", "agree", "strongly_agree")
 ```
 
 ## Data
 ```{r}
 d <- read_csv(here::here(path_chtc, "input", "data_trn.csv"), show_col_types = FALSE) |> 
+  format_data() |> 
+  mutate(y_txt = recode_values(y,
+                               from = likert_num,
+                               to = likert_txt),
+         y_txt = fct(y_txt, levels = likert_txt)) |> 
   glimpse()
 
-f <- read_csv(here::here(path_chtc, "output",
-                         str_c("batch_results_", params$version, ".csv")), 
-              show_col_types = FALSE) |> 
-  glimpse()
+# f <- read_csv(here::here(path_chtc, "output",
+#                          str_c("batch_results_", params$version, ".csv")), 
+#               show_col_types = FALSE) |> 
+#   glimpse()
 
-p <- read_csv(here::here(path_data, "posterior_rsq.csv"))
+# p <- read_csv(here::here(path_data, "posterior_rsq.csv"))
 
 ```
 
-```{r}
-likert_num <- 1:7
-likert_txt <- c("strongly_disagree", "disagree", "somewhat_disagree",
-               "neutral", "somewhat_agree", "agree", "strongly_agree")
-likert_style = c("strongly_prefer_informal",
-                                          "moderately_prefer_informal",
-                                          "slightly_prefer_informal",
-                                          "slightly_prefer_formal",
-                                          "moderately_prefer_formal",
-                                          "strongly_prefer_formal")
-
-d <- d |> 
-  mutate(message_rating_num = recode_values(message_rating,
-                                            from = likert_txt,
-                                            to = likert_num),
-         q1_legitimizing_num = recode_values(q1_legitimizing,
-                                            from = likert_txt,
-                                            to = likert_num),
-         q2_self_efficacy_num = recode_values(q2_self_efficacy,
-                                            from = likert_txt,
-                                            to = likert_num),
-         q3_acknowledging_num = recode_values(q3_acknowledging,
-                                            from = likert_txt,
-                                            to = likert_num),
-         q4_value_affirmation_num = recode_values(q4_value_affirmation,
-                                            from = likert_txt,
-                                            to = likert_num),
-         q5_norms_num = recode_values(q5_norms,
-                                            from = likert_txt,
-                                            to = likert_num),
-         q6_formality_num = recode_values(q6_formality,
-                                            from = likert_style,
-                                            to = 1:6),
-         message_rating = factor(message_rating, levels = likert_txt),
-         q1_legitimizing = factor(q1_legitimizing, levels = likert_txt),
-         q2_self_efficacy = factor(q2_self_efficacy, levels = likert_txt),
-         q3_acknowledging = factor(q3_acknowledging, levels = likert_txt),
-         q4_value_affirmation = factor(q4_value_affirmation, levels = likert_txt),
-         q5_norms = factor(q5_norms, levels = likert_txt),
-         q6_formality = factor(q6_formality, 
-                               levels = c("strongly_prefer_informal",
-                                          "moderately_prefer_informal",
-                                          "slightly_prefer_informal",
-                                          "slightly_prefer_formal",
-                                          "moderately_prefer_formal",
-                                          "strongly_prefer_formal")))
-```
 
 ## Message ratings Histogram
 
+LLM messages are generally rated as helpful
 ```{r}
 d |>
-  ggplot(aes(x = message_rating)) +
+  ggplot(aes(x = y_txt)) +
   geom_bar() +
   scale_x_discrete(guide = guide_axis(angle = 30)) +
   labs(x = "Message Rating", y = "Count", title = "Distribution of Message Ratings")
 ```
 
+```{r}
+d |> summarize(mean = mean(y),
+               med = median(y),
+               iqr = IQR(y),
+               sd = sd(y),
+               min = min(y),
+               max = max(y))
+```
+
 ## Messages by tone and style
+
+There is not one uniformly preferred tone or style by any substantial margin.
+
+This is clear in the plots of means by tone and style
+```{r}
+d |>
+  summarise(avg_rating = mean(y),
+            .by = c(tone)) |> 
+  ggplot(aes(x = tone, y = avg_rating)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  # geom_errorbar(aes(ymin = avg_rating - sd, ymax = mean_rating + sd),
+  #               position = position_dodge(width = 0.9), width = 0.25) +
+  labs(x = "Tone", y = "Mean Message Rating", 
+       title = "Mean Message Rating by Tone") +
+  ylim(0, 7) +
+  theme(axis.text.x = element_text(angle = 30, hjust = 1))
+```
 
 ```{r}
 d |>
-  summarise(mean_rating = mean(message_rating_num),
-            sd = sd(message_rating_num),
-            .by = c(tone, style)) |> 
-  ggplot(aes(x = tone, y = mean_rating, fill = style)) +
+  summarise(avg_rating = mean(y),
+            .by = c(style)) |> 
+  ggplot(aes(x = style, y = avg_rating)) +
   geom_bar(stat = "identity", position = "dodge") +
-  geom_errorbar(aes(ymin = mean_rating - sd, ymax = mean_rating + sd),
-                position = position_dodge(width = 0.9), width = 0.25) +
+  # geom_errorbar(aes(ymin = avg_rating - sd, ymax = mean_rating + sd),
+  #               position = position_dodge(width = 0.9), width = 0.25) +
+  labs(x = "Style", y = "Mean Message Rating", 
+       title = "Mean Message Rating by Style") +
+  ylim(0, 7) +
+  theme(axis.text.x = element_text(angle = 30, hjust = 1))
+```
+
+```{r}
+d |>
+  summarise(avg_rating = mean(y),
+            .by = c(tone, style)) |> 
+  ggplot(aes(x = tone, y = avg_rating, fill = style)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  # geom_errorbar(aes(ymin = avg_rating - sd, ymax = mean_rating + sd),
+  #               position = position_dodge(width = 0.9), width = 0.25) +
   labs(x = "Tone", y = "Mean Message Rating", fill = "Style",
        title = "Mean Message Rating by Tone and Style") +
   ylim(0, 7) +
@@ -117,10 +122,118 @@ d |>
 ```
 
 
+This is also clear in when selecting the top tone and style for each participant
+```{r}
+d |> group_by(subid, tone) |> 
+  summarize(mean = mean(y)) |> 
+  arrange(desc(mean)) |>  
+  slice_head(n = 1) |> 
+  ungroup() |> 
+  tab(tone)
+  
+d |> group_by(subid, style) |> 
+  summarize(mean = mean(y)) |> 
+  arrange(desc(mean)) |>  
+  slice_head(n = 1) |> 
+  ungroup() |> 
+  tab(style)
+```
+
+
+And if we look at the mean ratings in their best and worst tone/style
+```{r}
+
+top <- d |>
+  summarize(mean = mean(y), 
+            .by = c(subid, tone, style)) |> 
+  group_by(subid) |> 
+  arrange(desc(mean)) |>  
+  slice_head(n = 1) |> 
+  ungroup() |> 
+  mutate(cond = "best") 
+bot <- d |>
+  summarize(mean = mean(y), 
+            .by = c(subid, tone, style)) |> 
+  group_by(subid) |> 
+  arrange(mean) |>  
+  slice_head(n = 1) |> 
+  ungroup() |> 
+  mutate(cond = "worst") 
+
+all <- top |> 
+  bind_rows(bot)
+
+all |>
+  summarise(mean = mean(mean, na.rm = TRUE), .by = cond)
+```
+
+```{r}
+all |>
+  summarise(mean = mean(mean, na.rm = TRUE), .by = cond) |>
+  ggplot(aes(x = cond, y = mean)) +
+  geom_col() +
+  labs(x = "Condition", y = "Mean")
+```
+
+
+If we want the best response, need to identify best tone/style per person
+
+We need a prediction model that can predict their ratings in each tone/style and then we can select 
+the best condition for them
+
 ## Posterior
 
+```{r}
+pp_wide_rsq <- read_csv(here::here(path_data, "posterior_rsq.csv"),
+                        show_col_types = FALSE)
 
+# Colin - UPDATE THIS AND ALSO UPDATE LATER FOR MAE
+q = c(.025, .5, .975)
 
+# baseline
+pp_wide_rsq |> 
+  summarize(mean = mean(baseline),
+            median = quantile(baseline, probs = q[2]),
+            lower = quantile(baseline, probs = q[1]), 
+            upper = quantile(baseline, probs = q[3]))
+
+# demographics
+pp_wide_rsq |> 
+  summarize(mean = mean(demographics),
+            median = quantile(demographics, probs = q[2]),
+            lower = quantile(demographics, probs = q[1]), 
+            upper = quantile(demographics, probs = q[3]))
+
+# preferences
+pp_wide_rsq |> 
+  summarize(mean = mean(preferences),
+            median = quantile(preferences, probs = q[2]),
+            lower = quantile(preferences, probs = q[1]), 
+            upper = quantile(preferences, probs = q[3]))
+
+# dem vs base
+pp_wide_rsq |> 
+  summarize(mean = mean(dem_v_base),
+            median = quantile(dem_v_base, probs = q[2]),
+            lower = quantile(dem_v_base, probs = q[1]), 
+            upper = quantile(dem_v_base, probs = q[3]))
+
+# pref vs dem 
+pp_wide_rsq |> 
+  summarize(mean = mean(pref_v_dem),
+            median = quantile(pref_v_dem, probs = q[2]),
+            lower = quantile(pref_v_dem, probs = q[1]), 
+            upper = quantile(pref_v_dem, probs = q[3]))
+```
+
+```{r}
+pp_tidy_rsq |> 
+  ggplot(aes(x = posterior, fill = model)) +
+  geom_histogram(bins = 30) +
+  scale_fill_manual(values = c("#dadfe1", "#646569", "#9b0000"), guide = "none") +
+  xlab("R-Squared") +
+  facet_wrap(vars(model), nrow = 3)
+```
 
 
 ## Assignment

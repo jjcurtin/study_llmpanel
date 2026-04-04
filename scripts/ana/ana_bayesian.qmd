@@ -41,12 +41,12 @@ folds <- read_csv(here::here(path_in,
 best <- folds |>
   group_by(feature_set, hp1, hp2, hp3) |>
   summarise(
-    rsq = median(rsq),
-    mae = median(mae),
+    rsq = mean(rsq),
+    mae = mean(mae),
     n = n(),
    .groups = "drop") |> 
   group_by(feature_set) |>
-  arrange(mae) |> 
+  arrange(desc(rsq)) |> 
   slice_head(n = 1)
 
 best
@@ -125,33 +125,38 @@ q = c(.025, .5, .975)
 
 # baseline
 pp_wide_rsq |> 
-  summarize(pp_median = quantile(baseline, probs = q[2]),
-            pp_lower = quantile(baseline, probs = q[1]), 
-            pp_upper = quantile(baseline, probs = q[3]))
+  summarize(mean = mean(baseline),
+            median = quantile(baseline, probs = q[2]),
+            lower = quantile(baseline, probs = q[1]), 
+            upper = quantile(baseline, probs = q[3]))
 
 # demographics
 pp_wide_rsq |> 
-  summarize(pp_median = quantile(demographics, probs = q[2]),
-            pp_lower = quantile(demographics, probs = q[1]), 
-            pp_upper = quantile(demographics, probs = q[3]))
+  summarize(mean = mean(demographics),
+            median = quantile(demographics, probs = q[2]),
+            lower = quantile(demographics, probs = q[1]), 
+            upper = quantile(demographics, probs = q[3]))
 
 # preferences
 pp_wide_rsq |> 
-  summarize(pp_median = quantile(preferences, probs = q[2]),
-            pp_lower = quantile(preferences, probs = q[1]), 
-            pp_upper = quantile(preferences, probs = q[3]))
+  summarize(mean = mean(preferences),
+            median = quantile(preferences, probs = q[2]),
+            lower = quantile(preferences, probs = q[1]), 
+            upper = quantile(preferences, probs = q[3]))
 
 # dem vs base
 pp_wide_rsq |> 
-  summarize(pp_median = quantile(dem_v_base, probs = q[2]),
-            pp_lower = quantile(dem_v_base, probs = q[1]), 
-            pp_upper = quantile(dem_v_base, probs = q[3]))
+  summarize(mean = mean(dem_v_base),
+            median = quantile(dem_v_base, probs = q[2]),
+            lower = quantile(dem_v_base, probs = q[1]), 
+            upper = quantile(dem_v_base, probs = q[3]))
 
 # pref vs dem 
 pp_wide_rsq |> 
-  summarize(pp_median = quantile(pref_v_dem, probs = q[2]),
-            pp_lower = quantile(pref_v_dem, probs = q[1]), 
-            pp_upper = quantile(pref_v_dem, probs = q[3]))
+  summarize(mean = mean(pref_v_dem),
+            median = quantile(pref_v_dem, probs = q[2]),
+            lower = quantile(pref_v_dem, probs = q[1]), 
+            upper = quantile(pref_v_dem, probs = q[3]))
 ```
 
 Model contrasts 
