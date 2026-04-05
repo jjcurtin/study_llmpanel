@@ -3,8 +3,8 @@ library(tidymodels)
 
 # open training data on server
 source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
-version_eda <- "v6"  # to avoid conflict with training controls version
-path_in<- format_path(str_c("llmpanel/chtc/train_", version_eda, "/input"))
+version_eda <- "v7"  # to avoid conflict with training controls version
+path_in <- format_path(str_c("llmpanel/chtc/train_", version_eda, "/input"))
 fn <- here::here(path_in, "data_trn.csv")  
 d <- read_csv(fn, show_col_types = FALSE) |> 
   glimpse()

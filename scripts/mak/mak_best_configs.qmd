@@ -10,7 +10,7 @@ format:
 editor_options: 
   chunk_output_type: console
 params:
-  version: "v6"
+  version: "v7"
   algorithm: "glmnet"
 ---
 
@@ -26,20 +26,20 @@ library(tidyverse)
 source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
 source("https://github.com/jjcurtin/lab_support/blob/main/fun_eda.R?raw=true")
 
-path_in <- format_path(str_c("llmpanel/chtc/train_", 
-                                 params$version, "/output"))
-path_out <- format_path("llmpanel/data_processed")
+path_chtc <- format_path(str_c("llmpanel/chtc/train_", params$version, "/output"))
+path_data <- format_path("llmpanel/data_processed")
 
 theme_set(theme_classic()) 
 ```
 
 Read in data
 ```{r}
-folds <- read_csv(here::here(path_in, 
+folds <- read_csv(here::here(path_chtc, 
                          str_c("batch_results_", params$version, ".csv")), 
               show_col_types = FALSE) |> 
   arrange(config_num, outer_split_num, inner_split_num) |> 
   glimpse()
+
 ```
 
 ```{r}
@@ -104,14 +104,8 @@ Histogram of folds
 
 Write out file all
 ```{r}
-folds_mean |> 
-  group_by(feature_set) |> 
-  arrange(desc(rsq)) |>
-  write_csv(here::here(path_out,
-                       str_c("configs_mean_", params$version, ".csv")))
-
 best |> 
   arrange(desc(rsq)) |>
-  write_csv(here::here(path_out,
+  write_csv(here::here(path_data,
                        str_c("configs_best_", params$version, ".csv")))
 ```

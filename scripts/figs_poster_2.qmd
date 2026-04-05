@@ -118,18 +118,15 @@ d |> unite(tone_style,tone, style, sep = " & ") |>
   arrange(desc(mean)) |>  
   slice_head(n = 1) |> 
   ungroup() |> 
-  tab(tone_style)
-  
-d |> summarize(mean = mean(y),
-               .by = c(subid, style)) |> 
-  group_by(subid) |> 
-  arrange(desc(mean)) |>  
-  slice_head(n = 1) |> 
-  ungroup() |> 
-  tab(style)
+  tab(tone_style) |> 
+  arrange(desc(prop))
 ```
 
 And if we look at the mean ratings in their best and worst tone/style
+
+
+NOTE:   THIS  NEEDS TO BE DONE IN HELD OUT DATA using CV
+We can then do a bayesian comparison with same performance from model predictions
 ```{r}
 top <- d |>
   summarize(mean = mean(y), 
@@ -173,22 +170,7 @@ the best condition for them
 
 ```{r}
 
-# Colin - UPDATE THIS AND ALSO UPDATE LATER FOR MAE
 q = c(.025, .5, .975)
-
-# baseline
-pp_wide_rsq |> 
-  summarize(mean = mean(baseline),
-            median = quantile(baseline, probs = q[2]),
-            lower = quantile(baseline, probs = q[1]), 
-            upper = quantile(baseline, probs = q[3]))
-
-# demographics
-pp_wide_rsq |> 
-  summarize(mean = mean(demographics),
-            median = quantile(demographics, probs = q[2]),
-            lower = quantile(demographics, probs = q[1]), 
-            upper = quantile(demographics, probs = q[3]))
 
 # preferences
 pp_wide_rsq |> 
@@ -197,31 +179,15 @@ pp_wide_rsq |>
             lower = quantile(preferences, probs = q[1]), 
             upper = quantile(preferences, probs = q[3]))
 
-# dem vs base
-pp_wide_rsq |> 
-  summarize(mean = mean(dem_v_base),
-            median = quantile(dem_v_base, probs = q[2]),
-            lower = quantile(dem_v_base, probs = q[1]), 
-            upper = quantile(dem_v_base, probs = q[3]))
-
-# pref vs dem 
-pp_wide_rsq |> 
-  summarize(mean = mean(pref_v_dem),
-            median = quantile(pref_v_dem, probs = q[2]),
-            lower = quantile(pref_v_dem, probs = q[1]), 
-            upper = quantile(pref_v_dem, probs = q[3]))
 ```
 
 ```{r}
 pp_wide_rsq |> 
-  select(sample, baseline, demographics, preferences) |> 
-  pivot_longer(cols = c(baseline, demographics, preferences),
-               names_to = "model", values_to = "rsq") |> 
-  ggplot(aes(x = rsq, fill = model)) +
+  select(sample, preferences) |> 
+  ggplot(aes(x = preferences)) +
   geom_histogram(bins = 30) +
-  scale_fill_manual(values = c("#dadfe1", "#646569", "#9b0000"), guide = "none") +
-  xlab("R-Squared") +
-  facet_wrap(vars(model), nrow = 3)
+  scale_fill_manual(values = "#dadfe1", guide = "none") +
+  xlab("R-Squared")
 ```
 
 
@@ -237,8 +203,9 @@ tidy(model) |>
     abs_estimate = abs(estimate),
     feature_type = if_else(str_detect(term, "_x_"), "Interaction", "Main Effect")
   ) |>
-  slice_max(abs_estimate, n = 15, by = feature_type) |>
-  arrange(feature_type, abs_estimate) |>
+  filter(feature_type == "Interaction") |> 
+  slice_max(abs_estimate, n = 30) |>
+  arrange(abs_estimate) |>
   mutate(term = factor(term, levels = term)) |>
   ggplot(aes(x = abs_estimate, y = term, fill = direction)) +
   geom_col() +
@@ -246,36 +213,19 @@ tidy(model) |>
     values = c("positive" = "forestgreen", "negative" = "firebrick"),
     name = "Direction"
   ) +
-  facet_wrap(~ feature_type, scales = "free_y") +
   labs(
     x = "Absolute Coefficient",
     y = NULL,
     title = "Feature Importance"
   )
 ```
+
 ## Assignment
 
-```{r}
-preds |>
-  summarise(mean_rating = mean(y),
-            sd = sd(y),
-            .by = cond) 
-
-preds |>
-  summarise(mean_rating = mean(y),
-            sd = sd(y) / sqrt(n()),
-            .by = cond) |> 
-  ggplot(aes(x = cond, y = mean_rating)) +
-  geom_bar(stat = "identity", position = "dodge") +
-  geom_errorbar(aes(ymin = mean_rating - sd, ymax = mean_rating + sd),
-                position = position_dodge(width = 0.9), width = 0.25) +
-  labs(x = "Message Category", y = "Mean Message Rating",
-       title = "Mean Message Rating by Tone and Style") +
-  ylim(0, 7) +
-  theme(axis.text.x = element_text(angle = 30, hjust = 1))
-```
 
 And here is what people are assigned
+
+Compare to what we get with MEAN model
 
 ```{r}
 preds |> 
@@ -283,6 +233,7 @@ preds |>
   slice_head(n = 1) |> 
   ungroup() |> 
   unite(tone_style, tone, style, sep = " & ", remove = FALSE) |> 
-  tab(tone_style)
+  tab(tone_style) |> 
+  arrange(desc(prop))
 ```
 
