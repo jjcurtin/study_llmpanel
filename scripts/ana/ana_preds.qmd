@@ -10,7 +10,7 @@ format:
   html:
     embed-resources: true
 params:
-  version: "v6"
+  version: "v7"
 editor_options: 
   chunk_output_type: console
 ---
@@ -25,30 +25,30 @@ theme_set(theme_classic())
 source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
 
 path_data <- format_path("llmpanel/data_processed")
-path_chtc <- format_path(str_c("llmpanel/chtc/train_", 
-                                 params$version))
+path_chtc <- format_path(str_c("llmpanel/chtc/train_", params$version))
 ```
 
 ## Best config 
 ```{r}
-folds <- read_csv(here::here(path_data,
-                       str_c("configs_", params$version, ".csv")),
+folds <- read_csv(here::here(path_chtc, "output", 
+                             str_c("batch_results_", params$version, ".csv")), 
                   show_col_types = FALSE) |> 
-  filter(feature_set == "pref") |> 
+  arrange(config_num, outer_split_num, inner_split_num) |> 
   glimpse()
 
 best <- folds |>
-  group_by(hp1, hp2, hp3) |>
-  summarise(
-    rsq = mean(rsq),
-    mae = mean(mae),
-    n = n(),
-   .groups = "drop") |> 
+  summarise(rsq = mean(rsq),
+            mae = mean(mae),
+            n = n(),
+            .by = c(hp1, hp2, hp3)) |> 
   arrange(desc(rsq)) |> 
+  filter(hp1 <= .1) |> 
   slice_head(n = 1)
 
 best$algorithm <- "glmnet"
 best$feature_set <- "pref"
+
+best
 ```
 
 Fit model to full dataset
@@ -91,7 +91,7 @@ model |>
   tidy() |>
   filter(term != "(Intercept)") |>
   arrange(desc(abs(estimate))) |> 
-  view()
+  print(n = Inf)
 ```
 
 Model coefficients  

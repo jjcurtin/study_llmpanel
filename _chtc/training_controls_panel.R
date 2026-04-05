@@ -8,9 +8,9 @@
 source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
 
 # SET GLOBAL PARAMETERS--------------------
-version <- "v6"
+version <- "v7"
 algorithm <- "glmnet"  # glmnet, random_forest, xgboost
-feature_set <- c("base", "dem", "pref")
+feature_set <- c("pref")
 seed_splits <- 102030
 ml_mode <- "regression"   # regression or classification
 configs_per_job <- 100 
@@ -205,23 +205,24 @@ build_recipe <- function(d, config) {
   
   if (algorithm == "xgboost") {
     rec <- rec  |>  
-      step_dummy(all_nominal_predictors(), one_hot = FALSE) 
+      step_dummy(all_of("dem_marital_status", "tone"), one_hot = TRUE) |> 
+      step_dummy(all_nominal_predictors(), one_hot = FALSE) # no one-hot for binary
   } 
   
   if (algorithm == "glmnet") {
     rec <- rec  |>  
-      step_dummy(all_nominal_predictors(), one_hot = FALSE)
+      step_dummy(dem_marital_status, tone, one_hot = TRUE) |> 
+      step_dummy(all_nominal_predictors(), one_hot = FALSE)  # no one-hot for binary
     
     if (str_detect(feature_set, "dem") | str_detect(feature_set, "pref")) {
       rec <- rec |>   
-        step_interact(terms = ~ matches("^tone_(legitimizing|norms|value_affirmation|self_efficacy)$"):starts_with("dem_")) |> 
+        step_interact(terms = ~ matches("^tone_(legitimizing|norms|value_affirmation|self_efficacy|acknowledging)$"):starts_with("dem_")) |> 
         step_interact(terms = ~ matches("^style_informal$"):starts_with("dem_"))
-      
     }
     
     if (str_detect(feature_set, "pref")) {
       rec <- rec |>  
-        step_interact(terms = ~ matches("^tone_(legitimizing|norms|value_affirmation|self_efficacy)$"):starts_with("pref_")) |> 
+        step_interact(terms = ~ matches("^tone_(legitimizing|norms|value_affirmation|self_efficacy|acknowledging)$"):starts_with("pref_")) |> 
         step_interact(terms = ~ matches("^style_informal$"):starts_with("pref_")) 
     } 
   } 
