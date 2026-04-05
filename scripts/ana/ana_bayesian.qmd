@@ -12,7 +12,7 @@ format:
 editor_options: 
   chunk_output_type: console
 params:
-  version: "v4"
+  version: "v6"
 ---
 
 ## Setup 
@@ -24,8 +24,8 @@ library(tidyposterior)
 
 source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
 
-path_in <- format_path(str_c("llmpanel/chtc/train_", params$version, "/output"))
-path_out <- format_path("llmpanel/data_processed")
+path_chtc <- format_path(str_c("llmpanel/chtc/train_", params$version, "/output"))
+path_out<- format_path("llmpanel/data_processed")
 theme_set(theme_classic()) 
 ```
 
@@ -33,7 +33,7 @@ theme_set(theme_classic())
 
 Get 300 validation sets for the best configuration for each of the three models
 ```{r}
-folds <- read_csv(here::here(path_in, 
+folds <- read_csv(here::here(path_chtc, 
                          str_c("batch_results_", params$version, ".csv")), 
               show_col_types = FALSE) |> 
   glimpse()
@@ -55,19 +55,16 @@ folds_base <- folds |>
   filter(feature_set == "base") |> 
   filter(hp1 == best |> filter(feature_set == "base") |> pull(hp1)) |> 
   filter(hp2 == best |> filter(feature_set == "base") |> pull(hp2)) |> 
-  filter(hp3 == best |> filter(feature_set == "base") |> pull(hp3)) |> 
   arrange(outer_split_num, inner_split_num)
 folds_dem <- folds |> 
   filter(feature_set == "dem") |> 
   filter(hp1 == best |> filter(feature_set == "dem") |> pull(hp1)) |> 
   filter(hp2 == best |> filter(feature_set == "dem") |> pull(hp2)) |> 
-  filter(hp3 == best |> filter(feature_set == "dem") |> pull(hp3)) |> 
   arrange(outer_split_num, inner_split_num)
 folds_pref <- folds |> 
   filter(feature_set == "pref") |> 
   filter(hp1 == best |> filter(feature_set == "pref") |> pull(hp1)) |> 
   filter(hp2 == best |> filter(feature_set == "pref") |> pull(hp2)) |> 
-  filter(hp3 == best |> filter(feature_set == "pref") |> pull(hp3)) |>  
   arrange(outer_split_num, inner_split_num)
 
 # Tibbles for posterior analysis
@@ -118,7 +115,7 @@ pp_wide_rsq <- tibble(
   mutate(dem_v_base = demographics - baseline,
          pref_v_dem = preferences - demographics)
 
-pp_wide_rsq |> write_csv(here::here(path_out, "posterior_rsq.csv"))
+pp_wide_rsq |> write_csv(here::here(path_in, str_c("posterior_rsq.csv_", params$version)))
 
 # Colin - UPDATE THIS AND ALSO UPDATE LATER FOR MAE
 q = c(.025, .5, .975)

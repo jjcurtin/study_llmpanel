@@ -10,8 +10,8 @@ format:
 editor_options: 
   chunk_output_type: console
 params:
-  version: "v4"
-  algorithm: "xgboost"
+  version: "v6"
+  algorithm: "glmnet"
 ---
 
 ## Notes
@@ -38,6 +38,7 @@ Read in data
 folds <- read_csv(here::here(path_in, 
                          str_c("batch_results_", params$version, ".csv")), 
               show_col_types = FALSE) |> 
+  arrange(config_num, outer_split_num, inner_split_num) |> 
   glimpse()
 ```
 
@@ -48,21 +49,22 @@ folds |> tab(hp1)
 folds |> tab(hp2)
 folds |> tab(hp3)
 folds |> tab(feature_set)
+# folds |> tab (config_num) |> view()
 ```
 
 ## Overall Performance
 
 Calculate median performance metrics 
 ```{r}
-folds_med <- folds |>
+folds_mean <- folds |>
   group_by(feature_set, hp1, hp2, hp3) |>
   summarise(
-    rsq = median(rsq),
-    mae = median(mae),
+    rsq = mean(rsq),
+    mae = mean(mae),
     n = n(),
    .groups = "drop")
 
-best <- folds_med |> 
+best <- folds_mean |> 
   group_by(feature_set) |>
   arrange(desc(rsq)) |> 
   slice_head(n = 1)
@@ -72,38 +74,44 @@ best
 
 Histogram of folds
 ```{r}
-if (params$algorithm == "glmnet") {
-  d_hist <- folds |> 
-    filter(feature_set == best$feature_set,
-           hp1 == best$hp1,
-           hp2 == best$hp2) |> 
-    arrange(split_num) |> 
-  select(rsq) 
-  
-} else {
-  d_hist <- folds |> 
-    filter(feature_set == best$feature_set,
-           hp1 == best$hp1,
-           hp2 == best$hp2,
-           hp3 == best$hp3) |> 
-    arrange(split_num) |> 
-  select(rsq) 
-}
-  
-  
-d_hist |>  
-  ggplot(aes(x = rsq)) + 
-    geom_histogram(breaks = seq(0, .4, by = 0.01), 
-                   color = "black", fill = "blue") +
-    theme(plot.title = element_text(hjust = 0.5, size = 24), 
-          axis.text = element_text(size = 18), 
-          axis.title = element_text(size = 20))
+# if (params$algorithm == "glmnet") {
+#   d_hist <- folds |> 
+#     filter(feature_set == best$feature_set,
+#            hp1 == best$hp1,
+#            hp2 == best$hp2) |> 
+#     arrange(split_num) |> 
+#   select(rsq) 
+#   
+# } else {
+#   d_hist <- folds |> 
+#     filter(feature_set == best$feature_set,
+#            hp1 == best$hp1,
+#            hp2 == best$hp2,
+#            hp3 == best$hp3) |> 
+#     arrange(split_num) |> 
+#   select(rsq) 
+# }
+#   
+#   
+# d_hist |>  
+#   ggplot(aes(x = rsq)) + 
+#     geom_histogram(breaks = seq(0, .4, by = 0.01), 
+#                    color = "black", fill = "blue") +
+#     theme(plot.title = element_text(hjust = 0.5, size = 24), 
+#           axis.text = element_text(size = 18), 
+#           axis.title = element_text(size = 20))
 ```
 
 Write out file all
 ```{r}
+folds_mean |> 
+  group_by(feature_set) |> 
+  arrange(desc(rsq)) |>
+  write_csv(here::here(path_out,
+                       str_c("configs_mean_", params$version, ".csv")))
+
 best |> 
   arrange(desc(rsq)) |>
   write_csv(here::here(path_out,
-                       str_c("configs_", params$version, ".csv")))
+                       str_c("configs_best_", params$version, ".csv")))
 ```
