@@ -10,7 +10,7 @@ format:
   html:
     embed-resources: true
 params:
-  version: "v4"
+  version: "v6"
 editor_options: 
   chunk_output_type: console
 ---
@@ -19,27 +19,29 @@ editor_options:
 ```{r}
 library(tidyverse)
 library(tidymodels)
+library(Matrix)
 
 theme_set(theme_classic()) 
 source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
 
-path_in <- format_path("llmpanel/data_processed")
+path_data <- format_path("llmpanel/data_processed")
 path_chtc <- format_path(str_c("llmpanel/chtc/train_", 
                                  params$version))
 ```
 
 ## Best config 
 ```{r}
-folds <- read_csv(here::here(path_in,
-                       str_c("configs_", params$version, ".csv"))) |> 
+folds <- read_csv(here::here(path_data,
+                       str_c("configs_", params$version, ".csv")),
+                  show_col_types = FALSE) |> 
   filter(feature_set == "pref") |> 
   glimpse()
 
 best <- folds |>
   group_by(hp1, hp2, hp3) |>
   summarise(
-    rsq = median(rsq),
-    mae = median(mae),
+    rsq = mean(rsq),
+    mae = mean(mae),
     n = n(),
    .groups = "drop") |> 
   arrange(desc(rsq)) |> 
@@ -52,7 +54,8 @@ best$feature_set <- "pref"
 Fit model to full dataset
 ```{r}
 source(here::here(path_chtc, "input", "training_controls.R"))
-d <- read_csv(here::here(path_chtc, "input", "data_trn.csv")) |> 
+d <- read_csv(here::here(path_chtc, "input", "data_trn.csv"),
+              show_col_types = FALSE) |> 
   glimpse()
 
 d <- format_data(d)  
@@ -78,7 +81,8 @@ model <- linear_reg(mixture = best$hp1,
 #       set_mode("regression") |> 
 #       fit(y ~ ., data = feat)
 
-
+model |> write_rds(here::here(path_data, 
+                              str_c("model_pref_", params$version, ".rds")))
 ```
 
 
@@ -90,6 +94,7 @@ model |>
   view()
 ```
 
+Model coefficients  
 ```{r}
 model |>
   tidy() |>
@@ -100,6 +105,32 @@ model |>
   geom_col() +
   geom_vline(xintercept = 0, linewidth = 0.3) +
   labs(x = "Coefficient", y = NULL)
+```
+
+```{r}
+tidy(model) |>
+  filter(term != "(Intercept)") |>
+  filter(estimate != 0) |>
+  mutate(
+    direction = if_else(estimate > 0, "positive", "negative"),
+    abs_estimate = abs(estimate),
+    feature_type = if_else(str_detect(term, "_x_"), "Interaction", "Main Effect")
+  ) |>
+  slice_max(abs_estimate, n = 15, by = feature_type) |>
+  arrange(feature_type, abs_estimate) |>
+  mutate(term = factor(term, levels = term)) |>
+  ggplot(aes(x = abs_estimate, y = term, fill = direction)) +
+  geom_col() +
+  scale_fill_manual(
+    values = c("positive" = "forestgreen", "negative" = "firebrick"),
+    name = "Direction"
+  ) +
+  facet_wrap(~ feature_type, scales = "free_y") +
+  labs(
+    x = "Absolute Coefficient",
+    y = NULL,
+    title = "Feature Importance"
+  )
 ```
 
 
@@ -117,7 +148,6 @@ conds <- expand_grid(subid = unique(d$subid), tone = tones, style = styles)
 preds <- conds |> 
   left_join(preds_id, by = "subid")
 
-
 feat_preds <- rec_prep |> 
   bake(new_data = preds)
 
@@ -126,15 +156,8 @@ assign <- feat_preds |>
   mutate(tone = preds$tone,
          style = preds$style,
          subid = preds$subid) |> 
-  relocate(subid, tone, style, predicted)
+  select(subid, tone, style, predicted)
 
-assign_best <- assign |> 
-  group_by(subid) |> 
-  slice_max(predicted) |> 
-  select(subid, tone_best = tone, style_best = style)
-```
-
-```{r}
 assign |> 
   group_by(subid) |> 
   summarize(min = min(predicted),
@@ -143,37 +166,88 @@ assign |>
   summarize(mean(dif), median(dif), max(dif), min(dif))
 ```
 
+
+
+NOTE this gets best cross of tone and style.
+Could do separately for tone and style
+```{r}
+assign_best <- assign |> 
+  group_by(subid) |> 
+  slice_max(predicted) |> 
+  select(subid, tone_best = tone, style_best = style)
+
+assign_worst <- assign |> 
+  group_by(subid) |> 
+  slice_min(predicted) |> 
+  select(subid, tone_worst = tone, style_worst = style)
+
+assign <- assign |> 
+  left_join(assign_best, by = "subid") |> 
+  left_join(assign_worst, by = "subid") |> 
+  select(subid, contains(c("best", "worst")))
+```
+
+
 ```{r}
 top <- d |> 
-  left_join(assign_best, by = "subid") |> 
+  select(subid, tone, style, y) |> 
+  left_join(assign |> group_by(subid) |> slice_head(n = 1), 
+            by = "subid") |> 
   filter(tone == tone_best,
          style == style_best) |> 
   mutate(cond = "best")
 
 other <- d |> 
-  left_join(assign_best, by = "subid") |> 
-  filter(tone != tone_best,
-         style != style_best) |> 
+  select(subid, tone, style, y) |> 
+  left_join(assign |> group_by(subid) |> slice_head(n = 1), 
+            by = "subid") |> 
+  filter(!(tone == tone_best & style == style_best),
+         !(tone == tone_worst & style == style_worst)) |> 
   mutate(cond = "other")
+
+
+worst <- d |> 
+  select(subid, tone, style, y) |> 
+  left_join(assign |> group_by(subid) |> slice_head(n = 1), 
+            by = "subid") |> 
+  filter(tone == tone_worst,
+         style == style_worst) |> 
+  mutate(cond = "worst")
 ```
 
 ```{r}
-
 all <- top |> 
-  bind_rows(other)
+  bind_rows(other) |> 
+  bind_rows(worst)
 
+all |> write_csv(here::here(path_data, str_c("pred_conditions_", params$version, ".csv")))
 
 all |>
   summarise(mean_rating = mean(y),
+            sd = sd(y),
+            .by = cond) 
+all |>
+  summarise(mean_rating = mean(y),
             sd = sd(y) / sqrt(n()),
-            .by = cond) |> view()
+            .by = cond) |> 
   ggplot(aes(x = cond, y = mean_rating)) +
   geom_bar(stat = "identity", position = "dodge") +
   geom_errorbar(aes(ymin = mean_rating - sd, ymax = mean_rating + sd),
                 position = position_dodge(width = 0.9), width = 0.25) +
-  labs(x = "Message Category", y = "Mean Message Rating", fill = "Style",
+  labs(x = "Message Category", y = "Mean Message Rating",
        title = "Mean Message Rating by Tone and Style") +
   ylim(0, 7) +
   theme(axis.text.x = element_text(angle = 30, hjust = 1))
 ```
 
+
+And here is what people are assigned
+
+```{r}
+all |> 
+  group_by(subid) |> 
+  slice_head(n = 1) |> 
+  ungroup() |> 
+  unite(tone_style, tone, style, sep = " & ", remove = FALSE) |> 
+  tab(tone_style)
+```

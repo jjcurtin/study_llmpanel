@@ -12,7 +12,7 @@ format:
 editor_options: 
   chunk_output_type: console
 params:
-  version: "v5"
+  version: "v6"
 ---
 
 ## Setup
@@ -20,6 +20,9 @@ params:
 #| include: false
 
 library(tidyverse)
+library(tidymodels)
+library(Matrix)
+
 source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
 source("https://github.com/jjcurtin/lab_support/blob/main/fun_eda.R?raw=true")
 
@@ -34,15 +37,28 @@ likert_txt <- c("strongly_disagree", "disagree", "somewhat_disagree",
                "neutral", "somewhat_agree", "agree", "strongly_agree")
 ```
 
-## Data
+## Data & Models
 ```{r}
-d <- read_csv(here::here(path_chtc, "input", "data_trn.csv"), show_col_types = FALSE) |> 
+d <- read_csv(here::here(path_chtc, "input", "data_trn.csv"), 
+              show_col_types = FALSE) |> 
   format_data() |> 
   mutate(y_txt = recode_values(y,
                                from = likert_num,
                                to = likert_txt),
          y_txt = fct(y_txt, levels = likert_txt)) |> 
   glimpse()
+
+pp_wide_rsq <- read_csv(here::here(path_data, 
+                                   str_c("posterior_rsq_", 
+                                         params$version, ".csv")),
+                        show_col_types = FALSE)
+
+model <- read_rds(here::here(path_data, 
+                             str_c("model_pref_", params$version, ".rds")))
+
+preds <- read_csv(here::here(path_data, 
+                             str_c("pred_conditions_", params$version, ".csv")),
+                  show_col_types = FALSE)
 
 # f <- read_csv(here::here(path_chtc, "output",
 #                          str_c("batch_results_", params$version, ".csv")), 
@@ -67,8 +83,6 @@ d |>
 
 ```{r}
 d |> summarize(mean = mean(y),
-               med = median(y),
-               iqr = IQR(y),
                sd = sd(y),
                min = min(y),
                max = max(y))
@@ -124,25 +138,25 @@ d |>
 
 This is also clear in when selecting the top tone and style for each participant
 ```{r}
-d |> group_by(subid, tone) |> 
-  summarize(mean = mean(y)) |> 
+d |> summarize(mean = mean(y), 
+               .by = c(subid, tone)) |> 
+  group_by(subid) |> 
   arrange(desc(mean)) |>  
   slice_head(n = 1) |> 
   ungroup() |> 
   tab(tone)
   
-d |> group_by(subid, style) |> 
-  summarize(mean = mean(y)) |> 
+d |> summarize(mean = mean(y),
+               .by = c(subid, style)) |> 
+  group_by(subid) |> 
   arrange(desc(mean)) |>  
   slice_head(n = 1) |> 
   ungroup() |> 
   tab(style)
 ```
 
-
 And if we look at the mean ratings in their best and worst tone/style
 ```{r}
-
 top <- d |>
   summarize(mean = mean(y), 
             .by = c(subid, tone, style)) |> 
@@ -184,8 +198,6 @@ the best condition for them
 ## Posterior
 
 ```{r}
-pp_wide_rsq <- read_csv(here::here(path_data, "posterior_rsq.csv"),
-                        show_col_types = FALSE)
 
 # Colin - UPDATE THIS AND ALSO UPDATE LATER FOR MAE
 q = c(.025, .5, .975)
@@ -227,8 +239,11 @@ pp_wide_rsq |>
 ```
 
 ```{r}
-pp_tidy_rsq |> 
-  ggplot(aes(x = posterior, fill = model)) +
+pp_wide_rsq |> 
+  select(sample, baseline, demographics, preferences) |> 
+  pivot_longer(cols = c(baseline, demographics, preferences),
+               names_to = "model", values_to = "rsq") |> 
+  ggplot(aes(x = rsq, fill = model)) +
   geom_histogram(bins = 30) +
   scale_fill_manual(values = c("#dadfe1", "#646569", "#9b0000"), guide = "none") +
   xlab("R-Squared") +
@@ -236,60 +251,64 @@ pp_tidy_rsq |>
 ```
 
 
+## Display model
+
+```{r}
+
+tidy(model) |>
+  filter(term != "(Intercept)") |>
+  filter(estimate != 0) |>
+  mutate(
+    direction = if_else(estimate > 0, "positive", "negative"),
+    abs_estimate = abs(estimate),
+    feature_type = if_else(str_detect(term, "_x_"), "Interaction", "Main Effect")
+  ) |>
+  slice_max(abs_estimate, n = 15, by = feature_type) |>
+  arrange(feature_type, abs_estimate) |>
+  mutate(term = factor(term, levels = term)) |>
+  ggplot(aes(x = abs_estimate, y = term, fill = direction)) +
+  geom_col() +
+  scale_fill_manual(
+    values = c("positive" = "forestgreen", "negative" = "firebrick"),
+    name = "Direction"
+  ) +
+  facet_wrap(~ feature_type, scales = "free_y") +
+  labs(
+    x = "Absolute Coefficient",
+    y = NULL,
+    title = "Feature Importance"
+  )
+```
 ## Assignment
 
 ```{r}
-assign <- d |> 
-  mutate(min_tone = pmin(q1_legitimizing_num, q2_self_efficacy_num, q3_acknowledging_num,
-                         q4_value_affirmation_num, q5_norms_num, na.rm = TRUE)) |> 
-  mutate(max_tone = pmax(q1_legitimizing_num, q2_self_efficacy_num, q3_acknowledging_num,
-                         q4_value_affirmation_num, q5_norms_num, na.rm = TRUE)) |> 
-  mutate(diff = max_tone - min_tone) 
+preds |>
+  summarise(mean_rating = mean(y),
+            sd = sd(y),
+            .by = cond) 
 
-assign_best <- assign |>
-  group_by(subid) |>
-  filter((style == "formal" & str_detect(q6_formality, "_formal")) |
-         (style == "informal" & str_detect(q6_formality, "_informal"))) |>
-  ungroup() |>
-  filter_out(tone == "legitimizing" & q1_legitimizing_num < max_tone) |> 
-  filter_out(tone == "self_efficacy" & q2_self_efficacy_num < max_tone) |> 
-  filter_out(tone == "acknowledging" & q3_acknowledging_num < max_tone) |> 
-  filter_out(tone == "value_affirmation" & q4_value_affirmation_num < max_tone) |> 
-  filter_out(tone == "norms" & q5_norms_num < max_tone)  |> 
-  mutate(assign = "preferred")
-
-
-mean(assign_best$message_rating_num)
-
-assign_other <- assign |>
-  group_by(subid) |>
-  filter((style == "formal" & str_detect(q6_formality, "_informal")) |
-         (style == "informal" & str_detect(q6_formality, "_formal"))) |>
-  ungroup() |>
-  filter_out(tone == "legitimizing" & q1_legitimizing_num == max_tone) |> 
-  filter_out(tone == "self_efficacy" & q2_self_efficacy_num == max_tone) |> 
-  filter_out(tone == "acknowledging" & q3_acknowledging_num == max_tone) |> 
-  filter_out(tone == "value_affirmation" & q4_value_affirmation_num == max_tone) |> 
-  filter_out(tone == "norms" & q5_norms_num == max_tone)  |> 
-  mutate(assign = "other")
-
-mean(assign_other$message_rating_num)
-
-assign_all <- assign_best |> 
-  bind_rows(assign_other)
-
-
-assign_all |>
-  summarise(mean_rating = mean(message_rating_num),
-            sd = sd(message_rating_num) / sqrt(n()),
-            .by = assign) |> 
-  ggplot(aes(x = assign, y = mean_rating)) +
+preds |>
+  summarise(mean_rating = mean(y),
+            sd = sd(y) / sqrt(n()),
+            .by = cond) |> 
+  ggplot(aes(x = cond, y = mean_rating)) +
   geom_bar(stat = "identity", position = "dodge") +
   geom_errorbar(aes(ymin = mean_rating - sd, ymax = mean_rating + sd),
                 position = position_dodge(width = 0.9), width = 0.25) +
-  labs(x = "Message Category", y = "Mean Message Rating", fill = "Style",
+  labs(x = "Message Category", y = "Mean Message Rating",
        title = "Mean Message Rating by Tone and Style") +
   ylim(0, 7) +
   theme(axis.text.x = element_text(angle = 30, hjust = 1))
+```
+
+And here is what people are assigned
+
+```{r}
+preds |> 
+  group_by(subid) |> 
+  slice_head(n = 1) |> 
+  ungroup() |> 
+  unite(tone_style, tone, style, sep = " & ", remove = FALSE) |> 
+  tab(tone_style)
 ```
 

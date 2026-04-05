@@ -10,7 +10,7 @@ format:
   html:
     embed-resources: true
 params:
-  version: "v4"
+  version: "v6"
 editor_options: 
   chunk_output_type: console
 ---
@@ -24,11 +24,14 @@ theme_set(theme_classic())
 source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
 
 path_chtc <- format_path(str_c("llmpanel/chtc/train_", params$version))
-path_configs <- format_path("llmpanel/data_processed")
+path_data <- format_path("llmpanel/data_processed")
 ```
 
 ## Best config 
 ```{r}
+best <- 
+  read_csv(here::here(path_data,
+                       str_c("configs_best_", params$version, ".csv")))
 folds <- read_csv(here::here(path_chtc, "output",
                          str_c("batch_results_", params$version, ".csv")), 
               show_col_types = FALSE) |> 
