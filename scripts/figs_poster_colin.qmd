@@ -42,10 +42,7 @@ likert_txt <- c("strongly_disagree", "disagree", "somewhat_disagree",
 d <- read_csv(here::here(path_chtc, "input", "data_trn.csv"), 
               show_col_types = FALSE) |> 
   format_data() |> 
-  mutate(y_txt = recode_values(y,
-                               from = likert_num,
-                               to = likert_txt),
-         y_txt = fct(y_txt, levels = likert_txt)) |> 
+  mutate(y_txt = factor(y, levels = likert_num, labels = likert_txt)) |> 
   glimpse()
 
 pp_wide_rsq <- read_csv(here::here(path_data, 
@@ -69,6 +66,7 @@ preds <- read_csv(here::here(path_data,
 
 ```
 
+## GOAL 1: Can we generate messages using LLMs, and will people find them helpful?
 
 ## Message ratings Histogram
 
@@ -78,7 +76,7 @@ d |>
   ggplot(aes(x = y_txt)) +
   geom_bar() +
   scale_x_discrete(guide = guide_axis(angle = 30)) +
-  labs(x = "Message Rating", y = "Count", title = "Distribution of Message Ratings")
+  labs(x = "Message Rating", y = "Count", title = "Perceived Helpfulness of Message Ratings")
 ```
 
 ```{r}
@@ -87,6 +85,8 @@ d |> summarize(mean = mean(y),
                min = min(y),
                max = max(y))
 ```
+
+## GOAL 2: Is there an overall preferred tone and style?
 
 ## Messages by tone and style
 
@@ -135,6 +135,7 @@ d |>
   theme(axis.text.x = element_text(angle = 30, hjust = 1))
 ```
 
+## GOAL 3: Can we build a prediction model to determine the best tone/style for each participant?
 
 This is also clear in when selecting the top tone and style for each participant
 ```{r}
@@ -153,6 +154,18 @@ d |> summarize(mean = mean(y),
   slice_head(n = 1) |> 
   ungroup() |> 
   tab(style)
+
+## and now for both tone and style:
+d |> 
+  summarize(mean = mean(y), 
+            .by = c(subid, tone, style)) |> 
+  group_by(subid) |> 
+  arrange(desc(mean)) |>  
+  slice_head(n = 1) |> 
+  ungroup() |> 
+  unite(tone_style, tone, style, sep = " & ", remove = FALSE) |> 
+  tab(tone_style)
+
 ```
 
 And if we look at the mean ratings in their best and worst tone/style
@@ -193,62 +206,7 @@ all |>
 If we want the best response, need to identify best tone/style per person
 
 We need a prediction model that can predict their ratings in each tone/style and then we can select 
-the best condition for them
-
-## Posterior
-
-```{r}
-
-# Colin - UPDATE THIS AND ALSO UPDATE LATER FOR MAE
-q = c(.025, .5, .975)
-
-# baseline
-pp_wide_rsq |> 
-  summarize(mean = mean(baseline),
-            median = quantile(baseline, probs = q[2]),
-            lower = quantile(baseline, probs = q[1]), 
-            upper = quantile(baseline, probs = q[3]))
-
-# demographics
-pp_wide_rsq |> 
-  summarize(mean = mean(demographics),
-            median = quantile(demographics, probs = q[2]),
-            lower = quantile(demographics, probs = q[1]), 
-            upper = quantile(demographics, probs = q[3]))
-
-# preferences
-pp_wide_rsq |> 
-  summarize(mean = mean(preferences),
-            median = quantile(preferences, probs = q[2]),
-            lower = quantile(preferences, probs = q[1]), 
-            upper = quantile(preferences, probs = q[3]))
-
-# dem vs base
-pp_wide_rsq |> 
-  summarize(mean = mean(dem_v_base),
-            median = quantile(dem_v_base, probs = q[2]),
-            lower = quantile(dem_v_base, probs = q[1]), 
-            upper = quantile(dem_v_base, probs = q[3]))
-
-# pref vs dem 
-pp_wide_rsq |> 
-  summarize(mean = mean(pref_v_dem),
-            median = quantile(pref_v_dem, probs = q[2]),
-            lower = quantile(pref_v_dem, probs = q[1]), 
-            upper = quantile(pref_v_dem, probs = q[3]))
-```
-
-```{r}
-pp_wide_rsq |> 
-  select(sample, baseline, demographics, preferences) |> 
-  pivot_longer(cols = c(baseline, demographics, preferences),
-               names_to = "model", values_to = "rsq") |> 
-  ggplot(aes(x = rsq, fill = model)) +
-  geom_histogram(bins = 30) +
-  scale_fill_manual(values = c("#dadfe1", "#646569", "#9b0000"), guide = "none") +
-  xlab("R-Squared") +
-  facet_wrap(vars(model), nrow = 3)
-```
+the best condition for them EDIT: removed model comparisons
 
 
 ## Display model
@@ -258,6 +216,7 @@ pp_wide_rsq |>
 tidy(model) |>
   filter(term != "(Intercept)") |>
   filter(estimate != 0) |>
+  filter(str_detect(term, "_x_")) |>
   mutate(
     direction = if_else(estimate > 0, "positive", "negative"),
     abs_estimate = abs(estimate),
@@ -279,6 +238,8 @@ tidy(model) |>
     title = "Feature Importance"
   )
 ```
+## GOAL 4: If we assign to best category, what are the categories and what are the ratings?
+
 ## Assignment
 
 ```{r}
