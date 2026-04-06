@@ -12,7 +12,7 @@ format:
 editor_options: 
   chunk_output_type: console
 params:
-  version: "v7"
+  version: "v8"
 ---
 
 ## Setup
@@ -184,8 +184,7 @@ pp_wide_rsq |>
 ## Display model
 
 ```{r}
-
-tidy(model) |>
+interaction_df <- tidy(model) |>
   filter(term != "(Intercept)", estimate != 0) |>
   mutate(
     direction = if_else(estimate > 0, "positive", "negative"),
@@ -193,12 +192,9 @@ tidy(model) |>
     feature_type = if_else(str_detect(term, "_x_"), "Interaction", "Main Effect")
   ) |>
   filter(feature_type == "Interaction") |>
-
   mutate(
     left  = str_split_fixed(term, "_x_", 2)[,1],
     right = str_split_fixed(term, "_x_", 2)[,2],
-
-    # LEFT SIDE RULES
     left = left |>
       str_remove("^(tone|style)_") |> 
       str_replace_all("_", " ") |>
@@ -206,31 +202,40 @@ tidy(model) |>
         words <- str_split(x, " ")
         sapply(words, \(w) if (length(w) > 1) w[2] else w[1])
       })(),
-
-    # RIGHT SIDE RULES
     right = right |>
       str_replace("^dem_.*?_(.*?)_yes$", "dem_\\1") |>
       str_replace_all("_", " "),
-
     clean_term = paste(left, "×", right)
-  ) |>
-  # ---------------------------------------------
-
-  slice_max(abs_estimate, n = 30) |>
-  arrange(abs_estimate) |>
-  mutate(clean_term = factor(clean_term, levels = clean_term)) |>
-
-  ggplot(aes(x = abs_estimate, y = clean_term, fill = direction)) +
-  geom_col() +
-  scale_fill_manual(
-    values = c("positive" = "forestgreen", "negative" = "firebrick"),
-    name = "Direction"
-  ) +
-  labs(
-    x = "Absolute Coefficient",
-    y = NULL,
-    title = "Feature Importance"
   )
+
+plot_interactions <- function(df, right_prefix, plot_title) {
+  df |>
+    filter(str_starts(right, right_prefix)) |>
+    slice_max(abs_estimate, n = 30) |>
+    arrange(abs_estimate) |>
+    mutate(clean_term = factor(clean_term, levels = clean_term)) |>
+    ggplot(aes(x = abs_estimate, y = clean_term, fill = direction)) +
+    geom_col() +
+    scale_fill_manual(
+      values = c("positive" = "forestgreen", "negative" = "firebrick"),
+      name = "Direction"
+    ) +
+    scale_x_continuous(
+      breaks = seq(0, 0.7, by = 0.1),
+      limits = c(0, 0.7)
+    ) +
+    labs(
+      x = "Absolute Coefficient",
+      y = NULL,
+      title = plot_title
+    )
+}
+
+plot_dem  <- plot_interactions(interaction_df, "dem",  "Feature Importance — Demographics")
+plot_pref <- plot_interactions(interaction_df, "pref", "Feature Importance — Baseline Preferences")
+
+plot_dem
+plot_pref
 ```
 
 ## Assignment
