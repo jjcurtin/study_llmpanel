@@ -37,6 +37,18 @@ theme_set(theme_classic())
 
 ## Data & Models
 ```{r}
+folds <- read_csv(here::here(path_chtc, "output", 
+                             str_c("batch_results_", params$version, ".csv")), 
+                  show_col_types = FALSE) |> 
+  arrange(config_num, outer_split_num, inner_split_num) |> 
+  glimpse()
+
+folds <- read_csv(here::here(path_chtc, "output", 
+                             str_c("batch_results_", params$version, ".csv")), 
+                  show_col_types = FALSE) |> 
+  arrange(config_num, outer_split_num, inner_split_num) |> 
+  glimpse()
+
 d <- read_csv(here::here(path_chtc, "input", "data_trn.csv"), 
               show_col_types = FALSE) |> 
   format_data() |> 
@@ -46,15 +58,6 @@ splits <- d |>
   make_splits(cv_resample_type, cv_resample, cv_outer_resample, 
               cv_inner_resample, cv_group, cv_strat = cv_strat,
               the_seed = seed_splits)
-
-# model <- read_rds(here::here(path_data, 
-#                              str_c("model_pref_", params$version, ".rds")))
-
-folds <- read_csv(here::here(path_chtc, "output", 
-                             str_c("batch_results_", params$version, ".csv")), 
-                  show_col_types = FALSE) |> 
-  arrange(config_num, outer_split_num, inner_split_num) |> 
-  glimpse()
 ```
 
 ## All tones/styles
@@ -134,8 +137,9 @@ config_best$feature_set <- "pref"
 config_best
 ```
 
-
 ```{r}
+#| label: preds_ts
+ 
 pred_ts <- tibble(fold = rep(NA, 300),
                  i_outer = NA,
                  i_inner = NA,
@@ -181,7 +185,12 @@ for (i_outer in 1:30){
                 by = subid) |> 
       rename(tone_best = tone,
              style_best = style) |> 
-      select(-mean_predicted)
+      select(-mean_predicted) 
+    
+    preds_best
+    preds_best |> write_csv(here::here(path_data, 
+                                       str_c("preds_best_", params$version, 
+                                             ".csv")))
     
     preds_out <- preds_out |> 
       select(-predicted) |> 
@@ -210,6 +219,7 @@ folds_mean_y <- tibble(id = all_ts$i_outer,
 
 Calculate posterior probability distribution for Mean Y
 ```{r}
+#| label: pp
 #| output: false
 
 # using structure that will work for outer test folds when switching - hack for now
