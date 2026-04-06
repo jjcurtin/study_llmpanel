@@ -10,7 +10,7 @@ format:
   html:
     embed-resources: true
 params:
-  version: "v7"
+  version: "v8"
 editor_options: 
   chunk_output_type: console
 ---
@@ -114,9 +114,11 @@ tidy(model) |>
   mutate(
     direction = if_else(estimate > 0, "positive", "negative"),
     abs_estimate = abs(estimate),
-    feature_type = if_else(str_detect(term, "_x_"), "Interaction", "Main Effect")
-  ) |>
-  slice_max(abs_estimate, n = 15, by = feature_type) |>
+    feature_type = if_else(str_detect(term, "_x_"), 
+                           "Interaction", 
+                           "Main Effect")) |>
+  filter(feature_type == "Interaction") |> 
+  slice_max(abs_estimate, n = 30, by = feature_type) |>
   arrange(feature_type, abs_estimate) |>
   mutate(term = factor(term, levels = term)) |>
   ggplot(aes(x = abs_estimate, y = term, fill = direction)) +
