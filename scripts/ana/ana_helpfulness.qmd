@@ -1,0 +1,266 @@
+---
+title: "Held-out helpfulness"
+author: "John Curtin"
+date: "`r lubridate::today()`"
+output: 
+  html_document:
+    toc: true 
+    toc_depth: 2
+format:
+  html:
+    embed-resources: true
+editor_options: 
+  chunk_output_type: console
+params:
+  version: "v8"
+---
+
+## Setup
+```{r}
+#| include: false
+
+library(tidyverse)
+library(tidymodels)
+library(tidyposterior)
+library(Matrix)
+
+source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
+source("https://github.com/jjcurtin/lab_support/blob/main/fun_eda.R?raw=true")
+
+path_chtc <- format_path(str_c("llmpanel/chtc/train_", params$version))
+path_data <- format_path("llmpanel/data_processed")
+
+source(here::here(path_chtc, "input", "training_controls.R"))
+source(here::here(path_chtc, "input", "fun_chtc.R"))
+theme_set(theme_classic()) 
+```
+
+## Data & Models
+```{r}
+d <- read_csv(here::here(path_chtc, "input", "data_trn.csv"), 
+              show_col_types = FALSE) |> 
+  format_data() |> 
+  glimpse()
+
+splits <- d |>  
+  make_splits(cv_resample_type, cv_resample, cv_outer_resample, 
+              cv_inner_resample, cv_group, cv_strat = cv_strat,
+              the_seed = seed_splits)
+
+# model <- read_rds(here::here(path_data, 
+#                              str_c("model_pref_", params$version, ".rds")))
+
+folds <- read_csv(here::here(path_chtc, "output", 
+                             str_c("batch_results_", params$version, ".csv")), 
+                  show_col_types = FALSE) |> 
+  arrange(config_num, outer_split_num, inner_split_num) |> 
+  glimpse()
+```
+
+## All tones/styles
+
+```{r}
+all_ts <- tibble(fold = rep(NA, 300),
+                 i_outer = NA,
+                 i_inner = NA,
+                 mean_y = NA)
+i <- 0
+
+# outer loop
+for (i_outer in 1:30){
+  outer <- splits$inner_resamples[[i_outer]]
+  
+  # inner loop
+  for (i_inner in 1:10){
+    i <- i + 1 
+#   held_in <- analysis(outer$splits[[i_inner]]) 
+    held_out <- assessment(outer$splits[[i_inner]]) 
+    
+    all_ts$fold[i] <- i
+    all_ts$i_outer[i] <- i_outer
+    all_ts$i_inner[i] <- i_inner
+    all_ts$mean_y[i] <- mean(held_out$y)
+  }
+}
+```
+
+## Best overall mean tone/style
+
+```{r}
+mean_ts <- tibble(fold = rep(NA, 300),
+                 i_outer = NA,
+                 i_inner = NA,
+                 mean_y = NA)
+i <- 0
+
+# outer loop
+for (i_outer in 1:30){
+  outer <- splits$inner_resamples[[i_outer]]
+  
+  # inner loop
+  for (i_inner in 1:10){
+    i <- i + 1 
+    held_in <- analysis(outer$splits[[i_inner]]) 
+    
+    ts_best <- held_in |> 
+      summarize(mean_y = mean(y),
+                .by = c(tone, style)) |> 
+      slice_max(order_by = mean_y, 
+                n = 1)
+    
+    held_out <- assessment(outer$splits[[i_inner]]) |> 
+      filter(tone == ts_best$tone, style == ts_best$style)
+    
+    mean_ts$fold[i] <- i
+    mean_ts$i_outer[i] <- i_outer
+    mean_ts$i_inner[i] <- i_inner
+    mean_ts$mean_y[i] <- mean(held_out$y)
+  }
+}
+```
+
+## Individual predicted best tone/style
+
+```{r}
+config_best <- folds |>
+  summarise(rsq = mean(rsq),
+            .by = c(hp1, hp2)) |> 
+  arrange(desc(rsq)) |> 
+  filter(hp1 <= .1) |> 
+  slice_head(n = 1)
+config_best$algorithm <- "glmnet"
+config_best$feature_set <- "pref"
+
+config_best
+```
+
+
+```{r}
+pred_ts <- tibble(fold = rep(NA, 300),
+                 i_outer = NA,
+                 i_inner = NA,
+                 mean_y = NA)
+i <- 0
+
+# outer loop
+for (i_outer in 1:30){
+  outer <- splits$inner_resamples[[i_outer]]
+  
+  # inner loop
+  for (i_inner in 1:10){
+    i <- i + 1 
+    held_in <- analysis(outer$splits[[i_inner]]) 
+    
+    rec <- build_recipe(d = held_in, config = config_best)
+    rec_prep <- rec |> 
+      prep(training = held_in)
+    feat_in <- rec_prep |> 
+      bake(new_data = NULL)
+    
+    model <- linear_reg(mixture = config_best$hp1,
+                        penalty = config_best$hp2) |>
+          set_engine("glmnet") |>
+          set_mode("regression") |>
+          fit(y ~ ., data = feat_in)
+   
+    held_out <- assessment(outer$splits[[i_inner]]) 
+    preds_out <- rec_prep |> 
+      bake(new_data = held_out)
+    preds_out <- preds_out |> 
+      mutate(predicted = predict(model, preds_out)$.pred, 
+             subid = held_out$subid,
+             tone = held_out$tone,
+             style = held_out$style) |> 
+      select(subid, tone, style, predicted, y)
+    
+    preds_best <- preds_out |> 
+      summarize(mean_predicted = mean(predicted),
+                .by = c(subid, tone, style)) |> 
+      slice_max(order_by = mean_predicted, 
+                n = 1,
+                by = subid) |> 
+      rename(tone_best = tone,
+             style_best = style) |> 
+      select(-mean_predicted)
+    
+    preds_out <- preds_out |> 
+      select(-predicted) |> 
+      left_join(preds_best,
+                by = "subid") |> 
+      filter(tone == tone_best, style == style_best)
+      
+    pred_ts$fold[i] <- i
+    pred_ts$i_outer[i] <- i_outer
+    pred_ts$i_inner[i] <- i_inner
+    pred_ts$mean_y[i] <- mean(preds_out$y)
+  }
+}
+```
+
+## Bayesian analysis
+
+```{r}
+folds_mean_y <- tibble(id = all_ts$i_outer,
+                       id2 = all_ts$i_inner) |> 
+  mutate(id = ceiling (id / 5),
+         all_ts = all_ts$mean_y,
+         mean_ts = mean_ts$mean_y,
+         pred_ts = pred_ts$mean_y)
+```
+
+Calculate posterior probability distribution for Mean Y
+```{r}
+#| output: false
+
+# using structure that will work for outer test folds when switching - hack for now
+# Repeated CV (id = repeat, id2 = fold within repeat)
+# with a common variance:  statistic ~ model + (model | id2/id)
+set.seed(101)
+pp <- folds_mean_y|> 
+  perf_mod(formula = statistic ~ model + (1 | id2/id),
+         # increased iteration from 2000 to fix divergence issues
+         # transform = tidyposterior::logit_trans,  # for skewed & bounded RSQ 
+         iter = 2000, chains = 4, adapt_delta = .99, 
+         family = gaussian)  
+```
+
+```{r}
+pp_tidy <- pp |> 
+  tidy(seed = 123) 
+
+
+pp_tidy |> write_csv(here::here(path_data, str_c("posterior_mean_y_", 
+                                                 params$version, ".csv")))
+
+q = c(.025, .5, .975)
+pp_tidy |>
+  summarize(mean = mean(posterior),
+            median = quantile(posterior, probs = q[2]),
+            lower = quantile(posterior, probs = q[1]),
+            upper = quantile(posterior, probs = q[3]),
+            .by = model)
+```
+
+Model contrasts 
+```{r}
+pp |>
+  contrast_models(list("mean_ts", "pred_ts"),
+                  list("all_ts", "mean_ts")) |>
+  summary(size = 0)  |>
+  select(contrast, probability, mean, lower, upper)
+```
+
+Histogram by model
+```{r}
+old_labels <- unique(pp_tidy$model)
+new_labels <- c("all tones/styles", "mean tones/styles", "individual tones/styles")
+
+pp_tidy |> 
+  mutate(model = recode_values(model, from = old_labels, to = new_labels),
+         model = fct(model, levels = new_labels)) |> 
+  ggplot(aes(x = posterior, fill = model)) +
+  geom_histogram(bins = 30) +
+  scale_fill_manual(values = c("#dadfe1", "#646569", "#9b0000"), guide = "none") +
+  xlab("Posterior(Mean Message Helpfulness)") +
+  facet_wrap(vars(model), nrow = 3)
+```

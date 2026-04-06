@@ -48,24 +48,20 @@ d <- read_csv(here::here(path_chtc, "input", "data_trn.csv"),
          y_txt = fct(y_txt, levels = likert_txt)) |> 
   glimpse()
 
+# update to use long format
 pp_wide_rsq <- read_csv(here::here(path_data, 
                                    str_c("posterior_rsq_", 
                                          params$version, ".csv")),
                         show_col_types = FALSE)
 
+# ADD PP for mean y
+
+
 model <- read_rds(here::here(path_data, 
                              str_c("model_pref_", params$version, ".rds")))
 
-preds <- read_csv(here::here(path_data, 
-                             str_c("pred_conditions_", params$version, ".csv")),
-                  show_col_types = FALSE)
 
-# f <- read_csv(here::here(path_chtc, "output",
-#                          str_c("batch_results_", params$version, ".csv")), 
-#               show_col_types = FALSE) |> 
-#   glimpse()
-
-# p <- read_csv(here::here(path_data, "posterior_rsq.csv"))
+#  NEED to get data on individual tones/styles
 
 ```
 
@@ -81,12 +77,6 @@ d |>
   labs(x = "Message Rating", y = "Count", title = "Distribution of Message Ratings")
 ```
 
-```{r}
-d |> summarize(mean = mean(y),
-               var = var(y),
-               min = min(y),
-               max = max(y))
-```
 
 ## Messages by tone and style
 
