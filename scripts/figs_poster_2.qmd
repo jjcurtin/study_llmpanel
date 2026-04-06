@@ -2,17 +2,15 @@
 title: "Descriptives"
 author: "John Curtin"
 date: "`r lubridate::today()`"
-output: 
-  html_document:
-    toc: true 
-    toc_depth: 2
+params:
+  version: "v8"
 format:
   html:
     embed-resources: true
+    toc: true 
+    toc_depth: 2
 editor_options: 
   chunk_output_type: console
-params:
-  version: "v7"
 ---
 
 ## Setup
@@ -49,13 +47,21 @@ d <- read_csv(here::here(path_chtc, "input", "data_trn.csv"),
   glimpse()
 
 # update to use long format
-pp_wide_rsq <- read_csv(here::here(path_data, 
+pp_rsq <- read_csv(here::here(path_data, 
                                    str_c("posterior_rsq_", 
                                          params$version, ".csv")),
                         show_col_types = FALSE)
 
 # ADD PP for mean y
+pp_mean_y<- read_csv(here::here(path_data, 
+                                   str_c("posterior_mean_y_", 
+                                         params$version, ".csv")))
 
+                     
+                     
+                     
+preds_best <- read_csv(here::here(path_data, 
+                                  str_c("preds_best_", params$version, ".csv")))
 
 model <- read_rds(here::here(path_data, 
                              str_c("model_pref_", params$version, ".rds")))
