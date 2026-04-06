@@ -11,7 +11,7 @@
 source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
 
 # SET GLOBAL PARAMETERS--------------------
-version <- "v7"
+version <- "v8"
 algorithm <- "glmnet"  # glmnet, random_forest, xgboost
 feature_set <- c("pref")
 seed_splits <- 102030
@@ -234,7 +234,8 @@ build_recipe <- function(d, config) {
   rec <- rec |> 
     # drop columns with NA values after imputation (100% NA)
     step_rm(where(~ any(is.na(.)))) |> 
-    step_nzv(all_predictors())
+    step_nzv(all_predictors()) |>
+    step_normalize(all_predictors()) # consider standardizing only numeric predictors in a later version
   
   return(rec)
 }
