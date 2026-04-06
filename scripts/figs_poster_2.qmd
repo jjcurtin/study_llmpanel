@@ -30,45 +30,43 @@ path_data <- format_path("llmpanel/data_processed")
 source(here::here(path_chtc, "input", "training_controls.R"))
 theme_set(theme_classic()) 
 
-likert_num <- 1:7
-likert_txt <- c("strongly_disagree", "disagree", "somewhat_disagree",
-               "neutral", "somewhat_agree", "agree", "strongly_agree")
 ```
 
 ## Data & Models
 ```{r}
+# raw data
+likert_num <- 1:7
+likert_txt <- c("strongly_disagree", "disagree", "somewhat_disagree",
+               "neutral", "somewhat_agree", "agree", "strongly_agree")
 d <- read_csv(here::here(path_chtc, "input", "data_trn.csv"), 
               show_col_types = FALSE) |> 
   format_data() |> 
   mutate(y_txt = recode_values(y,
                                from = likert_num,
                                to = likert_txt),
-         y_txt = fct(y_txt, levels = likert_txt)) |> 
-  glimpse()
+         y_txt = fct(y_txt, levels = likert_txt))
 
-# update to use long format
+# pp for model 
 pp_rsq <- read_csv(here::here(path_data, 
                                    str_c("posterior_rsq_", 
                                          params$version, ".csv")),
                         show_col_types = FALSE)
 
-# ADD PP for mean y
+# PP for mean y
 pp_mean_y<- read_csv(here::here(path_data, 
                                    str_c("posterior_mean_y_", 
-                                         params$version, ".csv")))
-
+                                         params$version, ".csv")),
+                       show_col_types = FALSE)
                      
                      
-                     
+# individual tones and styles                     
 preds_best <- read_csv(here::here(path_data, 
-                                  str_c("preds_best_", params$version, ".csv")))
+                                  str_c("preds_best_", params$version, ".csv")),
+                       show_col_types = FALSE)
 
+# prediction model
 model <- read_rds(here::here(path_data, 
                              str_c("model_pref_", params$version, ".rds")))
-
-
-#  NEED to get data on individual tones/styles
-
 ```
 
 
@@ -94,6 +92,13 @@ This is clear in the plots of means by tone and style
 d |>
   summarise(avg_rating = mean(y),
             .by = c(tone, style)) |> 
+  arrange(desc(avg_rating))
+```
+
+```{r}
+d |>
+  summarise(avg_rating = mean(y),
+            .by = c(tone, style)) |> 
   ggplot(aes(x = tone, y = avg_rating, fill = style)) +
   geom_bar(stat = "identity", position = "dodge") +
   # geom_errorbar(aes(ymin = avg_rating - sd, ymax = mean_rating + sd),
@@ -110,84 +115,67 @@ This is also clear in when selecting the top tone and style for each participant
 d |> unite(tone_style,tone, style, sep = " & ") |> 
   summarize(mean = mean(y), 
             .by = c(subid, tone_style)) |> 
-  group_by(subid) |> 
-  arrange(desc(mean)) |>  
-  slice_head(n = 1) |> 
-  ungroup() |> 
+  slice_max(order_by = mean, n = 1,
+            by = subid) |>  
   tab(tone_style) |> 
   arrange(desc(prop))
 ```
 
-And if we look at the mean ratings in their best and worst tone/style
+## Prediction model
 
-
-NOTE:   THIS  NEEDS TO BE DONE IN HELD OUT DATA using CV
-We can then do a bayesian comparison with same performance from model predictions
+### Posterior
 ```{r}
-top <- d |>
-  summarize(mean = mean(y), 
-            .by = c(subid, tone, style)) |> 
-  group_by(subid) |> 
-  arrange(desc(mean)) |>  
-  slice_head(n = 1) |> 
-  ungroup() |> 
-  mutate(cond = "best") 
-bot <- d |>
-  summarize(mean = mean(y), 
-            .by = c(subid, tone, style)) |> 
-  group_by(subid) |> 
-  arrange(mean) |>  
-  slice_head(n = 1) |> 
-  ungroup() |> 
-  mutate(cond = "worst") 
-
-all <- top |> 
-  bind_rows(bot)
-
-all |>
-  summarise(mean = mean(mean, na.rm = TRUE), .by = cond)
-```
-
-```{r}
-all |>
-  summarise(mean = mean(mean, na.rm = TRUE), .by = cond) |>
-  ggplot(aes(x = cond, y = mean)) +
-  geom_col() +
-  labs(x = "Condition", y = "Mean")
-```
-
-
-If we want the best response, need to identify best tone/style per person
-
-We need a prediction model that can predict their ratings in each tone/style and then we can select 
-the best condition for them
-
-## Posterior
-
-```{r}
-
 q = c(.025, .5, .975)
-
-# preferences
-pp_wide_rsq |> 
-  summarize(mean = mean(preferences),
-            median = quantile(preferences, probs = q[2]),
-            lower = quantile(preferences, probs = q[1]), 
-            upper = quantile(preferences, probs = q[3]))
-
+pp_rsq |> 
+  summarize(mean = mean(posterior),
+            median = quantile(posterior, probs = q[2]),
+            lower = quantile(posterior, probs = q[1]), 
+            upper = quantile(posterior, probs = q[3]))
 ```
 
 ```{r}
-pp_wide_rsq |> 
-  select(sample, preferences) |> 
-  ggplot(aes(x = preferences)) +
+pp_rsq |> 
+  ggplot(aes(x = posterior)) +
   geom_histogram(bins = 30) +
   scale_fill_manual(values = "#dadfe1", guide = "none") +
   xlab("R-Squared")
 ```
 
 
-## Display model
+### Feature importance
+
+JJC code
+```{r}
+tidy(model) |>
+  filter(term != "(Intercept)") |>
+  filter(estimate != 0) |>
+  mutate(
+    direction = if_else(estimate > 0, "positive", "negative"),
+    abs_estimate = abs(estimate),
+    feature_type = if_else(str_detect(term, "_x_"), 
+                           "Interaction", 
+                           "Main Effect")) |>
+  filter(feature_type == "Interaction") |> 
+  mutate(feature_cat = if_else(str_detect(term, "pref_"), 
+                               "Preferences", 
+                               "Demographics")) |>
+  mutate(feature_cat = fct(feature_cat, 
+                           levels = c("Preferences", "Demographics"))) |>
+  slice_max(abs_estimate, n = 12, by = feature_cat) |>
+  arrange(feature_cat, abs_estimate) |>
+  mutate(term = factor(term, levels = term)) |>
+  ggplot(aes(x = abs_estimate, y = term, fill = direction)) +
+  geom_col() +
+  scale_fill_manual(
+    values = c("positive" = "forestgreen", "negative" = "firebrick"),
+    name = "Direction"
+  ) +
+  facet_wrap(~ feature_cat, scales = "free_y") +
+  labs(
+    x = "Absolute Coefficient",
+    y = NULL
+  )
+```
 
 ```{r}
 interaction_df <- tidy(model) |>
@@ -244,20 +232,26 @@ plot_dem
 plot_pref
 ```
 
-## Assignment
-
-
-And here is what people are assigned
-
-Compare to what we get with MEAN model
+Model assignments
 
 ```{r}
-preds |> 
-  group_by(subid) |> 
-  slice_head(n = 1) |> 
-  ungroup() |> 
-  unite(tone_style, tone, style, sep = " & ", remove = FALSE) |> 
-  tab(tone_style) |> 
-  arrange(desc(prop))
+preds_best |> tab(tone_style) |> 
+  arrange(desc(n))
 ```
 
+
+## Comparing strategies
+
+```{r}
+old_labels <- unique(pp_mean_y$model)
+new_labels <- c("all tones/styles", "mean tones/styles", "individual tones/styles")
+
+pp_mean_y |> 
+  mutate(model = recode_values(model, from = old_labels, to = new_labels),
+         model = fct(model, levels = new_labels)) |> 
+  ggplot(aes(x = posterior, fill = model)) +
+  geom_histogram(bins = 30) +
+  scale_fill_manual(values = c("#dadfe1", "#646569", "#9b0000"), guide = "none") +
+  xlab("Posterior(Mean Message Helpfulness)") +
+  facet_wrap(vars(model), nrow = 3)
+```
