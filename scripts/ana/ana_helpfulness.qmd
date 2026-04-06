@@ -2,17 +2,15 @@
 title: "Held-out helpfulness"
 author: "John Curtin"
 date: "`r lubridate::today()`"
-output: 
-  html_document:
-    toc: true 
-    toc_depth: 2
+params:
+  version: "v8"
 format:
   html:
+    toc: true 
+    toc_depth: 2
     embed-resources: true
 editor_options: 
   chunk_output_type: console
-params:
-  version: "v8"
 ---
 
 ## Setup
@@ -187,11 +185,6 @@ for (i_outer in 1:30){
              style_best = style) |> 
       select(-mean_predicted) 
     
-    preds_best
-    preds_best |> write_csv(here::here(path_data, 
-                                       str_c("preds_best_", params$version, 
-                                             ".csv")))
-    
     preds_out <- preds_out |> 
       select(-predicted) |> 
       left_join(preds_best,
@@ -274,3 +267,47 @@ pp_tidy |>
   xlab("Posterior(Mean Message Helpfulness)") +
   facet_wrap(vars(model), nrow = 3)
 ```
+
+## Predicted conditions
+
+```{r}
+
+rec <- build_recipe(d = d, config = config_best)
+rec_prep <- rec |> 
+  prep(training = d)
+feat <- rec_prep |> 
+  bake(new_data = NULL)
+
+model <- linear_reg(mixture = config_best$hp1,
+                    penalty = config_best$hp2) |>
+  set_engine("glmnet") |>
+  set_mode("regression") |>
+  fit(y ~ ., data = feat)
+
+preds <- rec_prep |> 
+  bake(new_data = d)
+preds <- preds |> 
+  mutate(predicted = predict(model, preds)$.pred, 
+         subid = d$subid,
+         tone = d$tone,
+         style = d$style) |> 
+  select(subid, tone, style, predicted, y)
+
+preds_best <- preds |> 
+  summarize(mean_predicted = mean(predicted),
+            .by = c(subid, tone, style)) |> 
+  slice_max(order_by = mean_predicted, 
+            n = 1,
+            by = subid) |> 
+  rename(tone_best = tone,
+         style_best = style) |> 
+  unite("tone_style", tone_best, style_best, sep =" & ",
+        remove = FALSE) |> 
+  select(-mean_predicted) 
+
+preds_best |> write_csv(here::here(path_data, str_c("preds_best_", params$version, ".csv")))
+
+preds_best |> tab(tone_style) |> 
+  arrange(desc(n))
+```
+

@@ -1,0 +1,131 @@
+---
+title: "Model evaluation"
+author: "John Curtin"
+date: "`r lubridate::today()`"
+params:
+  version: "v8"
+format:
+  html:
+    embed-resources: true
+    toc: true 
+    toc_depth: 2
+editor_options: 
+  chunk_output_type: console
+---
+
+## Setup 
+```{r}
+#| include: false
+
+library(tidyverse)
+library(tidyposterior)
+
+source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
+
+path_chtc <- format_path(str_c("llmpanel/chtc/train_", params$version))
+path_data <- format_path("llmpanel/data_processed")
+theme_set(theme_classic()) 
+```
+
+## Fold data
+
+Get 300 validation sets for the best configuration for each of the three models
+```{r}
+folds <- read_csv(here::here(path_chtc, "output", 
+                         str_c("batch_results_", params$version, ".csv")), 
+              show_col_types = FALSE) |> 
+  glimpse()
+
+best <- folds |>
+  summarise(
+    rsq = mean(rsq),
+    mae = mean(mae),
+    n = n(),
+    .by = c(feature_set, hp1, hp2, hp3)) |> 
+  group_by(feature_set) |>
+  arrange(desc(rsq)) |> 
+  slice_head(n = 1) |> 
+  ungroup()
+
+best
+
+folds_pref <- folds |> 
+  filter(feature_set == "pref") |> 
+  filter(hp1 == best |> filter(feature_set == "pref") |> pull(hp1)) |> 
+  filter(hp2 == best |> filter(feature_set == "pref") |> pull(hp2))
+# Tibbles for posterior analysis
+# folds_mae <-folds_base |> 
+#   select(id = outer_split_num, id2 = inner_split_num, Baseline = mae) |> 
+#   mutate(id = ceiling(id / 5)) |> 
+#   mutate(Demographics = folds_dem$mae) |> 
+#   mutate(Preferences = folds_pref$mae)
+# 
+folds_rsq <-folds_pref |> 
+  select(id = outer_split_num, id2 = inner_split_num, Preferences = rsq) 
+# folds_rsq <-folds_base |> 
+#   select(id = outer_split_num, id2 = inner_split_num, Baseline = rsq) |> 
+#   mutate(id = ceiling(id / 5)) |> 
+#   mutate(Demographics = folds_dem$rsq) |> 
+#   mutate(Preferences = folds_pref$rsq)
+```
+
+## RSQ
+
+Calculate posterior probability distribution for RSQ
+```{r}
+#| label: pp
+#| output: false
+
+# NOTE:  THERE ARE ISSUES TO RESOLVE WITH THIS MODEL 
+# Repeated CV (id = repeat, id2 = fold within repeat)
+# with a common variance:  statistic ~ model + (model | id2/id)
+set.seed(101)
+pp <- folds_rsq |> 
+  # perf_mod(formula = statistic ~ model + (1 | id2/id),
+  perf_mod(formula = statistic ~ 1 + (1 | id2/id),
+         # increased iteration from 2000 to fix divergence issues
+         transform = tidyposterior::logit_trans,  # for skewed & bounded RSQ 
+         iter = 4000, chains = 4, adapt_delta = .99, 
+         family = gaussian)  
+```
+
+Sample from the posterior distribution
+
+- get median and %5 and 95% quantiles for the models
+- get median and %5 and 95% quantiles for the two model comparisons 
+
+```{r}
+pp_tidy <- pp |> 
+  tidy(seed = 123) 
+
+
+pp_tidy |> write_csv(here::here(path_data, str_c("posterior_rsq_", params$version, ".csv")))
+
+q = c(.025, .5, .975)
+
+pp_tidy |> 
+  summarize(mean = mean(posterior),
+            median = quantile(posterior, probs = q[2]),
+            lower = quantile(posterior, probs = q[1]), 
+            upper = quantile(posterior, probs = q[3]))
+```
+
+Model contrasts 
+```{r}
+# pp_rsq |>
+#   contrast_models(list("Preferences", "Demographics"), 
+#                   list("Demographics", "Baseline")) |> 
+#   summary(size = 0)  |> 
+#   select(contrast, probability, mean, lower, upper)
+```
+
+
+Histogram by model
+```{r}
+pp_tidy |> 
+  ggplot(aes(x = posterior, fill = model)) +
+  geom_histogram(bins = 30) +
+  scale_fill_manual(values = c("#dadfe1", "#646569", "#9b0000"), guide = "none") +
+  xlab("R-Squared")
+  #facet_wrap(vars(model), nrow = 3)
+```
