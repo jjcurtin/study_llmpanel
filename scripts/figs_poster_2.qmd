@@ -78,7 +78,7 @@ d |>
   ggplot(aes(x = y_txt)) +
   geom_bar() +
   scale_x_discrete(guide = guide_axis(angle = 30)) +
-  labs(x = "Message Rating", y = "Count", title = "Distribution of Message Ratings")
+  labs(x = "Message Rating", y = "Count", title = "Perceived Helpfulness of Messages")
 ```
 
 
@@ -159,12 +159,27 @@ tidy(model) |>
   mutate(feature_cat = if_else(str_detect(term, "pref_"), 
                                "Preferences", 
                                "Demographics")) |>
+  mutate(
+    left  = str_split_fixed(term, "_x_", 2)[,1],
+    right = str_split_fixed(term, "_x_", 2)[,2],
+    left = left |>
+      str_remove("^(tone|style)_") |>
+      str_replace_all("_", " ") |>
+      (\(x) {
+        words <- str_split(x, " ")
+        sapply(words, \(w) if (length(w) > 1) w[2] else w[1])
+      })(),
+    right = right |>
+      str_replace("^dem_.*?_(.*?)_yes$", "dem_\\1") |>
+      str_replace_all("_", " "),
+    clean_term = paste(left, "×", right)
+  ) |>
   mutate(feature_cat = fct(feature_cat, 
                            levels = c("Preferences", "Demographics"))) |>
   slice_max(abs_estimate, n = 12, by = feature_cat) |>
   arrange(feature_cat, abs_estimate) |>
-  mutate(term = factor(term, levels = term)) |>
-  ggplot(aes(x = abs_estimate, y = term, fill = direction)) +
+  mutate(clean_term = factor(clean_term, levels = clean_term)) |>
+  ggplot(aes(x = abs_estimate, y = clean_term, fill = direction)) +
   geom_col() +
   scale_fill_manual(
     values = c("positive" = "forestgreen", "negative" = "firebrick"),
