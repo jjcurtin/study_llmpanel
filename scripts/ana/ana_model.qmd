@@ -1,0 +1,134 @@
+---
+title: "models"
+author: "John Curtin"
+date: "`r lubridate::today()`"
+output: 
+  html_document:
+    toc: true 
+    toc_depth: 2
+format:
+  html:
+    embed-resources: true
+params:
+  version: "v7"
+editor_options: 
+  chunk_output_type: console
+---
+
+# Set up environment
+```{r}
+library(tidyverse)
+library(tidymodels)
+library(Matrix)
+
+theme_set(theme_classic()) 
+source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
+
+path_data <- format_path("llmpanel/data_processed")
+path_chtc <- format_path(str_c("llmpanel/chtc/train_", params$version))
+```
+
+## Best config 
+```{r}
+folds <- read_csv(here::here(path_chtc, "output", 
+                             str_c("batch_results_", params$version, ".csv")), 
+                  show_col_types = FALSE) |> 
+  arrange(config_num, outer_split_num, inner_split_num) |> 
+  glimpse()
+
+best <- folds |>
+  summarise(rsq = mean(rsq),
+            mae = mean(mae),
+            n = n(),
+            .by = c(hp1, hp2, hp3)) |> 
+  arrange(desc(rsq)) |> 
+  filter(hp1 <= .1) |> 
+  slice_head(n = 1)
+
+best$algorithm <- "glmnet"
+best$feature_set <- "pref"
+
+best
+```
+
+Fit model to full dataset
+```{r}
+source(here::here(path_chtc, "input", "training_controls.R"))
+d <- read_csv(here::here(path_chtc, "input", "data_trn.csv"),
+              show_col_types = FALSE) |> 
+  glimpse()
+
+d <- format_data(d)  
+rec <- build_recipe(d = d, config = best)
+rec_prep <- rec |> 
+  prep(training = d)
+feat <- rec_prep |> 
+  bake(new_data = NULL)
+
+model <- linear_reg(mixture = best$hp1,
+                    penalty = best$hp2) |>
+      set_engine("glmnet") |>
+      set_mode("regression") |>
+      fit(y ~ ., data = feat)
+
+# model <- boost_tree(learn_rate = best$hp1,
+#                         tree_depth = best$hp2,
+#                         mtry = best$hp3,
+#                         trees = 500,  # set high but use early stopping
+#                         stop_iter = 20) |>  
+#       set_engine("xgboost",
+#                  validation = 0.2) |>  
+#       set_mode("regression") |> 
+#       fit(y ~ ., data = feat)
+
+model |> write_rds(here::here(path_data, 
+                              str_c("model_pref_", params$version, ".rds")))
+```
+
+
+```{r}
+model |>
+  tidy() |>
+  filter(term != "(Intercept)") |>
+  arrange(desc(abs(estimate))) |> 
+  print(n = Inf)
+```
+
+Model coefficients  
+```{r}
+model |>
+  tidy() |>
+  filter(term != "(Intercept)", estimate != 0) |>
+  slice_max(abs(estimate), n = 30) |>
+  mutate(term = reorder(term, estimate)) |>
+  ggplot(aes(x = estimate, y = term)) +
+  geom_col() +
+  geom_vline(xintercept = 0, linewidth = 0.3) +
+  labs(x = "Coefficient", y = NULL)
+```
+
+```{r}
+tidy(model) |>
+  filter(term != "(Intercept)") |>
+  filter(estimate != 0) |>
+  mutate(
+    direction = if_else(estimate > 0, "positive", "negative"),
+    abs_estimate = abs(estimate),
+    feature_type = if_else(str_detect(term, "_x_"), "Interaction", "Main Effect")
+  ) |>
+  slice_max(abs_estimate, n = 15, by = feature_type) |>
+  arrange(feature_type, abs_estimate) |>
+  mutate(term = factor(term, levels = term)) |>
+  ggplot(aes(x = abs_estimate, y = term, fill = direction)) +
+  geom_col() +
+  scale_fill_manual(
+    values = c("positive" = "forestgreen", "negative" = "firebrick"),
+    name = "Direction"
+  ) +
+  facet_wrap(~ feature_type, scales = "free_y") +
+  labs(
+    x = "Absolute Coefficient",
+    y = NULL,
+    title = "Feature Importance"
+  )
+```
