@@ -4,6 +4,9 @@
 # version 2: corrected problem with feature selection for the three configurations
 # version 3: change hyperparameters to better tune models
 # version 4: more hyperparameter tuning
+# version 7: switched to one hot encoding for non-binary categorical variables
+# version 8: scaled numeric predictors
+
 # NOTES------------------------------
 source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
 
