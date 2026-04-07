@@ -78,7 +78,7 @@ d |>
   ggplot(aes(x = y_txt)) +
   geom_bar() +
   scale_x_discrete(guide = guide_axis(angle = 30)) +
-  labs(x = "Message Rating", y = "Count", title = "Perceived Helpfulness of Messages")
+  labs(x = "Message Rating", y = "Count", title = "Message Helpfulness Ratings")
 ```
 
 
@@ -171,7 +171,18 @@ tidy(model) |>
       })(),
     right = right |>
       str_replace("^dem_.*?_(.*?)_yes$", "dem_\\1") |>
-      str_replace_all("_", " "),
+      str_replace_all("dem_", "") |>
+      str_replace_all("sex_", "") |>
+      (\(x) {
+        words <- str_split(x, "_")
+        sapply(words, \(w) {
+          if (length(w) > 1) {
+            paste(w[1], w[length(w)], sep = " ")
+          } else {
+            w[1]
+          }
+        })
+      })(),
     clean_term = paste(left, "×", right)
   ) |>
   mutate(feature_cat = fct(feature_cat, 
@@ -191,62 +202,6 @@ tidy(model) |>
     y = NULL
   )
 ```
-
-```{r}
-interaction_df <- tidy(model) |>
-  filter(term != "(Intercept)", estimate != 0) |>
-  mutate(
-    direction = if_else(estimate > 0, "positive", "negative"),
-    abs_estimate = abs(estimate),
-    feature_type = if_else(str_detect(term, "_x_"), "Interaction", "Main Effect")
-  ) |>
-  filter(feature_type == "Interaction") |>
-  mutate(
-    left  = str_split_fixed(term, "_x_", 2)[,1],
-    right = str_split_fixed(term, "_x_", 2)[,2],
-    left = left |>
-      str_remove("^(tone|style)_") |> 
-      str_replace_all("_", " ") |>
-      (\(x) {
-        words <- str_split(x, " ")
-        sapply(words, \(w) if (length(w) > 1) w[2] else w[1])
-      })(),
-    right = right |>
-      str_replace("^dem_.*?_(.*?)_yes$", "dem_\\1") |>
-      str_replace_all("_", " "),
-    clean_term = paste(left, "×", right)
-  )
-
-plot_interactions <- function(df, right_prefix, plot_title) {
-  df |>
-    filter(str_starts(right, right_prefix)) |>
-    slice_max(abs_estimate, n = 30) |>
-    arrange(abs_estimate) |>
-    mutate(clean_term = factor(clean_term, levels = clean_term)) |>
-    ggplot(aes(x = abs_estimate, y = clean_term, fill = direction)) +
-    geom_col() +
-    scale_fill_manual(
-      values = c("positive" = "forestgreen", "negative" = "firebrick"),
-      name = "Direction"
-    ) +
-    scale_x_continuous(
-      breaks = seq(0, 0.7, by = 0.1),
-      limits = c(0, 0.7)
-    ) +
-    labs(
-      x = "Absolute Coefficient",
-      y = NULL,
-      title = plot_title
-    )
-}
-
-plot_dem  <- plot_interactions(interaction_df, "dem",  "Feature Importance — Demographics")
-plot_pref <- plot_interactions(interaction_df, "pref", "Feature Importance — Baseline Preferences")
-
-plot_dem
-plot_pref
-```
-
 Model assignments
 
 ```{r}
