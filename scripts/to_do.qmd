@@ -3,6 +3,10 @@ title: "Notes"
 author: "John Curtin"
 ---
 
+# EDA
+
+Need to improve data quality.   EDA needed.
+
 # Models
 
 train several algorithms including xgboost, random forest, and glmnet
