@@ -12,7 +12,7 @@ format:
 editor_options: 
   chunk_output_type: console
 params:
-  version: "v2"
+  version: "v3"
 ---
 
 ```{r}
@@ -224,5 +224,66 @@ if (nrow(zero_variance_both) > 0) {
     arrange(subid) |>
     knitr::kable(caption = "Participant IDs with both zero message and preference variance")
 }
+
+```
+
+## summary table
+```{r}
+variance_summary_df <- panel_collapsed |>
+  select(subid, pref_variance) |>
+  left_join(
+    variance_messages |>
+      select(subid, message_variance = variance),
+    by = "subid"
+  )
+
+n_participants <- n_distinct(panel_long$subid)
+
+zero_variance_table <- variance_summary_df |>
+  summarise(
+    n_zero_pref_variance = sum(!is.na(pref_variance) & pref_variance == 0),
+    pct_zero_pref_variance = n_zero_pref_variance / n_participants,
+    n_zero_message_variance = sum(!is.na(message_variance) & message_variance == 0),
+    pct_zero_message_variance = n_zero_message_variance / n_participants,
+    n_zero_both_variance = sum(
+      !is.na(pref_variance) & !is.na(message_variance) &
+        pref_variance == 0 & message_variance == 0
+    ),
+    pct_zero_both_variance = n_zero_both_variance / n_participants
+  )
+
+preference_variance_stats <- variance_summary_df |>
+  summarise(
+    pref_variance_mean = mean(pref_variance, na.rm = TRUE),
+    pref_variance_median = median(pref_variance, na.rm = TRUE),
+    pref_variance_low = min(pref_variance, na.rm = TRUE),
+    pref_variance_high = max(pref_variance, na.rm = TRUE)
+  )
+
+message_variance_stats <- variance_summary_df |>
+  summarise(
+    message_variance_mean = mean(message_variance, na.rm = TRUE),
+    message_variance_median = median(message_variance, na.rm = TRUE),
+    message_variance_low = min(message_variance, na.rm = TRUE),
+    message_variance_high = max(message_variance, na.rm = TRUE)
+  )
+
+zero_variance_table |>
+  mutate(
+    across(contains("pct_"), scales::percent, accuracy = 0.1)
+  ) |>
+  knitr::kable(caption = "Zero variance counts and percentages")
+
+preference_variance_stats |>
+  mutate(
+    across(everything(), round, 3)
+  ) |>
+  knitr::kable(caption = "Preference variance summary statistics")
+
+message_variance_stats |>
+  mutate(
+    across(everything(), round, 3)
+  ) |>
+  knitr::kable(caption = "Message variance summary statistics")
 
 ```
