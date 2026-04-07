@@ -1,0 +1,92 @@
+---
+title: "FRQ Exploration"
+author: "Colin Maggard"
+date: "`r lubridate::today()`"
+output: 
+  html_document:
+    toc: true 
+    toc_depth: 2
+format:
+  html:
+    embed-resources: true
+editor_options: 
+  chunk_output_type: console
+params:
+  version: "v1"
+---
+
+```{r}
+#| include: false
+
+library(tidyverse) 
+library(dplyr)
+options(conflicts.policy = "depends.ok")
+
+source("https://github.com/jjcurtin/lab_support/blob/main/fun_eda.R?raw=true")
+source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
+
+path_panel <- format_path("llmpanel/data_raw/panel")
+path_processed <- format_path("llmpanel/data_processed")
+path_credentials <- format_path("other")
+```
+
+## get data
+```{r}
+panel_long <- read_csv(file.path(path_processed, "panel_long.csv"))
+
+#panel_user_input <- panel_long |>
+ # distinct(subid, .keep_all = TRUE) |>
+  #select(subid, q7_user_input)
+```
+
+# define likert
+```{r}
+likert_num <- 1:7
+likert_txt <- c(
+  "strongly_disagree", "disagree", "somewhat_disagree",
+  "neutral", "somewhat_agree", "agree", "strongly_agree"
+)
+```
+
+## potentially problematic responses
+```{r}
+flag_patterns <- c(
+  regex("\\bblonde\\b", ignore_case = TRUE),
+  regex("\\bsix pack\\b", ignore_case = TRUE),
+  regex("\\brediculious\\b", ignore_case = TRUE),
+  regex("\\bAaron\\b", ignore_case = TRUE)
+)
+
+potentially_problematic <- panel_long |>
+  filter(
+    map_lgl(
+      coalesce(q7_user_input, ""),
+      ~ any(str_detect(.x, flag_patterns))
+    )
+  )
+
+```
+
+```{r}
+variance_messages <- potentially_problematic |>
+  mutate(
+    message_rating_num = recode_values(
+      message_rating,
+      from = likert_txt,
+      to = likert_num
+    )
+  ) |>
+  summarise(
+    variance = var(message_rating_num, na.rm = TRUE),
+    .by = subid
+  )
+
+variance_messages |>
+  ggplot(aes(x = variance)) +
+  geom_histogram(binwidth = 0.03, color = "white") +
+  labs(
+    x = "Variance Across Message Ratings",
+    y = "Count",
+    title = "Distribution of Within-Participant Message Variance"
+  )
+```
