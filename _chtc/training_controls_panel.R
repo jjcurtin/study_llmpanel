@@ -7,12 +7,13 @@
 # version 7: switched to one hot encoding for non-binary categorical variables
 # version 8: scaled numeric predictors
 # version 9: limited scaling to numeric predictors
+# version 10: drop 0 message variance participants 
 
 # NOTES------------------------------
 source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
 
 # SET GLOBAL PARAMETERS--------------------
-version <- "v9"
+version <- "v10"
 algorithm <- "glmnet"  # glmnet, random_forest, xgboost
 feature_set <- c("pref")
 seed_splits <- 102030
@@ -94,8 +95,17 @@ format_data <- function (d){
       y == "agree" ~ 6,
       y == "strongly_agree" ~ 7,
       .default = NA_real_
-    ))
-  
+    )) |>
+    mutate(
+      message_variance = var(y, na.rm = TRUE),
+      .by = subid
+    ) |> 
+    filter(
+      message_variance > 0
+    ) |>
+    select(
+      -message_variance
+    )
  
   # handle prefs rename and recode
   d <- d |> 
