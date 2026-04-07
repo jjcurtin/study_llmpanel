@@ -259,7 +259,7 @@ preds_best |> tab(tone_style) |>
 
 ```{r}
 old_labels <- unique(pp_mean_y$model)
-new_labels <- c("all tones/styles", "mean tones/styles", "individual tones/styles")
+new_labels <- c("all tones/styles", "highest mean tone and style", "model-predicted individual-specific tones/styles")
 
 pp_mean_y |> 
   mutate(model = recode_values(model, from = old_labels, to = new_labels),
@@ -267,6 +267,6 @@ pp_mean_y |>
   ggplot(aes(x = posterior, fill = model)) +
   geom_histogram(bins = 30) +
   scale_fill_manual(values = c("#dadfe1", "#646569", "#9b0000"), guide = "none") +
-  xlab("Posterior(Mean Message Helpfulness)") +
+  xlab("Posterior (Mean Message Helpfulness)") +
   facet_wrap(vars(model), nrow = 3)
 ```
