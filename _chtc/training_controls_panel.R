@@ -6,12 +6,13 @@
 # version 4: more hyperparameter tuning
 # version 7: switched to one hot encoding for non-binary categorical variables
 # version 8: scaled numeric predictors
+# version 9: limited scaling to numeric predictors
 
 # NOTES------------------------------
 source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
 
 # SET GLOBAL PARAMETERS--------------------
-version <- "v8"
+version <- "v9"
 algorithm <- "glmnet"  # glmnet, random_forest, xgboost
 feature_set <- c("pref")
 seed_splits <- 102030
@@ -235,7 +236,7 @@ build_recipe <- function(d, config) {
     # drop columns with NA values after imputation (100% NA)
     step_rm(where(~ any(is.na(.)))) |> 
     step_nzv(all_predictors()) |>
-    step_normalize(all_predictors()) # consider standardizing only numeric predictors in a later version
+    step_normalize(matches(c("pref_", "dem_age", "dem_education", "dem_income"))) # consider standardizing only numeric predictors in a later version
   
   return(rec)
 }

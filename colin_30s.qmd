@@ -1,0 +1,9 @@
+Alcohol use disorder is a chronic, relapsing condition that requires lifelong management but ongoing continuing care is almost non-existent.  
+
+We are developing a digital therapeutic app to address this gap.
+
+To scale this app, we use large language models to communicate with patients and the language used may affect engagement.
+
+I developed a framework to use LLMs to generate messages within the app and had participants with AUD rate message helpfulness.  
+
+Our analyses concluded that we could maximize message helpfulness by selecting specific tones and styles for each individual using a machine learning model.
