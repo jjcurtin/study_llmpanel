@@ -12,7 +12,7 @@ format:
 editor_options: 
   chunk_output_type: console
 params:
-  version: "v2"
+  version: "v3"
 ---
 
 ```{r}
@@ -54,7 +54,10 @@ flag_patterns <- c(
   regex("\\bblonde\\b", ignore_case = TRUE),
   regex("\\bsix pack\\b", ignore_case = TRUE),
   regex("\\brediculious\\b", ignore_case = TRUE),
-  regex("\\bAaron\\b", ignore_case = TRUE)
+  regex("\\bAaron\\b", ignore_case = TRUE),
+  regex("\\bSanario\\b", ignore_case = TRUE),
+  regex("\\bhappily\\b", ignore_case = TRUE),
+  regex("\\bbland\\b", ignore_case = TRUE)
 )
 
 potentially_problematic <- panel_long |>
