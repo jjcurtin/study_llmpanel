@@ -1,0 +1,178 @@
+---
+title: "Variance Analysis"
+author: "Colin Maggard"
+date: "`r lubridate::today()`"
+output: 
+  html_document:
+    toc: true 
+    toc_depth: 2
+format:
+  html:
+    embed-resources: true
+editor_options: 
+  chunk_output_type: console
+params:
+  version: "v1"
+---
+
+```{r}
+#| include: false
+
+library(tidyverse) 
+library(dplyr)
+options(conflicts.policy = "depends.ok")
+
+source("https://github.com/jjcurtin/lab_support/blob/main/fun_eda.R?raw=true")
+source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
+
+path_panel <- format_path("llmpanel/data_raw/panel")
+path_processed <- format_path("llmpanel/data_processed")
+path_credentials <- format_path("other")
+```
+
+## get data
+```{r}
+panel_long <- read_csv(file.path(path_processed, "panel_long.csv"))
+```
+
+# define likert
+```{r}
+likert_num <- 1:7
+likert_txt <- c(
+  "strongly_disagree", "disagree", "somewhat_disagree",
+  "neutral", "somewhat_agree", "agree", "strongly_agree"
+)
+```
+
+## Collapsed data with variance
+```{r}
+panel_collapsed <- panel_long |>
+  distinct(subid, .keep_all = TRUE) |>
+  mutate(
+    across(
+      q1_legitimizing:q5_norms,
+      ~ recode_values(.x, from = likert_txt, to = likert_num),
+      .names = "{.col}_num"
+    )
+  ) |>
+  rowwise(subid) |>
+  mutate(
+    pref_variance = var(c_across(q1_legitimizing_num:q5_norms_num), na.rm = TRUE)
+  ) |>
+  ungroup()
+```
+
+## histogram of preferences variation
+```{r}
+panel_collapsed |>
+  ggplot(aes(x = pref_variance)) +
+  geom_histogram(binwidth = 0.2, color = "white") +
+  labs(
+    x = "Variance Across Preference Ratings",
+    y = "Count",
+    title = "Distribution of Within-Participant Preference Variance"
+  )
+```
+
+## analyze uniform preferences
+```{r}
+uniform_preferences <- panel_collapsed |>
+  select(subid, q1_legitimizing:q5_norms) |>
+  rowwise(subid) |>
+  mutate(
+    all_same = n_distinct(c_across(q1_legitimizing:q5_norms), na.rm = TRUE) == 1,
+    category = if_else(all_same, c_across(q1_legitimizing:q5_norms)[1], NA_character_)
+  ) |>
+  ungroup() |>
+  filter(all_same == TRUE) |>
+  count(category, name = "count") |>
+  arrange(desc(count))
+
+uniform_preferences |> knitr::kable(caption = "Count of participants with uniform responses across all five preference items")
+
+```
+
+## message variance and histogram
+```{r}
+variance_messages <- panel_long |>
+  mutate(
+    message_rating_num = recode_values(
+      message_rating,
+      from = likert_txt,
+      to = likert_num
+    )
+  ) |>
+  summarise(
+    variance = var(message_rating_num, na.rm = TRUE),
+    .by = subid
+  )
+
+variance_messages |>
+  ggplot(aes(x = variance)) +
+  geom_histogram(binwidth = 0.03, color = "white") +
+  labs(
+    x = "Variance Across Message Ratings",
+    y = "Count",
+    title = "Distribution of Within-Participant Message Variance"
+  )
+
+```
+
+## Uniform message ratings
+```{r}
+
+uniform_message_ratings <- panel_long |>
+  group_by(subid) |>
+  summarise(
+    all_same = n_distinct(message_rating, na.rm = TRUE) == 1,
+    category = first(message_rating),
+    .groups = "drop"
+  ) |>
+  filter(all_same == TRUE) |>
+  count(category, name = "count") |>
+  arrange(desc(count))
+
+uniform_message_ratings |> knitr::kable(caption = "Count of participants with uniform message ratings")
+```
+
+## calculate variance within categories, average, ratio, histogram
+```{r}
+# Calculate variance within each tone category per participant
+variance_by_tone <- panel_long |>
+  mutate(
+    
+    message_rating_num = recode_values(
+      message_rating,
+      from = likert_txt,
+      to = likert_num
+    )
+  ) |>
+  summarise(
+    tone_variance = var(message_rating_num, na.rm = TRUE),
+    .by = c(subid, tone)
+  )
+
+# Average the tone variances per participant
+avg_tone_variance <- variance_by_tone |>
+  summarise(
+    avg_tone_variance = mean(tone_variance, na.rm = TRUE),
+    .by = subid
+  )
+
+# Create ratio: average tone variance / overall message variance
+ratio_df <- avg_tone_variance |>
+  left_join(variance_messages |> select(subid, variance), by = "subid") |>
+  mutate(
+    variance_ratio = avg_tone_variance / variance
+  )
+
+ratio_df |>
+  filter(is.finite(variance_ratio)) |>
+  ggplot(aes(x = variance_ratio)) +
+  geom_histogram(binwidth = 0.05, color = "white") +
+  labs(
+    x = "Ratio of Average Tone Variance to Overall Message Variance",
+    y = "Count",
+    title = "Distribution of Within-Participant Variance Ratio"
+  )
+```
