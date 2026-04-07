@@ -12,7 +12,7 @@ format:
 editor_options: 
   chunk_output_type: console
 params:
-  version: "v1"
+  version: "v2"
 ---
 
 ```{r}
@@ -90,6 +90,14 @@ uniform_preferences <- panel_collapsed |>
 
 uniform_preferences |> knitr::kable(caption = "Count of participants with uniform responses across all five preference items")
 
+participants_zero_preference_variance <- panel_collapsed |>
+  select(subid, pref_variance) |>
+  filter(!is.na(pref_variance), pref_variance == 0) |>
+  arrange(subid)
+
+participants_zero_preference_variance |>
+  knitr::kable(caption = "Participant IDs with zero preference variance")
+
 ```
 
 ## message variance and histogram
@@ -133,6 +141,15 @@ uniform_message_ratings <- panel_long |>
   arrange(desc(count))
 
 uniform_message_ratings |> knitr::kable(caption = "Count of participants with uniform message ratings")
+
+participants_zero_message_variance <- variance_messages |>
+  filter(!is.na(variance), variance == 0) |>
+  arrange(subid)
+
+participants_zero_message_variance |>
+  knitr::kable(caption = "Participant IDs with zero message variance")
+
+
 ```
 
 ## calculate variance within categories, average, ratio, histogram
@@ -175,4 +192,37 @@ ratio_df |>
     y = "Count",
     title = "Distribution of Within-Participant Variance Ratio"
   )
+```
+
+
+## anyone with both 0 message variance and 0 preference variance 
+```{r}
+zero_variance_both <- panel_collapsed |>
+  select(subid, pref_variance) |>
+  left_join(
+    variance_messages |>
+      select(subid, message_variance = variance),
+    by = "subid"
+  ) |>
+  filter(
+    !is.na(pref_variance),
+    !is.na(message_variance),
+    pref_variance == 0,
+    message_variance == 0
+  )
+
+zero_variance_summary <- tibble(
+  n_with_both_zero_variance = nrow(zero_variance_both),
+  pct_of_participants = nrow(zero_variance_both) / n_distinct(panel_long$subid)
+)
+
+zero_variance_summary |>
+  knitr::kable(caption = "Participants with both zero message and preference variance")
+
+if (nrow(zero_variance_both) > 0) {
+  zero_variance_both |>
+    arrange(subid) |>
+    knitr::kable(caption = "Participant IDs with both zero message and preference variance")
+}
+
 ```
