@@ -3235,32 +3235,440 @@ dbl  (4): subid, dem_age, dem_n_household, survey_version
 </tbody>
 </table>
 </div>
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>participants_zero_preference_variance <span class="ot">&lt;-</span> panel_collapsed <span class="sc">|&gt;</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(subid, pref_variance) <span class="sc">|&gt;</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(pref_variance), pref_variance <span class="sc">==</span> <span class="dv">0</span>) <span class="sc">|&gt;</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(subid)</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>participants_zero_preference_variance <span class="sc">|&gt;</span></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">caption =</span> <span class="st">&quot;Participant IDs with zero preference variance&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Participant IDs with zero preference variance</caption>
+<thead>
+<tr class="header">
+<th style="text-align: right;">subid</th>
+<th style="text-align: right;">pref_variance</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">10</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">15</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">16</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">19</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">21</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">22</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">25</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">28</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">42</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">43</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">46</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">52</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">59</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">65</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">66</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">67</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">70</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">74</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">77</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">86</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">96</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">97</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">104</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">107</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">108</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">117</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">118</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">120</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">127</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">132</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">135</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">137</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">150</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">151</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">159</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">165</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">174</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">194</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">195</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">198</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">205</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">213</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">216</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">228</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">229</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">231</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">236</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">239</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">241</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">243</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">247</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">254</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">265</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">271</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">275</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">292</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">298</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">302</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">303</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">310</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">312</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">313</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">315</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">334</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">352</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">354</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">356</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">359</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">361</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">364</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">369</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">373</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">374</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">375</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">376</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">377</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">385</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">389</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">392</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">402</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">403</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">406</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">409</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">431</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">434</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">437</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">448</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">451</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">456</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">468</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">480</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">485</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">489</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">490</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">491</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">494</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">506</td>
+<td style="text-align: right;">0</td>
+</tr>
+</tbody>
+</table>
+</div>
 </div>
 </section>
 <section id="message-variance-and-histogram" class="level2">
 <h2 class="anchored" data-anchor-id="message-variance-and-histogram">message variance and histogram</h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>variance_messages <span class="ot">&lt;-</span> panel_long <span class="sc">|&gt;</span></span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">message_rating_num =</span> <span class="fu">recode_values</span>(</span>
-<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>      message_rating,</span>
-<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>      <span class="at">from =</span> likert_txt,</span>
-<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>      <span class="at">to =</span> likert_num</span>
-<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
-<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
-<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">variance =</span> <span class="fu">var</span>(message_rating_num, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
-<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">.by =</span> subid</span>
-<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>variance_messages <span class="sc">|&gt;</span></span>
-<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> variance)) <span class="sc">+</span></span>
-<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_histogram</span>(<span class="at">binwidth =</span> <span class="fl">0.03</span>, <span class="at">color =</span> <span class="st">&quot;white&quot;</span>) <span class="sc">+</span></span>
-<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
-<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="st">&quot;Variance Across Message Ratings&quot;</span>,</span>
-<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>    <span class="at">y =</span> <span class="st">&quot;Count&quot;</span>,</span>
-<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="st">&quot;Distribution of Within-Participant Message Variance&quot;</span></span>
-<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a>  )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>variance_messages <span class="ot">&lt;-</span> panel_long <span class="sc">|&gt;</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">message_rating_num =</span> <span class="fu">recode_values</span>(</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>      message_rating,</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>      <span class="at">from =</span> likert_txt,</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>      <span class="at">to =</span> likert_num</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">variance =</span> <span class="fu">var</span>(message_rating_num, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">.by =</span> subid</span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>variance_messages <span class="sc">|&gt;</span></span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> variance)) <span class="sc">+</span></span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_histogram</span>(<span class="at">binwidth =</span> <span class="fl">0.03</span>, <span class="at">color =</span> <span class="st">&quot;white&quot;</span>) <span class="sc">+</span></span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="st">&quot;Variance Across Message Ratings&quot;</span>,</span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>    <span class="at">y =</span> <span class="st">&quot;Count&quot;</span>,</span>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="st">&quot;Distribution of Within-Participant Message Variance&quot;</span></span>
+<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a>  )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -3273,18 +3681,18 @@ dbl  (4): subid, dem_age, dem_n_household, survey_version
 <section id="uniform-message-ratings" class="level2">
 <h2 class="anchored" data-anchor-id="uniform-message-ratings">Uniform message ratings</h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>uniform_message_ratings <span class="ot">&lt;-</span> panel_long <span class="sc">|&gt;</span></span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(subid) <span class="sc">|&gt;</span></span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
-<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">all_same =</span> <span class="fu">n_distinct</span>(message_rating, <span class="at">na.rm =</span> <span class="cn">TRUE</span>) <span class="sc">==</span> <span class="dv">1</span>,</span>
-<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">category =</span> <span class="fu">first</span>(message_rating),</span>
-<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">.groups =</span> <span class="st">&quot;drop&quot;</span></span>
-<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
-<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(all_same <span class="sc">==</span> <span class="cn">TRUE</span>) <span class="sc">|&gt;</span></span>
-<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">count</span>(category, <span class="at">name =</span> <span class="st">&quot;count&quot;</span>) <span class="sc">|&gt;</span></span>
-<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(<span class="fu">desc</span>(count))</span>
-<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>uniform_message_ratings <span class="sc">|&gt;</span> knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">caption =</span> <span class="st">&quot;Count of participants with uniform message ratings&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>uniform_message_ratings <span class="ot">&lt;-</span> panel_long <span class="sc">|&gt;</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(subid) <span class="sc">|&gt;</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">all_same =</span> <span class="fu">n_distinct</span>(message_rating, <span class="at">na.rm =</span> <span class="cn">TRUE</span>) <span class="sc">==</span> <span class="dv">1</span>,</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">category =</span> <span class="fu">first</span>(message_rating),</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">.groups =</span> <span class="st">&quot;drop&quot;</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(all_same <span class="sc">==</span> <span class="cn">TRUE</span>) <span class="sc">|&gt;</span></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">count</span>(category, <span class="at">name =</span> <span class="st">&quot;count&quot;</span>) <span class="sc">|&gt;</span></span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(<span class="fu">desc</span>(count))</span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>uniform_message_ratings <span class="sc">|&gt;</span> knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">caption =</span> <span class="st">&quot;Count of participants with uniform message ratings&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <table class="caption-top table table-sm table-striped small">
 <caption>Count of participants with uniform message ratings</caption>
@@ -3306,55 +3714,492 @@ dbl  (4): subid, dem_age, dem_n_household, survey_version
 </tbody>
 </table>
 </div>
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>participants_zero_message_variance <span class="ot">&lt;-</span> variance_messages <span class="sc">|&gt;</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(variance), variance <span class="sc">==</span> <span class="dv">0</span>) <span class="sc">|&gt;</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">arrange</span>(subid)</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>participants_zero_message_variance <span class="sc">|&gt;</span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">caption =</span> <span class="st">&quot;Participant IDs with zero message variance&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Participant IDs with zero message variance</caption>
+<thead>
+<tr class="header">
+<th style="text-align: right;">subid</th>
+<th style="text-align: right;">variance</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">5</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">22</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">28</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">66</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">67</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">97</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">104</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">194</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">216</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">231</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">239</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">241</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">243</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">247</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">302</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">315</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">369</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">377</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">406</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">431</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">435</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">480</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">490</td>
+<td style="text-align: right;">0</td>
+</tr>
+</tbody>
+</table>
+</div>
 </div>
 </section>
 <section id="calculate-variance-within-categories-average-ratio-histogram" class="level2">
 <h2 class="anchored" data-anchor-id="calculate-variance-within-categories-average-ratio-histogram">calculate variance within categories, average, ratio, histogram</h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Calculate variance within each tone category per participant</span></span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>variance_by_tone <span class="ot">&lt;-</span> panel_long <span class="sc">|&gt;</span></span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>    </span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">message_rating_num =</span> <span class="fu">recode_values</span>(</span>
-<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>      message_rating,</span>
-<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>      <span class="at">from =</span> likert_txt,</span>
-<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>      <span class="at">to =</span> likert_num</span>
-<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
-<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
-<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">tone_variance =</span> <span class="fu">var</span>(message_rating_num, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
-<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">.by =</span> <span class="fu">c</span>(subid, tone)</span>
-<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a><span class="co"># Average the tone variances per participant</span></span>
-<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>avg_tone_variance <span class="ot">&lt;-</span> variance_by_tone <span class="sc">|&gt;</span></span>
-<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
-<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a>    <span class="at">avg_tone_variance =</span> <span class="fu">mean</span>(tone_variance, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
-<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a>    <span class="at">.by =</span> subid</span>
-<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a><span class="co"># Create ratio: average tone variance / overall message variance</span></span>
-<span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a>ratio_df <span class="ot">&lt;-</span> avg_tone_variance <span class="sc">|&gt;</span></span>
-<span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(variance_messages <span class="sc">|&gt;</span> <span class="fu">select</span>(subid, variance), <span class="at">by =</span> <span class="st">&quot;subid&quot;</span>) <span class="sc">|&gt;</span></span>
-<span id="cb9-26"><a href="#cb9-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
-<span id="cb9-27"><a href="#cb9-27" aria-hidden="true" tabindex="-1"></a>    <span class="at">variance_ratio =</span> avg_tone_variance <span class="sc">/</span> variance</span>
-<span id="cb9-28"><a href="#cb9-28" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb9-29"><a href="#cb9-29" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-30"><a href="#cb9-30" aria-hidden="true" tabindex="-1"></a>ratio_df <span class="sc">|&gt;</span></span>
-<span id="cb9-31"><a href="#cb9-31" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="fu">is.finite</span>(variance_ratio)) <span class="sc">|&gt;</span></span>
-<span id="cb9-32"><a href="#cb9-32" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> variance_ratio)) <span class="sc">+</span></span>
-<span id="cb9-33"><a href="#cb9-33" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_histogram</span>(<span class="at">binwidth =</span> <span class="fl">0.05</span>, <span class="at">color =</span> <span class="st">&quot;white&quot;</span>) <span class="sc">+</span></span>
-<span id="cb9-34"><a href="#cb9-34" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
-<span id="cb9-35"><a href="#cb9-35" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="st">&quot;Ratio of Average Tone Variance to Overall Message Variance&quot;</span>,</span>
-<span id="cb9-36"><a href="#cb9-36" aria-hidden="true" tabindex="-1"></a>    <span class="at">y =</span> <span class="st">&quot;Count&quot;</span>,</span>
-<span id="cb9-37"><a href="#cb9-37" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="st">&quot;Distribution of Within-Participant Variance Ratio&quot;</span></span>
-<span id="cb9-38"><a href="#cb9-38" aria-hidden="true" tabindex="-1"></a>  )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Calculate variance within each tone category per participant</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>variance_by_tone <span class="ot">&lt;-</span> panel_long <span class="sc">|&gt;</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">message_rating_num =</span> <span class="fu">recode_values</span>(</span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>      message_rating,</span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>      <span class="at">from =</span> likert_txt,</span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>      <span class="at">to =</span> likert_num</span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">tone_variance =</span> <span class="fu">var</span>(message_rating_num, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">.by =</span> <span class="fu">c</span>(subid, tone)</span>
+<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a><span class="co"># Average the tone variances per participant</span></span>
+<span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a>avg_tone_variance <span class="ot">&lt;-</span> variance_by_tone <span class="sc">|&gt;</span></span>
+<span id="cb11-18"><a href="#cb11-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
+<span id="cb11-19"><a href="#cb11-19" aria-hidden="true" tabindex="-1"></a>    <span class="at">avg_tone_variance =</span> <span class="fu">mean</span>(tone_variance, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb11-20"><a href="#cb11-20" aria-hidden="true" tabindex="-1"></a>    <span class="at">.by =</span> subid</span>
+<span id="cb11-21"><a href="#cb11-21" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb11-22"><a href="#cb11-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-23"><a href="#cb11-23" aria-hidden="true" tabindex="-1"></a><span class="co"># Create ratio: average tone variance / overall message variance</span></span>
+<span id="cb11-24"><a href="#cb11-24" aria-hidden="true" tabindex="-1"></a>ratio_df <span class="ot">&lt;-</span> avg_tone_variance <span class="sc">|&gt;</span></span>
+<span id="cb11-25"><a href="#cb11-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(variance_messages <span class="sc">|&gt;</span> <span class="fu">select</span>(subid, variance), <span class="at">by =</span> <span class="st">&quot;subid&quot;</span>) <span class="sc">|&gt;</span></span>
+<span id="cb11-26"><a href="#cb11-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb11-27"><a href="#cb11-27" aria-hidden="true" tabindex="-1"></a>    <span class="at">variance_ratio =</span> avg_tone_variance <span class="sc">/</span> variance</span>
+<span id="cb11-28"><a href="#cb11-28" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb11-29"><a href="#cb11-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-30"><a href="#cb11-30" aria-hidden="true" tabindex="-1"></a>ratio_df <span class="sc">|&gt;</span></span>
+<span id="cb11-31"><a href="#cb11-31" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="fu">is.finite</span>(variance_ratio)) <span class="sc">|&gt;</span></span>
+<span id="cb11-32"><a href="#cb11-32" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> variance_ratio)) <span class="sc">+</span></span>
+<span id="cb11-33"><a href="#cb11-33" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_histogram</span>(<span class="at">binwidth =</span> <span class="fl">0.05</span>, <span class="at">color =</span> <span class="st">&quot;white&quot;</span>) <span class="sc">+</span></span>
+<span id="cb11-34"><a href="#cb11-34" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
+<span id="cb11-35"><a href="#cb11-35" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="st">&quot;Ratio of Average Tone Variance to Overall Message Variance&quot;</span>,</span>
+<span id="cb11-36"><a href="#cb11-36" aria-hidden="true" tabindex="-1"></a>    <span class="at">y =</span> <span class="st">&quot;Count&quot;</span>,</span>
+<span id="cb11-37"><a href="#cb11-37" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="st">&quot;Distribution of Within-Participant Variance Ratio&quot;</span></span>
+<span id="cb11-38"><a href="#cb11-38" aria-hidden="true" tabindex="-1"></a>  )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
 <p><img role="img" src="data:image/png;base64,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" class="img-fluid figure-img" width="672"></p>
 </figure>
 </div>
+</div>
+</div>
+</section>
+<section id="anyone-with-both-0-message-variance-and-0-preference-variance" class="level2">
+<h2 class="anchored" data-anchor-id="anyone-with-both-0-message-variance-and-0-preference-variance">anyone with both 0 message variance and 0 preference variance</h2>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>zero_variance_both <span class="ot">&lt;-</span> panel_collapsed <span class="sc">|&gt;</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(subid, pref_variance) <span class="sc">|&gt;</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>    variance_messages <span class="sc">|&gt;</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>      <span class="fu">select</span>(subid, <span class="at">message_variance =</span> variance),</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">by =</span> <span class="st">&quot;subid&quot;</span></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(</span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>    <span class="sc">!</span><span class="fu">is.na</span>(pref_variance),</span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>    <span class="sc">!</span><span class="fu">is.na</span>(message_variance),</span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>    pref_variance <span class="sc">==</span> <span class="dv">0</span>,</span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>    message_variance <span class="sc">==</span> <span class="dv">0</span></span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a>zero_variance_summary <span class="ot">&lt;-</span> <span class="fu">tibble</span>(</span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a>  <span class="at">n_with_both_zero_variance =</span> <span class="fu">nrow</span>(zero_variance_both),</span>
+<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a>  <span class="at">pct_of_participants =</span> <span class="fu">nrow</span>(zero_variance_both) <span class="sc">/</span> <span class="fu">n_distinct</span>(panel_long<span class="sc">$</span>subid)</span>
+<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a>zero_variance_summary <span class="sc">|&gt;</span></span>
+<span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">caption =</span> <span class="st">&quot;Participants with both zero message and preference variance&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Participants with both zero message and preference variance</caption>
+<thead>
+<tr class="header">
+<th style="text-align: right;">n_with_both_zero_variance</th>
+<th style="text-align: right;">pct_of_participants</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">21</td>
+<td style="text-align: right;">0.0411765</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (<span class="fu">nrow</span>(zero_variance_both) <span class="sc">&gt;</span> <span class="dv">0</span>) {</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>  zero_variance_both <span class="sc">|&gt;</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">arrange</span>(subid) <span class="sc">|&gt;</span></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>    knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">caption =</span> <span class="st">&quot;Participant IDs with both zero message and preference variance&quot;</span>)</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Participant IDs with both zero message and preference variance</caption>
+<thead>
+<tr class="header">
+<th style="text-align: right;">subid</th>
+<th style="text-align: right;">pref_variance</th>
+<th style="text-align: right;">message_variance</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">22</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">28</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">66</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">67</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">97</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">104</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">194</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">216</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">231</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">239</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">241</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">243</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">247</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">302</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">315</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">369</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">377</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">406</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">431</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">480</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">490</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="summary-table" class="level2">
+<h2 class="anchored" data-anchor-id="summary-table">summary table</h2>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>variance_summary_df <span class="ot">&lt;-</span> panel_collapsed <span class="sc">|&gt;</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(subid, pref_variance) <span class="sc">|&gt;</span></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>    variance_messages <span class="sc">|&gt;</span></span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>      <span class="fu">select</span>(subid, <span class="at">message_variance =</span> variance),</span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">by =</span> <span class="st">&quot;subid&quot;</span></span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a>n_participants <span class="ot">&lt;-</span> <span class="fu">n_distinct</span>(panel_long<span class="sc">$</span>subid)</span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a>zero_variance_table <span class="ot">&lt;-</span> variance_summary_df <span class="sc">|&gt;</span></span>
+<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
+<span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">n_zero_pref_variance =</span> <span class="fu">sum</span>(<span class="sc">!</span><span class="fu">is.na</span>(pref_variance) <span class="sc">&amp;</span> pref_variance <span class="sc">==</span> <span class="dv">0</span>),</span>
+<span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">pct_zero_pref_variance =</span> n_zero_pref_variance <span class="sc">/</span> n_participants,</span>
+<span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">n_zero_message_variance =</span> <span class="fu">sum</span>(<span class="sc">!</span><span class="fu">is.na</span>(message_variance) <span class="sc">&amp;</span> message_variance <span class="sc">==</span> <span class="dv">0</span>),</span>
+<span id="cb14-16"><a href="#cb14-16" aria-hidden="true" tabindex="-1"></a>    <span class="at">pct_zero_message_variance =</span> n_zero_message_variance <span class="sc">/</span> n_participants,</span>
+<span id="cb14-17"><a href="#cb14-17" aria-hidden="true" tabindex="-1"></a>    <span class="at">n_zero_both_variance =</span> <span class="fu">sum</span>(</span>
+<span id="cb14-18"><a href="#cb14-18" aria-hidden="true" tabindex="-1"></a>      <span class="sc">!</span><span class="fu">is.na</span>(pref_variance) <span class="sc">&amp;</span> <span class="sc">!</span><span class="fu">is.na</span>(message_variance) <span class="sc">&amp;</span></span>
+<span id="cb14-19"><a href="#cb14-19" aria-hidden="true" tabindex="-1"></a>        pref_variance <span class="sc">==</span> <span class="dv">0</span> <span class="sc">&amp;</span> message_variance <span class="sc">==</span> <span class="dv">0</span></span>
+<span id="cb14-20"><a href="#cb14-20" aria-hidden="true" tabindex="-1"></a>    ),</span>
+<span id="cb14-21"><a href="#cb14-21" aria-hidden="true" tabindex="-1"></a>    <span class="at">pct_zero_both_variance =</span> n_zero_both_variance <span class="sc">/</span> n_participants</span>
+<span id="cb14-22"><a href="#cb14-22" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb14-23"><a href="#cb14-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-24"><a href="#cb14-24" aria-hidden="true" tabindex="-1"></a>preference_variance_stats <span class="ot">&lt;-</span> variance_summary_df <span class="sc">|&gt;</span></span>
+<span id="cb14-25"><a href="#cb14-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
+<span id="cb14-26"><a href="#cb14-26" aria-hidden="true" tabindex="-1"></a>    <span class="at">pref_variance_mean =</span> <span class="fu">mean</span>(pref_variance, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb14-27"><a href="#cb14-27" aria-hidden="true" tabindex="-1"></a>    <span class="at">pref_variance_median =</span> <span class="fu">median</span>(pref_variance, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb14-28"><a href="#cb14-28" aria-hidden="true" tabindex="-1"></a>    <span class="at">pref_variance_low =</span> <span class="fu">min</span>(pref_variance, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb14-29"><a href="#cb14-29" aria-hidden="true" tabindex="-1"></a>    <span class="at">pref_variance_high =</span> <span class="fu">max</span>(pref_variance, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb14-30"><a href="#cb14-30" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb14-31"><a href="#cb14-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-32"><a href="#cb14-32" aria-hidden="true" tabindex="-1"></a>message_variance_stats <span class="ot">&lt;-</span> variance_summary_df <span class="sc">|&gt;</span></span>
+<span id="cb14-33"><a href="#cb14-33" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
+<span id="cb14-34"><a href="#cb14-34" aria-hidden="true" tabindex="-1"></a>    <span class="at">message_variance_mean =</span> <span class="fu">mean</span>(message_variance, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb14-35"><a href="#cb14-35" aria-hidden="true" tabindex="-1"></a>    <span class="at">message_variance_median =</span> <span class="fu">median</span>(message_variance, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb14-36"><a href="#cb14-36" aria-hidden="true" tabindex="-1"></a>    <span class="at">message_variance_low =</span> <span class="fu">min</span>(message_variance, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb14-37"><a href="#cb14-37" aria-hidden="true" tabindex="-1"></a>    <span class="at">message_variance_high =</span> <span class="fu">max</span>(message_variance, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb14-38"><a href="#cb14-38" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb14-39"><a href="#cb14-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-40"><a href="#cb14-40" aria-hidden="true" tabindex="-1"></a>zero_variance_table <span class="sc">|&gt;</span></span>
+<span id="cb14-41"><a href="#cb14-41" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb14-42"><a href="#cb14-42" aria-hidden="true" tabindex="-1"></a>    <span class="fu">across</span>(<span class="fu">contains</span>(<span class="st">&quot;pct_&quot;</span>), scales<span class="sc">::</span>percent, <span class="at">accuracy =</span> <span class="fl">0.1</span>)</span>
+<span id="cb14-43"><a href="#cb14-43" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
+<span id="cb14-44"><a href="#cb14-44" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">caption =</span> <span class="st">&quot;Zero variance counts and percentages&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Warning: There was 1 warning in `mutate()`.
+ℹ In argument: `across(contains(&quot;pct_&quot;), scales::percent, accuracy = 0.1)`.
+Caused by warning:
+! The `...` argument of `across()` is deprecated as of dplyr 1.1.0.
+Supply arguments directly to `.fns` through an anonymous function instead.
+
+  # Previously
+  across(a:b, mean, na.rm = TRUE)
+
+  # Now
+  across(a:b, \(x) mean(x, na.rm = TRUE))</code></pre>
+</div>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Zero variance counts and percentages</caption>
+<colgroup>
+<col style="width: 15%">
+<col style="width: 16%">
+<col style="width: 17%">
+<col style="width: 18%">
+<col style="width: 15%">
+<col style="width: 16%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: right;">n_zero_pref_variance</th>
+<th style="text-align: left;">pct_zero_pref_variance</th>
+<th style="text-align: right;">n_zero_message_variance</th>
+<th style="text-align: left;">pct_zero_message_variance</th>
+<th style="text-align: right;">n_zero_both_variance</th>
+<th style="text-align: left;">pct_zero_both_variance</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">97</td>
+<td style="text-align: left;">19.0%</td>
+<td style="text-align: right;">23</td>
+<td style="text-align: left;">4.5%</td>
+<td style="text-align: right;">21</td>
+<td style="text-align: left;">4.1%</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>preference_variance_stats <span class="sc">|&gt;</span></span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">across</span>(<span class="fu">everything</span>(), round, <span class="dv">3</span>)</span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">caption =</span> <span class="st">&quot;Preference variance summary statistics&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Preference variance summary statistics</caption>
+<colgroup>
+<col style="width: 24%">
+<col style="width: 27%">
+<col style="width: 23%">
+<col style="width: 24%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: right;">pref_variance_mean</th>
+<th style="text-align: right;">pref_variance_median</th>
+<th style="text-align: right;">pref_variance_low</th>
+<th style="text-align: right;">pref_variance_high</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">0.92</td>
+<td style="text-align: right;">0.3</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">9.8</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>message_variance_stats <span class="sc">|&gt;</span></span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">across</span>(<span class="fu">everything</span>(), round, <span class="dv">3</span>)</span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="at">caption =</span> <span class="st">&quot;Message variance summary statistics&quot;</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Message variance summary statistics</caption>
+<colgroup>
+<col style="width: 24%">
+<col style="width: 26%">
+<col style="width: 23%">
+<col style="width: 24%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: right;">message_variance_mean</th>
+<th style="text-align: right;">message_variance_median</th>
+<th style="text-align: right;">message_variance_low</th>
+<th style="text-align: right;">message_variance_high</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">1.089</td>
+<td style="text-align: right;">0.808</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">6.248</td>
+</tr>
+</tbody>
+</table>
 </div>
 </div>
 </section>
