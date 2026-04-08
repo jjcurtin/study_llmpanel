@@ -3,7 +3,7 @@ title: "Held-out helpfulness"
 author: "John Curtin"
 date: "`r lubridate::today()`"
 params:
-  version: "v8"
+  version: "v9"
 format:
   html:
     toc: true 
@@ -35,12 +35,6 @@ theme_set(theme_classic())
 
 ## Data & Models
 ```{r}
-folds <- read_csv(here::here(path_chtc, "output", 
-                             str_c("batch_results_", params$version, ".csv")), 
-                  show_col_types = FALSE) |> 
-  arrange(config_num, outer_split_num, inner_split_num) |> 
-  glimpse()
-
 folds <- read_csv(here::here(path_chtc, "output", 
                              str_c("batch_results_", params$version, ".csv")), 
                   show_col_types = FALSE) |> 
