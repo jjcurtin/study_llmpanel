@@ -3,7 +3,7 @@ title: "Descriptives"
 author: "John Curtin"
 date: "`r lubridate::today()`"
 params:
-  version: "v8"
+  version: "v9"
 format:
   html:
     embed-resources: true

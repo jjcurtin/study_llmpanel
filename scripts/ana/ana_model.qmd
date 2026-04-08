@@ -10,7 +10,7 @@ format:
   html:
     embed-resources: true
 params:
-  version: "v8"
+  version: "v9"
 editor_options: 
   chunk_output_type: console
 ---
@@ -36,6 +36,14 @@ folds <- read_csv(here::here(path_chtc, "output",
   arrange(config_num, outer_split_num, inner_split_num) |> 
   glimpse()
 
+folds |>
+  summarise(rsq = mean(rsq),
+            mae = mean(mae),
+            n = n(),
+            .by = c(hp1, hp2, hp3)) |> 
+  arrange(desc(rsq)) |> 
+  print(n = 100) 
+  
 best <- folds |>
   summarise(rsq = mean(rsq),
             mae = mean(mae),
