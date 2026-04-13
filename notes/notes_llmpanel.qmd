@@ -1,3 +1,25 @@
+# 2026-0413
+
+Come back to xgboost and add random forest as candidate algorithms
+
+Consider feature engineering for categorical variables with more than two levels.
+
+- Keep one hot for Tone
+- One hot
+- target encoding 
+  - consider this for race/ethnicity (glmnet, xgboost) 
+  - income, education (glmnet only)
+- for random forest we can use race/ethnicity as a single categorical feature
+
+Consider multi-category classification and ordinal models
+
+consider interactions among tone and style (maybe why we see difference between sample mean best vs. model predicted best)
+
+consider interactions among pref tone and style
+
+NEED TO DO BETTER SCREENING OF DATA
+
+
 # 2025-06-24
 
 
