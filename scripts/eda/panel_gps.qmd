@@ -1,0 +1,212 @@
+---
+title: "Panel Cross-Validation"
+format: 
+  html:
+    page-layout: full
+    self-contained: true
+    toc: true
+    toc-depth: 3
+execute: 
+  warning: false
+---
+
+## Quarto
+
+```{r}
+#| include: false
+
+options(conflicts.policy = "depends.ok")
+library(tidyverse)
+library(ggmap)
+library(geosphere)
+
+source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
+source("https://github.com/jjcurtin/lab_support/blob/main/fun_eda.R?raw=true")
+source("https://github.com/jjcurtin/lab_support/blob/main/get_credentials.R?raw=true")
+
+path_credentials <- format_path("other")
+path_panel <- format_path("llmpanel/data_raw/panel")
+path_processed <- format_path("llmpanel/data_processed")
+```
+
+*Get credentials*
+```{r}
+key_google <- get_credentials("google_api",
+  file.path(path_credentials, "credentials.csv")) |>
+  pull(key)
+
+register_google(key = key_google)
+```
+
+*Load in data and rename columns for readability*
+```{r}
+panel <- read_csv(file.path(path_processed, "panel_cv.csv")) |> 
+  rename(
+    city = id_location_1_text,
+    state = id_location_2_text,
+    grocer_name = q12_grocer_1_text,
+    grocer_street = q12_grocer_2_text) |> 
+  mutate(subid = row_number())
+```
+
+*Google API for geocode*
+```{r}
+#Expected GPS for city + state
+#panel <- cbind(panel, geocode(paste(panel$city, panel$state)))
+#panel |> write_csv(file.path(path_processed, "panel_gps.csv"))
+```
+
+*Saved file with geocode results*
+```{r}
+panel_gps <- read_csv(file.path(path_processed, "panel_gps.csv"), show_col_types = FALSE) |> 
+  rename(
+    map_longitude = lon,
+    map_latitude = lat
+  )
+```
+
+*Calculate distance between qualtrics & map locations*
+```{r}
+panel_gps <- panel_gps |> 
+  mutate(
+    gps_diff = distHaversine(p1 = cbind(location_longitude, location_latitude),
+                             p2 = cbind(map_longitude, map_latitude)) / 1000 #set to KM
+  )
+
+hist(panel_gps$gps_diff)
+
+panel_trim <- panel_gps |> filter(gps_diff <= 1000)
+hist(panel_trim$gps_diff)
+
+panel_trimmer <- panel_gps |> filter(gps_diff <= 500)
+hist(panel_trimmer$gps_diff)
+
+panel_trimmest <- panel_gps |> filter(gps_diff <= 150)
+hist(panel_trimmest$gps_diff)
+```
+
+```{r}
+panel_gps |> 
+  slice_max(gps_diff, n = 10) |> 
+  select(
+    subid,
+    gps_diff,
+    city,
+    state,
+    location_longitude,
+    location_latitude
+  )
+```
+
+```{r}
+thresholds <- c(4000, 3000, 2000, 1000, 900, 800, 700, 600, 500, 400, 300, 200, 100, 50, 25, 10)  
+
+total_n <- nrow(panel_gps)
+
+retention_table <- tibble(threshold = thresholds) |>
+  mutate(
+    n_remaining = map_int(
+      threshold,
+      \(x) panel_gps |> filter(gps_diff <= x) |> nrow()
+    ),
+    n_lost = n_remaining - 510,
+    prop_remaining = (n_remaining / total_n)
+  )
+
+retention_table
+```
+
+*Grocer cross-validation*
+```{r}
+# Store address as one string
+panel_gps <- panel_gps |>
+  mutate(
+    grocer_address = str_squish(
+      paste(
+        grocer_name,
+        grocer_street,
+        city,
+        state,
+        sep = ", "))
+  )
+head(panel_gps$grocer_address)
+
+# Fix typos and junk phrases
+remove_phrases <- regex(
+  paste(
+    "its in",
+    "i dont know",
+    "don't know",
+    "not sure",
+    "bronx n\\.y",
+    "ottumwa iowa",
+    sep = "|"
+  ),
+  ignore_case = TRUE
+)
+panel_gps <- panel_gps |>
+  mutate(
+    grocer_address = grocer_address |>
+      str_remove_all(remove_phrases) |>
+      str_squish()
+  )
+replacements <- c(
+  "(?i)kriger" = "Kroger",
+  "(?i)h[\\s\\.]*e[\\s\\.]*b\\s*store" = "H-E-B",
+  "(?i)\\bheb\\b" = "H-E-B",
+  "(?i)tell13" = "tell 13",
+  "(?i)wal\\s*mart" = "Walmart",
+  "(?i)walmat" = "Walmart",
+  "(?i)Wal-Mart" = "Walmart",
+  "(?i)2800arapahoe" = "2800 Arapahoe",
+  "(?i)Super Wal-Mart" = "Walmart Supercenter",
+  "(?i)Fred myer" = "Fred Meyer",
+  "(?i)Hyvee" = "Hy-Vee",
+  "(?i)Trader's joe" = "Trader Joe's",
+  "(?i)Kroger, Kroger, Junction city, Ky" = "Kroger, Junction city, Ky",
+  "(?i)Smart and final on Arlington, Walmart on Van Buren, Riverside, California" = "Smart and final, Arlington, Riverside, California",
+  "(?i)Walmart, Eisenhower dr., Aldi, Eisenhower dr., Hanover, PA" = "Walmart, Eisenhower dr., Hanover, PA",
+  "(?i)Walmart, 1010 112th St Amory MS, Amory, MS" = "Walmart, 1010 112th St, Amory, MS",
+  "(?i)24 Hours Food Mart Grocery Store, 500 Mannheim Rd, Bellwood, IL 60104, United States, Chicago, IL" = "24 Hours Food Mart Grocery Store, 500 Mannheim Rd, Bellwood, IL" # Putting country feels Ai-ey
+  
+)
+panel_gps <- panel_gps |>
+  mutate(
+    grocer_address = str_replace_all(
+      grocer_address,
+      replacements
+    )
+  )
+```
+
+```{r}
+# GPS coord for grocer
+# grocer_gps <- geocode(
+#  panel_gps$grocer_address,
+#  output = "all"
+#)
+
+#grocer_gps |> saveRDS('grocer_gps.rds')
+
+```
+
+*Saved file with grocer GPS*
+```{r}
+grocer_gps <- readRDS(file.path(path_processed, "grocer_gps.rds"))
+```
+
+```{r}
+type_counts <- grocer_gps |>
+  map(function(x) {
+    tryCatch(
+      unlist(x$results[[1]]$types),
+      error = function(e) NA_character_
+    )
+  }) |>
+  unlist() |>
+  table() |>
+  sort(decreasing = TRUE)
+
+type_counts
+```
+
