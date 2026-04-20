@@ -1,4 +1,4 @@
-# setup chtc jobs & associated files/folders
+# Setup CHTC jobs & associated files/folders
 
 algorithm <- "glmnet"
 library(tidyverse) 
