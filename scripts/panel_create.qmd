@@ -680,6 +680,16 @@ panel_clean <- panel_clean |>
   select(-dem_race) # original column redundant
 ```
 
+*Save wide format panel with all information for EDA*
+```{r}
+panel_wide <- panel_clean |> ungroup() |> 
+  mutate(subid = row_number()) |> 
+  relocate(subid) |> 
+  select(where(~ n_distinct(., na.rm = FALSE) > 1))
+
+panel_wide |> write_csv(file.path(path_processed, "panel_wide.csv"))
+```
+
 ## Long Formatting
 
 ```{r}
@@ -755,6 +765,10 @@ panel_eyeball |> write_csv(file.path(path_processed, "panel_eyeball.csv"))
 *Write out full panel*
 
 ```{r}
+#with response IDs for CV
+panel_tidy |> write_csv(file.path(path_processed, str_c("panel_cv.csv")))
+
+#without response IDs for modelling (This is what we've been using)
 panel_tidy |> select(-response_id) |>
   write_csv(file.path(path_processed, str_c("panel_long.csv")))
 ```
