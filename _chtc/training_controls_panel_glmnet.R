@@ -38,7 +38,7 @@ request_disk <- "1000MB" # <- tune the memory and disk
 want_campus_pools <- TRUE 
 want_ospool <- TRUE 
 
-# CV SETTINGS---------------------------------
+# CV SETTINGS-------------------------------------------------------------------
 seed_splits <- 102030
 cv_resample_type <- "nested" # can be boot, kfold, or nested
 cv_resample = NULL # can be repeats_x_folds (e.g., 1_x_10, 10_x_10) or number of bootstraps (e.g., 100)
@@ -52,7 +52,7 @@ cv_name <- if_else(cv_resample_type == "nested",
                          cv_outer_resample),
                    str_c(cv_resample_type, "_", cv_resample))
 
-# BATCH INFO-------------------------------------------------------------------
+# BATCH INFO--------------------------------------------------------------------
 source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
 
 # the name of the batch of jobs to set folder name
@@ -80,7 +80,63 @@ format_data <- function (d){
            pref_acknowledging = q3_acknowledging,
            pref_value_affirmation = q4_value_affirmation,
            pref_norms = q5_norms,
-           pref_formality = q6_formality)
+           pref_formality = q6_formality) |> 
+    mutate(dem_orientation2 = if_else(dem_orientation == "straight", "straight", "other")) |> 
+    select(-dem_orientation, -dem_orientation_other_text)
+  
+  # get numeric options for ordinal predictors
+  # will choose among them in recipe
+  # for recoding in recipe below   
+  q_cols <- c(
+    "pref_legitimizing_ord",
+    "pref_self_efficacy_ord",
+    "pref_acknowledging_ord",
+    "pref_value_affirmation_ord",
+    "pref_norms_ord"
+  )
+  
+  d <- d |>
+    mutate(pref_legitimizing_ord = pref_legitimizing,
+           pref_self_efficacy_ord = pref_self_efficacy,
+           pref_acknowledging_ord = pref_acknowledging,
+           pref_value_affirmation_ord = pref_value_affirmation,
+           pref_norms_ord = pref_norms) |>
+    mutate(across(all_of(q_cols), # preferences
+      ~ recode_values(
+        .x,
+        "strongly_disagree" ~ 1,
+        "disagree"          ~ 2,
+        "somewhat_disagree" ~ 3,
+        "neutral"           ~ 4,
+        "somewhat_agree"    ~ 5,
+        "agree"             ~ 6,
+        "strongly_agree"    ~ 7))) |> 
+    mutate(pref_formality_ord = recode_values(
+      pref_formality,
+      "strongly_prefer_informal"   ~ 1,
+      "moderately_prefer_informal" ~ 2,
+      "slightly_prefer_informal"   ~ 3,
+      "neutral"                    ~ 4,
+      "slightly_prefer_formal"     ~ 5,
+      "moderately_prefer_formal"   ~ 6,
+      "strongly_prefer_formal"     ~ 7)) |>
+    mutate(dem_education_ord = recode_values(
+      dem_education,
+      "high_school_or_ged" ~ 1,
+      "some_college"       ~ 2,
+      "2-year_degree"      ~ 3,
+      "4-year_degree"      ~ 4,
+      "advanced_degree"    ~ 5)) |>
+    mutate(dem_income_ord = recode_values(
+      dem_income,
+      "Less than $25,000"     ~ 1,
+      "$25,000 - $37,499"     ~ 2,
+      "$37,500 - $49,999"     ~ 3,
+      "$50,000 - $74,999"     ~ 4,
+      "$75,000 - $99,999"     ~ 5,
+      "$100,000 - $149,999"   ~ 6,
+      "$150,000 - $199,999"   ~ 7,
+      "$200,000 or more"      ~ 8))
 }
   
 
@@ -95,14 +151,6 @@ build_recipe <- function(d, config) {
   algorithm <- config$algorithm
   feature_set <- config$feature_set
 
-  # for recoding in recipe below   
-  q_cols <- c(
-    "pref_legitimizing",
-    "pref_self_efficacy",
-    "pref_acknowledging",
-    "pref_value_affirmation",
-    "pref_norms"
-  )
  
   #----------------------------------------------------------------------------- 
   # Set recipe steps for all model configurations for GLMNET--------------------
@@ -122,61 +170,36 @@ build_recipe <- function(d, config) {
     step_impute_median(all_numeric_predictors()) |>  
     step_impute_mode(all_nominal_predictors())
     
-  # dummy always used for binary categorical across all configs
-  # UPDATE TO LIST ALL BINARY PREDICTORS
+  # dummy always used for binary categorical across all configs to avoid 2 features
   rec <- rec |> 
-    step_dummy(all_nominal_predictors(), one_hot = FALSE) 
+    step_dummy(dem_sex, dem_orientation2, dem_hispanic, matches("^dem_race"), 
+               one_hot = FALSE) 
    
   #----------------------------------------------------------------------------- 
   # Configs for ordinal predictors ---------------------------------------------
   
   # handle ordinal predictors as numeric 
   if (str_detect(feature_set, "^ordinal_")) {
-  
+ 
+    # rm cols that begin with pref and dont end with ord 
+    # and education and incomes
     rec <- rec |>   
-      step_mutate(across(all_of(q_cols)), # preferences
-        ~ recode_values(
-          .x,
-          "strongly_disagree" ~ 1,
-          "disagree"          ~ 2,
-          "somewhat_disagree" ~ 3,
-          "neutral"           ~ 4,
-          "somewhat_agree"    ~ 5,
-          "agree"             ~ 6,
-          "strongly_agree"    ~ 7)) |> 
-      step_mutate(pref_formality = recode_values(
-        pref_formality,
-        "strongly_prefer_informal"   ~ 1,
-        "moderately_prefer_informal" ~ 2,
-        "slightly_prefer_informal"   ~ 3,
-        "neutral"                    ~ 4,
-        "slightly_prefer_formal"     ~ 5,
-        "moderately_prefer_formal"   ~ 6,
-        "strongly_prefer_formal"     ~ 7)) |>
-      step_mutate(dem_education = recode_values(
-        dem_education,
-        "high_school_or_ged" ~ 1,
-        "some_college"       ~ 2,
-        "2-year_degree"      ~ 3,
-        "4-year_degree"      ~ 4,
-        "advanced_degree"    ~ 5)) |>
-      step_mutate(dem_income = recode_values(
-        dem_income,
-        "Less than $25,000"     ~ 1,
-        "$25,000 - $37,499"     ~ 2,
-        "$37,500 - $49,999"     ~ 3,
-        "$50,000 - $74,999"     ~ 4,
-        "$75,000 - $99,999"     ~ 5,
-        "$100,000 - $149,999"   ~ 6,
-        "$150,000 - $199,999"   ~ 7,
-        "$200,000 or more"      ~ 8))
+      step_rm(matches("^pref_(?!.*_ord$)", perl = TRUE)) |>  
+      step_rm(dem_education, dem_income)
   }
  
   
   # handle ordinal predictors with onehot 
   if (str_detect(feature_set, "^onehot_")) {
+    
     # NEED TO UPDATE
+    
+    # rm cols that end with ord 
+    # and education and incomes
+    rec <- rec |>   
+      step_rm(matches("_ord$")) 
   }
+  
   
   # handle ordinal predictors with target encoding
   if (str_detect(feature_set, "^target_")) {
@@ -188,8 +211,12 @@ build_recipe <- function(d, config) {
   # Configs for multi-level nominal predictors ---------------------------------
   
   # handle nominal predictors with onehot 
+  # UPDATE TO HANDLE RACE HERE FOR ONE HOT AND BELOW FOR TARGET
+  # WILL NEED TO CALCULATE SINGLE RACE VARIABLE IN FORMAT DATA  
   if (str_detect(feature_set, "_onehot$")) {
-    # NEED TO UPDATE
+    rec <- rec |> 
+      step_dummy(tone, style, dem_marital_status, 
+                 one_hot = TRUE) 
   }
   
   # handle nominal predictors with target encoding
@@ -200,11 +227,11 @@ build_recipe <- function(d, config) {
   # ----------------------------------------------------------------------------
   # add interactions -----------------------------------------------------------
   # UPDATE - DOES THIS NEED TO CHANGE BASED ON HOW WE HANDLE CATEGORICAL PREDICTORS?
-  rec <- rec |>   
-    step_interact(terms = ~ matches("^tone_(legitimizing|norms|value_affirmation|self_efficacy|acknowledging)$"):starts_with("dem_")) |> 
-    step_interact(terms = ~ matches("^style_informal$"):starts_with("dem_"))
-    step_interact(terms = ~ matches("^tone_(legitimizing|norms|value_affirmation|self_efficacy|acknowledging)$"):starts_with("pref_")) |> 
-    step_interact(terms = ~ matches("^style_informal$"):starts_with("pref_")) 
+  # rec <- rec |>   
+  #   step_interact(terms = ~ matches("^tone_(legitimizing|norms|value_affirmation|self_efficacy|acknowledging)$"):starts_with("dem_")) |> 
+  #   step_interact(terms = ~ matches("^style_informal$"):starts_with("dem_"))
+  #   step_interact(terms = ~ matches("^tone_(legitimizing|norms|value_affirmation|self_efficacy|acknowledging)$"):starts_with("pref_")) |> 
+  #   step_interact(terms = ~ matches("^style_informal$"):starts_with("pref_")) 
   
   # ----------------------------------------------------------------------------
   # standardize ONLY numeric predictors -----------------------------------------------------------
