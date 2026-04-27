@@ -61,7 +61,7 @@ path_credentials <- format_path("other")
 
 ```{r}
 token_qualtrics <- get_credentials("qualtrics",
-  file.path(path_credentials, "credentials.csv")) |>
+  here::here(path_credentials, "credentials.csv")) |>
   pull(token)
 ```
 
@@ -89,12 +89,14 @@ repeat {
   if (!is.null(panel_export_raw)) {break}
   }
 
+
+#FIX HERE!!!!
 panel_export_raw <- panel_export_raw |>
   janitor::clean_names("snake")  |> # Fix health survey variables
   rename(health_brush = health_floss,
          health_drink = x47280739
-         ) |>
-  select(-c(intro_1, audit_inst, q89, description,intro_tone, intro_context, # remove text intro variables
+         ) |> view()
+  select(-c(q89, description,intro_tone, intro_context, # remove text intro variables
             x, x_1, x_2, x_3, x_4, x_5, x_6, x_7, x_8, x_9, x_10,x_11)
          ) |>
     rename_with(~ str_replace_all(.x, pattern = ("^x"), replacement ="")) |>
@@ -687,7 +689,7 @@ panel_wide <- panel_clean |> ungroup() |>
   relocate(subid) |> 
   select(where(~ n_distinct(., na.rm = FALSE) > 1))
 
-panel_wide |> write_csv(file.path(path_processed, "panel_wide.csv"))
+panel_wide |> write_csv(here::here(path_processed, "panel_wide.csv"))
 ```
 
 ## Long Formatting
@@ -755,16 +757,15 @@ panel_tidy <- panel_long |>
 *Write out eyeball sample*
 
 ```{r}
-eyeball_ids <- read_csv(file.path(path_processed, "eyeball_ids.csv"))
+eyeball_ids <- read_csv(here::here(path_processed, "eyeball_ids.csv"))
 
 panel_eyeball <- panel_tidy |> filter(response_id %in% eyeball_ids$eyeball_ids)
 
-panel_eyeball |> write_csv(file.path(path_processed, "panel_eyeball.csv"))
+panel_eyeball |> write_csv(here::here(path_processed, "panel_eyeball.csv"))
 ```
 
 *Write out full panel*
 
 ```{r}
-#with response IDs for CV
-panel_tidy |> write_csv(file.path(path_processed, str_c("panel_long.csv")))
+panel_tidy |> write_csv(here::here(path_processed, str_c("panel_long.csv")))
 ```
