@@ -1,0 +1,805 @@
+---
+title: "Panel EDA"
+format: 
+  html:
+    page-layout: full
+    self-contained: true
+    toc: true
+    toc-depth: 3
+execute: 
+  warning: false
+---
+
+This script is used to conduct thorough EDA of the final 510 survey respondents, and to further investigate respondents for fraudulent or otherwise untrustworthy behavior questioning the validity of the sample.
+
+```{r}
+library(tidyverse) 
+library(kableExtra, exclude = "group_rows")
+library(cowplot, include.only = c("plot_grid", "theme_half_open"))
+library(corrplot, include.only = "corrplot.mixed")
+library(geosphere)
+
+devtools::source_url("https://github.com/jjcurtin/lab_support/blob/main/fun_eda.R?raw=true")
+devtools::source_url("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
+devtools::source_url("https://github.com/jjcurtin/lab_support/blob/main/fun_gps.R?raw=true")
+source("https://github.com/jjcurtin/lab_support/blob/main/fun_plots.R?raw=true")
+
+path_panel <- format_path("llmpanel/data_raw/panel")
+path_processed <- format_path("llmpanel/data_processed")
+```
+
+```{r}
+panel_wide <- read_csv(file.path(path_processed, "panel_wide.csv"), show_col_types = FALSE)
+panel_long <- read_csv(file.path(path_processed, "panel_long.csv"), show_col_types = FALSE)
+```
+
+# Univariate Demographics
+
+*General Demographics*
+
+```{r}
+panel_wide |> 
+  select(dem_sex, dem_identity,
+         dem_income, dem_marital_status) |>
+  names() |>
+  map(\(name) plot_bar(df = panel_wide, x = name)) |>
+  plot_grid(plotlist = _, ncol = 2)
+```
+
+> Most notable is the mild imbalances in sex/gender.
+
+```{r}
+panel_wide |> 
+  select(dem_orientation, dem_education) |>
+  names() |>
+  map(\(name) plot_bar(df = panel_wide, x = name)) |>
+  plot_grid(plotlist = _, ncol = 2)
+```
+
+> Large imbalance in sexual orientation with predominantly 'straight' respondents.
+
+*Race/Ethnicity*
+
+```{r}
+panel_wide |>
+  select(starts_with("dem_race_"), -dem_race_other_text) |>
+  pivot_longer(everything(), names_to = "group", values_to = "response") |>
+  filter(response == "yes") |>
+  count(group) |>
+  mutate(group = group |>
+    str_remove("^dem_race_") |>
+    str_replace_all("_", " ") |>
+    str_to_title()) |>
+  ggplot(aes(x = n, y = reorder(group, n))) +
+  geom_col() +
+  labs(x = "Count", y = NULL, title = "Race/Ethnicity")
+```
+
+> Another pronounced imbalance with predominantly white respondents.
+
+*Age*
+
+```{r}
+plot_hist(panel_wide, x = "dem_age", bins = 10)
+panel_wide$dem_age |> sort(decreasing = TRUE) |> head(10)
+```
+
+> There are some very old respondents in the survey, however there is no clear motivation for someone to exaggerate their age here. This does not raise immediate suspicion.
+
+```{r}
+median(panel_wide$q_total_duration)/60
+min(panel_wide$q_total_duration)/60
+
+mean(panel_wide$dem_age)
+
+panel_wide |> arrange(desc(dem_age)) |>
+  transmute(
+    age  = dem_age,
+    mins = q_total_duration / 60,
+    dist_below_median = if_else(
+      q_total_duration < median(q_total_duration),
+      (median(q_total_duration) - q_total_duration) / 60,
+      NA_real_)
+  ) |>
+  slice_head(n = 10)
+```
+
+> Our oldest respondent completed the survey faster than the median completion time (mean age is \~ 48). If anything, we should expect longer completion times. This begins to raise concern.
+
+> Investigation of that oldest participant, however, does reveal variability in message ratings and a sensible user input response.
+
+# Univariate Preferences
+
+*Ordering*
+
+```{r}
+tone_scale = c("Strongly Disagree", "Disagree", "Somewhat Disagree",
+               "Neutral", "Somewhat Agree", "Agree", "Strongly Agree")
+
+panel_wide <- panel_wide |> mutate(
+  across(c(q1_legitimizing:q5_norms),
+      ~ factor(.x, levels = tone_scale)),
+    q6_formality = factor(q6_formality,
+                          levels = c("Strongly Prefer Informal", "Moderately Prefer Informal",
+                                       "Slightly Prefer Informal", "Slightly Prefer Formal",
+                                       "Moderately Prefer Formal", "Strongly Prefer Formal")))
+```
+
+*Tone Preferences*
+
+```{r}
+panel_wide |> 
+  select(q1_legitimizing:q5_norms) |>
+  names() |>
+  map(\(name) plot_bar(df = panel_wide, x = name)) |>
+  plot_grid(plotlist = _, ncol = 3)
+```
+
+> Described tones are generally agreed with.
+
+*Style Preferences*
+
+```{r}
+plot_bar(df = panel_wide, x = "q6_formality")
+```
+
+> Respondents generally prefer informal.
+
+ # Message Ratings
+
+*Order/Numeric*
+
+```{r}
+message_scale = c("strongly_disagree", "disagree", "somewhat_disagree",
+                  "neutral", "somewhat_agree", "agree", "strongly_agree")
+
+panel_long <- panel_long |> 
+  mutate(
+    message_rating = factor(message_rating, levels = message_scale),
+    message_rating_num = case_when(
+      message_rating == "strongly_disagree" ~ -3,
+      message_rating == "disagree" ~ -2,
+      message_rating == "somewhat_disagree" ~ -1,
+      message_rating == "neutral" ~ 0,
+      message_rating == "somewhat_agree" ~ 1,
+      message_rating == "agree" ~ 2,
+      message_rating == "strongly_agree" ~ 3)
+  )
+
+panel_long <- panel_long |> 
+  mutate(
+    dem_education = factor(dem_education,
+                           levels = c("less_than_high_school_or_ged_degree",
+                                      "high_school_or_ged", "some_college",
+                                      "2_year_degree", "4_year_degree",
+                                      "advanced_degree"))
+  )
+
+panel_long <- panel_long |> 
+  mutate(dem_income = factor(dem_income,
+                             levels = c(
+                               "Less than $25,000",
+                               "$25,000 - $37,499",
+                               "$37,500 - $49,999",
+                               "$50,000 - $74,999",
+                               "$75,000 - $99,999",
+                               "$100,000 - $149,999",
+                               "$150,000 - $199,999",
+                               "$200,000 or more")
+                             ))
+
+# All message ratings
+plot_bar(panel_long, x = "message_rating")
+```
+
+> Messages are generally found helpful.
+
+## Message Ratings by Demographics
+
+*Message Ratings by Sex*
+
+```{r}
+ggplot(panel_long, aes(x = message_rating, fill = dem_sex)) +
+  geom_bar(position = "dodge") +
+  labs(x = "Message Rating", y = "Count", fill = "Sex")
+
+panel_long |> group_by(dem_sex) |> 
+  summarise(
+    'mean rating' = mean(message_rating_num)
+  )
+```
+
+*Message Ratings White x Other*
+
+```{r}
+panel_long <- panel_long |> mutate(
+  white_x_other = case_when(
+    dem_race_white == "yes" ~ "white",
+    dem_race_white == "no" ~ "other")
+  )
+means_race <- panel_long |> summarise(
+  mean_rating = mean(message_rating_num), .by = white_x_other
+  )
+panel_long |>
+  count(white_x_other, message_rating) |>
+  group_by(white_x_other) |>
+  mutate(prop = n / sum(n)) |>
+  ggplot(aes(x = message_rating, y = prop, fill = white_x_other)) +
+  geom_col(position = position_dodge()) +
+  geom_label(
+    data = means_race |>
+      mutate(nudge = if_else(white_x_other == "white", 0.24, 0.21)),
+    aes(x = "disagree", y = nudge,
+        label = paste0(white_x_other, " mean: ", round(mean_rating, 2)),
+        color = white_x_other),
+    fill = "white", size = 3, show.legend = FALSE) +
+  labs(x = "Message Rating", y = "Proportion", fill = "Race/Ethnicity", color = NULL) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+*Message Ratings by Sexual Orientation*
+
+```{r}
+panel_long <- panel_long |> mutate(
+  straight_x_other = if_else(dem_orientation == "straight", "straight", "other"))
+
+means_straight <- panel_long |> summarise(
+  mean_rating = mean(message_rating_num), .by = straight_x_other)
+
+panel_long |>
+  count(straight_x_other, message_rating) |>
+  group_by(straight_x_other) |>
+  mutate(prop = n / sum(n)) |>
+  ggplot(aes(x = message_rating, y = prop, fill = straight_x_other)) +
+  geom_col(position = position_dodge()) +
+  geom_label(
+    data = means_straight |>
+      mutate(nudge = if_else(straight_x_other == "straight", 0.24, 0.21)),
+    aes(x = "disagree", y = nudge,
+        label = paste0(straight_x_other, " mean: ", round(mean_rating, 2)),
+        color = straight_x_other),
+    fill = "white", size = 3, show.legend = FALSE) +
+  labs(x = "Message Rating", y = "Proportion", fill = "Orientation", color = NULL) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+*Message_Ratings by Age Group*
+
+```{r}
+panel_long <- panel_long |> 
+  mutate(
+    age_group = case_when(
+      dem_age > 17 & dem_age < 30 ~ "18-20's",
+      dem_age > 29 & dem_age < 40 ~ "30's",
+      dem_age > 39 & dem_age < 50 ~ "40's",
+      dem_age > 49 & dem_age < 60 ~ "50's",
+      dem_age > 59 ~ "60+"
+    )
+  )
+panel_long |> group_by(age_group) |> summarise(
+  'mean rating' = mean(message_rating_num))
+```
+
+```{r}
+panel_long |>
+  summarise(mean_rating = mean(message_rating_num, na.rm = TRUE), .by = age_group) |>
+  ggplot(aes(x = age_group, y = mean_rating)) +
+  geom_col() +
+  geom_text(aes(label = round(mean_rating, 2)), vjust = -0.5, size = 3)
+```
+
+*Income*
+```{r}
+```
+
+
+# Suspicion Index
+
+We already set strict cutoffs to drop respondents who did not meet timing/attention checks, etc. We may decide to implement new cutoffs based on the observations of the final sample, but another method will be to use a suspicion index that ranks the remaining respondents by relative trustworthiness. Variables of concern will be standardized and averaged to determine how worried we are about each participant based upon their data.
+
+## Variables of Concern
+
+\###*Duration / Survey Completion Time*
+
+```{r}
+plot_hist(panel_wide, x = "q_total_duration", bins = 10)
+
+sort(panel_wide$q_total_duration, decreasing = TRUE)
+
+sort(panel_wide$q_total_duration)
+
+panel_wide |> filter(q_total_duration < 5400) |> count() 
+```
+
+> There are some fast survery times and some extremely long survey times. The range included in the final 510 spans 10 minutes to 10 hours. Long response times may just be an indicator that respondents took a break after beginning the survey, as is not necessarily a factor of concern. The standardized score will still be calculated for now.
+
+```{r}
+panel_wide <- panel_wide |> 
+  mutate(duration_std = (q_total_duration - mean(q_total_duration)) / sd(q_total_duration),
+         duration_sus = abs(duration_std)
+    )
+
+panel_wide$duration_sus |> sort(decreasing = TRUE) |> head(10)
+```
+
+> If used for the final suspicion index, these scores will be averaged with all other variables of concern.
+
+\###*ReCaptcha Score*
+
+```{r}
+plot_hist(panel_wide, x = "q_recaptcha_score", bins = 5)
+
+panel_wide$q_recaptcha_score |> skimr::skim()
+```
+
+> Qualtrics auto-detected bot attempts and rejected any score below 0.5, leaving in everyone above as "more likely human". A max score of 1 means as human as possible, so we are interested in the distance from this max value.
+
+> There are also 4 missing values for recaptcha score: This is either Qualtrics failing to run the checks successfully, or the possible result of an evasion method by the respondent. Those values will be imputed with the lowest possible score of 0.5.
+
+```{r}
+panel_wide <- panel_wide |> mutate(
+  q_recaptcha_score = if_else(is.na(q_recaptcha_score), 0.5, q_recaptcha_score),
+  captcha_std = (q_recaptcha_score - mean(q_recaptcha_score)) / sd(q_recaptcha_score),
+  captcha_sus = abs(captcha_std - max(captcha_std))
+)
+
+sort(panel_wide$captcha_sus, decreasing = TRUE) |> head(20)
+```
+
+> These scores are still standardized as with survey completion time, but we are factoring in how far they are from the maximum value instead of distance from the center.
+
+### *Variance in message ratings*
+
+```{r}
+rating_sd <- panel_long |>
+  group_by(response_id) |>
+  summarise(
+    rating_sd = sd(message_rating_num),
+    .groups = "drop"
+  )
+
+rating_sd$rating_sd |> skimr::skim()
+
+rating_sd |> count(rating_sd == 0)
+```
+
+> 23 respondents have 0 variability in message ratings - a problematic indicator of inattentive responding/straightlining (equivalent to christmas tree-ing), as well as a problem for the model to correctly identify a preferred tone and style. It may also indicate that these participants just do not have strong preference on tone / style.
+
+```{r}
+panel_long |>
+  inner_join(select(rating_sd, response_id, sd = rating_sd), by = "response_id") |>
+  filter(sd == 0) |>
+  distinct(subid, message_rating) |>
+  count(message_rating, name = "n_respondents") |>
+  arrange(desc(n_respondents))
+```
+
+> Here is the counts for which responses our 0-variance respondents were selecting uniformally. They are blanket agreeing with the helpfulness of all messages.
+
+We are also valuing variability in message ratings within participants, so this component will also be a measure of distance from the max variability observed.
+
+```{r}
+panel_wide <- panel_wide |>
+  left_join(
+    rating_sd |>
+      distinct(response_id, .keep_all = TRUE),
+    by = "response_id"
+  ) |>
+  mutate(
+    rating_sd = as.numeric(unlist(rating_sd)),
+    rating_sd_std =
+      (rating_sd - mean(rating_sd, na.rm = TRUE)) /
+      sd(rating_sd, na.rm = TRUE),
+    rating_sus = abs(rating_sd_std - max(rating_sd_std, na.rm = TRUE))
+  )
+sort(panel_wide$rating_sus, decreasing = TRUE) |> head(30)
+```
+
+\###*Variability in Preferences*
+
+```{r}
+panel_wide <- panel_wide |>
+  mutate(
+    across(
+      q1_legitimizing:q5_norms,
+      ~ case_when(
+        .x == "Strongly Disagree" ~ -3,
+        .x == "Disagree"          ~ -2,
+        .x == "Somewhat Disagree" ~ -1,
+        .x == "Neutral"           ~  0,
+        .x == "Somewhat Agree"    ~  1,
+        .x == "Agree"             ~  2,
+        .x == "Strongly Agree"    ~  3
+      ),
+      .names = "{.col}_num"
+    ),
+    prefs_sd = apply(
+      across(q1_legitimizing_num:q5_norms_num), 1, sd),
+    prefs_sd_std = (prefs_sd - mean(prefs_sd)) / sd(prefs_sd),
+    prefs_sus = abs(prefs_sd_std - max(prefs_sd_std, na.rm = TRUE)
+    ))
+```
+
+```{r}
+panel_wide <- panel_wide |>
+  mutate(
+    across(
+      q1_legitimizing:q5_norms,
+      ~ case_when(
+        .x == "Strongly Disagree" ~ -3,
+        .x == "Disagree"          ~ -2,
+        .x == "Somewhat Disagree" ~ -1,
+        .x == "Neutral"           ~  0,
+        .x == "Somewhat Agree"    ~  1,
+        .x == "Agree"             ~  2,
+        .x == "Strongly Agree"    ~  3,
+        TRUE ~ NA_real_
+      ),
+      .names = "{.col}_num"
+    ),
+
+    prefs_sd = apply(
+      across(q1_legitimizing_num:q5_norms_num),
+      1,
+      sd,
+      na.rm = TRUE
+    ),
+
+    prefs_sd_std =
+      (prefs_sd - mean(prefs_sd, na.rm = TRUE)) /
+      sd(prefs_sd, na.rm = TRUE),
+
+    prefs_sus =
+      abs(
+        prefs_sd_std -
+        max(prefs_sd_std, na.rm = TRUE)
+      )
+  )
+
+panel_wide |> count(prefs_sd == 0)
+
+sort(panel_wide$prefs_sus, decreasing = TRUE) |> head(30)
+```
+
+> 97 participants have no variability in tone preferences, more than with message ratings.
+
+```{r}
+panel_wide |> count(prefs_sd == 0 & rating_sd == 0)
+```
+
+> 21 respondents have 0 variability across both preferences and message ratings: highly suspicious of straightlining.
+
+### *Audit Score*
+
+```{r}
+panel_wide$audit_score |> skimr::skim()
+
+panel_wide |> count(audit_score == 40)
+
+panel_wide$audit_score |> sort(decreasing = TRUE)
+
+plot_hist(panel_wide, x = 'audit_score', bins = 10)
+```
+
+> We have some very high audit scores up to *perfect* scores of 40 in the sample (2 participants), which is concerning that respondents may have intuited our criteria of AUD symptoms and fraudulently reported the most concerning behaviors possible.
+
+> Values below or somewhat above the mean would not be suspicious, however. Unclear how to incorporate this variable into the suspicion index, but we will calculate the standardized scores for now.
+
+```{r}
+panel_wide <- panel_wide |> 
+  mutate(
+    audit_std = (audit_score - mean(audit_score)) / sd(audit_score),
+    audit_sus = if_else(audit_std > 0, audit_std, 0)
+  )
+
+panel_wide$audit_sus |> sort(decreasing = TRUE) |> head(20)
+```
+
+## GPS Data
+
+We have a variety of location data available: Qualtrics collected lat/long coordiantes from a respondents device during the survey, and our own demographics questions included city, state and information of the respondents primary grocery store address. Here are the relevant comparisons:
+
+\###*Distance from Qualtrics GPS and respondent's city/state*
+
+```{r}
+#panel_gps.qmd script is used to run the ggmap API and geocode coordinates
+#Here we load in a saved file that contains that data for analysis
+
+panel_gps <- read_csv(file.path(path_processed, "panel_gps.csv"), show_col_types = FALSE)|>
+  rename(
+    map_longitude = lon,
+    map_latitude = lat
+  )
+```
+
+> loc lat/long is given directly by Qualtrics, map lat/long is geocoded through ggmap given a respondent's provided state/city.
+
+```{r}
+panel_gps <- panel_gps |> 
+  mutate(
+    gps_diff = distHaversine(p1 = cbind(location_longitude, location_latitude),
+                             p2 = cbind(map_longitude, map_latitude)) / 1000 # Set to KM
+  )
+
+hist(panel_gps$gps_diff)
+sort(panel_gps$gps_diff, decreasing = TRUE) |> head(10)
+```
+
+> Some participants are very far away. We wont penalize anyone at or below the mean distance.
+
+```{r}
+gps <- panel_gps |> select(response_id, gps_diff)
+
+panel_wide <- panel_wide |>
+  left_join(gps, by = "response_id") |>
+  mutate(
+    gps_diff_std =
+      (gps_diff - mean(gps_diff)) / sd(gps_diff),
+    gps_sus = if_else(audit_std > 0, audit_std, 0)
+  )
+
+sort(panel_wide$gps_sus, decreasing = TRUE) |> head(30)
+```
+
+## Index Calculation
+
+```{r}
+panel_wide <- panel_wide |>
+  mutate(suspicion_index = rowMeans(pick(contains("_sus")), na.rm = TRUE))
+
+panel_wide |>
+  select(response_id, suspicion_index) |>
+  arrange(desc(suspicion_index))
+
+plot_hist(panel_wide, x = 'suspicion_index')
+```
+```{r}
+tibble(cutoff = c("90th", "80th", "70th", "60th", "50th"),
+       pct    = c(90, 80, 70, 60, 50)) |>
+  mutate(
+    suspicion_index = quantile(panel_wide$suspicion_index, pct / 100, na.rm = TRUE),
+    n_retained      = map_int(suspicion_index, \(t) sum(panel_wide$suspicion_index < t, na.rm = TRUE))
+  ) |>
+  select(cutoff, suspicion_index, n_retained)
+```
+
+# Eyeball Sample
+```{r}
+eyeball_ids <- read_csv(file.path(path_processed, "eyeball_ids.csv"), show_col_types = FALSE)
+
+eyeball_wide <- panel_wide |> filter(response_id %in% eyeball_ids$eyeball_ids)
+
+eyeball_long <- panel_long |> filter(response_id %in% eyeball_ids$eyeball_ids)
+```
+
+## Preferences by Demographics
+
+(IN PROGRESS - * check if correlation between preference and message rating differs by demographics)
+
+#### Age by X
+
+```{r}
+plot_grouped_box_violin(df = eyeball_wide, x = "q1_legitimizing", y = "dem_age")
+```
+
+> May be an older bias against legitimizing.
+
+```{r}
+plot_grouped_box_violin(df = eyeball_wide, x = "q2_self_efficacy", y = "dem_age")
+```
+> Self-efficacy more preferred by younger participants.
+
+```{r}
+plot_grouped_box_violin(df = eyeball_wide, x = "q3_acknowledging", y = "dem_age")
+```
+
+> Seems to trend younger for acknowledging, very few disagreements in general.
+
+```{r}
+plot_grouped_box_violin(df = eyeball_wide, x = "q4_value_affirmation", y = "dem_age")
+```
+
+> Less strong relationship with age and self-affirmation.
+
+```{r}
+plot_grouped_box_violin(df = eyeball_wide, x = "q5_norms", y = "dem_age")
+```
+> Less strong relationship with age and normalization.
+
+```{r}
+plot_grouped_box_violin(df = eyeball_wide, x = "q6_formality", y = "dem_age")
+```
+
+> Less strong relationship with age and formality. Younger folks may have the strongest desire for formality?
+
+#### Gender by X
+
+```{r}
+plot_grouped_barplot_percent(df = eyeball_wide, x = "dem_identity", y = "q1_legitimizing")
+```
+
+> Male opinions are more neutral about legitimizing.
+
+```{r}
+plot_grouped_barplot_percent(df = eyeball_wide, x = "dem_identity", y = "q2_self_efficacy")
+```
+
+> Mixed.
+
+```{r}
+plot_grouped_barplot_percent(df = eyeball_wide, x = "dem_identity", y = "q3_acknowledging")
+```
+
+> Mixed.
+
+```{r}
+plot_grouped_barplot_percent(df = eyeball_wide, x = "dem_identity", y = "q4_value_affirmation")
+```
+> Male disagree more with value affirmation.
+
+```{r}
+plot_grouped_barplot_percent(df = eyeball_wide, x = "dem_identity", y = "q5_norms")
+```
+> Male opinions are more neutral on normalization.
+
+```{r}
+plot_grouped_barplot_percent(df = eyeball_wide, x = "dem_identity", y = "q6_formality")
+```
+
+> Male tend to prefer formal while Female tend to prefer informal, relative to each other.
+
+#### Education by X
+
+```{r}
+plot_grouped_barplot_count(df = eyeball_wide, x = "dem_education", y = "q1_legitimizing")
+```
+> 
+
+```{r}
+plot_grouped_barplot_count(df = eyeball_wide, x = "dem_education", y = "q2_self_efficacy")
+```
+>
+
+```{r}
+plot_grouped_barplot_count(df = eyeball_wide, x = "dem_education", y = "q3_acknowledging")
+```
+
+>
+
+```{r}
+plot_grouped_barplot_count(df = eyeball_wide, x = "dem_education", y = "q4_value_affirmation")
+```
+>
+
+```{r}
+plot_grouped_barplot_count(df = eyeball_wide, x = "dem_education", y = "q5_norms")
+```
+>
+
+```{r}
+plot_grouped_barplot_count(df = eyeball_wide, x = "dem_education", y = "q6_formality")
+```
+
+>
+
+#### Income by X
+
+```{r}
+plot_grouped_barplot_count(df = eyeball_wide, x = "dem_income", y = "q1_legitimizing")
+```
+
+>
+
+```{r}
+plot_grouped_barplot_count(df = eyeball_wide, x = "dem_income", y = "q2_self_efficacy")
+```
+
+>
+
+```{r}
+plot_grouped_barplot_count(df = eyeball_wide, x = "dem_income", y = "q3_acknowledging")
+```
+>
+
+```{r}
+plot_grouped_barplot_count(df = eyeball_wide, x = "dem_income", y = "q4_value_affirmation")
+```
+
+>
+
+```{r}
+plot_grouped_barplot_count(df = eyeball_wide, x = "dem_income", y = "q5_norms")
+```
+>
+
+```{r}
+plot_grouped_barplot_count(df = eyeball_wide, x = "dem_income", y = "q6_formality")
+```
+#### Minoritization by X
+
+```{r}
+plot_grouped_barplot_count(df = eyeball_wide, x = "dem_minority", y = "q1_legitimizing")
+```
+> No change in trend with minoritization for legitimizing.
+
+```{r}
+plot_grouped_barplot_count(df = eyeball_wide, x = "dem_minority", y = "q2_self_efficacy")
+```
+
+> No change in trend with minoritization for self-efficacy.
+
+```{r}
+plot_grouped_barplot_count(df = eyeball_wide, x = "dem_minority", y = "q3_acknowledging")
+```
+> No change in trend with minoritizaition with acknowledging.
+
+```{r}
+plot_grouped_barplot_count(df = eyeball_wide, x = "dem_minority", y = "q4_value_affirmation")
+```
+> No change in trend with minoritization for value_affirmation.
+
+```{r}
+plot_grouped_barplot_count(df = eyeball_wide, x = "dem_minority", y = "q5_norms")
+```
+> Minoritization may find normalization less effective?
+
+```{r}
+plot_grouped_barplot_count(df = eyeball_wide, x = "dem_minority", y = "q6_formality")
+```
+> Minoritization may tend to favor formality more?
+
+## Message Tone x Demographics
+
+*Sex/Gender*
+
+```{r}
+eyeball_long |>
+  summarise(mean_rating = mean(message_rating_num), .by = c(dem_sex, tone)) |>
+  ggplot(aes(x = mean_rating, y = dem_sex, fill = tone)) +
+  geom_col(position = position_dodge())
+```
+
+*Race/Ethnicity*
+
+```{r}
+eyeball_long |>
+  summarise(mean_rating = mean(message_rating_num, na.rm = TRUE), .by = c(white_x_other, tone)) |>
+  ggplot(aes(x = mean_rating, y = white_x_other, fill = tone)) +
+  geom_col(position = position_dodge())
+```
+
+```{r}
+eyeball_long |>
+  summarise(mean_rating = mean(message_rating_num, na.rm = TRUE), .by = c(straight_x_other, tone)) |>
+  ggplot(aes(x = mean_rating, y = straight_x_other, fill = tone)) +
+  geom_col(position = position_dodge())
+```
+```{r}
+eyeball_long |>
+  summarise(mean_rating = mean(message_rating_num, na.rm = TRUE), .by = c(age_group, tone)) |>
+  ggplot(aes(x = mean_rating, y = age_group, fill = tone)) +
+  geom_col(position = position_dodge())
+```
+
+```{r}
+eyeball_long |>
+  summarise(mean_rating = mean(message_rating_num, na.rm = TRUE), .by = c(dem_education, tone)) |>
+  ggplot(aes(x = mean_rating, y = dem_education, fill = tone)) +
+  geom_col(position = position_dodge())
+```
+> Note: only one 'less than HS' respondent in the eyeball sample.
+
+```{r}
+eyeball_long |>
+  summarise(mean_rating = mean(message_rating_num), .by = c(dem_marital_status, tone)) |>
+  ggplot(aes(x = mean_rating, y = dem_marital_status, fill = tone)) +
+  geom_col(position = position_dodge())
+```
+> Note: only 1 'separated' and 4 'widowed' in the eyeball sample
+
+```{r}
+eyeball_long |>
+  summarise(mean_rating = mean(message_rating_num), .by = c(dem_income, tone)) |>
+  ggplot(aes(x = mean_rating, y = dem_income, fill = tone)) +
+  geom_col(position = position_dodge())
+```
