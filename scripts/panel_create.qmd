@@ -766,9 +766,5 @@ panel_eyeball |> write_csv(file.path(path_processed, "panel_eyeball.csv"))
 
 ```{r}
 #with response IDs for CV
-panel_tidy |> write_csv(file.path(path_processed, str_c("panel_cv.csv")))
-
-#without response IDs for modelling (This is what we've been using)
-panel_tidy |> select(-response_id) |>
-  write_csv(file.path(path_processed, str_c("panel_long.csv")))
+panel_tidy |> write_csv(file.path(path_processed, str_c("panel_long.csv")))
 ```
