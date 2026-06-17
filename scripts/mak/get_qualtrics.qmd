@@ -80,6 +80,5 @@ repeat {
 
 ```{r}
 panel_api_raw |>
-  write_csv(here::here(
-    path_data, str_c("panel_api_raw_", format(Sys.Date(), "%Y_%m_%d"), ".csv")))
+  write_csv(here::here(path_data,"panel_api_raw.csv"))
 ```
