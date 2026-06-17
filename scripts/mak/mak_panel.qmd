@@ -1,0 +1,332 @@
+---
+title: "Clean Panel"
+format: 
+  html:
+    page-layout: full
+    self-contained: true
+    toc: true
+    toc-depth: 3
+execute: 
+  warning: false
+editor_options: 
+  chunk_output_type: console
+---
+
+## Code Status
+
+Fully functional.
+
+## Purpose
+
+-   Remove dropouts by screening method:
+    -   Unfinished
+    -   Previews
+    -   Duplicate Responses
+    -   CAPTCHA fails
+    -   Healthy screen fails
+    -   AUDIT fails
+    -   Consent declines
+    -   Age fails
+    -   Attention check fails
+    -   Timing check fails
+    
+-   Clean and pivot to long format for modeling
+-   Save intermediary wide-format file for additional EDA and cross-validation
+
+## Setup
+
+```{r}
+library(tidyverse) 
+options(conflicts.policy = "depends.ok")
+
+source("https://github.com/jjcurtin/lab_support/blob/main/fun_eda.R?raw=true")
+source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
+
+path_raw <- format_path("llmpanel/data_raw")
+path_processed <- format_path("llmpanel/data_processed")
+```
+
+*Load raw API data*
+
+```{r}
+#UPDATE IF USING A NEWER EXPORT FILE (AND CHECK FOR FORMAT DIFFRENCES)
+panel_raw <- read.csv(here::here(path_raw, "panel_api_raw_2026_06_14.csv"))
+panel_screen <- panel_raw
+```
+
+*Remove dummy rows*
+
+```{r}
+head(panel_screen, 1) # First row in export is a copy of question text. Remove:
+panel_screen <- panel_screen |> slice(-1)
+```
+
+```{r}
+head(panel_screen, 1) # Next row contains Qualtrics question IDs. Remove:
+panel_screen <- panel_screen |> slice(-1)
+head(panel_screen, 1) # Good to go
+```
+
+*Clean names and add summary variables for screening*
+
+```{r}
+panel_screen <- panel_screen |>
+  janitor::clean_names("snake")  |>
+  rename(health_drink = x47280739)
+
+#Health screener flags
+panel_screen <- panel_screen |> 
+  mutate(
+    all_health_no =
+        health_food == "No" &
+        health_floss == "No" &
+        health_sleep == "No" &
+        health_drink == "No" &
+        health_water == "No",
+    eligible_health = if_else(
+        health_drink == "No" & !all_health_no, "eligible", "ineligible"))
+
+# Collapse attention check Q's into a single flag for all respondents
+panel_screen <- panel_screen |>
+  mutate(att_check = if_any(contains("attention"), \(col) col == "Strongly Disagree")) |> 
+  select(-contains("attention"))
+```
+
+## Filtering by screen-out
+
+*Start tracking tibble for participant flow*
+
+```{r}
+flow <- tibble(flow = "total_submissions", 
+               n_remaining = nrow(panel_screen), 
+               n_failed = NA) |>
+  print()
+```
+
+*Function for filtering based on valid values or thresholds*
+
+```{r}
+filter_value <- function(data, col, valid = NULL, threshold = NULL, keep_col = FALSE, print = FALSE, num = FALSE) {
+  if (num) data <- data |> mutate(!!col := as.numeric(.data[[col]]))
+
+  if (!is.null(threshold)) {
+    keep <- \(x) is.na(x) | x >= threshold
+    drop <- \(x) !is.na(x) & x < threshold
+  } else if (is.na(valid)) {
+    keep <- \(x) is.na(x)
+    drop <- \(x) !is.na(x)
+  } else {
+    keep <- \(x) x == valid
+    drop <- \(x) x != valid
+  }
+
+  flow <<- flow |> full_join(tibble(
+    flow        = col,
+    n_remaining = data |> filter(keep(.data[[col]])) |> nrow(),
+    n_failed    = data |> filter(drop(.data[[col]])) |> nrow()
+  ))
+
+  if (print) print(flow, n = 100)
+
+  data |>
+    filter(keep(.data[[col]])) |>
+    (\(d) if (!keep_col) select(d, -all_of(col)) else d)()
+}
+```
+
+*Screen-outs*
+
+```{r}
+panel_screen <- panel_screen |> 
+  filter_value(col = "finished", valid = "True") |>
+  
+  # Remove previews
+  filter_value(col = "distribution_channel", valid = "anonymous") |>
+  
+  filter_value(col = "q_duplicate_respondent", valid = NA) |> 
+  filter_value(col = "q_recaptcha_score", threshold = 0.5, keep_col = TRUE, num = TRUE) |> 
+  filter_value(col = "all_health_no", valid = FALSE) |> 
+  filter_value(col = "eligible_health", valid = "eligible") |> 
+  filter_value(col = "audit_score", threshold = 8, keep_col = TRUE, num = TRUE) |> 
+  filter_value(col = "consent_agree", valid = "I consent to participate and wish to proceed to the survey.") |> 
+  filter_value(col = "q1_age", threshold = 18, keep_col = TRUE, num = TRUE) |> 
+  filter_value(col = "att_check", valid = TRUE) |>
+  
+  # Timing thresholds at 400 wpm reading speed
+  filter_value(col = "x1_hi_timing_page_submit", threshold = 101, num = TRUE) |> 
+  filter_value(col = "x1_hd_timing_page_submit", threshold = 104, num = TRUE) |> 
+  filter_value(col = "x1_li_timing_page_submit", threshold = 94, num = TRUE) |> 
+  filter_value(col = "x2_hi_timing_page_submit", threshold = 102, num = TRUE) |> 
+  filter_value(col = "x2_hd_timing_page_submit", threshold = 104, num = TRUE) |> 
+  filter_value(col = "x2_li_timing_page_submit", threshold = 98, num = TRUE) |> 
+  filter_value(col = "x3_hi_timing_page_submit", threshold = 102, num = TRUE) |> 
+  filter_value(col = "x3_hd_timing_page_submit", threshold = 106, num = TRUE) |> 
+  filter_value(col = "x3_li_timing_page_submit", threshold = 98, num = TRUE) |> 
+  filter_value(col = "x4_hi_timing_page_submit", threshold = 100, num = TRUE) |> 
+  filter_value(col = "x4_hd_timing_page_submit", threshold = 105, num = TRUE) |> 
+  filter_value(col = "x4_li_timing_page_submit", threshold = 99, num = TRUE) |> 
+  filter_value(col = "tone_timing_page_submit", threshold = 59, num = TRUE, print = TRUE)
+```
+
+The panel is now reduced to the final sample size of n = 510.
+
+## Clean and format
+
+*Convert empty strings to NAs, rename demographic cols, tidy responses*
+
+```{r}
+panel_clean <- panel_screen |> 
+  mutate(
+    across(q4_sexual_orientation:q5_race_ethnicity_7_text, ~na_if(.x, ""))
+  ) |> 
+  rename(dem_age = q1_age,
+         dem_sex = q2_sex_at_birth,
+         dem_identity = q3_gender_identity,
+         dem_orientation = q4_sexual_orientation,
+         dem_orientation_other_text = q4_sexual_orientation_6_text,
+         dem_race_native_alaskan = q5_race_ethnicity_1, 
+         dem_race_asian = q5_race_ethnicity_2,
+         dem_race_hispanic = q5_race_ethnicity_3,
+         dem_race_hawaiian_pacific = q5_race_ethnicity_4,
+         dem_race_black = q5_race_ethnicity_5,
+         dem_race_white = q5_race_ethnicity_6,
+         dem_race_other = q5_race_ethnicity_7,
+         dem_race_other_text = q5_race_ethnicity_7_text,
+         dem_education = q6_education, 
+         dem_student = q7_student_status,
+         dem_income = q8_household_income,
+         dem_n_household = q9_people_in_household,
+         dem_marital_status = q10_marital_status, 
+         dem_minority = q11_un_minoritization
+         )
+```
+
+*Orientation*
+
+- One respondent indicated 'other' with no additional information. This value will be rendered bi/pan as the most likely congruent option.
+- Tidy responses.
+
+```{r}
+panel_clean |> count(dem_orientation_other_text)
+panel_clean <- panel_clean |> select(-dem_orientation_other_text)
+
+panel_clean <- panel_clean |> 
+  mutate(
+    dem_orientation = case_when(
+      dem_orientation ==
+        'Asexual' ~ 'asexual',
+      dem_orientation ==
+        'Heterosexual/Straight' ~ 'straight',
+      dem_orientation ==
+        'Lesbian/Gay' ~ 'gay_or_lesbian',
+      dem_orientation ==
+        'Bisexual/Pansexual' ~ 'bisexual_or_pansexual',
+      dem_orientation ==
+        'None of the above work for me, let me explain:' ~ 'bisexual_or_pansexual'))
+```
+
+*Race/Ethnicity*
+
+The Qualtrics export provides a dummy-coded variable for every option from the check-all-that-apply.
+
+- Clean to true/false flags for each option.
+
+- Only one respondent indicated 'other' as Portuguese in addition to White/Caucasian. This has been considered additional information, but not another unique race/ethnic identity for our demographics. 'Other' columns will be removed.
+
+- Only one respondent indicated Hawaiian/Pacific Islander, while also indicating Native American and White. This column will be removed as too specific in favor of Native American which is comparable.
+
+```{r}
+panel_clean <- panel_clean |>
+  mutate(across(starts_with("dem_race_") & !contains("other"),
+                ~ !is.na(.x)))
+```
+
+```{r}
+panel_clean |> count(dem_race_other_text)
+panel_clean |> count(dem_race_hawaiian_pacific)
+panel_clean <- panel_clean |> select(-dem_race_other, -dem_race_other_text, -dem_race_hawaiian_pacific)
+```
+
+*Gender Identity*
+
+- Many open-response values indicating male/female contained typos. Corrections here are ~hard-coded and may need updating if any new typos emerge in additional responses (510 completes currently)
+
+- One respondent appears to have indicated their age again by mistake for this question. The value will be rendered to an assumption that the respondent is cisgender.
+
+- One respondent each indicated 'Binary' and 'Trans'. 'Binary' in this case may indicate cisgender, or could be a typo of attempting to respond non-binary. These values will be left unchanged, with modelling recipes to consider dropping this variable in favor of solely incorporating sex at birth due to a very low representation of non-cis gender identities.
+
+```{r}
+panel_clean |> count(dem_identity)
+
+panel_clean <- panel_clean |> 
+  mutate(
+    dem_identity = case_when(
+      str_detect(dem_identity,
+                 regex("^m", ignore_case = TRUE)) ~ "male",
+      str_detect(dem_identity,
+                 regex("^f", ignore_case = TRUE)) ~ "female",
+      str_detect(dem_identity,
+                 regex("^w", ignore_case = TRUE)) ~ "female",
+      dem_identity == '38' ~ dem_sex,
+      TRUE ~ dem_identity))
+```
+
+## Finish and save files
+
+*Assign sub-ids #s (instead of response ID strings), remove redundant cols, tidy responses*
+```{r}
+panel_clean <- panel_clean |> 
+  mutate(subid = row_number()) |> 
+  relocate(subid) |> 
+  select(where(~ n_distinct(., na.rm = FALSE) > 1)) |> 
+  mutate(across(c(health_food:dem_orientation,
+                  dem_education, dem_student,
+                  dem_marital_status, dem_minority,
+                  q1_legitimizing_1:q6_formality_1,
+                  x1_hi_1_fl_1:x4_li_3_fn_1) & where(\(x) is.character(x) | is.factor(x)) & !contains("timing"),
+                tidy_responses))
+```
+
+*Save wide format panel with all information for EDA/CV*
+```{r}
+panel_clean |> write_csv(here::here(path_processed, str_c("panel_wide_", format(Sys.Date(), "%Y_%m_%d"), ".csv")))
+```
+
+## Long Formatting
+
+```{r}
+panel_long <- panel_clean |>
+  select(subid, dem_age:dem_minority, q1_legitimizing_1:q6_formality_1,
+         `x1_hi_1_fl_1`:`x4_li_3_fn_1`,
+         -contains("timing"), -contains("attention")) |>
+  pivot_longer(
+    cols= `x1_hi_1_fl_1`:`x4_li_3_fn_1`,
+    values_to = "message_rating",
+    names_to = "message_type") |>
+  separate(message_type,
+    sep = "_", into = c(
+      "survey_version", "context", "q_num", "tone_style"),
+    extra = "drop") |> 
+  mutate(
+    style = if_else(substr(tone_style, 1, 1) == "f", "formal", "informal"),
+    tone = case_when(
+      substr(tone_style, 2, 2) == "l" ~ "legitimizing",
+      substr(tone_style, 2, 2) == "n" ~ "norms",
+      substr(tone_style, 2, 2) == "s" ~ "self_efficacy",
+      substr(tone_style, 2, 2) == "a" ~ "acknowledging",
+      substr(tone_style, 2, 2) == "v" ~ "value_affirmation"),
+    context = case_when(
+      context == "hi" ~ "high_increasing",
+      context == "hd" ~ "high_decreasing",
+      context == "li" ~ "low_increasing")
+    ) |>
+  select(-q_num, -tone_style) |> 
+  filter(!is.na(message_rating),
+         str_trim(message_rating) != "")
+```
+
+*Save file for modelling*
+
+```{r}
+panel_clean |> write_csv(here::here(path_processed, str_c("panel_long_", format(Sys.Date(), "%Y_%m_%d"), ".csv")))
+```
