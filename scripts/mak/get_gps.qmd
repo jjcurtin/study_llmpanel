@@ -14,9 +14,9 @@ editor_options:
 
 ## Code Status
 
-Fully Functional~ additional cleaning needing before running
+Fully Functional
 
-* The list of incomplete matches for grocery addresses has not been fully investigated. This does not appear to be any issue with the code, rather a lack of precise information in the open-responses from respondents, but future changes to code could possibly improve performance and reduce the amount of manual review required.
+* The list of incomplete matches for grocery addresses has not been fully investigated. This does not appear to be any issue with the code, rather a lack of precise information in the open-responses from respondents, but future changes to cleaning steps could possibly improve performance and reduce the amount of manual review required.
 
 ## Purpose
 
@@ -76,8 +76,11 @@ panel <- cbind(panel, geocode(paste(panel$city, panel$state))) |>
     city_longitude = lon,
     city_latitude = lat)
 
-panel_clean |> write_csv(here::here(path_processed, str_c("panel_eda_", format(Sys.Date(), "%Y_%m_%d"), ".csv")))
+panel <- panel |> 
+  relocate(city_latitude, .after = location_longitude) |> 
+  relocate(city_longitude, .after = city_latitude)
 
+panel |> write_csv(here::here(path_processed, str_c("panel_eda_", format(Sys.Date(), "%Y_%m_%d"), ".csv")))
 ```
 
 *Google API for geocode grocery store addresses*

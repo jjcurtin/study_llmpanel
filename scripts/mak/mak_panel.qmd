@@ -415,13 +415,44 @@ grocer_name_stds <- c(
   "(?i)^save\\s*mart$"               = "Save Mart"
 )
 
+state_abbrev_stds <- c(
+  "(?i)^AL$" = "Alabama",        "(?i)^AK$" = "Alaska",
+  "(?i)^AZ$" = "Arizona",        "(?i)^AR$" = "Arkansas",
+  "(?i)^CA$" = "California",     "(?i)^CO$" = "Colorado",
+  "(?i)^CT$" = "Connecticut",    "(?i)^DE$" = "Delaware",
+  "(?i)^FL$" = "Florida",        "(?i)^GA$" = "Georgia",
+  "(?i)^HI$" = "Hawaii",         "(?i)^ID$" = "Idaho",
+  "(?i)^IL$" = "Illinois",       "(?i)^IN$" = "Indiana",
+  "(?i)^IA$" = "Iowa",           "(?i)^KS$" = "Kansas",
+  "(?i)^KY$" = "Kentucky",       "(?i)^LA$" = "Louisiana",
+  "(?i)^ME$" = "Maine",          "(?i)^MD$" = "Maryland",
+  "(?i)^MA$" = "Massachusetts",  "(?i)^MI$" = "Michigan",
+  "(?i)^MN$" = "Minnesota",      "(?i)^MS$" = "Mississippi",
+  "(?i)^MO$" = "Missouri",       "(?i)^MT$" = "Montana",
+  "(?i)^NE$" = "Nebraska",       "(?i)^NV$" = "Nevada",
+  "(?i)^NH$" = "New Hampshire",  "(?i)^NJ$" = "New Jersey",
+  "(?i)^NM$" = "New Mexico",     "(?i)^NY$" = "New York",
+  "(?i)^NC$" = "North Carolina", "(?i)^ND$" = "North Dakota",
+  "(?i)^OH$" = "Ohio",           "(?i)^OK$" = "Oklahoma",
+  "(?i)^OR$" = "Oregon",         "(?i)^PA$" = "Pennsylvania",
+  "(?i)^RI$" = "Rhode Island",   "(?i)^SC$" = "South Carolina",
+  "(?i)^SD$" = "South Dakota",   "(?i)^TN$" = "Tennessee",
+  "(?i)^TX$" = "Texas",          "(?i)^UT$" = "Utah",
+  "(?i)^VT$" = "Vermont",        "(?i)^VA$" = "Virginia",
+  "(?i)^WA$" = "Washington",     "(?i)^WV$" = "West Virginia",
+  "(?i)^WI$" = "Wisconsin",      "(?i)^WY$" = "Wyoming",
+  "(?i)^DC$" = "District of Columbia"
+)
+
 panel_clean <- panel_clean |>
   mutate(
     # Normalize curly apostrophes, then standardize name
     grocer_name = str_replace_all(grocer_name, "\u2019", "'") |> str_squish(),
     grocer_name = str_replace_all(grocer_name, grocer_name_stds),
+    # Expand state abbreviations to full names before building address
+    state = str_replace_all(state, state_abbrev_stds),
     grocer_address = str_squish(
-      paste(grocer_name, grocer_street, city, state, sep = ", "))
+      paste(grocer_name, grocer_street, city, state, sep = " "))
   )
 
 # Remove junk phrases from the full address string
