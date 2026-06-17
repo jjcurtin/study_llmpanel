@@ -1,0 +1,95 @@
+---
+title: "GPS data for llmpanel"
+format: 
+  html:
+    page-layout: full
+    self-contained: true
+    toc: true
+    toc-depth: 3
+execute: 
+  warning: false
+editor_options: 
+  chunk_output_type: console
+---
+
+## Code Status
+
+Fully Functional~ additional cleaning needing before running
+
+* The list of incomplete matches for grocery addresses has not been fully investigated. This does not appear to be any issue with the code, rather a lack of precise information in the open-responses from respondents, but future changes to code could possibly improve performance and reduce the amount of manual review required.
+
+## Purpose
+
+- Use Google Maps API to geocode respondent city/state and match grocery store addresses for EDA / Cross-Validation
+
+- This script saves two files: 
+
+--- panel_eda.csv is an updated panel_wide.csv from mak_panel.qmd with geocoded lat/long coordinates joined.
+
+--- grocer_gps.rds is the full nested list object that geocode produces for grocery store addresses, which contains more information than is relevant to join to the panel object.
+
+* Saved copies of these files are located in the S drive, meaning this script does not need to be rerun unless changes are made or there is an expected difference in geocode results. 
+
+
+## Setup
+
+```{r}
+#| include: false
+
+options(conflicts.policy = "depends.ok")
+library(tidyverse)
+library(ggmap)
+library(geosphere)
+
+source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
+source("https://github.com/jjcurtin/lab_support/blob/main/fun_eda.R?raw=true")
+source("https://github.com/jjcurtin/lab_support/blob/main/get_credentials.R?raw=true")
+
+path_credentials <- format_path("other")
+path_raw <- format_path("llmpanel/data_raw")
+path_processed <- format_path("llmpanel/data_processed")
+```
+
+*Get credentials*
+```{r}
+key_google <- get_credentials("google_api",
+  file.path(path_credentials, "credentials.csv")) |>
+  pull(key)
+
+register_google(key = key_google)
+```
+
+*Load in data*
+```{r}
+panel <- read_csv(here::here(path_processed, "panel_wide_2026_06_17.csv"))
+```
+
+## Geocode
+
+*Google API for geocode city/state*
+
+These coordinates are a pinpoint in the respondent's indicated city of residence, to be compared to the device-level lat/long coordinates that Qualtrics provided.
+
+```{r}
+panel <- cbind(panel, geocode(paste(panel$city, panel$state))) |> 
+  rename(
+    city_longitude = lon,
+    city_latitude = lat)
+
+panel_clean |> write_csv(here::here(path_processed, str_c("panel_eda_", format(Sys.Date(), "%Y_%m_%d"), ".csv")))
+
+```
+
+*Google API for geocode grocery store addresses*
+
+The reason for output = all and saving the separate file is because any partial/incomplete matches of addresses will still return lat/long coordinates that are otherwise indistinguishable from complete/proper matches. If ggmap doesn't find a Walmart in Madison, WI, it will provide a generic lat/long for just the city itself. The full geocode object will allow us to investigate where any why partial matches occur.
+
+```{r}
+grocer_gps <- geocode(
+panel$grocer_address,
+output = "all")
+
+grocer_gps |> saveRDS(here::here(path_raw, str_c('grocer_gps_', format(Sys.Date(), "%Y_%m_%d"), ".rds")))
+```
+
+All done! Exploration of this data will occur in panel_eda.qmd
