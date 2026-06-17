@@ -61,7 +61,7 @@ register_google(key = key_google)
 
 *Load in data*
 ```{r}
-panel <- read_csv(here::here(path_processed, "panel_wide_2026_06_17.csv"))
+panel <- read_csv(here::here(path_processed, "panel_wide.csv"))
 ```
 
 ## Geocode
@@ -92,7 +92,7 @@ grocer_gps <- geocode(
 panel$grocer_address,
 output = "all")
 
-grocer_gps |> saveRDS(here::here(path_raw, str_c('grocer_gps_', format(Sys.Date(), "%Y_%m_%d"), ".rds")))
+grocer_gps |> saveRDS(here::here(path_processed, str_c('grocer_gps_', format(Sys.Date(), "%Y_%m_%d"), ".rds")))
 ```
 
 All done! Exploration of this data will occur in panel_eda.qmd

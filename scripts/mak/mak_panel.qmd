@@ -51,7 +51,7 @@ path_processed <- format_path("llmpanel/data_processed")
 
 ```{r}
 #UPDATE IF USING A NEWER EXPORT FILE (AND CHECK FOR FORMAT DIFFRENCES)
-panel_raw <- read.csv(here::here(path_raw, "panel_api_raw_2026_06_14.csv"))
+panel_raw <- read.csv(here::here(path_raw, "panel_api_raw.csv"))
 panel_screen <- panel_raw
 ```
 
