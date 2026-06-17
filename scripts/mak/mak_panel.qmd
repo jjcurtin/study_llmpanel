@@ -1,5 +1,5 @@
 ---
-title: "Clean Panel"
+title: "Make/Clean Panel"
 format: 
   html:
     page-layout: full
@@ -31,6 +31,7 @@ Fully functional.
     -   Timing check fails
     
 -   Clean and pivot to long format for modeling
+-   Clean open-response grocery store data for cross-validation
 -   Save intermediary wide-format file for additional EDA and cross-validation
 
 ## Setup
@@ -197,7 +198,11 @@ panel_clean <- panel_screen |>
          dem_income = q8_household_income,
          dem_n_household = q9_people_in_household,
          dem_marital_status = q10_marital_status, 
-         dem_minority = q11_un_minoritization
+         dem_minority = q11_un_minoritization,
+         grocer_name = q12_grocer_1,  # For geocode later
+         grocer_street = q12_grocer_2,# ^
+         city = id_location_1,        # ^
+         state = id_location_2       # ^^^
          )
 ```
 
@@ -283,8 +288,179 @@ panel_clean <- panel_clean |>
                   dem_education, dem_student,
                   dem_marital_status, dem_minority,
                   q1_legitimizing_1:q6_formality_1,
-                  x1_hi_1_fl_1:x4_li_3_fn_1) & where(\(x) is.character(x) | is.factor(x)) & !contains("timing"),
+                  x1_hi_1_fl_1:x4_li_10_in_1) & where(\(x) is.character(x) | is.factor(x)) &
+                  !contains("timing") & !contains("grocer"),
                 tidy_responses))
+```
+
+*Clean grocery store open-responses for cross-validation*
+
+Many typos and inconsistencies exist within the raw responses for nearest grocery store address (HEB vs. H-E-B, etc.)
+
+- responses will be standardized for the sake of EDA and improving geocode accuracy.
+
+```{r}
+grocer_name_stds <- c(
+  # --- Walmart ---
+  "(?i)^super\\s*wal[\\s-]*mart$"      = "Walmart Supercenter",
+  "(?i)^walmart\\s*supercenter$"        = "Walmart Supercenter",
+  "(?i)^wal[\\s-]*m[ao]?r?t$"          = "Walmart",
+  "(?i)^wall\\s*mart$"                  = "Walmart",
+  "(?i)^walm[ao]t$"                     = "Walmart",
+  "(?i)^walmart,\\s*.+"                 = "Walmart",   # name field contains address
+  # --- Kroger ---
+  "(?i)^kri[ao]?ger['s]*$"             = "Kroger",
+  "(?i)^kroger['s]*$"                  = "Kroger",
+  # --- H-E-B ---
+  "(?i)^h[\\.\\s]*e[\\.\\s]*b[\\.\\s]*(store)?$" = "H-E-B",
+  "(?i)^heb$"                           = "H-E-B",
+  # --- Hy-Vee ---
+  "(?i)^hy[-\\s]*vee$"                  = "Hy-Vee",
+  "(?i)^hyvee$"                         = "Hy-Vee",
+  # --- Food Lion ---
+  "(?i)^food[-\\s]*lion$"               = "Food Lion",
+  # --- Dollar General ---
+  "(?i)^dollar\\s*general$"             = "Dollar General",
+  # --- Family Dollar ---
+  "(?i)^family\\s*dollar$"              = "Family Dollar",
+  # --- Trader Joe's ---
+  "(?i)^trader['s]*\\s*joe['s]*$"       = "Trader Joe's",
+  # --- Costco ---
+  "(?i)^cos[t]?co$"                     = "Costco",
+  # --- ShopRite ---
+  "(?i)^shop[\\s-]*rite$"               = "ShopRite",
+  "(?i)^shoperite$"                     = "ShopRite",
+  # --- Winn-Dixie ---
+  "(?i)^winn[\\s-]*dixie$"              = "Winn-Dixie",
+  # --- Aldi ---
+  "(?i)^aldi['s]*$"                     = "Aldi",
+  # --- Piggly Wiggly ---
+  "(?i)^piggly\\s*wiggly$"              = "Piggly Wiggly",
+  # --- Whole Foods ---
+  "(?i)^whole\\s*foods(\\s*market)?$"   = "Whole Foods",
+  # --- Target ---
+  "(?i)^targer$"                        = "Target",
+  # --- 7-Eleven ---
+  "(?i)^7[\\s-]*eleven$"                = "7-Eleven",
+  "(?i)^seven\\s*eleven$"               = "7-Eleven",
+  # --- Stater Bros ---
+  "(?i)^stater\\s*br(os?|others)$"      = "Stater Bros",
+  # --- Stop & Shop ---
+  "(?i)^stop\\s*(and|&)\\s*shop$"       = "Stop & Shop",
+  # --- Market Basket ---
+  "(?i)^market\\s*basket$"              = "Market Basket",
+  # --- Food City ---
+  "(?i)^food[-\\s]*city$"               = "Food City",
+  # --- Save-A-Lot ---
+  "(?i)^sav[e]?[-\\s]*a[-\\s]*lot$"     = "Save-A-Lot",
+  # --- WinCo ---
+  "(?i)^winco[s]?$"                     = "WinCo",
+  # --- Harris Teeter ---
+  "(?i)^harris\\s*teeter$"              = "Harris Teeter",
+  # --- Amazon Fresh ---
+  "(?i)^amazon(\\s*fresh)?$"            = "Amazon Fresh",
+  # --- IGA ---
+  "(?i)^iga$"                           = "IGA",
+  # --- Cub Foods ---
+  "(?i)^cub(\\s*foods)?$"               = "Cub Foods",
+  # --- Star Market ---
+  "(?i)^star[-\\s]?market$"             = "Star Market",
+  # --- Fred Meyer ---
+  "(?i)^fred\\s*m[ey]+r[s]?$"           = "Fred Meyer",
+  # --- Hannaford ---
+  "(?i)^hann[ai]?ford$"                 = "Hannaford",
+  # --- Brookshire's ---
+  "(?i)^brookshire['s]*$"               = "Brookshire's",
+  # --- Giant Eagle ---
+  "(?i)^giant\\s*eagle$"                = "Giant Eagle",
+  # --- Giant (standalone) ---
+  "(?i)^giants?$"                       = "Giant",
+  # --- Price Chopper ---
+  "(?i)^price\\s*chopper$"              = "Price Chopper",
+  # --- Pick 'N Save ---
+  "(?i)^pick[\\s'-]*n[\\s'-]*save$"     = "Pick 'N Save",
+  # --- BJ's ---
+  "(?i)^bj['s]*(\\s*wholesale\\s*club)?$" = "BJ's",
+  # --- Safeway ---
+  "(?i)^saf[ae]?way$"                   = "Safeway",
+  # --- Big Y ---
+  "(?i)^big\\s*y$"                      = "Big Y",
+  # --- Smith's ---
+  "(?i)^smith['s]+$"                    = "Smith's",
+  # --- Jewel ---
+  "(?i)^jewels?$"                       = "Jewel",
+  # --- Ralphs ---
+  "(?i)^ralphs?$"                       = "Ralphs",
+  # --- Tom Thumb ---
+  "(?i)^tom\\s*thumb$"                  = "Tom Thumb",
+  # --- Sun Fresh ---
+  "(?i)^sun\\s*fresh$"                  = "Sun Fresh",
+  # --- Case-only fixes (must be last) ---
+  "(?i)^publix$"   = "Publix",
+  "(?i)^safeway$"  = "Safeway",
+  "(?i)^target$"   = "Target",
+  "(?i)^ingles$"   = "Ingles",
+  "(?i)^vons$"     = "Vons",
+  "(?i)^sprouts$"  = "Sprouts",
+  "(?i)^wegmans$"  = "Wegmans",
+  "(?i)^meijer$"   = "Meijer",
+  "(?i)^lidl$"     = "Lidl",
+  "(?i)^schnucks$" = "Schnucks",
+  "(?i)^albertsons$"    = "Albertsons",
+  "(?i)^haggens?$"      = "Haggen",
+  "(?i)^festival\\s*foods$" = "Festival Foods",
+  "(?i)^fresh\\s*market$"   = "Fresh Market",
+  "(?i)^smart\\s*(and|&)\\s*final.*" = "Smart & Final",
+  "(?i)^fry's\\s*food\\s*store$"     = "Fry's",
+  "(?i)^save\\s*mart$"               = "Save Mart"
+)
+
+panel_clean <- panel_clean |>
+  mutate(
+    # Normalize curly apostrophes, then standardize name
+    grocer_name = str_replace_all(grocer_name, "\u2019", "'") |> str_squish(),
+    grocer_name = str_replace_all(grocer_name, grocer_name_stds),
+    grocer_address = str_squish(
+      paste(grocer_name, grocer_street, city, state, sep = ", "))
+  )
+
+# Remove junk phrases from the full address string
+remove_phrases <- regex(
+  paste(
+    "its in",
+    "i dont know",
+    "don't know",
+    "not sure",
+    "bronx n\\.y",
+    "ottumwa iowa",
+    sep = "|"
+  ),
+  ignore_case = TRUE
+)
+
+# Address-level fixes (duplicates, formatting, etc.)
+address_fixes <- c(
+  "(?i)tell13"                                                                    = "tell 13",
+  "(?i)2800arapahoe"                                                              = "2800 Arapahoe",
+  "(?i)Kroger, Kroger, Junction city, Ky"                                         = "Kroger, Junction city, Ky",
+  "(?i)Smart and final on Arlington, Walmart on Van Buren, Riverside, California" = "Smart and final, Arlington, Riverside, California",
+  "(?i)Walmart, Eisenhower dr., Aldi, Eisenhower dr., Hanover, PA"                = "Walmart, Eisenhower dr., Hanover, PA",
+  "(?i)Walmart, 1010 112th St Amory MS, Amory, MS"                                = "Walmart, 1010 112th St, Amory, MS",
+  "(?i)24 Hours Food Mart Grocery Store, 500 Mannheim Rd, Bellwood, IL 60104, United States, Chicago, IL"  = "24 Hours Food Mart Grocery Store, 500 Mannheim Rd, Bellwood, IL"
+)
+
+panel_clean <- panel_clean |>
+  mutate(
+    grocer_address = str_replace_all(grocer_address, "\u2019", "'"),
+    grocer_address = grocer_address |>
+      str_remove_all(remove_phrases) |>
+      str_replace_all(address_fixes) |>
+      str_squish()
+  ) |> 
+  relocate(city, .after = grocer_street) |> 
+  relocate(state, .after = city) |>
+  relocate(grocer_address, .after = state)
+  
 ```
 
 *Save wide format panel with all information for EDA/CV*
@@ -297,10 +473,10 @@ panel_clean |> write_csv(here::here(path_processed, str_c("panel_wide_", format(
 ```{r}
 panel_long <- panel_clean |>
   select(subid, dem_age:dem_minority, q1_legitimizing_1:q6_formality_1,
-         `x1_hi_1_fl_1`:`x4_li_3_fn_1`,
+         `x1_hi_1_fl_1`:`x4_li_10_in_1`,
          -contains("timing"), -contains("attention")) |>
   pivot_longer(
-    cols= `x1_hi_1_fl_1`:`x4_li_3_fn_1`,
+    cols= `x1_hi_1_fl_1`:`x4_li_10_in_1`,
     values_to = "message_rating",
     names_to = "message_type") |>
   separate(message_type,
