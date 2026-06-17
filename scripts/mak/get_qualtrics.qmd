@@ -1,0 +1,85 @@
+---
+title: "Get Qualtrics"
+format: 
+  html:
+    page-layout: full
+    self-contained: true
+    toc: true
+    toc-depth: 3
+execute: 
+  warning: false
+editor_options: 
+  chunk_output_type: console
+---
+
+## Code Status
+
+Fully functional
+
+- Qualtrics has occasionally modified the format of exported data files when
+downloaded or pulled via API. Re-running this script over time may produce
+files with slightly different formats as a result, possibly leading to errors
+when passed into proceeding scripts for cleaning and EDA. Inspect every file.
+
+## Purpose
+
+-   Pull panel data from Qualtrics via API
+-   Save a raw export file with the unmodified data file
+
+*Setup*
+
+```{r}
+#| include: false
+
+library(tidyverse) 
+options(conflicts.policy = "depends.ok")
+
+#source("https://github.com/jjcurtin/lab_support/blob/main/fun_eda.R?raw=true")
+source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
+source("https://github.com/jjcurtin/lab_support/blob/main/get_credentials.R?raw=true")
+source("https://github.com/jjcurtin/lab_support/blob/main/download_qualtrics.R?raw=true")
+
+path_data <- format_path("llmpanel/data_raw")
+path_credentials <- format_path("other")
+```
+
+*Get Credentials*
+
+```{r}
+token_qualtrics <- get_credentials("qualtrics",
+  here::here(path_credentials, "credentials.csv")) |>
+  pull(token)
+```
+
+*Download results by API*
+
+```{r}
+panel_api_raw <- NULL
+
+# Retry on intermittent 404s from Qualtrics until successful download. 
+
+repeat {
+  panel_api_raw <- tryCatch(
+    {download_qualtrics(
+        survey_id = "SV_dbAKSR75ATWSo2q",
+        api_token = token_qualtrics,
+        display_progress = TRUE)
+      },
+    error = function(e) {
+      if (str_detect(conditionMessage(e), "404")) {
+        message("Qualtrics returned 404. Retrying in 5 seconds...")
+        Sys.sleep(5)
+        return(NULL)}
+      stop(e)
+      })
+  if (!is.null(panel_api_raw)) {break}
+  }
+```
+
+*save raw API file*
+
+```{r}
+panel_api_raw |>
+  write_csv(here::here(
+    path_data, str_c("panel_api_raw_", format(Sys.Date(), "%Y_%m_%d"), ".csv")))
+```

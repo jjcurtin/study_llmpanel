@@ -77,7 +77,7 @@ repeat {
     {download_qualtrics(
         survey_id = "SV_dbAKSR75ATWSo2q",
         api_token = token_qualtrics,
-        display_progress = FALSE)
+        display_progress = TRUE)
       },
     error = function(e) {
       if (str_detect(conditionMessage(e), "404")) {
