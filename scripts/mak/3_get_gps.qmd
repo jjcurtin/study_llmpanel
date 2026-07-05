@@ -20,6 +20,8 @@ In Progress
 
 - Use Google Maps API to geocode respondent city/state and verify grocery store addresses
 
+- *This script should be ran after 2_mak_panel for the screened total of 510 respondents.
+
 - This script overwrites panel.csv to include the following:
 - ggmap formatted address for grocery stores, including zip code, street number, etc. (if found)
 - lat/long coordinates for respondents city/state and grocer store (if found)
@@ -55,7 +57,7 @@ register_google(key = key_google)
 
 *Load in data*
 ```{r}
-panel <- read_csv(here::here(path_processed, "panel_eda_2026_06_17.csv"))
+panel <- read_csv(here::here(path_processed, "panel.csv"))
 ```
 
 ## Geocode
@@ -116,12 +118,11 @@ panel <- panel |>
   relocate(ggmap_grocer_address, .after = grocer_address) |> 
   relocate(grocer_latitude, .after = city_longitude) |> 
   relocate(grocer_longitude, .after = grocer_latitude)
-
 ```
 
 *Spot check to ensure subids are matched appropriately*
 ```{r}
-set.seed(4827)
+set.seed(1221)
 check_idx <- sample(seq_len(nrow(panel)), 3)
 
 tibble(
@@ -153,6 +154,24 @@ panel <- panel |>
   mutate(grocer_partial_match = as.integer(partial_match_vals))
 ```
 
+*Check where ggmap found a match, but did not label it as a grocery store or supermarket*
+```{r}
+grocer_type_flag <- map_int(grocer_gps, \(x) {
+  types <- unlist(lapply(x$results, \(r) r$types))
+  as.integer(any(c("grocery_or_supermarket", "supermarket") %in% types))
+})
+```
+
+*Add invalid store type flag to panel*
+```{r}
+panel <- panel |>
+  mutate(grocer_type_flag = grocer_type_flag)
+```
+
+```{r}
+panel |> write_csv(here::here(path_processed,"panel_test.csv"))
+```
+
 Only 141/510 = 27.6% of grocer addresses were fully matched by ggmap. Failures fall into a few categories:
 
 1. Google Maps REALLY wants zip codes + street numbers, which weren't in the survey. Some perfectly correct addresses simply fail without this information. 
@@ -179,10 +198,10 @@ valid = c(187, 23, 379, 59, 198, 131, 335, 387, 345, 439, 461, 371, 317, 497,
 147,423,326,115,158,118,323,232,473,383,106,68,92,475,281,329,395,278,82,163,
 288,275,354,113,18,267,180,362,304,87,213,129,408,202,468,460,189,340,510,487,
 179,124,134,480,200,441,353,279,485,220,438,458,193,157,75,183,425,222,149,
-299,205,127,327,355,334)
+299,205,127,327,355,334, 108, 196, 204, 211, 209, 211, 216, 284)
 ```
 
-Manual review identified these 242 respondents as having given proper grocery stores, only failing for benign reasons such as #1 or #2 above.
+Manual review identified these 250 respondents as having given proper grocery stores, only failing for benign reasons such as #1 or #2 above. With the following exceptions:
 
 *Update panel*
 ```{r}
