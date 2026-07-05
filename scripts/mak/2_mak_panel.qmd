@@ -496,44 +496,5 @@ panel_clean <- panel_clean |>
 
 *Save wide format panel with all information for EDA/CV*
 ```{r}
-panel_clean |> write_csv(here::here(path_processed, str_c("panel_wide_", format(Sys.Date(), "%Y_%m_%d"), ".csv")))
-```
-
-## Long Formatting
-
-```{r}
-panel_long <- panel_clean |>
-  select(subid, dem_age:dem_minority, q1_legitimizing_1:q6_formality_1,
-         `x1_hi_1_fl_1`:`x4_li_10_in_1`,
-         -contains("timing"), -contains("attention")) |>
-  pivot_longer(
-    cols= `x1_hi_1_fl_1`:`x4_li_10_in_1`,
-    values_to = "message_rating",
-    names_to = "message_type") |>
-  separate(message_type,
-    sep = "_", into = c(
-      "survey_version", "context", "q_num", "tone_style"),
-    extra = "drop") |> 
-  mutate(
-    style = if_else(substr(tone_style, 1, 1) == "f", "formal", "informal"),
-    tone = case_when(
-      substr(tone_style, 2, 2) == "l" ~ "legitimizing",
-      substr(tone_style, 2, 2) == "n" ~ "norms",
-      substr(tone_style, 2, 2) == "s" ~ "self_efficacy",
-      substr(tone_style, 2, 2) == "a" ~ "acknowledging",
-      substr(tone_style, 2, 2) == "v" ~ "value_affirmation"),
-    context = case_when(
-      context == "hi" ~ "high_increasing",
-      context == "hd" ~ "high_decreasing",
-      context == "li" ~ "low_increasing")
-    ) |>
-  select(-q_num, -tone_style) |> 
-  filter(!is.na(message_rating),
-         str_trim(message_rating) != "")
-```
-
-*Save file for modelling*
-
-```{r}
-panel_clean |> write_csv(here::here(path_processed, str_c("panel_long_", format(Sys.Date(), "%Y_%m_%d"), ".csv")))
+panel_clean |> write_csv(here::here(path_processed,"panel.csv"))
 ```
