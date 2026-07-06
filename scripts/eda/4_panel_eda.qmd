@@ -8,9 +8,23 @@ format:
     toc-depth: 3
 execute: 
   warning: false
+editor_options: 
+  chunk_output_type: console
 ---
 
-This script is used to conduct thorough EDA of the final 510 survey respondents, and to further investigate respondents for fraudulent or otherwise untrustworthy behavior questioning the validity of the sample.
+## Code Status
+
+In Progress
+
+## Purpose
+
+This script is used to conduct thorough EDA of the final 510 survey respondents, and to further investigate respondents for fraudulent or otherwise untrustworthy behavior questioning the validity of the sample. Objectives include:
+
+- Build the suspicion index to inform a decision about excluding additonal respondents from the final sample
+
+- Modelling EDA to inform recipe-building and feature-engineering
+
+- Overwrite panel.csv in long format
 
 ```{r}
 library(tidyverse) 
