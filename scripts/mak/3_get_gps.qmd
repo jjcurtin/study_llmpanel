@@ -14,7 +14,7 @@ editor_options:
 
 ## Code Status
 
-In Progress
+Fully Functional
 
 ## Purpose
 
@@ -23,9 +23,8 @@ In Progress
 - *This script should be ran after 2_mak_panel for the screened total of 510 respondents.
 
 - This script overwrites panel.csv to include the following:
-- ggmap formatted address for grocery stores, including zip code, street number, etc. (if found)
-- lat/long coordinates for respondents city/state and grocer store (if found)
-- columns that flag for a variety of anomalies regarding grocery stores
+- lat/long coordinates for respondents city/state
+- a column that flags for a variety of anomalies regarding grocery stores
 
 - A grocer_gps.rds file is also saved in data_raw to eliminate any future need to rerun API calls. This is a nested large list object with the full output of geocode() for each grocery store address.
 
@@ -64,7 +63,7 @@ panel <- read_csv(here::here(path_processed, "panel.csv"))
 
 ### City/State Coordinates 
 
-These coordinates are a general reference to the respondent's home city, to be compared to the device-level lat/long coordinates that Qualtrics provided.
+These coordinates will generally reference the respondent's home city, to be compared with device lat/long coordinates from Qualtrics.
 
 *Pull API and bind directly to panel*
 ```{r}
@@ -80,20 +79,20 @@ panel <- panel |>
 
 ### Grocery Store Addresses
 
-The reason for output = all is that any partial/incomplete match will still return lat/long coordinates that are indistinguishable from proper matches. If ggmap doesn't find a Walmart in Madison, WI, it will provide a generic lat/long for just Madison itself. The full geocode output includes a flag for these cases that is dropped otherwise.
+The reason for output = all is that any partial/incomplete match still returns lat/long coordinates that are indistinguishable from proper matches. If ggmap doesn't find a Walmart in Madison, WI, it will provide a generic lat/long for just Madison itself. The full geocode output includes a flag for these cases that is dropped otherwise.
 
 Because there are costs associated with the Google Maps API, saving the full object allows us to refer back to any discarded information without needing to re-run the call. In other words, if we need to make changes or additions to this script in the future, we can load in grocer_gps.rds to test the script freely.
 
 *Pull API and save separate object*
 ```{r}
 grocer_gps <- geocode(
-panel$grocer_address,
-output = "all")
+  panel$grocer_address,
+  output = "all")
 
 grocer_gps |> saveRDS(here::here(path_processed, 'grocer_gps.rds'))
 ```
 
-*Load in chunk for RDS file generated 6-17-2026*
+*Load in chunk for RDS file (last generated 6-17-2026)*
 ```{r}
 grocer_gps <- readRDS(here::here(path_raw, "grocer_gps.rds"))
 ```
@@ -111,9 +110,17 @@ extract_field <- function(gps_list, i, field) {
 
 panel <- panel |>
   mutate(
-    ggmap_grocer_address = map_chr(seq_along(grocer_gps), ~extract_field(grocer_gps, .x, "formatted_address")),
-    grocer_latitude = map_dbl(seq_along(grocer_gps), ~extract_field(grocer_gps, .x, "lat")),
-    grocer_longitude = map_dbl(seq_along(grocer_gps), ~extract_field(grocer_gps, .x, "lng"))
+    ggmap_grocer_address = map_chr(
+      seq_along(grocer_gps),
+      ~extract_field(grocer_gps, .x, "formatted_address")),
+    
+    grocer_latitude = map_dbl(
+      seq_along(grocer_gps),
+      ~extract_field(grocer_gps, .x, "lat")),
+    
+    grocer_longitude = map_dbl(
+      seq_along(grocer_gps),
+      ~extract_field(grocer_gps, .x, "lng"))
   ) |> 
   relocate(ggmap_grocer_address, .after = grocer_address) |> 
   relocate(grocer_latitude, .after = city_longitude) |> 
@@ -128,7 +135,7 @@ check_idx <- sample(seq_len(nrow(panel)), 3)
 tibble(
   idx               = check_idx,
   input_address     = panel$grocer_address[check_idx],
-  returned_address = panel$ggmap_grocer_address[check_idx],
+  returned_address  = panel$ggmap_grocer_address[check_idx],
   grocer_lat        = panel$grocer_latitude[check_idx],
   grocer_lng        = panel$grocer_longitude[check_idx],
   raw_lat           = map_dbl(check_idx, ~extract_field(grocer_gps, .x, "lat")),
@@ -136,9 +143,9 @@ tibble(
 )
 ```
 
-## Grocer Address EDA
+## Grocer EDA
 
-*Check where ggmap failed to identify a grocery store*
+*Check where ggmap failed to fully match an address*
 ```{r}
 partial_match_vals <- sapply(grocer_gps, function(x) {
   pm <- x$results[[1]]$partial_match
@@ -148,47 +155,74 @@ partial_match_vals <- sapply(grocer_gps, function(x) {
 table(partial_match_vals)
 ```
 
-*Add partial match flag to panel*
-```{r}
-panel <- panel |>
-  mutate(grocer_partial_match = as.integer(partial_match_vals))
-```
-
-*Check where ggmap found a match, but did not label it as a grocery store or supermarket*
+*Check where ggmap did not label a location as a grocery store or supermarket*
 ```{r}
 grocer_type_flag <- map_int(grocer_gps, \(x) {
   types <- unlist(lapply(x$results, \(r) r$types))
   as.integer(any(c("grocery_or_supermarket", "supermarket") %in% types))
 })
+
+table(grocer_type_flag)
 ```
 
-*Add invalid store type flag to panel*
+*Add flags to panel*
 ```{r}
-panel <- panel |>
-  mutate(grocer_type_flag = grocer_type_flag)
+panel_flags <- panel |>
+  mutate(grocer_partial_match = as.integer(partial_match_vals),
+         grocer_type_flag = grocer_type_flag)
 ```
 
+*Save panel w/ flags for manual review*
 ```{r}
-panel |> write_csv(here::here(path_processed,"panel_test.csv"))
+#panel_flags |> write_csv(here::here(path_processed,"panel_test.csv"))
 ```
 
-Only 141/510 = 27.6% of grocer addresses were fully matched by ggmap. Failures fall into a few categories:
-
-1. Google Maps REALLY wants zip codes + street numbers, which weren't in the survey. Some perfectly correct addresses simply fail without this information. 
-
-2. Small errors such as a street name typo or putting the incorrect cross-street for a store located at an intersection.
-
-3. Genuine anomalies: Possibly fake stores, street names that are blocks away from the actual location of the store, and improper responses such as "Walmart - online".
-
-The remaining 369 observations will require manual review to identify why each error occurred, and which are actually suspicious.
-
+The full ggmap output provides two critical pieces of information: a flag for 'partial match', and a list of 'location types' for whatever location was identified, which includes if a location is marked as a "grocery_or_supermarket" or just "supermarket" (not sure why there is two, but in this case we are essentially grouping them together). The above code chunks are used to save a version of the panel with these flags, which can then be used to manually review responses.
 
 ### Manual Review Results
 
+Manual review was conducted for the following respondents:
+
+- ALL partial matches
+- ANY full match that was not given the 'grocery_or_supermarket' or 'supermarket' type.
+
+*Load in manual review results*
 ```{r}
 grocer_codes <- read_csv(here::here(path_processed, "grocer_codes.csv"))
 ```
 
+Manual review reduced the number of anomalous responses to 128/510 = 25.1%
+
+These anomalies fall into a variety of categories, such as:
+
+- Respondents providing a liquor store, gas station, restaurant, etc.
+- Respondents who appear to have given their residential street name
+- Respondents with undecipherable content in their responses
+- Respondents with grocer stores that were simply not able to be found
+- Respondents whose grocery store was a considerable drive away from their city
+    *Currently, any store that was found to be greater than 30m away was flagged as anomalous, aside from some cases where the respondent clearly lived in a rural area. 
+
+
+
+Respondents who gave a valid grocery store, but initially flagged as either partial match or wrong location type, also fell into a variety of categories:
+
+- Simple typos
+
+- Respondents putting the "wrong" cross-street for stores located on an intersection, and similar mishaps
+
+- Failures for no good reason (e.g., local non-chain stores often are missing the location type info)
+
+    *ggmap REALLY wants zip codes and exact street numbers, which we did not ask for. This was the cause of very many failures, at no fault to respondents, and warrants a complete redesign of this grocer store CV question idea in future projects.
+
+    * Furthermore, if a respondent gave "Walmart - Highway 19", ggmap will fail if there are multiple Walmarts along that highway because we did not provide a zip code or street number. There were enough of these instances to make it worth mentioning. Some of our cities are so infested with Kroger's and the like that there were a bazillion of them all along the same "main street", and so on.
+
+- Walmart is a pain: "Neighborhood Markets", "Supercenters" and regular stores are all treated as uniquely separate businesses by ggmap, meaning that either of these Walmart subtypes were given a partial match if the respondent just said "Walmart" (like a normal person would...)
+
+### The rural respondent dilemma
+
+I am concerned that imparting high scrutiny on respondents with anomalous responses will introduce some bias against those living in rural areas. It is reasonable to assume that some small, local grocery stores will not be cataloged properly online. While some respondents with long drive times to their grocery store were set aside as clearly being rural, some of the flagged respondents probably do have genuine long commute that shouldn't be cause for concern. The weight of these factors in our suspicion index and exclusions process should keep this in mind.
+
+*Add grocer codes to panel*
 ```{r}
 add_grocer_code <- function(panel, grocer_codes) {
   lookup <- grocer_codes |>
@@ -204,121 +238,13 @@ add_grocer_code <- function(panel, grocer_codes) {
     mutate(grocer_code = replace_na(grocer_code, "valid"))
 }
 
-panel <- add_grocer_code(panel, grocer_codes)
+panel <- add_grocer_code(panel, grocer_codes) |> 
+  relocate(grocer_code, .after = grocer_longitude)
 ```
 
-
-Manual review identified these 251 respondents as having given proper grocery stores, only failing for benign reasons such as #1 or #2 above.
-
-*Update panel*
+## Save updated panel
 ```{r}
-panel <- panel |>
-  mutate(grocer_partial_match = if_else(subid %in% valid, 0L, grocer_partial_match))
+panel |> write_csv(here::here(path_processed,"panel.csv"))
 ```
 
-*New partial match counts*
-```{r}
-panel |> count(grocer_partial_match)
-```
-
-That leaves us with 127/510 = 24.90% of responses as genuinely anomalous.
-
-These respondents all follow a pattern: the street name given was found a short drive from the nearest named store (e.g. if the respondent put "Walmart", a Walmart was found nearby this street but not on it.) Many of these streets are clearly located in residential neighborhoods, suggesting that the respondent was likely confused and gave us the street of their home address by mistake.
-
-
-```{r}
-
-```
-
-
-
-
-
-
-
-
-
-
-
-```{r}
-panel <- panel |>
-  mutate(grocer_partial_match = as.integer(partial_match_vals))
-```
-
-*Spot check to make sure partial match flag was applied appropriately*
-```{r}
-set.seed(7391)
-check_idx <- sample(1:510, 10)
-
-tibble(
-  idx              = check_idx,
-  input_address    = panel$grocer_address[check_idx],
-  formatted_address = sapply(check_idx, function(i) {
-    tryCatch(grocer_gps[[i]]$results[[1]]$formatted_address, error = function(e) NA_character_)
-  })
-)
-```
-
-We can clearly see where addresses were truncated, looks good.
-
-```{r}
-partial_match_review <- tibble(
-  idx               = which(partial_match_vals),
-  input_address     = panel$grocer_address[which(partial_match_vals)],
-  formatted_address = sapply(which(partial_match_vals), function(i) {
-    tryCatch(grocer_gps[[i]]$results[[1]]$formatted_address, error = function(e) NA_character_)
-  })
-)
-
-partial_match_review
-```
-
-```{r}
-partial_idx <- which(partial_match_vals)
-
-partial_match_summary <- tibble(
-  total_partial_matches        = length(partial_idx),
-  partial_and_grocery_type     = sum(is_grocery_type[partial_idx]),
-  partial_and_not_grocery_type = sum(!is_grocery_type[partial_idx])
-)
-
-partial_match_summary
-```
-
-```{r}
-partial_not_grocery <- tibble(
-  idx               = partial_idx[!is_grocery_type[partial_idx]],
-  input_address     = panel_gps$grocer_address[partial_idx[!is_grocery_type[partial_idx]]],
-  formatted_address = sapply(partial_idx[!is_grocery_type[partial_idx]], function(i) {
-    tryCatch(grocer_gps[[i]]$results[[1]]$formatted_address, error = function(e) NA_character_)
-  })
-)
-
-partial_not_grocery
-```
-
-
-
-```{r}
-type_counts <- grocer_gps |>
-  map(function(x) {
-    tryCatch(
-      unlist(x$results[[1]]$types),
-      error = function(e) NA_character_
-    )
-  }) |>
-  unlist() |>
-  table() |>
-  sort(decreasing = TRUE)
-
-print(type_counts, sort = TRUE)
-```
-
-```{r}
-partial_match_review |> write_csv("grocer_review.csv")
-```
-
-```{r}
-
-```
-
+Done! Next is panel_eda which will investigate these results and other aspects of the data.
