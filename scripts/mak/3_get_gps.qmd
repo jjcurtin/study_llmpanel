@@ -89,7 +89,7 @@ grocer_gps <- geocode(
   panel$grocer_address,
   output = "all")
 
-grocer_gps |> saveRDS(here::here(path_processed, 'grocer_gps.rds'))
+grocer_gps |> saveRDS(here::here(path_raw, 'grocer_gps.rds'))
 ```
 
 *Load in chunk for RDS file (last generated 6-17-2026)*
