@@ -67,7 +67,7 @@ build_suspicion_index <- function(data,
     }
   }
   
-  score
+  data |> mutate(suspicion_index = score)
 }
 
 # add_grocer_code makes a new column in the panel that codes for a variety of
