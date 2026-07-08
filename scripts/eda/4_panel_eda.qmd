@@ -150,7 +150,10 @@ panel <- panel |>
       .names = "{.col}_num"),
   ) |>
   rowwise() |>
-  mutate(tone_sd = sd(c_across(q1_legitimizing_1_num:q5_norms_1_num))) |>
+  mutate(
+    tone_sd  = sd(c_across(q1_legitimizing_1_num:q5_norms_1_num)),
+    tone_sus = tone_sd == 0
+  ) |>
   ungroup()
 
 plot_hist(panel, x = 'tone_sd', bins = 10)
@@ -199,7 +202,8 @@ panel <- panel |>
 panel <- panel |>
   rowwise() |>
   mutate(
-    msg_sd = sd(c_across(matches("^x[1-4]_(hi|hd|li)_\\d+_") & ends_with("_num")), na.rm = TRUE)
+    msg_sd      = sd(c_across(matches("^x[1-4]_(hi|hd|li)_\\d+_") & ends_with("_num")), na.rm = TRUE),
+    rating_sus  = msg_sd == 0
   ) |>
   ungroup()
 
@@ -256,18 +260,7 @@ plot_hist(panel, x = "gps_sus", bins = 5)
 panel |> count(grocer_code) |> arrange(desc(n))
 ```
 
-### Index Calculation (OLD)
-
-```{r}
-panel <- panel |>
-  mutate(suspicion_index = rowMeans(pick(contains("_sus")), na.rm = TRUE))
-
-panel |>
-  select(response_id, suspicion_index) |>
-  arrange(desc(suspicion_index))
-
-plot_hist(panel, x = 'suspicion_index')
-```
+### Index Calculation
 
 ```{r}
 build_suspicion_index <- function(data,
@@ -298,9 +291,38 @@ build_suspicion_index <- function(data,
     }
   }
 
-  score
+  data |> mutate(suspicion_index = score)
 }
 ```
+
+# List of suspicion variables to work with
+```{r}
+panel |> select(contains("sus")) |> names()
+```
+
+```{r}
+panel <- panel |> build_suspicion_index(numeric_high = c('duration_sus', 'captcha_sus', 'gps_sus'),
+                                        flag_high = c('audit_sus', 'tone_sus', 'rating_sus'))
+```
+
+```{r}
+plot_hist(panel, x = "suspicion_index", bins = 10)
+```
+
+```{r}
+panel |> select(contains("sus")) |> names()
+
+panel <- panel |>
+  mutate(suspicion_index = rowMeans(pick(contains("_sus")), na.rm = TRUE))
+
+panel |>
+  select(response_id, suspicion_index) |>
+  arrange(desc(suspicion_index))
+
+plot_hist(panel, x = 'suspicion_index')
+```
+
+
 
 ```{r}
 tibble(cutoff = c("90th", "80th", "70th", "60th", "50th"),
