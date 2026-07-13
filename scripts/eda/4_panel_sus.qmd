@@ -20,6 +20,8 @@ In Progress
 
 This script is used to conduct thorough EDA of the final 510 survey respondents, and to further investigate respondents for fraudulent or otherwise untrustworthy behavior questioning the validity of the sample. Objectives include:
 
+- Investigate potential duplicate respondents
+
 - Build the suspicion index to inform a decision about excluding additonal respondents from the final sample
 
 - Modelling EDA to inform recipe-building and feature-engineering
@@ -44,6 +46,98 @@ path_processed <- format_path("llmpanel/data_processed")
 
 ```{r}
 panel <- read_csv(here::here(path_processed, "panel.csv"), show_col_types = FALSE)
+```
+
+
+## Duplications
+
+```{r}
+cross_subid_ips <- panel |>
+  group_by(ip_address) |>
+  filter(n_distinct(subid) > 1) |>
+  pull(ip_address) |>
+  unique()
+
+panel |>
+  filter(ip_address %in% cross_subid_ips) |>
+  distinct(subid, .keep_all = TRUE) |>
+  arrange(ip_address) |>
+  select(
+    ip_address, subid, start_date,
+    dem_age, dem_sex, dem_education, dem_income, city, state
+  )
+```
+
+```{r}
+ # Highlight pairs with any demographic discrepancy
+
+cross_subid_ips <- panel |>
+   group_by(ip_address) |>
+   filter(n_distinct(subid) > 1) |>
+   pull(ip_address) |>
+   unique()
+ 
+ panel |>
+   filter(ip_address %in% cross_subid_ips) |>
+   distinct(subid, .keep_all = TRUE) |>
+   arrange(ip_address) |>
+   select(
+     ip_address, subid, start_date,
+     dem_age, dem_sex, dem_education, dem_income, city, state
+   )
+
+ panel |>
+   filter(ip_address %in% cross_subid_ips) |>
+   distinct(subid, .keep_all = TRUE) |>
+   arrange(ip_address) |>
+   select(ip_address, subid, dem_age, dem_income) |>
+   group_by(ip_address) |>
+   summarise(
+     subids       = paste(subid, collapse = ", "),
+     ages         = paste(unique(dem_age), collapse = " / "),
+     incomes      = paste(unique(dem_income), collapse = " / "),
+     age_mismatch = n_distinct(dem_age) > 1,
+     inc_mismatch = n_distinct(dem_income) > 1,
+     .groups = "drop"
+   ) |>
+   filter(age_mismatch | inc_mismatch)
+```
+
+```{r}
+panel <- panel |> distinct(subid, .keep_all = TRUE)
+```
+
+```{r}
+demo_cols <- c("dem_age","dem_sex","dem_orientation",
+               "dem_education","dem_student","dem_income",
+               "dem_n_household", "dem_marital_status",
+               "dem_minority","dem_race_white",
+               "dem_race_black", "dem_race_hispanic",
+               "dem_race_asian", "dem_race_native_alaskan")
+
+pairs <- panel |>
+  select(subid, ip_address, city, state, all_of(demo_cols)) |>
+  group_by(city, state) |>
+  filter(n() > 1) |>
+  ungroup()
+
+pairs |>
+  inner_join(pairs, by = c("city", "state"), suffix = c("_a", "_b")) |>
+  filter(subid_a < subid_b) |>
+  mutate(
+    n_demo_matches = (dem_age_a == dem_age_b) +
+                     (dem_sex_a == dem_sex_b) +
+                     (dem_education_a == dem_education_b) +
+                     (dem_income_a == dem_income_b) +
+                     (dem_race_white_a == dem_race_white_b) +
+                     (dem_race_black_a == dem_race_black_b) +
+                     (dem_race_hispanic_a == dem_race_hispanic_b),
+    same_ip = ip_address_a == ip_address_b
+  ) |>
+  filter(n_demo_matches >= 5) |>
+  arrange(desc(n_demo_matches), city) |>
+  select(city, state, subid_a, subid_b, same_ip, n_demo_matches) |> 
+  print(n=100)
 ```
 
 ## Suspicion Index
