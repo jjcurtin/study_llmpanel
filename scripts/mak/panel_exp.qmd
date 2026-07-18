@@ -1,0 +1,77 @@
+---
+title: "Untitled"
+format: html
+editor: visual
+---
+
+## Quarto
+
+Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+
+## Running Code
+
+When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+
+```{r}
+has_term <- panel_raw |>
+  filter(!is.na(term)) |>
+  select(IPAddress, ResponseId, term, Q1_Age, Q2_SexAtBirth)
+
+no_term_dup <- panel_raw |>
+  filter(is.na(term), Q_DuplicateRespondent == "true") |>
+  select(IPAddress, ResponseId, Q1_Age, Q2_SexAtBirth)
+
+inner_join(has_term, no_term_dup,
+           by = c("IPAddress", "Q1_Age", "Q2_SexAtBirth"),
+           suffix = c("_with_term", "_no_term")) |>
+  select(
+    SharedIP = IPAddress,
+    ResponseId_with_term,
+    ResponseId_no_term,
+    term
+  )
+```
+
+You can add options to executable code like this
+
+```{r}
+match_cols <- names(panel_raw)[
+  which(names(panel_raw) == "Q1_Age"):which(names(panel_raw) == "Q11_UnMinoritization")
+]
+
+# Pool valid-term and flagged-duplicate observations
+all_candidates <- bind_rows(
+  panel_raw |>
+    filter(!is.na(term)) |>
+    select(IPAddress, ResponseId, term, all_of(match_cols)) |>
+    mutate(group = "with_term"),
+  panel_raw |>
+    filter(is.na(term), Q_DuplicateRespondent == "true") |>
+    select(IPAddress, ResponseId, term, all_of(match_cols)) |>
+    mutate(group = "no_term")
+)
+
+# Keep only demographic profiles shared by exactly 2 observations
+profile_exact2 <- all_candidates |>
+  group_by(across(all_of(match_cols))) |>
+  mutate(n_in_profile = n()) |>
+  ungroup() |>
+  filter(n_in_profile == 2)
+
+inner_join(
+  profile_exact2 |> filter(group == "with_term"),
+  profile_exact2 |> filter(group == "no_term"),
+  by = match_cols,
+  suffix = c("_with_term", "_no_term")
+) |>
+  filter(IPAddress_with_term != IPAddress_no_term) |>
+  select(
+    IP_with_term = IPAddress_with_term,
+    IP_no_term = IPAddress_no_term,
+    ResponseId_with_term,
+    ResponseId_no_term,
+    term = term_with_term
+  )
+```
+
+The `echo: false` option disables the printing of code (only output is displayed).

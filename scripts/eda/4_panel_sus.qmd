@@ -22,7 +22,7 @@ This script is used to conduct thorough EDA of the final 510 survey respondents,
 
 - Investigate potential duplicate respondents
 
-- Build the suspicion index to inform a decision about excluding additonal respondents from the final sample
+- Build the suspicion index to inform a decision about excluding additional respondents from the final sample
 
 - Modelling EDA to inform recipe-building and feature-engineering
 
@@ -40,12 +40,56 @@ devtools::source_url("https://github.com/jjcurtin/lab_support/blob/main/format_p
 devtools::source_url("https://github.com/jjcurtin/lab_support/blob/main/fun_gps.R?raw=true")
 source("https://github.com/jjcurtin/lab_support/blob/main/fun_plots.R?raw=true")
 
-path_panel <- format_path("llmpanel/data_raw/panel")
+path_raw <- format_path("llmpanel/data_raw")
 path_processed <- format_path("llmpanel/data_processed")
 ```
 
 ```{r}
 panel <- read_csv(here::here(path_processed, "panel.csv"), show_col_types = FALSE)
+```
+
+```{r}
+panel_raw <- read_csv(here::here(path_raw, "panel_api_raw.csv"), show_col_types = FALSE)
+```
+
+```{r}
+panel_raw <- panel_raw |>
+  mutate(valid = ResponseId %in% panel$response_id)
+```
+
+```{r}
+valid_ips <- panel_raw |>
+  filter(valid) |>
+  pull(IPAddress)
+
+panel_raw |>
+  filter(!valid, IPAddress %in% valid_ips) |>
+  select(ResponseId, IPAddress) |> print(n=100)
+```
+
+```{r}
+panel <- read_csv(here::here(path_processed, "panel.csv"), show_col_types = FALSE)
+```
+
+```{r}
+# Count how many valid respondents each flagged IP maps to
+panel_raw |>
+  filter(valid) |>
+  count(IPAddress) |>
+  filter(IPAddress %in% valid_ips, n > 1) |>
+  arrange(desc(n))
+
+# IPs appearing in both valid and invalid groups
+dupe_ips <- panel_raw |>
+  filter(!valid, IPAddress %in% valid_ips) |>
+  pull(IPAddress) |>
+  unique()
+
+panel_raw_dupes <- panel_raw |>
+  filter(IPAddress %in% dupe_ips) |>
+  left_join(panel |> select(subid, response_id), by = c("ResponseId" = "response_id"))
+
+panel_raw_dupes |>  write_csv(here::here(path_processed, "panel_raw_dupes.csv"))
 ```
 
 
@@ -71,23 +115,8 @@ panel |>
 ```{r}
  # Highlight pairs with any demographic discrepancy
 
-cross_subid_ips <- panel |>
-   group_by(ip_address) |>
-   filter(n_distinct(subid) > 1) |>
-   pull(ip_address) |>
-   unique()
- 
  panel |>
-   filter(ip_address %in% cross_subid_ips) |>
-   distinct(subid, .keep_all = TRUE) |>
-   arrange(ip_address) |>
-   select(
-     ip_address, subid, start_date,
-     dem_age, dem_sex, dem_education, dem_income, city, state
-   )
-
- panel |>
-   filter(ip_address %in% cross_subid_ips) |>
+   filter(ip_address %in% dupe_ips) |>
    distinct(subid, .keep_all = TRUE) |>
    arrange(ip_address) |>
    select(ip_address, subid, dem_age, dem_income) |>
@@ -116,7 +145,7 @@ demo_cols <- c("dem_age","dem_sex","dem_orientation",
                "dem_race_asian", "dem_race_native_alaskan")
 
 pairs <- panel |>
-  select(subid, ip_address, city, state, all_of(demo_cols)) |>
+  select(subid, city, state, contains("dem_")) |>
   group_by(city, state) |>
   filter(n() > 1) |>
   ungroup()
@@ -138,6 +167,90 @@ pairs |>
   arrange(desc(n_demo_matches), city) |>
   select(city, state, subid_a, subid_b, same_ip, n_demo_matches) |> 
   print(n=100)
+```
+
+```{r}
+clean_label <- function(x) {
+  x |>
+    str_to_lower() |>
+    str_replace_all("[^a-z0-9]+", "_") |>
+    str_remove("_$")
+}
+
+panel_raw_invalid_matches <- panel_raw |>
+  filter(!valid, !IPAddress %in% dupe_ips) |>
+  mutate(
+    Q1_Age = as.numeric(Q1_Age),
+    Q2_SexAtBirth = clean_label(Q2_SexAtBirth),
+    Q4_SexualOrientation = case_match(
+      Q4_SexualOrientation,
+      "Heterosexual/Straight" ~ "straight",
+      "Lesbian/Gay" ~ "gay_or_lesbian",
+      "Bisexual/Pansexual" ~ "bisexual_or_pansexual",
+      "Asexual" ~ "asexual",
+      .default = Q4_SexualOrientation
+    ),
+    Q6_Education = clean_label(Q6_Education),
+    Q7_StudentStatus = clean_label(Q7_StudentStatus),
+    Q10_MaritalStatus = clean_label(Q10_MaritalStatus)
+  ) |>
+  inner_join(
+    panel |> select(subid, dem_age, dem_sex, dem_orientation,
+                    dem_education, dem_student, dem_income,
+                    dem_marital_status),
+    by = c("Q1_Age" = "dem_age",
+           "Q2_SexAtBirth" = "dem_sex",
+           "Q4_SexualOrientation" = "dem_orientation",
+           "Q6_Education" = "dem_education",
+           "Q7_StudentStatus" = "dem_student",
+           "Q8_HouseholdIncome" = "dem_income",
+           "Q10_MaritalStatus" = "dem_marital_status")
+  )
+
+# Include the matching valid observations from panel_raw
+matched_subids <- unique(panel_raw_invalid_matches$subid)
+
+panel_raw_valid_matches <- panel_raw |>
+  filter(valid) |>
+  mutate(Q1_Age = as.numeric(Q1_Age)) |>
+  inner_join(
+    panel |> filter(subid %in% matched_subids) |> select(subid, response_id),
+    by = c("ResponseId" = "response_id")
+  )
+
+panel_raw_demo_dupes <- bind_rows(
+  panel_raw_invalid_matches |> mutate(valid = FALSE),
+  panel_raw_valid_matches |> mutate(valid = TRUE)
+) |>
+  arrange(subid, valid)
+```
+
+```{r}
+panel_raw_demo_dupes |>  write_csv(here::here(path_processed, "panel_raw_demo_dupes.csv"))
+```
+
+### clean section
+
+*All responses with a duplicate IP Address*
+```{r}
+dupe_ips <- panel |>
+   group_by(ip_address) |>
+   filter(n_distinct(subid) > 1) |>
+   pull(ip_address) |>
+   unique()
+ 
+ panel |>
+   filter(ip_address %in% dupe_ips) |>
+   distinct(subid, .keep_all = TRUE) |>
+   arrange(ip_address) |>
+   select( subid, city, state, grocer_name, grocer_street,
+     dem_age, dem_sex, dem_education, dem_income
+   )
+```
+
+*Responses by matching demographics*
+```{r}
+
 ```
 
 ## Suspicion Index

@@ -50,7 +50,6 @@ path_processed <- format_path("llmpanel/data_processed")
 *Load raw API data*
 
 ```{r}
-#UPDATE IF USING A NEWER EXPORT FILE (AND CHECK FOR FORMAT DIFFRENCES)
 panel_raw <- read.csv(here::here(path_raw, "panel_api_raw.csv"))
 panel_screen <- panel_raw
 ```
@@ -138,35 +137,34 @@ filter_value <- function(data, col, valid = NULL, threshold = NULL, keep_col = F
 *Screen-outs*
 
 ```{r}
-panel_screen <- panel_screen |> 
-  filter_value(col = "finished", valid = "True") |>
-  
-  # Remove previews
-  filter_value(col = "distribution_channel", valid = "anonymous") |>
-  
-  filter_value(col = "q_duplicate_respondent", valid = NA) |> 
-  filter_value(col = "q_recaptcha_score", threshold = 0.5, keep_col = TRUE, num = TRUE) |> 
-  filter_value(col = "all_health_no", valid = FALSE) |> 
-  filter_value(col = "eligible_health", valid = "eligible") |> 
-  filter_value(col = "audit_score", threshold = 8, keep_col = TRUE, num = TRUE) |> 
-  filter_value(col = "consent_agree", valid = "I consent to participate and wish to proceed to the survey.") |> 
-  filter_value(col = "q1_age", threshold = 18, keep_col = TRUE, num = TRUE) |> 
-  filter_value(col = "att_check", valid = TRUE) |>
-  
-  # Timing thresholds at 400 wpm reading speed
-  filter_value(col = "x1_hi_timing_page_submit", threshold = 101, num = TRUE) |> 
-  filter_value(col = "x1_hd_timing_page_submit", threshold = 104, num = TRUE) |> 
-  filter_value(col = "x1_li_timing_page_submit", threshold = 94, num = TRUE) |> 
-  filter_value(col = "x2_hi_timing_page_submit", threshold = 102, num = TRUE) |> 
-  filter_value(col = "x2_hd_timing_page_submit", threshold = 104, num = TRUE) |> 
-  filter_value(col = "x2_li_timing_page_submit", threshold = 98, num = TRUE) |> 
-  filter_value(col = "x3_hi_timing_page_submit", threshold = 102, num = TRUE) |> 
-  filter_value(col = "x3_hd_timing_page_submit", threshold = 106, num = TRUE) |> 
-  filter_value(col = "x3_li_timing_page_submit", threshold = 98, num = TRUE) |> 
-  filter_value(col = "x4_hi_timing_page_submit", threshold = 100, num = TRUE) |> 
-  filter_value(col = "x4_hd_timing_page_submit", threshold = 105, num = TRUE) |> 
-  filter_value(col = "x4_li_timing_page_submit", threshold = 99, num = TRUE) |> 
-  filter_value(col = "tone_timing_page_submit", threshold = 59, num = TRUE, print = TRUE)
+panel_screen <- panel_screen |> filter_value(col = "finished", valid = "True")
+
+# Remove previews
+panel_screen <- panel_screen |> filter_value(col = "distribution_channel", valid = "anonymous")
+
+panel_screen <- panel_screen |> filter_value(col = "q_duplicate_respondent", valid = NA)
+panel_screen <- panel_screen |> filter_value(col = "q_recaptcha_score", threshold = 0.5, keep_col = TRUE, num = TRUE)
+panel_screen <- panel_screen |> filter_value(col = "all_health_no", valid = FALSE)
+panel_screen <- panel_screen |> filter_value(col = "eligible_health", valid = "eligible")
+panel_screen <- panel_screen |> filter_value(col = "audit_score", threshold = 8, keep_col = TRUE, num = TRUE)
+panel_screen <- panel_screen |> filter_value(col = "consent_agree", valid = "I consent to participate and wish to proceed to the survey.")
+panel_screen <- panel_screen |> filter_value(col = "q1_age", threshold = 18, keep_col = TRUE, num = TRUE)
+panel_screen <- panel_screen |> filter_value(col = "att_check", valid = TRUE)
+
+# Timing thresholds at 400 wpm reading speed
+panel_screen <- panel_screen |> filter_value(col = "x1_hi_timing_page_submit", threshold = 101, num = TRUE)
+panel_screen <- panel_screen |> filter_value(col = "x1_hd_timing_page_submit", threshold = 104, num = TRUE)
+panel_screen <- panel_screen |> filter_value(col = "x1_li_timing_page_submit", threshold = 94, num = TRUE)
+panel_screen <- panel_screen |> filter_value(col = "x2_hi_timing_page_submit", threshold = 102, num = TRUE)
+panel_screen <- panel_screen |> filter_value(col = "x2_hd_timing_page_submit", threshold = 104, num = TRUE)
+panel_screen <- panel_screen |> filter_value(col = "x2_li_timing_page_submit", threshold = 98, num = TRUE)
+panel_screen <- panel_screen |> filter_value(col = "x3_hi_timing_page_submit", threshold = 102, num = TRUE)
+panel_screen <- panel_screen |> filter_value(col = "x3_hd_timing_page_submit", threshold = 106, num = TRUE)
+panel_screen <- panel_screen |> filter_value(col = "x3_li_timing_page_submit", threshold = 98, num = TRUE)
+panel_screen <- panel_screen |> filter_value(col = "x4_hi_timing_page_submit", threshold = 100, num = TRUE)
+panel_screen <- panel_screen |> filter_value(col = "x4_hd_timing_page_submit", threshold = 105, num = TRUE)
+panel_screen <- panel_screen |> filter_value(col = "x4_li_timing_page_submit", threshold = 99, num = TRUE)
+panel_screen <- panel_screen |> filter_value(col = "tone_timing_page_submit", threshold = 59, num = TRUE, print = TRUE)
 ```
 
 The panel is now reduced to the final sample size of n = 510.
@@ -283,7 +281,7 @@ panel_clean <- panel_clean |>
 panel_clean <- panel_clean |> 
   mutate(subid = row_number()) |> 
   relocate(subid) |> 
-  select(where(~ n_distinct(., na.rm = FALSE) > 1)) |> 
+  select(health_drink, where(~ n_distinct(., na.rm = FALSE) > 1)) |> 
   mutate(across(c(health_food:dem_orientation,
                   dem_education, dem_student,
                   dem_marital_status, dem_minority,
