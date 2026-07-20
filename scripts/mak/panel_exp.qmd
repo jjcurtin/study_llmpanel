@@ -1,12 +1,20 @@
 ---
-title: "Untitled"
-format: html
-editor: visual
+title: "Investigate Duplicate Respondents"
+format: 
+  html:
+    page-layout: full
+    self-contained: true
+    toc: true
+    toc-depth: 3
+execute: 
+  warning: false
+editor_options: 
+  chunk_output_type: console
 ---
 
-## Quarto
+## Code Status
 
-Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+In Progress, expected to be joined onto mak_panel upon completion.
 
 ## Running Code
 

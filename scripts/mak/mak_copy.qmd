@@ -1,0 +1,827 @@
+---
+title: "Make/Clean Panel (Flag-Based)"
+format: 
+  html:
+    page-layout: full
+    self-contained: true
+    toc: true
+    toc-depth: 3
+execute: 
+  warning: false
+editor_options: 
+  chunk_output_type: console
+---
+
+## Code Status
+
+In development.
+
+## Purpose
+
+1. Basic cleaning of raw API data
+
+2. Flag respondents who either failed to screen into the survey, or failed on
+at least one logic check making them ineligible for the final sample. Flagged
+responses include:
+
+    -   Previews (Internal test takes of the survey)
+    -   reCAPTCHA fails
+    -   Healthy Behavior Questionnaire fails
+    -   AUDIT fails
+    -   Consent declines
+    -   Underage fails
+    -   Attention check fails
+    -   Timing check fails
+    -   Unfinished/abandoned responses
+    -   Qualtrics-identiified duplicates.
+    
+3. Identify additional duplicate responses for removal based upon matching IP
+addresses and/or identical demographics.
+
+4. Standardization of open-text grocery store data for geocode.
+
+## Setup
+
+```{r}
+library(tidyverse) 
+options(conflicts.policy = "depends.ok")
+
+source("https://github.com/jjcurtin/lab_support/blob/main/fun_eda.R?raw=true")
+source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
+
+path_raw <- format_path("llmpanel/data_raw")
+path_processed <- format_path("llmpanel/data_processed")
+```
+
+*Load in data and remove dummy rows*
+
+```{r}
+# Load raw API data
+panel_raw <- read.csv(here::here(path_raw, "panel_api_raw.csv"))
+panel_screen <- panel_raw
+
+# First row in export is a copy of question text.
+panel_screen[1,]
+
+# Second row contains Qualtrics question IDs. 
+panel_screen[2,]
+
+# Remove:
+panel_screen <- panel_screen |> slice(-(1:2))
+panel_screen |> head(1) # Good to go
+```
+
+*Clean names and add summary variables for screening*
+
+```{r}
+panel_screen <- panel_screen |>
+  janitor::clean_names("snake")  |>
+  
+# Clean column names
+  rename(health_drink = x47280739,
+         dem_age = q1_age,
+         dem_sex = q2_sex_at_birth,
+         dem_identity = q3_gender_identity,
+         dem_orientation = q4_sexual_orientation,
+         dem_orientation_other_text = q4_sexual_orientation_6_text,
+         dem_race_native_alaskan = q5_race_ethnicity_1, 
+         dem_race_asian = q5_race_ethnicity_2,
+         dem_race_hispanic = q5_race_ethnicity_3,
+         dem_race_hawaiian_pacific = q5_race_ethnicity_4,
+         dem_race_black = q5_race_ethnicity_5,
+         dem_race_white = q5_race_ethnicity_6,
+         dem_race_other = q5_race_ethnicity_7,
+         dem_race_other_text = q5_race_ethnicity_7_text,
+         dem_education = q6_education, 
+         dem_student = q7_student_status,
+         dem_income = q8_household_income,
+         dem_n_household = q9_people_in_household,
+         dem_marital_status = q10_marital_status, 
+         dem_minority = q11_un_minoritization,
+         grocer_name = q12_grocer_1, 
+         grocer_street = q12_grocer_2,
+         city = id_location_1, 
+         state = id_location_2  
+         ) |> 
+  
+# Health screener variables
+  mutate(
+    all_health_no =
+        health_food == "No" &
+        health_floss == "No" &
+        health_sleep == "No" &
+        health_drink == "No" &
+        health_water == "No",
+    eligible_health = if_else(
+        health_drink == "No" & !all_health_no, "eligible", "ineligible"),
+    
+# Universal attention check flag
+    att_check = if_any(contains("attention"),
+                       \(col) col == "Strongly Disagree")) |>
+    mutate(term = if_else(att_check & is.na(term), "att_check", term)) |>
+
+# Remove now-redundant attention check columns
+  select(-contains("attention"))
+```
+
+## Flagging ineligible responses
+
+*Initialize `flag` column — NA means valid*
+
+```{r}
+panel_screen <- panel_screen |> 
+  mutate(flag = NA_character_)
+```
+
+*Start tracking tibble for participant flow*
+
+```{r}
+flow <- tibble(flow = "total_submissions", 
+               n_remaining = nrow(panel_screen), 
+               n_failed = NA_integer_) |>
+  print()
+```
+
+*Function for flagging based on valid values or thresholds*
+
+Instead of filtering rows out, `flag_value()` writes a reason into the `flag` column.
+Only rows not already flagged are evaluated (first failure wins).
+
+```{r}
+flag_value <- function(data, col, valid = NULL, threshold = NULL, reason = col, num = FALSE, print = FALSE) {
+  if (num) data <- data |> mutate(!!col := as.numeric(.data[[col]]))
+
+  if (!is.null(threshold)) {
+    fails <- \(x) !is.na(x) & x < threshold
+  } else if (is.na(valid)) {
+    fails <- \(x) !is.na(x)
+  } else {
+    fails <- \(x) is.na(x) | x != valid
+  }
+
+  # Only flag rows not already removed
+  data <- data |>
+    mutate(flag = if_else(is.na(flag) & fails(.data[[col]]), reason, flag))
+
+  flow <<- flow |> bind_rows(tibble(
+    flow        = reason,
+    n_remaining = sum(is.na(data$flag)),
+    n_failed    = sum(data$flag == reason, na.rm = TRUE)
+  ))
+
+  if (print) print(flow, n = 100)
+
+  data
+}
+```
+
+*Flag Responses*
+
+```{r}
+# Flag previews
+panel_screen <- panel_screen |>
+  flag_value(col = "distribution_channel", valid = "anonymous")
+
+# Flag recaptcha failures
+panel_screen <- panel_screen |>
+  flag_value(col = "q_recaptcha_score", threshold = 0.5, num = TRUE)
+
+# Flag healthy behaviors questionnaire failures
+panel_screen <- panel_screen |>
+  flag_value(col = "all_health_no", valid = FALSE)
+
+panel_screen <- panel_screen |>
+  flag_value(col = "eligible_health", valid = "eligible")
+
+# Flag AUDIT failures
+panel_screen <- panel_screen |>
+  flag_value(col = "audit_score", threshold = 8, num = TRUE)
+
+# Flag non-consents
+panel_screen <- panel_screen |>
+  flag_value(col = "consent_agree",
+             valid = "I consent to participate and wish to proceed to the survey.")
+
+# Flag under 18 y/o
+panel_screen <- panel_screen |>
+  flag_value(col = "dem_age", threshold = 18, num = TRUE)
+
+# Flag attention check failures
+panel_screen <- panel_screen |>
+  flag_value(col = "att_check", valid = TRUE)
+
+# Flag timing check failures (above 400 wpm reading speed)
+panel_screen <- panel_screen |>
+  flag_value(col = "x1_hi_timing_page_submit", threshold = 101, num = TRUE)
+
+panel_screen <- panel_screen |>
+  flag_value(col = "x1_hd_timing_page_submit", threshold = 104, num = TRUE)
+
+panel_screen <- panel_screen |>
+  flag_value(col = "x1_li_timing_page_submit", threshold = 94, num = TRUE)
+
+panel_screen <- panel_screen |>
+  flag_value(col = "x2_hi_timing_page_submit", threshold = 102, num = TRUE)
+
+panel_screen <- panel_screen |>
+  flag_value(col = "x2_hd_timing_page_submit", threshold = 104, num = TRUE)
+
+panel_screen <- panel_screen |>
+  flag_value(col = "x2_li_timing_page_submit", threshold = 98, num = TRUE)
+
+panel_screen <- panel_screen |>
+  flag_value(col = "x3_hi_timing_page_submit", threshold = 102, num = TRUE)
+
+panel_screen <- panel_screen |>
+  flag_value(col = "x3_hd_timing_page_submit", threshold = 106, num = TRUE)
+
+panel_screen <- panel_screen |>
+  flag_value(col = "x3_li_timing_page_submit", threshold = 98, num = TRUE)
+
+panel_screen <- panel_screen |>
+  flag_value(col = "x4_hi_timing_page_submit", threshold = 100, num = TRUE)
+
+panel_screen <- panel_screen |>
+  flag_value(col = "x4_hd_timing_page_submit", threshold = 105, num = TRUE)
+
+panel_screen <- panel_screen |>
+  flag_value(col = "x4_li_timing_page_submit", threshold = 99, num = TRUE)
+
+panel_screen <- panel_screen |>
+  flag_value(col = "tone_timing_page_submit", threshold = 59, num = TRUE)
+
+# NOTE: Important that these next two run after all of the above checks - The
+#       function will not overwrite existing values in the 'removed' column,
+#       meaning that failures on screening or survey logic take priority.
+
+# Flag abandoned/incomplete responses
+panel_screen <- panel_screen |>
+  flag_value(col = "finished", valid = "True")
+
+# Flag Qualtrics-identified duplicates
+panel_screen <- panel_screen |>
+  flag_value(col = "q_duplicate_respondent", valid = NA, print = TRUE)
+```
+
+The remaining unflagged sample should be n = 510 responses.
+
+*Convert empty strings to NAs*
+
+```{r}
+#panel_screen <- panel_screen |> 
+#  mutate(
+#    across(q4_sexual_orientation:q5_race_ethnicity_7_text, ~na_if(.x, ""))
+```
+
+## Manual detection of duplicates
+
+Qualtrics failed to identify many convincing cases of a single person attempting and/or completing the survey multiple times. First, let's explore cases where a valid respondent in our remaining sample of n = 510 has both a matching IP address and identical demographics to at least 1 other failed response.
+
+* Note: In this case, matching demographics will include all demographics columns excluding open-text fields and dem_minority.
+
+*Define columns to be checked for matching responses*
+
+```{r}
+demo_cols <- panel_screen |> select(dem_age:dem_marital_status) |> 
+  select(-c(dem_identity, dem_orientation_other_text, dem_race_other_text)) |> 
+  names()
+
+text_cols <- c("grocer_name", "grocer_street")
+```
+
+*Isolate valid & flagged responses for comparison*
+
+```{r}
+valid <- panel_screen |> filter(is.na(flag))
+flagged <- panel_screen |> filter(!is.na(flag))
+```
+
+### IP + demographic matches between valid and removed responses
+
+```{r}
+# Match valid responses to flagged ones sharing same IP + demographics
+demo_ip_matches <- inner_join(valid, flagged,
+           by = c("ip_address", match_cols),
+           suffix = c("_valid", "_flagged"),
+           relationship = "many-to-many") |>
+  
+  # One row per valid response ID within each IP
+  group_by(ip_address, valid_id = response_id_valid) |>
+  summarise(
+    dupe_only = all(flag_flagged == "q_duplicate_respondent"),
+    .groups = "drop") |>
+  arrange(dupe_only)
+
+demo_ip_matches |> as.data.frame()
+```
+
+We are concerned with IPs showing 1 or more additional attempts (before or after the valid response) that failed for any reason other that q_duplicate_respondent.
+
+If all matches found were otherwise valid expect Qualtrics successfully flagged them as duplicate, we will retain the valid response and dismiss the IP as non-suspicious.
+
+All remaining IPs will have open-text responses for grocery store manually reviewed.
+
+*Dismiss non-suspicious IPs and look at grocery store responses*
+
+```{r}
+demo_ip_sus <- demo_ip_matches |>
+  filter(dupe_only == FALSE) |>
+  pull(ip_address) |>
+  unique()
+```
+
+There should be 17 IPs (each corresponding to an eligible response) marked here for review.
+
+*Review table for remaining suspicious IPs*
+
+```{r}
+panel_screen |>
+  filter(ip_address %in% demo_ip_sus) |>
+  arrange(ip_address, !is.na(flag)) |>
+  select(ip_address, response_id, grocer_name, grocer_street, flag) |>
+  
+# Clean output for repeated IP across rows
+  mutate(ip_address = if_else(
+    ip_address == lag(ip_address, default = ""), "", ip_address)) |>
+  as.data.frame()
+```
+
+If the provided grocery store is also a match with at least one failed attempt, the observation will be deemed invalid and marked in a separate file. 13 responses have been flagged for removal from the final sample by this table.
+
+### Demographic only matches between valid and flagged responses
+
+```{r}
+demo_only_matches <- inner_join(valid, flagged,
+           by = match_cols,
+           suffix = c("_valid", "_flagged"),
+           relationship = "many-to-many") |>
+  filter(ip_address_valid != ip_address_flagged) |>
+  group_by(valid_id = response_id_valid) |>
+  summarise(dupe_only = all(flag_flagged == "q_duplicate_respondent"),
+            .groups = "drop") |>
+  arrange(dupe_only)
+
+as.data.frame(demo_summary)
+```
+
+This tables should identify 50 eligible responses with a demographic match in the flagged group, this time with new IPs.
+
+*Dismiss non-suspicious IPs and look at grocery store responses*
+
+```{r}
+demo_only_sus <- demo_only_matches |>
+  filter(dupe_only == FALSE) |>
+  pull(valid_id)
+
+seeds <- panel_screen |>
+  filter(response_id %in% demo_only_sus) |>
+  select(all_of(demo_cols))
+
+# Create matching demographic groups
+seed_groups <- seeds |>
+  distinct() |>
+  mutate(demo_group = row_number())
+
+# Create table for review
+panel_screen |>
+  semi_join(seeds, by = demo_cols) |> 
+  inner_join(seed_groups, by = demo_cols) |>
+  
+# Sort seeds to top within each group
+  mutate(is_seed = response_id %in% demo_only_sus) |>
+  arrange(demo_group, desc(is_seed)) |>
+  select(demo_group, response_id, ip_address, grocer_name, grocer_street, flag) |>
+  mutate(demo_group = as.character(demo_group),
+         demo_group = if_else(demo_group == lag(demo_group, default = ""), "", demo_group)) |>
+  as.data.frame()
+```
+
+Review of this table should identify 9 responses for removal - demographic + grocery store matches with unique IPs
+
+### IP + demographic matches within eligible responses
+
+```{r}
+valid |>
+  group_by(ip_address) |>
+  filter(n() > 1) |>
+  ungroup() |>
+  arrange(ip_address, start_date) |>
+  select(response_id, ip_address, grocer_name, grocer_street, start_date) |>
+  as.data.frame()
+```
+
+Review of this table should identify 6 unique responses for removal - IP + demographics match to a survey completed earlier.
+
+### Demographic only matches within eligible responses
+
+```{r}
+valid_seeds <- valid |>
+  select(all_of(demo_cols))
+
+valid_seed_groups <- valid_seeds |>
+  distinct() |>
+  mutate(demo_group = row_number())
+
+valid |>
+  semi_join(valid_seeds, by = demo_cols) |> 
+  inner_join(valid_seed_groups, by = demo_cols) |>
+  group_by(demo_group) |>
+  filter(n() > 1) |>
+  ungroup() |>
+  arrange(demo_group, start_date) |>
+  select(demo_group, response_id, ip_address, grocer_name, grocer_street, start_date) |>
+  mutate(demo_group = as.character(demo_group),
+         demo_group = if_else(demo_group == lag(demo_group, default = ""), "", demo_group)) |>
+  as.data.frame()
+```
+
+
+
+```{r}
+valid |>
+  group_by(across(all_of(match_cols))) |>
+  filter(n() > 1) |>
+  ungroup() |>
+  select(response_id, ip_address, ip_n) |>
+  arrange(ip_address) |>
+  as.data.frame()
+```
+
+
+```{r}
+valid |>
+  group_by(ip_address) |>
+  filter(n() > 1) |>
+  ungroup() |>
+  group_by(across(all_of(match_cols))) |>
+  mutate(demo_group = cur_group_id()) |>
+  ungroup() |>
+  arrange(demo_group, ip_address) |>
+  select(demo_group, response_id, ip_address, grocer_name, grocer_street, start_date) |>
+  mutate(demo_group = if_else(demo_group == lag(demo_group, default = -1L), NA_integer_, demo_group)) |>
+  as.data.frame()
+```
+
+
+
+
+
+
+*Review table for remaining suspicious responses*
+
+Review of this table should identify 6 additional response IDs for removal, matches on all demographics + grocery store with separate IPs.
+
+```{r}
+valid |>
+  group_by(ip_address) |>
+  filter(n() > 1) |>
+  ungroup() |>
+  group_by(across(all_of(match_cols))) |>
+  mutate(demo_group = cur_group_id()) |>
+  ungroup() |>
+  arrange(demo_group, ip_address) |>
+  select(demo_group, response_id, ip_address, grocer_name, grocer_street, start_date) |>
+  mutate(demo_group = if_else(demo_group == lag(demo_group, default = -1L), NA_integer_, demo_group)) |>
+  as.data.frame()
+```
+
+Review of this table should identify 6 responses for removal, each of which are an IP + demographic match of a previously completed survey that failed to automatically flag as a duplicate entry.
+
+
+
+
+
+
+
+```{r}
+demo_summary <- inner_join(valid, flagged,
+           by = match_cols,
+           suffix = c("_valid", "_removed"),
+           relationship = "many-to-many") |>
+  filter(ip_address_valid != ip_address_removed) |>
+  group_by(ip_address = ip_address_valid, valid_id = response_id_valid) |>
+  summarise(logic_fail = any(!is.na(term_removed)),
+            min_recaptcha = suppressWarnings(min(as.numeric(q_recaptcha_score_removed), na.rm = TRUE)) |> na_if(Inf),
+            found_dupe = all(removed_removed == "q_duplicate_respondent"),
+            .groups = "drop") |>
+  arrange(desc(logic_fail), min_recaptcha, found_dupe)
+
+as.data.frame(demo_summary)
+```
+
+```{r}
+
+```
+
+
+
+
+
+
+*Within valid responses*
+```{r}
+valid |>
+  group_by(ip_address, across(all_of(match_cols))) |>
+  filter(n() > 1) |>
+  mutate(ip_n = n()) |>
+  ungroup() |>
+  select(response_id, ip_address, ip_n) |>
+  arrange(ip_address) |>
+  as.data.frame()
+```
+
+
+
+*Orientation*
+
+- One respondent indicated 'other' with no additional information. This value will be rendered bi/pan as the most likely congruent option.
+- Tidy responses.
+
+```{r}
+panel_clean |> count(dem_orientation_other_text)
+panel_clean <- panel_clean |> select(-dem_orientation_other_text)
+
+panel_clean <- panel_clean |> 
+  mutate(
+    dem_orientation = case_when(
+      dem_orientation ==
+        'Asexual' ~ 'asexual',
+      dem_orientation ==
+        'Heterosexual/Straight' ~ 'straight',
+      dem_orientation ==
+        'Lesbian/Gay' ~ 'gay_or_lesbian',
+      dem_orientation ==
+        'Bisexual/Pansexual' ~ 'bisexual_or_pansexual',
+      dem_orientation ==
+        'None of the above work for me, let me explain:' ~ 'bisexual_or_pansexual'))
+```
+
+*Race/Ethnicity*
+
+The Qualtrics export provides a dummy-coded variable for every option from the check-all-that-apply.
+
+- Clean to true/false flags for each option.
+
+- Only one respondent indicated 'other' as Portuguese in addition to White/Caucasian. This has been considered additional information, but not another unique race/ethnic identity for our demographics. 'Other' columns will be removed.
+
+- Only one respondent indicated Hawaiian/Pacific Islander, while also indicating Native American and White. This column will be removed as too specific in favor of Native American which is comparable.
+
+```{r}
+panel_clean <- panel_clean |>
+  mutate(across(starts_with("dem_race_") & !contains("other"),
+                ~ !is.na(.x)))
+```
+
+```{r}
+panel_clean |> count(dem_race_other_text)
+panel_clean |> count(dem_race_hawaiian_pacific)
+panel_clean <- panel_clean |> select(-dem_race_other, -dem_race_other_text, -dem_race_hawaiian_pacific)
+```
+
+*Gender Identity*
+
+- Many open-response values indicating male/female contained typos. Corrections here are ~hard-coded and may need updating if any new typos emerge in additional responses (510 completes currently)
+
+- One respondent appears to have indicated their age again by mistake for this question. The value will be rendered to an assumption that the respondent is cisgender.
+
+- One respondent each indicated 'Binary' and 'Trans'. 'Binary' in this case may indicate cisgender, or could be a typo of attempting to respond non-binary. These values will be left unchanged, with modelling recipes to consider dropping this variable in favor of solely incorporating sex at birth due to a very low representation of non-cis gender identities.
+
+```{r}
+panel_clean |> count(dem_identity)
+
+panel_clean <- panel_clean |> 
+  mutate(
+    dem_identity = case_when(
+      str_detect(dem_identity,
+                 regex("^m", ignore_case = TRUE)) ~ "male",
+      str_detect(dem_identity,
+                 regex("^f", ignore_case = TRUE)) ~ "female",
+      str_detect(dem_identity,
+                 regex("^w", ignore_case = TRUE)) ~ "female",
+      dem_identity == '38' ~ dem_sex,
+      TRUE ~ dem_identity))
+```
+
+## Finish and save files
+
+*Assign sub-ids #s (instead of response ID strings), remove redundant cols, tidy responses*
+```{r}
+panel_clean <- panel_clean |> 
+  mutate(subid = row_number()) |> 
+  relocate(subid) |> 
+  relocate(removed, .after = subid) |>
+  select(health_drink, removed, where(~ n_distinct(., na.rm = FALSE) > 1)) |> 
+  mutate(across(c(health_food:dem_orientation,
+                  dem_education, dem_student,
+                  dem_marital_status, dem_minority,
+                  q1_legitimizing_1:q6_formality_1,
+                  x1_hi_1_fl_1:x4_li_10_in_1) & where(\(x) is.character(x) | is.factor(x)) &
+                  !contains("timing") & !contains("grocer"),
+                tidy_responses))
+```
+
+*Clean grocery store open-responses for cross-validation*
+
+Many typos and inconsistencies exist within the raw responses for nearest grocery store address (HEB vs. H-E-B, etc.)
+
+- responses will be standardized for the sake of EDA and improving geocode accuracy.
+
+```{r}
+grocer_name_stds <- c(
+  # --- Walmart ---
+  "(?i)^super\\s*wal[\\s-]*mart$"      = "Walmart Supercenter",
+  "(?i)^walmart\\s*supercenter$"        = "Walmart Supercenter",
+  "(?i)^wal[\\s-]*m[ao]?r?t$"          = "Walmart",
+  "(?i)^wall\\s*mart$"                  = "Walmart",
+  "(?i)^walm[ao]t$"                     = "Walmart",
+  "(?i)^walmart,\\s*.+"                 = "Walmart",   # name field contains address
+  # --- Kroger ---
+  "(?i)^kri[ao]?ger['s]*$"             = "Kroger",
+  "(?i)^kroger['s]*$"                  = "Kroger",
+  # --- H-E-B ---
+  "(?i)^h[\\.\\s]*e[\\.\\s]*b[\\.\\s]*(store)?$" = "H-E-B",
+  "(?i)^heb$"                           = "H-E-B",
+  # --- Hy-Vee ---
+  "(?i)^hy[-\\s]*vee$"                  = "Hy-Vee",
+  "(?i)^hyvee$"                         = "Hy-Vee",
+  # --- Food Lion ---
+  "(?i)^food[-\\s]*lion$"               = "Food Lion",
+  # --- Dollar General ---
+  "(?i)^dollar\\s*general$"             = "Dollar General",
+  # --- Family Dollar ---
+  "(?i)^family\\s*dollar$"              = "Family Dollar",
+  # --- Trader Joe's ---
+  "(?i)^trader['s]*\\s*joe['s]*$"       = "Trader Joe's",
+  # --- Costco ---
+  "(?i)^cos[t]?co$"                     = "Costco",
+  # --- ShopRite ---
+  "(?i)^shop[\\s-]*rite$"               = "ShopRite",
+  "(?i)^shoperite$"                     = "ShopRite",
+  # --- Winn-Dixie ---
+  "(?i)^winn[\\s-]*dixie$"              = "Winn-Dixie",
+  # --- Aldi ---
+  "(?i)^aldi['s]*$"                     = "Aldi",
+  # --- Piggly Wiggly ---
+  "(?i)^piggly\\s*wiggly$"              = "Piggly Wiggly",
+  # --- Whole Foods ---
+  "(?i)^whole\\s*foods(\\s*market)?$"   = "Whole Foods",
+  # --- Target ---
+  "(?i)^targer$"                        = "Target",
+  # --- 7-Eleven ---
+  "(?i)^7[\\s-]*eleven$"                = "7-Eleven",
+  "(?i)^seven\\s*eleven$"               = "7-Eleven",
+  # --- Stater Bros ---
+  "(?i)^stater\\s*br(os?|others)$"      = "Stater Bros",
+  # --- Stop & Shop ---
+  "(?i)^stop\\s*(and|&)\\s*shop$"       = "Stop & Shop",
+  # --- Market Basket ---
+  "(?i)^market\\s*basket$"              = "Market Basket",
+  # --- Food City ---
+  "(?i)^food[-\\s]*city$"               = "Food City",
+  # --- Save-A-Lot ---
+  "(?i)^sav[e]?[-\\s]*a[-\\s]*lot$"     = "Save-A-Lot",
+  # --- WinCo ---
+  "(?i)^winco[s]?$"                     = "WinCo",
+  # --- Harris Teeter ---
+  "(?i)^harris\\s*teeter$"              = "Harris Teeter",
+  # --- Amazon Fresh ---
+  "(?i)^amazon(\\s*fresh)?$"            = "Amazon Fresh",
+  # --- IGA ---
+  "(?i)^iga$"                           = "IGA",
+  # --- Cub Foods ---
+  "(?i)^cub(\\s*foods)?$"               = "Cub Foods",
+  # --- Star Market ---
+  "(?i)^star[-\\s]?market$"             = "Star Market",
+  # --- Fred Meyer ---
+  "(?i)^fred\\s*m[ey]+r[s]?$"           = "Fred Meyer",
+  # --- Hannaford ---
+  "(?i)^hann[ai]?ford$"                 = "Hannaford",
+  # --- Brookshire's ---
+  "(?i)^brookshire['s]*$"               = "Brookshire's",
+  # --- Giant Eagle ---
+  "(?i)^giant\\s*eagle$"                = "Giant Eagle",
+  # --- Giant (standalone) ---
+  "(?i)^giants?$"                       = "Giant",
+  # --- Price Chopper ---
+  "(?i)^price\\s*chopper$"              = "Price Chopper",
+  # --- Pick 'N Save ---
+  "(?i)^pick[\\s'-]*n[\\s'-]*save$"     = "Pick 'N Save",
+  # --- BJ's ---
+  "(?i)^bj['s]*(\\s*wholesale\\s*club)?$" = "BJ's",
+  # --- Safeway ---
+  "(?i)^saf[ae]?way$"                   = "Safeway",
+  # --- Big Y ---
+  "(?i)^big\\s*y$"                      = "Big Y",
+  # --- Smith's ---
+  "(?i)^smith['s]+$"                    = "Smith's",
+  # --- Jewel ---
+  "(?i)^jewels?$"                       = "Jewel",
+  # --- Ralphs ---
+  "(?i)^ralphs?$"                       = "Ralphs",
+  # --- Tom Thumb ---
+  "(?i)^tom\\s*thumb$"                  = "Tom Thumb",
+  # --- Sun Fresh ---
+  "(?i)^sun\\s*fresh$"                  = "Sun Fresh",
+  # --- Case-only fixes (must be last) ---
+  "(?i)^publix$"   = "Publix",
+  "(?i)^safeway$"  = "Safeway",
+  "(?i)^target$"   = "Target",
+  "(?i)^ingles$"   = "Ingles",
+  "(?i)^vons$"     = "Vons",
+  "(?i)^sprouts$"  = "Sprouts",
+  "(?i)^wegmans$"  = "Wegmans",
+  "(?i)^meijer$"   = "Meijer",
+  "(?i)^lidl$"     = "Lidl",
+  "(?i)^schnucks$" = "Schnucks",
+  "(?i)^albertsons$"    = "Albertsons",
+  "(?i)^haggens?$"      = "Haggen",
+  "(?i)^festival\\s*foods$" = "Festival Foods",
+  "(?i)^fresh\\s*market$"   = "Fresh Market",
+  "(?i)^smart\\s*(and|&)\\s*final.*" = "Smart & Final",
+  "(?i)^fry's\\s*food\\s*store$"     = "Fry's",
+  "(?i)^save\\s*mart$"               = "Save Mart"
+)
+
+state_abbrev_stds <- c(
+  "(?i)^AL$" = "Alabama",        "(?i)^AK$" = "Alaska",
+  "(?i)^AZ$" = "Arizona",        "(?i)^AR$" = "Arkansas",
+  "(?i)^CA$" = "California",     "(?i)^CO$" = "Colorado",
+  "(?i)^CT$" = "Connecticut",    "(?i)^DE$" = "Delaware",
+  "(?i)^FL$" = "Florida",        "(?i)^GA$" = "Georgia",
+  "(?i)^HI$" = "Hawaii",         "(?i)^ID$" = "Idaho",
+  "(?i)^IL$" = "Illinois",       "(?i)^IN$" = "Indiana",
+  "(?i)^IA$" = "Iowa",           "(?i)^KS$" = "Kansas",
+  "(?i)^KY$" = "Kentucky",       "(?i)^LA$" = "Louisiana",
+  "(?i)^ME$" = "Maine",          "(?i)^MD$" = "Maryland",
+  "(?i)^MA$" = "Massachusetts",  "(?i)^MI$" = "Michigan",
+  "(?i)^MN$" = "Minnesota",      "(?i)^MS$" = "Mississippi",
+  "(?i)^MO$" = "Missouri",       "(?i)^MT$" = "Montana",
+  "(?i)^NE$" = "Nebraska",       "(?i)^NV$" = "Nevada",
+  "(?i)^NH$" = "New Hampshire",  "(?i)^NJ$" = "New Jersey",
+  "(?i)^NM$" = "New Mexico",     "(?i)^NY$" = "New York",
+  "(?i)^NC$" = "North Carolina", "(?i)^ND$" = "North Dakota",
+  "(?i)^OH$" = "Ohio",           "(?i)^OK$" = "Oklahoma",
+  "(?i)^OR$" = "Oregon",         "(?i)^PA$" = "Pennsylvania",
+  "(?i)^RI$" = "Rhode Island",   "(?i)^SC$" = "South Carolina",
+  "(?i)^SD$" = "South Dakota",   "(?i)^TN$" = "Tennessee",
+  "(?i)^TX$" = "Texas",          "(?i)^UT$" = "Utah",
+  "(?i)^VT$" = "Vermont",        "(?i)^VA$" = "Virginia",
+  "(?i)^WA$" = "Washington",     "(?i)^WV$" = "West Virginia",
+  "(?i)^WI$" = "Wisconsin",      "(?i)^WY$" = "Wyoming",
+  "(?i)^DC$" = "District of Columbia"
+)
+
+panel_clean <- panel_clean |>
+  mutate(
+    # Normalize curly apostrophes, then standardize name
+    grocer_name = str_replace_all(grocer_name, "\u2019", "'") |> str_squish(),
+    grocer_name = str_replace_all(grocer_name, grocer_name_stds),
+    # Expand state abbreviations to full names before building address
+    state = str_replace_all(state, state_abbrev_stds),
+    grocer_address = str_squish(
+      paste(grocer_name, grocer_street, city, state, sep = " "))
+  )
+
+# Remove junk phrases from the full address string
+remove_phrases <- regex(
+  paste(
+    "its in",
+    "i dont know",
+    "don't know",
+    "not sure",
+    "bronx n\\.y",
+    "ottumwa iowa",
+    sep = "|"
+  ),
+  ignore_case = TRUE
+)
+
+# Address-level fixes (duplicates, formatting, etc.)
+address_fixes <- c(
+  "(?i)tell13"                                                                    = "tell 13",
+  "(?i)2800arapahoe"                                                              = "2800 Arapahoe",
+  "(?i)Kroger, Kroger, Junction city, Ky"                                         = "Kroger, Junction city, Ky",
+  "(?i)Smart and final on Arlington, Walmart on Van Buren, Riverside, California" = "Smart and final, Arlington, Riverside, California",
+  "(?i)Walmart, Eisenhower dr., Aldi, Eisenhower dr., Hanover, PA"                = "Walmart, Eisenhower dr., Hanover, PA",
+  "(?i)Walmart, 1010 112th St Amory MS, Amory, MS"                                = "Walmart, 1010 112th St, Amory, MS",
+  "(?i)24 Hours Food Mart Grocery Store, 500 Mannheim Rd, Bellwood, IL 60104, United States, Chicago, IL"  = "24 Hours Food Mart Grocery Store, 500 Mannheim Rd, Bellwood, IL"
+)
+
+panel_clean <- panel_clean |>
+  mutate(
+    grocer_address = str_replace_all(grocer_address, "\u2019", "'"),
+    grocer_address = grocer_address |>
+      str_remove_all(remove_phrases) |>
+      str_replace_all(address_fixes) |>
+      str_squish()
+  ) |> 
+  relocate(city, .after = grocer_street) |> 
+  relocate(state, .after = city) |>
+  relocate(grocer_address, .after = state)
+  
+```
+
+*Save full dataset with `removed` column*
+```{r}
+panel_clean |> write_csv(here::here(path_processed,"panel_full.csv"))
+```
