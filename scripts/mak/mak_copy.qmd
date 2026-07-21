@@ -265,14 +265,6 @@ panel_screen <- panel_screen |>
 
 The remaining unflagged sample should be n = 510 responses.
 
-*Convert empty strings to NAs*
-
-```{r}
-#panel_screen <- panel_screen |> 
-#  mutate(
-#    across(q4_sexual_orientation:q5_race_ethnicity_7_text, ~na_if(.x, ""))
-```
-
 ## Manual detection of duplicates
 
 Qualtrics failed to identify many convincing cases of a single person attempting and/or completing the survey multiple times. First, let's explore cases where a valid respondent in our remaining sample of n = 510 has both a matching IP address and identical demographics to at least 1 other failed response.
@@ -297,6 +289,8 @@ flagged <- panel_screen |> filter(!is.na(flag))
 ```
 
 ### IP + demographic matches between valid and removed responses
+
+#### Full demo matches
 
 ```{r}
 # Match valid responses to flagged ones sharing same IP + demographics
@@ -347,6 +341,85 @@ panel_screen |>
 ```
 
 If the provided grocery store is also a match with at least one failed attempt, the observation will be deemed invalid and marked in a separate file. 13 responses have been flagged for removal from the final sample by this table.
+
+#### Partial demo matches
+
+```{r}
+# Union of all 15-choose-14 joins: pairs matching on IP + at least 14 demo_cols
+partial_14_joins <- map(demo_cols, \(drop_col) {
+  inner_join(
+    valid   |> select(valid_id   = response_id, ip_address, all_of(demo_cols)),
+    flagged |> select(flagged_id = response_id, ip_address, flag_flagged = flag, all_of(demo_cols)),
+    by = c("ip_address", setdiff(demo_cols, drop_col)),
+    suffix = c("_v", "_f")
+  ) |>
+    select(valid_id, flagged_id, ip_address, flag_flagged)
+}) |>
+  list_rbind() |>
+  distinct()
+
+# Remove pairs that also fully match all 15 demo_cols — leaves exactly 14-of-15
+full_demo_pairs <- inner_join(
+  valid   |> select(valid_id   = response_id, ip_address, all_of(demo_cols)),
+  flagged |> select(flagged_id = response_id, ip_address, all_of(demo_cols)),
+  by = c("ip_address", demo_cols)
+) |>
+  select(valid_id, flagged_id)
+
+partial_14_matches <- anti_join(partial_14_joins, full_demo_pairs,
+                                by = c("valid_id", "flagged_id"))
+
+# Summary table (mirrors demo_ip_matches)
+partial_demo_matches <- partial_14_matches |>
+  group_by(ip_address, valid_id) |>
+  summarise(dupe_only = all(flag_flagged == "q_duplicate_respondent"),
+            .groups = "drop") |>
+  arrange(dupe_only)
+
+partial_demo_matches |> as.data.frame()
+```
+
+```{r}
+partial_demo_sus <- partial_demo_matches |>
+  filter(dupe_only == FALSE) |>
+  pull(ip_address) |>
+  unique()
+```
+
+```{r}
+# For each pair, find the one differing demo column and capture both values
+pair_diffs <- partial_14_matches |>
+  filter(ip_address %in% partial_demo_sus) |>
+  left_join(valid   |> select(valid_id   = response_id, all_of(demo_cols)), by = "valid_id") |>
+  left_join(flagged |> select(flagged_id = response_id, all_of(demo_cols)), by = "flagged_id",
+            suffix = c("_v", "_f")) |>
+  mutate(across(ends_with("_v") | ends_with("_f"), as.character)) |>
+  rowwise() |>
+  mutate(diff_info = {
+    v_vals <- c_across(all_of(paste0(demo_cols, "_v")))
+    f_vals <- c_across(all_of(paste0(demo_cols, "_f")))
+    differs <- mapply(\(v, f) !(is.na(v) & is.na(f)) && (is.na(v) || is.na(f) || v != f),
+                      v_vals, f_vals)
+    col <- demo_cols[differs]
+    paste0(col, ": '", v_vals[differs], "' vs '", f_vals[differs], "'")
+  }) |>
+  ungroup() |>
+  select(valid_id, flagged_id, diff_info)
+
+# Lookup keyed on flagged_id only — valid rows get NA, flagged rows show their specific diff
+diff_lookup <- pair_diffs |>
+  group_by(flagged_id) |>
+  summarise(diff_info = paste(diff_info, collapse = "; "), .groups = "drop")
+
+panel_screen |>
+  filter(ip_address %in% partial_demo_sus) |>
+  left_join(diff_lookup, by = c("response_id" = "flagged_id")) |>
+  arrange(ip_address, !is.na(flag)) |>
+  select(ip_address, response_id, grocer_name, grocer_street, diff_info) |>
+  mutate(ip_address = if_else(
+    ip_address == lag(ip_address, default = ""), "", ip_address)) |>
+  as.data.frame()
+```
 
 ### Demographic only matches between valid and flagged responses
 
@@ -435,113 +508,19 @@ valid |>
   as.data.frame()
 ```
 
+Review of this table should identify 5 additional response IDs for removal, matches on all demographics + grocery store with separate IPs.
 
-
-```{r}
-valid |>
-  group_by(across(all_of(match_cols))) |>
-  filter(n() > 1) |>
-  ungroup() |>
-  select(response_id, ip_address, ip_n) |>
-  arrange(ip_address) |>
-  as.data.frame()
-```
-
-
-```{r}
-valid |>
-  group_by(ip_address) |>
-  filter(n() > 1) |>
-  ungroup() |>
-  group_by(across(all_of(match_cols))) |>
-  mutate(demo_group = cur_group_id()) |>
-  ungroup() |>
-  arrange(demo_group, ip_address) |>
-  select(demo_group, response_id, ip_address, grocer_name, grocer_street, start_date) |>
-  mutate(demo_group = if_else(demo_group == lag(demo_group, default = -1L), NA_integer_, demo_group)) |>
-  as.data.frame()
-```
-
-
-
-
-
-
-*Review table for remaining suspicious responses*
-
-Review of this table should identify 6 additional response IDs for removal, matches on all demographics + grocery store with separate IPs.
-
-```{r}
-valid |>
-  group_by(ip_address) |>
-  filter(n() > 1) |>
-  ungroup() |>
-  group_by(across(all_of(match_cols))) |>
-  mutate(demo_group = cur_group_id()) |>
-  ungroup() |>
-  arrange(demo_group, ip_address) |>
-  select(demo_group, response_id, ip_address, grocer_name, grocer_street, start_date) |>
-  mutate(demo_group = if_else(demo_group == lag(demo_group, default = -1L), NA_integer_, demo_group)) |>
-  as.data.frame()
-```
-
-Review of this table should identify 6 responses for removal, each of which are an IP + demographic match of a previously completed survey that failed to automatically flag as a duplicate entry.
-
-
-
-
-
-
-
-```{r}
-demo_summary <- inner_join(valid, flagged,
-           by = match_cols,
-           suffix = c("_valid", "_removed"),
-           relationship = "many-to-many") |>
-  filter(ip_address_valid != ip_address_removed) |>
-  group_by(ip_address = ip_address_valid, valid_id = response_id_valid) |>
-  summarise(logic_fail = any(!is.na(term_removed)),
-            min_recaptcha = suppressWarnings(min(as.numeric(q_recaptcha_score_removed), na.rm = TRUE)) |> na_if(Inf),
-            found_dupe = all(removed_removed == "q_duplicate_respondent"),
-            .groups = "drop") |>
-  arrange(desc(logic_fail), min_recaptcha, found_dupe)
-
-as.data.frame(demo_summary)
-```
-
-```{r}
-
-```
-
-
-
-
-
-
-*Within valid responses*
-```{r}
-valid |>
-  group_by(ip_address, across(all_of(match_cols))) |>
-  filter(n() > 1) |>
-  mutate(ip_n = n()) |>
-  ungroup() |>
-  select(response_id, ip_address, ip_n) |>
-  arrange(ip_address) |>
-  as.data.frame()
-```
-
-
+## Basic Cleaning
 
 *Orientation*
 
 - One respondent indicated 'other' with no additional information. This value will be rendered bi/pan as the most likely congruent option.
-- Tidy responses.
 
 ```{r}
-panel_clean |> count(dem_orientation_other_text)
-panel_clean <- panel_clean |> select(-dem_orientation_other_text)
+#panel_clean |> count(dem_orientation_other_text)
+#panel_clean <- panel_clean |> select(-dem_orientation_other_text)
 
-panel_clean <- panel_clean |> 
+panel_screen <- panel_screen |> 
   mutate(
     dem_orientation = case_when(
       dem_orientation ==
@@ -565,12 +544,6 @@ The Qualtrics export provides a dummy-coded variable for every option from the c
 - Only one respondent indicated 'other' as Portuguese in addition to White/Caucasian. This has been considered additional information, but not another unique race/ethnic identity for our demographics. 'Other' columns will be removed.
 
 - Only one respondent indicated Hawaiian/Pacific Islander, while also indicating Native American and White. This column will be removed as too specific in favor of Native American which is comparable.
-
-```{r}
-panel_clean <- panel_clean |>
-  mutate(across(starts_with("dem_race_") & !contains("other"),
-                ~ !is.na(.x)))
-```
 
 ```{r}
 panel_clean |> count(dem_race_other_text)
@@ -823,5 +796,5 @@ panel_clean <- panel_clean |>
 
 *Save full dataset with `removed` column*
 ```{r}
-panel_clean |> write_csv(here::here(path_processed,"panel_full.csv"))
+panel_clean |> write_csv(here::here(path_processed,"panel.csv"))
 ```
