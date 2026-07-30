@@ -277,8 +277,6 @@ Qualtrics failed to identify many convincing cases of a single person attempting
 demo_cols <- panel_screen |> select(dem_age:dem_marital_status) |> 
   select(-c(dem_identity, dem_orientation_other_text, dem_race_other_text)) |> 
   names()
-
-grocer_cols <- c("grocer_name", "grocer_street")
 ```
 
 *Isolate valid & flagged responses for comparison*
@@ -288,9 +286,9 @@ valid <- panel_screen |> filter(is.na(flag))
 flagged <- panel_screen |> filter(!is.na(flag))
 ```
 
-### IP + demographic matches between valid and removed responses
+## Matches between valid and flagged responses
 
-#### Full demo matches
+### IP + demographic matches between valid and flagged responses
 
 ```{r}
 # Match valid responses to flagged ones sharing same IP + demographics
@@ -342,166 +340,11 @@ panel_screen |>
 
 If the provided grocery store is also a match with at least one failed attempt, the observation will be deemed invalid and marked in a separate file. 13 responses have been flagged for removal from the final sample by this table.
 
-#### 14/15 demo matches
-
-```{r}
-# Union of all 15-choose-14 joins: pairs matching on IP + at least 14 demo_cols
-partial_14_joins <- map(demo_cols, \(drop_col) {
-  inner_join(
-    valid   |> select(valid_id   = response_id, ip_address, all_of(demo_cols)),
-    flagged |> select(flagged_id = response_id, ip_address, flag_flagged = flag, all_of(demo_cols)),
-    by = c("ip_address", setdiff(demo_cols, drop_col)),
-    suffix = c("_v", "_f")
-  ) |>
-    select(valid_id, flagged_id, ip_address, flag_flagged)
-}) |>
-  list_rbind() |>
-  distinct()
-
-# Remove pairs that also fully match all 15 demo_cols — leaves exactly 14-of-15
-full_demo_pairs <- inner_join(
-  valid   |> select(valid_id   = response_id, ip_address, all_of(demo_cols)),
-  flagged |> select(flagged_id = response_id, ip_address, all_of(demo_cols)),
-  by = c("ip_address", demo_cols)
-) |>
-  select(valid_id, flagged_id)
-
-partial_14_matches <- anti_join(partial_14_joins, full_demo_pairs,
-                                by = c("valid_id", "flagged_id"))
-
-# Summary table (mirrors demo_ip_matches)
-partial_demo_matches <- partial_14_matches |>
-  group_by(ip_address, valid_id) |>
-  summarise(dupe_only = all(flag_flagged == "q_duplicate_respondent"),
-            .groups = "drop") |>
-  arrange(dupe_only)
-
-partial_demo_matches |> as.data.frame()
-```
-
-```{r}
-partial_demo_sus <- partial_demo_matches |>
-  filter(dupe_only == FALSE) |>
-  pull(ip_address) |>
-  unique()
-```
-
-```{r}
-# For each pair, find the one differing demo column and capture both values
-pair_diffs <- partial_14_matches |>
-  filter(ip_address %in% partial_demo_sus) |>
-  left_join(valid   |> select(valid_id   = response_id, all_of(demo_cols)), by = "valid_id") |>
-  left_join(flagged |> select(flagged_id = response_id, all_of(demo_cols)), by = "flagged_id",
-            suffix = c("_v", "_f")) |>
-  mutate(across(ends_with("_v") | ends_with("_f"), as.character)) |>
-  rowwise() |>
-  mutate(diff_info = {
-    v_vals <- c_across(all_of(paste0(demo_cols, "_v")))
-    f_vals <- c_across(all_of(paste0(demo_cols, "_f")))
-    differs <- mapply(\(v, f) !(is.na(v) & is.na(f)) && (is.na(v) || is.na(f) || v != f),
-                      v_vals, f_vals)
-    col <- demo_cols[differs]
-    paste0(col, ": '", v_vals[differs], "' vs '", f_vals[differs], "'")
-  }) |>
-  ungroup() |>
-  select(valid_id, flagged_id, diff_info)
-
-# Lookup keyed on flagged_id only — valid rows get NA, flagged rows show their specific diff
-diff_lookup <- pair_diffs |>
-  group_by(flagged_id) |>
-  summarise(diff_info = paste(diff_info, collapse = "; "), .groups = "drop")
-
-panel_screen |>
-  filter(ip_address %in% partial_demo_sus) |>
-  left_join(diff_lookup, by = c("response_id" = "flagged_id")) |>
-  arrange(ip_address, !is.na(flag)) |>
-  select(ip_address, response_id, grocer_name, grocer_street, diff_info) |>
-  mutate(ip_address = if_else(
-    ip_address == lag(ip_address, default = ""), "", ip_address)) |>
-  as.data.frame()
-```
-
-#### 13/15 demo matches
-
-```{r}
-# Union of all 15-choose-13 joins: pairs matching on IP + at least 13 demo_cols
-drop_pairs <- asplit(combn(demo_cols, 2), 2)
-
-partial_13_joins <- map(drop_pairs, \(drop_col) {
-  inner_join(
-    valid   |> select(valid_id   = response_id, ip_address, all_of(demo_cols)),
-    flagged |> select(flagged_id = response_id, ip_address, flag_flagged = flag, all_of(demo_cols)),
-    by = c("ip_address", setdiff(demo_cols, drop_col)),
-    suffix = c("_v", "_f")
-  ) |>
-    select(valid_id, flagged_id, ip_address, flag_flagged)
-}) |>
-  list_rbind() |>
-  distinct()
-
-# Remove pairs matching on 15 or 14 demo_cols — leaves exactly 13-of-15
-partial_13_matches <- partial_13_joins |>
-  anti_join(full_demo_pairs,    by = c("valid_id", "flagged_id")) |>
-  anti_join(partial_14_matches, by = c("valid_id", "flagged_id"))
-
-# Summary table (mirrors partial_demo_matches)
-partial13_demo_matches <- partial_13_matches |>
-  group_by(ip_address, valid_id) |>
-  summarise(dupe_only = all(flag_flagged == "q_duplicate_respondent"),
-            .groups = "drop") |>
-  arrange(dupe_only)
-
-partial13_demo_matches |> as.data.frame()
-```
-
-```{r}
-partial13_demo_sus <- partial13_demo_matches |>
-  filter(dupe_only == FALSE) |>
-  pull(ip_address) |>
-  unique()
-```
-
-```{r}
-# For each pair, find the differing demo columns (up to 2) and capture both values
-pair_diffs_13 <- partial_13_matches |>
-  filter(ip_address %in% partial13_demo_sus) |>
-  left_join(valid   |> select(valid_id   = response_id, all_of(demo_cols)), by = "valid_id") |>
-  left_join(flagged |> select(flagged_id = response_id, all_of(demo_cols)), by = "flagged_id",
-            suffix = c("_v", "_f")) |>
-  mutate(across(ends_with("_v") | ends_with("_f"), as.character)) |>
-  rowwise() |>
-  mutate(diff_info = {
-    v_vals <- c_across(all_of(paste0(demo_cols, "_v")))
-    f_vals <- c_across(all_of(paste0(demo_cols, "_f")))
-    differs <- mapply(\(v, f) !(is.na(v) & is.na(f)) && (is.na(v) || is.na(f) || v != f),
-                      v_vals, f_vals)
-    col <- demo_cols[differs]
-    paste0(col, ": '", v_vals[differs], "' vs '", f_vals[differs], "'", collapse = "; ")
-  }) |>
-  ungroup() |>
-  select(valid_id, flagged_id, diff_info)
-
-# Lookup keyed on flagged_id only
-diff_lookup_13 <- pair_diffs_13 |>
-  group_by(flagged_id) |>
-  summarise(diff_info = paste(diff_info, collapse = "; "), .groups = "drop")
-
-panel_screen |>
-  filter(ip_address %in% partial13_demo_sus) |>
-  left_join(diff_lookup_13, by = c("response_id" = "flagged_id")) |>
-  arrange(ip_address, !is.na(flag)) |>
-  select(ip_address, response_id, grocer_name, grocer_street, diff_info) |>
-  mutate(ip_address = if_else(
-    ip_address == lag(ip_address, default = ""), "", ip_address)) |>
-  as.data.frame()
-```
-
-
 ### Demographic only matches between valid and flagged responses
 
 ```{r}
 demo_only_matches <- inner_join(valid, flagged,
-           by = match_cols,
+           by = demo_cols,
            suffix = c("_valid", "_flagged"),
            relationship = "many-to-many") |>
   filter(ip_address_valid != ip_address_flagged) |>
@@ -510,7 +353,7 @@ demo_only_matches <- inner_join(valid, flagged,
             .groups = "drop") |>
   arrange(dupe_only)
 
-as.data.frame(demo_summary)
+as.data.frame(demo_only_matches)
 ```
 
 This tables should identify 50 eligible responses with a demographic match in the flagged group, this time with new IPs.
@@ -545,8 +388,10 @@ panel_screen |>
   as.data.frame()
 ```
 
-Review of this table should identify 9 responses for removal - demographic + grocery store matches with unique IPs
+Review of this table should identify 9 responses for removal: demographic + grocery store matches with unique IPs
 
+## Matches within valid responses
+b b    
 ### IP + demographic matches within eligible responses
 
 ```{r}
