@@ -32,6 +32,7 @@ responses include:
     -   Underage fails
     -   Attention check fails
     -   Timing check fails
+    -   Straightliners
     -   Unfinished/abandoned responses
     -   Qualtrics-identiified duplicates.
     
@@ -122,6 +123,16 @@ panel_screen <- panel_screen |>
 
 # Remove now-redundant attention check columns
   select(-contains("attention"))
+
+# Flag for straightliners
+panel_screen <- panel_screen |>
+  rowwise() |>
+  mutate(straightliner = {
+    vals <- c_across(matches("^x[1-4]_(hi|hd|li)_\\d+_"))
+    vals <- vals[!is.na(vals)]
+    length(vals) > 0 && n_distinct(vals) == 1
+  }) |>
+  ungroup()
 ```
 
 ## Flagging ineligible responses
@@ -250,9 +261,13 @@ panel_screen <- panel_screen |>
 panel_screen <- panel_screen |>
   flag_value(col = "tone_timing_page_submit", threshold = 59, num = TRUE)
 
-# NOTE: Important that these next two run after all of the above checks - The
+# NOTE: Important that these next three run after all of the above checks - The
 #       function will not overwrite existing values in the 'removed' column,
 #       meaning that failures on screening or survey logic take priority.
+
+# Flag straightliners
+panel_screen <- panel_screen |> 
+  flag_value(col = "straightliner", valid = FALSE)
 
 # Flag abandoned/incomplete responses
 panel_screen <- panel_screen |>
@@ -391,7 +406,7 @@ panel_screen |>
 Review of this table should identify 9 responses for removal: demographic + grocery store matches with unique IPs
 
 ## Matches within valid responses
-b b    
+
 ### IP + demographic matches within eligible responses
 
 ```{r}
@@ -431,17 +446,43 @@ valid |>
 
 Review of this table should identify 5 additional response IDs for removal, matches on all demographics + grocery store with separate IPs.
 
+## Manual exclusions
+
+This code chunk loads in a .csv containing all suspicious response IDs identified by manual review, which will now be used to assign new values for the 'flag' column.
+
+```{r}
+flag_ids <- read_csv(here::here(path_processed, "manual_flag_ids.csv"))
+
+flag_ids <- flag_ids |>
+  pivot_longer(everything(), names_to = "flag_value", values_to = "response_id") |>
+  filter(!is.na(response_id))
+
+panel_screen <- panel_screen |>
+  left_join(flag_ids, by = "response_id") |>
+  mutate(flag = coalesce(flag, flag_value)) |>
+  select(-flag_value)
+
+# Redefine valid subset
+valid <- panel_screen |> 
+  filter(is.na(flag))
+```
+
 ## Basic Cleaning
 
 *Orientation*
 
-- One respondent indicated 'other' with no additional information. This value will be rendered bi/pan as the most likely congruent option.
+None of the remaining valid responses provided an "other" response for orientation, so no cleaning of open-text responses is necessary.
 
 ```{r}
-#panel_clean |> count(dem_orientation_other_text)
-#panel_clean <- panel_clean |> select(-dem_orientation_other_text)
+# Check valid responses for "other" orientations
+valid |> count(dem_orientation_other_text)
 
 panel_screen <- panel_screen |> 
+  
+# Remove redundant column
+  select(-dem_orientation_other_text) |> 
+  
+# Tidy orientation responses
   mutate(
     dem_orientation = case_when(
       dem_orientation ==
@@ -451,9 +492,7 @@ panel_screen <- panel_screen |>
       dem_orientation ==
         'Lesbian/Gay' ~ 'gay_or_lesbian',
       dem_orientation ==
-        'Bisexual/Pansexual' ~ 'bisexual_or_pansexual',
-      dem_orientation ==
-        'None of the above work for me, let me explain:' ~ 'bisexual_or_pansexual'))
+        'Bisexual/Pansexual' ~ 'bisexual_or_pansexual'))
 ```
 
 *Race/Ethnicity*
@@ -462,28 +501,37 @@ The Qualtrics export provides a dummy-coded variable for every option from the c
 
 - Clean to true/false flags for each option.
 
-- Only one respondent indicated 'other' as Portuguese in addition to White/Caucasian. This has been considered additional information, but not another unique race/ethnic identity for our demographics. 'Other' columns will be removed.
+- Only one respondent indicated an "other" ethnicity as Portuguese, in addition to White/Caucasian. This response is being considered has been considered additional information, but not another unique race/ethnic identity for our demographics. Th
 
-- Only one respondent indicated Hawaiian/Pacific Islander, while also indicating Native American and White. This column will be removed as too specific in favor of Native American which is comparable.
+- Only one respondent indicated Hawaiian/Pacific Islander, while also indicating Native American and White. This column will be removed as too specific in favor of Native American which is comparable with higher frequencies in the sample.
 
 ```{r}
-panel_clean |> count(dem_race_other_text)
-panel_clean |> count(dem_race_hawaiian_pacific)
-panel_clean <- panel_clean |> select(-dem_race_other, -dem_race_other_text, -dem_race_hawaiian_pacific)
+# Investigate "other" responses
+valid |>
+  filter(!is.na(dem_race_other_text)) |>
+  select(starts_with("dem_race") & !contains("other"))
+
+# Investigate hawaiian-pacific responses
+valid |>
+  filter(!is.na(dem_race_hawaiian_pacific)) |>
+  select(starts_with("dem_race") & !contains("other"))
+
+panel_screen <- panel_screen |> select(
+  -dem_race_other, -dem_race_other_text, -dem_race_hawaiian_pacific)
 ```
 
 *Gender Identity*
 
-- Many open-response values indicating male/female contained typos. Corrections here are ~hard-coded and may need updating if any new typos emerge in additional responses (510 completes currently)
+- Many open-response values indicating male/female contained typos. Corrections here are ~hard-coded and may need updating if any new typos emerge in additional responses.
 
 - One respondent appears to have indicated their age again by mistake for this question. The value will be rendered to an assumption that the respondent is cisgender.
 
 - One respondent each indicated 'Binary' and 'Trans'. 'Binary' in this case may indicate cisgender, or could be a typo of attempting to respond non-binary. These values will be left unchanged, with modelling recipes to consider dropping this variable in favor of solely incorporating sex at birth due to a very low representation of non-cis gender identities.
 
 ```{r}
-panel_clean |> count(dem_identity)
+valid |> count(dem_identity)
 
-panel_clean <- panel_clean |> 
+panel_screen <- panel_screen |> 
   mutate(
     dem_identity = case_when(
       str_detect(dem_identity,
@@ -498,13 +546,11 @@ panel_clean <- panel_clean |>
 
 ## Finish and save files
 
-*Assign sub-ids #s (instead of response ID strings), remove redundant cols, tidy responses*
+*Remove redundant cols, tidy responses*
+
 ```{r}
-panel_clean <- panel_clean |> 
-  mutate(subid = row_number()) |> 
-  relocate(subid) |> 
-  relocate(removed, .after = subid) |>
-  select(health_drink, removed, where(~ n_distinct(., na.rm = FALSE) > 1)) |> 
+panel_screen <- panel_screen |> 
+  select(health_drink, where(~ n_distinct(., na.rm = FALSE) > 1)) |> 
   mutate(across(c(health_food:dem_orientation,
                   dem_education, dem_student,
                   dem_marital_status, dem_minority,
@@ -514,208 +560,7 @@ panel_clean <- panel_clean |>
                 tidy_responses))
 ```
 
-*Clean grocery store open-responses for cross-validation*
-
-Many typos and inconsistencies exist within the raw responses for nearest grocery store address (HEB vs. H-E-B, etc.)
-
-- responses will be standardized for the sake of EDA and improving geocode accuracy.
-
+*Save full dataset with `flag` column*
 ```{r}
-grocer_name_stds <- c(
-  # --- Walmart ---
-  "(?i)^super\\s*wal[\\s-]*mart$"      = "Walmart Supercenter",
-  "(?i)^walmart\\s*supercenter$"        = "Walmart Supercenter",
-  "(?i)^wal[\\s-]*m[ao]?r?t$"          = "Walmart",
-  "(?i)^wall\\s*mart$"                  = "Walmart",
-  "(?i)^walm[ao]t$"                     = "Walmart",
-  "(?i)^walmart,\\s*.+"                 = "Walmart",   # name field contains address
-  # --- Kroger ---
-  "(?i)^kri[ao]?ger['s]*$"             = "Kroger",
-  "(?i)^kroger['s]*$"                  = "Kroger",
-  # --- H-E-B ---
-  "(?i)^h[\\.\\s]*e[\\.\\s]*b[\\.\\s]*(store)?$" = "H-E-B",
-  "(?i)^heb$"                           = "H-E-B",
-  # --- Hy-Vee ---
-  "(?i)^hy[-\\s]*vee$"                  = "Hy-Vee",
-  "(?i)^hyvee$"                         = "Hy-Vee",
-  # --- Food Lion ---
-  "(?i)^food[-\\s]*lion$"               = "Food Lion",
-  # --- Dollar General ---
-  "(?i)^dollar\\s*general$"             = "Dollar General",
-  # --- Family Dollar ---
-  "(?i)^family\\s*dollar$"              = "Family Dollar",
-  # --- Trader Joe's ---
-  "(?i)^trader['s]*\\s*joe['s]*$"       = "Trader Joe's",
-  # --- Costco ---
-  "(?i)^cos[t]?co$"                     = "Costco",
-  # --- ShopRite ---
-  "(?i)^shop[\\s-]*rite$"               = "ShopRite",
-  "(?i)^shoperite$"                     = "ShopRite",
-  # --- Winn-Dixie ---
-  "(?i)^winn[\\s-]*dixie$"              = "Winn-Dixie",
-  # --- Aldi ---
-  "(?i)^aldi['s]*$"                     = "Aldi",
-  # --- Piggly Wiggly ---
-  "(?i)^piggly\\s*wiggly$"              = "Piggly Wiggly",
-  # --- Whole Foods ---
-  "(?i)^whole\\s*foods(\\s*market)?$"   = "Whole Foods",
-  # --- Target ---
-  "(?i)^targer$"                        = "Target",
-  # --- 7-Eleven ---
-  "(?i)^7[\\s-]*eleven$"                = "7-Eleven",
-  "(?i)^seven\\s*eleven$"               = "7-Eleven",
-  # --- Stater Bros ---
-  "(?i)^stater\\s*br(os?|others)$"      = "Stater Bros",
-  # --- Stop & Shop ---
-  "(?i)^stop\\s*(and|&)\\s*shop$"       = "Stop & Shop",
-  # --- Market Basket ---
-  "(?i)^market\\s*basket$"              = "Market Basket",
-  # --- Food City ---
-  "(?i)^food[-\\s]*city$"               = "Food City",
-  # --- Save-A-Lot ---
-  "(?i)^sav[e]?[-\\s]*a[-\\s]*lot$"     = "Save-A-Lot",
-  # --- WinCo ---
-  "(?i)^winco[s]?$"                     = "WinCo",
-  # --- Harris Teeter ---
-  "(?i)^harris\\s*teeter$"              = "Harris Teeter",
-  # --- Amazon Fresh ---
-  "(?i)^amazon(\\s*fresh)?$"            = "Amazon Fresh",
-  # --- IGA ---
-  "(?i)^iga$"                           = "IGA",
-  # --- Cub Foods ---
-  "(?i)^cub(\\s*foods)?$"               = "Cub Foods",
-  # --- Star Market ---
-  "(?i)^star[-\\s]?market$"             = "Star Market",
-  # --- Fred Meyer ---
-  "(?i)^fred\\s*m[ey]+r[s]?$"           = "Fred Meyer",
-  # --- Hannaford ---
-  "(?i)^hann[ai]?ford$"                 = "Hannaford",
-  # --- Brookshire's ---
-  "(?i)^brookshire['s]*$"               = "Brookshire's",
-  # --- Giant Eagle ---
-  "(?i)^giant\\s*eagle$"                = "Giant Eagle",
-  # --- Giant (standalone) ---
-  "(?i)^giants?$"                       = "Giant",
-  # --- Price Chopper ---
-  "(?i)^price\\s*chopper$"              = "Price Chopper",
-  # --- Pick 'N Save ---
-  "(?i)^pick[\\s'-]*n[\\s'-]*save$"     = "Pick 'N Save",
-  # --- BJ's ---
-  "(?i)^bj['s]*(\\s*wholesale\\s*club)?$" = "BJ's",
-  # --- Safeway ---
-  "(?i)^saf[ae]?way$"                   = "Safeway",
-  # --- Big Y ---
-  "(?i)^big\\s*y$"                      = "Big Y",
-  # --- Smith's ---
-  "(?i)^smith['s]+$"                    = "Smith's",
-  # --- Jewel ---
-  "(?i)^jewels?$"                       = "Jewel",
-  # --- Ralphs ---
-  "(?i)^ralphs?$"                       = "Ralphs",
-  # --- Tom Thumb ---
-  "(?i)^tom\\s*thumb$"                  = "Tom Thumb",
-  # --- Sun Fresh ---
-  "(?i)^sun\\s*fresh$"                  = "Sun Fresh",
-  # --- Case-only fixes (must be last) ---
-  "(?i)^publix$"   = "Publix",
-  "(?i)^safeway$"  = "Safeway",
-  "(?i)^target$"   = "Target",
-  "(?i)^ingles$"   = "Ingles",
-  "(?i)^vons$"     = "Vons",
-  "(?i)^sprouts$"  = "Sprouts",
-  "(?i)^wegmans$"  = "Wegmans",
-  "(?i)^meijer$"   = "Meijer",
-  "(?i)^lidl$"     = "Lidl",
-  "(?i)^schnucks$" = "Schnucks",
-  "(?i)^albertsons$"    = "Albertsons",
-  "(?i)^haggens?$"      = "Haggen",
-  "(?i)^festival\\s*foods$" = "Festival Foods",
-  "(?i)^fresh\\s*market$"   = "Fresh Market",
-  "(?i)^smart\\s*(and|&)\\s*final.*" = "Smart & Final",
-  "(?i)^fry's\\s*food\\s*store$"     = "Fry's",
-  "(?i)^save\\s*mart$"               = "Save Mart"
-)
-
-state_abbrev_stds <- c(
-  "(?i)^AL$" = "Alabama",        "(?i)^AK$" = "Alaska",
-  "(?i)^AZ$" = "Arizona",        "(?i)^AR$" = "Arkansas",
-  "(?i)^CA$" = "California",     "(?i)^CO$" = "Colorado",
-  "(?i)^CT$" = "Connecticut",    "(?i)^DE$" = "Delaware",
-  "(?i)^FL$" = "Florida",        "(?i)^GA$" = "Georgia",
-  "(?i)^HI$" = "Hawaii",         "(?i)^ID$" = "Idaho",
-  "(?i)^IL$" = "Illinois",       "(?i)^IN$" = "Indiana",
-  "(?i)^IA$" = "Iowa",           "(?i)^KS$" = "Kansas",
-  "(?i)^KY$" = "Kentucky",       "(?i)^LA$" = "Louisiana",
-  "(?i)^ME$" = "Maine",          "(?i)^MD$" = "Maryland",
-  "(?i)^MA$" = "Massachusetts",  "(?i)^MI$" = "Michigan",
-  "(?i)^MN$" = "Minnesota",      "(?i)^MS$" = "Mississippi",
-  "(?i)^MO$" = "Missouri",       "(?i)^MT$" = "Montana",
-  "(?i)^NE$" = "Nebraska",       "(?i)^NV$" = "Nevada",
-  "(?i)^NH$" = "New Hampshire",  "(?i)^NJ$" = "New Jersey",
-  "(?i)^NM$" = "New Mexico",     "(?i)^NY$" = "New York",
-  "(?i)^NC$" = "North Carolina", "(?i)^ND$" = "North Dakota",
-  "(?i)^OH$" = "Ohio",           "(?i)^OK$" = "Oklahoma",
-  "(?i)^OR$" = "Oregon",         "(?i)^PA$" = "Pennsylvania",
-  "(?i)^RI$" = "Rhode Island",   "(?i)^SC$" = "South Carolina",
-  "(?i)^SD$" = "South Dakota",   "(?i)^TN$" = "Tennessee",
-  "(?i)^TX$" = "Texas",          "(?i)^UT$" = "Utah",
-  "(?i)^VT$" = "Vermont",        "(?i)^VA$" = "Virginia",
-  "(?i)^WA$" = "Washington",     "(?i)^WV$" = "West Virginia",
-  "(?i)^WI$" = "Wisconsin",      "(?i)^WY$" = "Wyoming",
-  "(?i)^DC$" = "District of Columbia"
-)
-
-panel_clean <- panel_clean |>
-  mutate(
-    # Normalize curly apostrophes, then standardize name
-    grocer_name = str_replace_all(grocer_name, "\u2019", "'") |> str_squish(),
-    grocer_name = str_replace_all(grocer_name, grocer_name_stds),
-    # Expand state abbreviations to full names before building address
-    state = str_replace_all(state, state_abbrev_stds),
-    grocer_address = str_squish(
-      paste(grocer_name, grocer_street, city, state, sep = " "))
-  )
-
-# Remove junk phrases from the full address string
-remove_phrases <- regex(
-  paste(
-    "its in",
-    "i dont know",
-    "don't know",
-    "not sure",
-    "bronx n\\.y",
-    "ottumwa iowa",
-    sep = "|"
-  ),
-  ignore_case = TRUE
-)
-
-# Address-level fixes (duplicates, formatting, etc.)
-address_fixes <- c(
-  "(?i)tell13"                                                                    = "tell 13",
-  "(?i)2800arapahoe"                                                              = "2800 Arapahoe",
-  "(?i)Kroger, Kroger, Junction city, Ky"                                         = "Kroger, Junction city, Ky",
-  "(?i)Smart and final on Arlington, Walmart on Van Buren, Riverside, California" = "Smart and final, Arlington, Riverside, California",
-  "(?i)Walmart, Eisenhower dr., Aldi, Eisenhower dr., Hanover, PA"                = "Walmart, Eisenhower dr., Hanover, PA",
-  "(?i)Walmart, 1010 112th St Amory MS, Amory, MS"                                = "Walmart, 1010 112th St, Amory, MS",
-  "(?i)24 Hours Food Mart Grocery Store, 500 Mannheim Rd, Bellwood, IL 60104, United States, Chicago, IL"  = "24 Hours Food Mart Grocery Store, 500 Mannheim Rd, Bellwood, IL"
-)
-
-panel_clean <- panel_clean |>
-  mutate(
-    grocer_address = str_replace_all(grocer_address, "\u2019", "'"),
-    grocer_address = grocer_address |>
-      str_remove_all(remove_phrases) |>
-      str_replace_all(address_fixes) |>
-      str_squish()
-  ) |> 
-  relocate(city, .after = grocer_street) |> 
-  relocate(state, .after = city) |>
-  relocate(grocer_address, .after = state)
-  
-```
-
-*Save full dataset with `removed` column*
-```{r}
-panel_clean |> write_csv(here::here(path_processed,"panel.csv"))
+panel_screen |> write_csv(here::here(path_processed,"panel.csv"))
 ```
