@@ -1,0 +1,110 @@
+---
+title: "response_ids"
+format: html
+editor: visual
+---
+
+## Quarto
+
+```{r}
+panel_old <- read_csv("C:/Users/Andrew/Desktop/panel_clean.csv")
+address_fix <- read_csv("C:/Users/Andrew/Desktop/grocery sorts - address fix.csv")
+grocery_codes <- read_csv("C:/Users/Andrew/Desktop/grocer_codes.csv")
+grocer_gps <- readRDS("C:/Users/Andrew/Desktop/grocer_gps_510.rds")
+```
+
+```{r}
+address_fix <- address_fix |>
+  left_join(panel_old |> select(subid, response_id), by = "subid")
+
+address_fix |> write_csv("C:/Users/Andrew/Desktop/grocery_fixes.csv")
+```
+
+```{r}
+lookup <- setNames(panel_old$response_id, panel_old$subid)
+
+grocery_codes_rids <- grocery_codes |>
+  mutate(across(everything(), \(x) lookup[as.character(x)]))
+```
+
+```{r}
+grocery_codes_rids |> write_csv("C:/Users/Andrew/Desktop/grocery_codes.csv")
+```
+
+```{r}
+extract_field <- function(gps_list, i, field) {
+  res <- tryCatch(gps_list[[i]]$results[[1]], error = function(e) NULL)
+  switch(field,
+    formatted_address = if (is.null(res)) NA_character_ else res$formatted_address %||% NA_character_,
+    lat               = if (is.null(res)) NA_real_      else res$geometry$location$lat %||% NA_real_,
+    lng               = if (is.null(res)) NA_real_      else res$geometry$location$lng %||% NA_real_
+  )
+}
+panel_old <- panel_old |>
+  mutate(
+    ggmap_grocer_address = map_chr(
+      seq_along(grocer_gps),
+      ~extract_field(grocer_gps, .x, "formatted_address")),
+    
+    grocer_latitude = map_dbl(
+      seq_along(grocer_gps),
+      ~extract_field(grocer_gps, .x, "lat")),
+    
+    grocer_longitude = map_dbl(
+      seq_along(grocer_gps),
+      ~extract_field(grocer_gps, .x, "lng"))
+  )
+```
+
+```{r}
+panel_ex <- panel_old |> select(response_id,ggmap_grocer_address, grocer_latitude, grocer_longitude)
+```
+
+```{r}
+panel_updated |>  write_csv("C:/Users/Andrew/Desktop/grocery_510.csv")
+```
+
+```{r}
+grocery_update <-  read_csv("C:/Users/Andrew/Desktop/grocery_updates.csv")
+
+```
+
+```{r}
+panel_old <- panel_old |>
+  left_join(grocery_update, by = "response_id")
+```
+
+```{r}
+panel_inv <- panel_old |> select(response_id,lon,lat,grocery_code,q12_grocer_1_text,q12_grocer_2_text)
+```
+
+```{r}
+panel_old |> select(response_id, ggmap_grocer_address,
+                    grocer_latitude, grocer_longitude) |>
+  write_csv("C:/Users/Andrew/Desktop/grocery_output.csv")
+```
+
+*Pull API and bind directly to panel*
+```{r}
+# API call only for valid respondents
+new_gps <- address_fix |>
+  mutate(geocode(paste(address)))
+```
+```{r}
+new_gps <- new_gps |> relocate(response_id) |> select(-subid)
+
+new_gps |> write_csv("C:/Users/Andrew/Desktop/grocery_fixes.csv")
+```
+
+# Join back to full panel, NAs for invalid respondents
+panel <- panel |>
+  left_join(city_gps, by = "response_id") |>
+  rename(
+    city_longitude = lon,
+    city_latitude = lat
+  ) |>
+  relocate(city_latitude, .after = location_longitude) |>
+  relocate(city_longitude, .after = city_latitude)
+```
+```
+

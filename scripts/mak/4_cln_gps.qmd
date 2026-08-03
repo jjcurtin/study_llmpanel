@@ -1,0 +1,31 @@
+---
+title: "Clean GPS data for llmpanel"
+format: html
+editor: visual
+---
+
+## Setup
+```{r}
+#| include: false
+
+options(conflicts.policy = "depends.ok")
+library(tidyverse)
+
+source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
+
+path_raw <- format_path("llmpanel/data_raw")
+path_processed <- format_path("llmpanel/data_processed")
+```
+
+```{r}
+panel <- read_csv(here::here(path_processed, "panel.csv"))
+grocery_info <- read_csv(here::here(path_processed, "grocery_info.csv"))
+```
+```{r}
+panel <- panel |> 
+  left_join(grocery_info, by = "response_id")
+```
+
+```{r}
+colnames(panel)
+```

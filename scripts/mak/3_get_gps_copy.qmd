@@ -18,17 +18,13 @@ Fully Functional
 
 ## Purpose
 
-- Clean open-text responses for grocery stores
-- Use Google Maps API to geocode respondent city/state and verify grocery store addresses
-- Identify respondents whose grocery store failed to verify via API to be manually reviewed
+- Clean open-text grocery store responses for better geocode results
+- Use Google Maps API to geocode respondent city/state and grocery stores
+- Identify respondents whose grocery store failed to verify via API for manual review
 
-- This script overwrites panel.csv to include the following:
-- lat/long coordinates for respondents city/state
-- Adds a value in the 'flag' column for a variety of anomalies regarding grocery stores
+- This script overwrites panel.csv to include lat/long coordinates for every respondents' city + state, to be compared with IP address and grocery store location.
 
-* This script should be ran after 2_mak_panel, which will have identified the remaining valid respondents that will require geocoding.
-
-* A grocer_gps.rds file is also saved in data_raw to eliminate any future need to rerun API calls. This is a nested large list object with the full output of geocode() for each grocery store address.
+* This script saves 'grocer_gps.rds' in /data_raw to avoid re-running API calls. This is a nested large list object with the full output of geocode() for each grocery store address. Commented code lines in this script do not need to be re-run unless there are new respondents that require geocoding.
 
 ## Setup
 
@@ -59,6 +55,9 @@ register_google(key = key_google)
 *Load in data*
 ```{r}
 panel <- read_csv(here::here(path_processed, "panel.csv"))
+
+# Separate remaining valid participants - we only need to geocode these
+panel_valid <- panel |> filter(is.na(flag))
 ```
 
 ## Cleaning open-text responses
@@ -213,7 +212,7 @@ state_abbrev_stds <- c(
   "(?i)^DC$" = "District of Columbia"
 )
 
-panel <- panel |>
+panel_valid <- panel_valid |>
   mutate(
     # Normalize curly apostrophes, then standardize name
     grocer_name = str_replace_all(grocer_name, "\u2019", "'") |> str_squish(),
@@ -249,7 +248,7 @@ address_fixes <- c(
   "(?i)24 Hours Food Mart Grocery Store, 500 Mannheim Rd, Bellwood, IL 60104, United States, Chicago, IL"  = "24 Hours Food Mart Grocery Store, 500 Mannheim Rd, Bellwood, IL"
 )
 
-panel <- panel |>
+panel_valid <- panel_valid |>
   mutate(
     grocer_address = str_replace_all(grocer_address, "\u2019", "'"),
     grocer_address = grocer_address |>
@@ -266,16 +265,15 @@ panel <- panel |>
 
 ### City/State Coordinates 
 
-These coordinates will generally reference the respondent's home city, to be compared with device lat/long coordinates from Qualtrics.
+These coordinates reference the respondent's home city, to be compared with IP address lat/long coordinates from Qualtrics.
 
 *Pull API and bind directly to panel*
 ```{r}
 # API call only for valid respondents
-city_gps <- panel |>
-  filter(is.na(flag)) |>
+city_gps <- panel_valid |>
   select(response_id, city, state) |>
   mutate(geocode(paste(city, state))) |>
-  select(response_id, lon, lat)
+  select(response_id, lat, lon)
 
 # Join back to full panel, NAs for invalid respondents
 panel <- panel |>
@@ -283,9 +281,10 @@ panel <- panel |>
   rename(
     city_longitude = lon,
     city_latitude = lat
-  ) |>
-  relocate(city_latitude, .after = location_longitude) |>
-  relocate(city_longitude, .after = city_latitude)
+  )
+
+# Save updates to file
+panel |> write_csv(here::here(path_processed,"panel.csv"))
 ```
 
 ### Grocery Store Addresses
