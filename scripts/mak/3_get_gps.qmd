@@ -18,15 +18,17 @@ Fully Functional
 
 ## Purpose
 
+- Clean open-text responses for grocery stores
 - Use Google Maps API to geocode respondent city/state and verify grocery store addresses
-
-- *This script should be ran after 2_mak_panel for the screened total of 510 respondents.
+- Identify respondents whose grocery store failed to verify via API to be manually reviewed
 
 - This script overwrites panel.csv to include the following:
 - lat/long coordinates for respondents city/state
-- a column that flags for a variety of anomalies regarding grocery stores
+- Adds a value in the 'flag' column for a variety of anomalies regarding grocery stores
 
-- A grocer_gps.rds file is also saved in data_raw to eliminate any future need to rerun API calls. This is a nested large list object with the full output of geocode() for each grocery store address.
+* This script should be ran after 2_mak_panel, which will have identified the remaining valid respondents that will require geocoding.
+
+* A grocer_gps.rds file is also saved in data_raw to eliminate any future need to rerun API calls. This is a nested large list object with the full output of geocode() for each grocery store address.
 
 ## Setup
 
@@ -59,6 +61,207 @@ register_google(key = key_google)
 panel <- read_csv(here::here(path_processed, "panel.csv"))
 ```
 
+## Cleaning open-text responses
+
+*Clean grocery store open-responses for cross-validation*
+
+Many typos and inconsistencies exist within the raw responses for nearest grocery store address (HEB vs. H-E-B, etc.)
+This code enforces a series of standardized spellings/formats for various grocery stores, and fixes typos that were identified by manual review.
+
+```{r}
+grocer_name_stds <- c(
+  # --- Walmart ---
+  "(?i)^super\\s*wal[\\s-]*mart$"      = "Walmart Supercenter",
+  "(?i)^walmart\\s*supercenter$"        = "Walmart Supercenter",
+  "(?i)^wal[\\s-]*m[ao]?r?t$"          = "Walmart",
+  "(?i)^wall\\s*mart$"                  = "Walmart",
+  "(?i)^walm[ao]t$"                     = "Walmart",
+  "(?i)^walmart,\\s*.+"                 = "Walmart",   # name field contains address
+  # --- Kroger ---
+  "(?i)^kri[ao]?ger['s]*$"             = "Kroger",
+  "(?i)^kroger['s]*$"                  = "Kroger",
+  # --- H-E-B ---
+  "(?i)^h[\\.\\s]*e[\\.\\s]*b[\\.\\s]*(store)?$" = "H-E-B",
+  "(?i)^heb$"                           = "H-E-B",
+  # --- Hy-Vee ---
+  "(?i)^hy[-\\s]*vee$"                  = "Hy-Vee",
+  "(?i)^hyvee$"                         = "Hy-Vee",
+  # --- Food Lion ---
+  "(?i)^food[-\\s]*lion$"               = "Food Lion",
+  # --- Dollar General ---
+  "(?i)^dollar\\s*general$"             = "Dollar General",
+  # --- Family Dollar ---
+  "(?i)^family\\s*dollar$"              = "Family Dollar",
+  # --- Trader Joe's ---
+  "(?i)^trader['s]*\\s*joe['s]*$"       = "Trader Joe's",
+  # --- Costco ---
+  "(?i)^cos[t]?co$"                     = "Costco",
+  # --- ShopRite ---
+  "(?i)^shop[\\s-]*rite$"               = "ShopRite",
+  "(?i)^shoperite$"                     = "ShopRite",
+  # --- Winn-Dixie ---
+  "(?i)^winn[\\s-]*dixie$"              = "Winn-Dixie",
+  # --- Aldi ---
+  "(?i)^aldi['s]*$"                     = "Aldi",
+  # --- Piggly Wiggly ---
+  "(?i)^piggly\\s*wiggly$"              = "Piggly Wiggly",
+  # --- Whole Foods ---
+  "(?i)^whole\\s*foods(\\s*market)?$"   = "Whole Foods",
+  # --- Target ---
+  "(?i)^targer$"                        = "Target",
+  # --- 7-Eleven ---
+  "(?i)^7[\\s-]*eleven$"                = "7-Eleven",
+  "(?i)^seven\\s*eleven$"               = "7-Eleven",
+  # --- Stater Bros ---
+  "(?i)^stater\\s*br(os?|others)$"      = "Stater Bros",
+  # --- Stop & Shop ---
+  "(?i)^stop\\s*(and|&)\\s*shop$"       = "Stop & Shop",
+  # --- Market Basket ---
+  "(?i)^market\\s*basket$"              = "Market Basket",
+  # --- Food City ---
+  "(?i)^food[-\\s]*city$"               = "Food City",
+  # --- Save-A-Lot ---
+  "(?i)^sav[e]?[-\\s]*a[-\\s]*lot$"     = "Save-A-Lot",
+  # --- WinCo ---
+  "(?i)^winco[s]?$"                     = "WinCo",
+  # --- Harris Teeter ---
+  "(?i)^harris\\s*teeter$"              = "Harris Teeter",
+  # --- Amazon Fresh ---
+  "(?i)^amazon(\\s*fresh)?$"            = "Amazon Fresh",
+  # --- IGA ---
+  "(?i)^iga$"                           = "IGA",
+  # --- Cub Foods ---
+  "(?i)^cub(\\s*foods)?$"               = "Cub Foods",
+  # --- Star Market ---
+  "(?i)^star[-\\s]?market$"             = "Star Market",
+  # --- Fred Meyer ---
+  "(?i)^fred\\s*m[ey]+r[s]?$"           = "Fred Meyer",
+  # --- Hannaford ---
+  "(?i)^hann[ai]?ford$"                 = "Hannaford",
+  # --- Brookshire's ---
+  "(?i)^brookshire['s]*$"               = "Brookshire's",
+  # --- Giant Eagle ---
+  "(?i)^giant\\s*eagle$"                = "Giant Eagle",
+  # --- Giant (standalone) ---
+  "(?i)^giants?$"                       = "Giant",
+  # --- Price Chopper ---
+  "(?i)^price\\s*chopper$"              = "Price Chopper",
+  # --- Pick 'N Save ---
+  "(?i)^pick[\\s'-]*n[\\s'-]*save$"     = "Pick 'N Save",
+  # --- BJ's ---
+  "(?i)^bj['s]*(\\s*wholesale\\s*club)?$" = "BJ's",
+  # --- Safeway ---
+  "(?i)^saf[ae]?way$"                   = "Safeway",
+  # --- Big Y ---
+  "(?i)^big\\s*y$"                      = "Big Y",
+  # --- Smith's ---
+  "(?i)^smith['s]+$"                    = "Smith's",
+  # --- Jewel ---
+  "(?i)^jewels?$"                       = "Jewel",
+  # --- Ralphs ---
+  "(?i)^ralphs?$"                       = "Ralphs",
+  # --- Tom Thumb ---
+  "(?i)^tom\\s*thumb$"                  = "Tom Thumb",
+  # --- Sun Fresh ---
+  "(?i)^sun\\s*fresh$"                  = "Sun Fresh",
+  # --- Case-only fixes (must be last) ---
+  "(?i)^publix$"   = "Publix",
+  "(?i)^safeway$"  = "Safeway",
+  "(?i)^target$"   = "Target",
+  "(?i)^ingles$"   = "Ingles",
+  "(?i)^vons$"     = "Vons",
+  "(?i)^sprouts$"  = "Sprouts",
+  "(?i)^wegmans$"  = "Wegmans",
+  "(?i)^meijer$"   = "Meijer",
+  "(?i)^lidl$"     = "Lidl",
+  "(?i)^schnucks$" = "Schnucks",
+  "(?i)^albertsons$"    = "Albertsons",
+  "(?i)^haggens?$"      = "Haggen",
+  "(?i)^festival\\s*foods$" = "Festival Foods",
+  "(?i)^fresh\\s*market$"   = "Fresh Market",
+  "(?i)^smart\\s*(and|&)\\s*final.*" = "Smart & Final",
+  "(?i)^fry's\\s*food\\s*store$"     = "Fry's",
+  "(?i)^save\\s*mart$"               = "Save Mart"
+)
+
+state_abbrev_stds <- c(
+  "(?i)^AL$" = "Alabama",        "(?i)^AK$" = "Alaska",
+  "(?i)^AZ$" = "Arizona",        "(?i)^AR$" = "Arkansas",
+  "(?i)^CA$" = "California",     "(?i)^CO$" = "Colorado",
+  "(?i)^CT$" = "Connecticut",    "(?i)^DE$" = "Delaware",
+  "(?i)^FL$" = "Florida",        "(?i)^GA$" = "Georgia",
+  "(?i)^HI$" = "Hawaii",         "(?i)^ID$" = "Idaho",
+  "(?i)^IL$" = "Illinois",       "(?i)^IN$" = "Indiana",
+  "(?i)^IA$" = "Iowa",           "(?i)^KS$" = "Kansas",
+  "(?i)^KY$" = "Kentucky",       "(?i)^LA$" = "Louisiana",
+  "(?i)^ME$" = "Maine",          "(?i)^MD$" = "Maryland",
+  "(?i)^MA$" = "Massachusetts",  "(?i)^MI$" = "Michigan",
+  "(?i)^MN$" = "Minnesota",      "(?i)^MS$" = "Mississippi",
+  "(?i)^MO$" = "Missouri",       "(?i)^MT$" = "Montana",
+  "(?i)^NE$" = "Nebraska",       "(?i)^NV$" = "Nevada",
+  "(?i)^NH$" = "New Hampshire",  "(?i)^NJ$" = "New Jersey",
+  "(?i)^NM$" = "New Mexico",     "(?i)^NY$" = "New York",
+  "(?i)^NC$" = "North Carolina", "(?i)^ND$" = "North Dakota",
+  "(?i)^OH$" = "Ohio",           "(?i)^OK$" = "Oklahoma",
+  "(?i)^OR$" = "Oregon",         "(?i)^PA$" = "Pennsylvania",
+  "(?i)^RI$" = "Rhode Island",   "(?i)^SC$" = "South Carolina",
+  "(?i)^SD$" = "South Dakota",   "(?i)^TN$" = "Tennessee",
+  "(?i)^TX$" = "Texas",          "(?i)^UT$" = "Utah",
+  "(?i)^VT$" = "Vermont",        "(?i)^VA$" = "Virginia",
+  "(?i)^WA$" = "Washington",     "(?i)^WV$" = "West Virginia",
+  "(?i)^WI$" = "Wisconsin",      "(?i)^WY$" = "Wyoming",
+  "(?i)^DC$" = "District of Columbia"
+)
+
+panel <- panel |>
+  mutate(
+    # Normalize curly apostrophes, then standardize name
+    grocer_name = str_replace_all(grocer_name, "\u2019", "'") |> str_squish(),
+    grocer_name = str_replace_all(grocer_name, grocer_name_stds),
+    # Expand state abbreviations to full names before building address
+    state = str_replace_all(state, state_abbrev_stds),
+    grocer_address = str_squish(
+      paste(grocer_name, grocer_street, city, state, sep = " "))
+  )
+
+# Remove junk phrases from the full address string
+remove_phrases <- regex(
+  paste(
+    "its in",
+    "i dont know",
+    "don't know",
+    "not sure",
+    "bronx n\\.y",
+    "ottumwa iowa",
+    sep = "|"
+  ),
+  ignore_case = TRUE
+)
+
+# Address-level fixes (duplicates, formatting, etc.)
+address_fixes <- c(
+  "(?i)tell13"                                                                    = "tell 13",
+  "(?i)2800arapahoe"                                                              = "2800 Arapahoe",
+  "(?i)Kroger, Kroger, Junction city, Ky"                                         = "Kroger, Junction city, Ky",
+  "(?i)Smart and final on Arlington, Walmart on Van Buren, Riverside, California" = "Smart and final, Arlington, Riverside, California",
+  "(?i)Walmart, Eisenhower dr., Aldi, Eisenhower dr., Hanover, PA"                = "Walmart, Eisenhower dr., Hanover, PA",
+  "(?i)Walmart, 1010 112th St Amory MS, Amory, MS"                                = "Walmart, 1010 112th St, Amory, MS",
+  "(?i)24 Hours Food Mart Grocery Store, 500 Mannheim Rd, Bellwood, IL 60104, United States, Chicago, IL"  = "24 Hours Food Mart Grocery Store, 500 Mannheim Rd, Bellwood, IL"
+)
+
+panel <- panel |>
+  mutate(
+    grocer_address = str_replace_all(grocer_address, "\u2019", "'"),
+    grocer_address = grocer_address |>
+      str_remove_all(remove_phrases) |>
+      str_replace_all(address_fixes) |>
+      str_squish()
+  ) |> 
+  relocate(city, .after = grocer_street) |> 
+  relocate(state, .after = city) |>
+  relocate(grocer_address, .after = state)
+```
+
 ## Geocode
 
 ### City/State Coordinates 
@@ -67,13 +270,21 @@ These coordinates will generally reference the respondent's home city, to be com
 
 *Pull API and bind directly to panel*
 ```{r}
-panel <- cbind(panel, geocode(paste(panel$city, panel$state))) |> 
+# API call only for valid respondents
+city_gps <- panel |>
+  filter(is.na(flag)) |>
+  select(response_id, city, state) |>
+  mutate(geocode(paste(city, state))) |>
+  select(response_id, lon, lat)
+
+# Join back to full panel, NAs for invalid respondents
+panel <- panel |>
+  left_join(city_gps, by = "response_id") |>
   rename(
     city_longitude = lon,
-    city_latitude = lat)
-
-panel <- panel |> 
-  relocate(city_latitude, .after = location_longitude) |> 
+    city_latitude = lat
+  ) |>
+  relocate(city_latitude, .after = location_longitude) |>
   relocate(city_longitude, .after = city_latitude)
 ```
 
@@ -85,14 +296,19 @@ Because there are costs associated with the Google Maps API, saving the full obj
 
 *Pull API and save separate object*
 ```{r}
-grocer_gps <- geocode(
-  panel$grocer_address,
+valid_ids <- which(is.na(panel$flag))
+
+grocer_gps_sub <- geocode(
+  panel$grocer_address[valid_ids],
   output = "all")
+
+grocer_gps <- vector("list", nrow(panel))
+grocer_gps[valid_ids] <- grocer_gps_sub
 
 grocer_gps |> saveRDS(here::here(path_raw, 'grocer_gps.rds'))
 ```
 
-*Load in chunk for RDS file (last generated 6-17-2026)*
+*Load in chunk for RDS file (last generated 8-2-2026)*
 ```{r}
 grocer_gps <- readRDS(here::here(path_raw, "grocer_gps.rds"))
 ```
@@ -107,7 +323,6 @@ extract_field <- function(gps_list, i, field) {
     lng               = if (is.null(res)) NA_real_      else res$geometry$location$lng %||% NA_real_
   )
 }
-
 panel <- panel |>
   mutate(
     ggmap_grocer_address = map_chr(
@@ -130,7 +345,7 @@ panel <- panel |>
 *Spot check to ensure subids are matched appropriately*
 ```{r}
 set.seed(1221)
-check_idx <- sample(seq_len(nrow(panel)), 3)
+check_idx <- sample(which(is.na(panel$flag)), 3)
 
 tibble(
   idx               = check_idx,
@@ -147,22 +362,24 @@ tibble(
 
 *Check where ggmap failed to fully match an address*
 ```{r}
-partial_match_vals <- sapply(grocer_gps, function(x) {
+partial_match_vals <- rep(NA, nrow(panel))
+partial_match_vals[valid_ids] <- sapply(grocer_gps[valid_ids], function(x) {
   pm <- x$results[[1]]$partial_match
   if (is.null(pm)) FALSE else pm
 })
 
-table(partial_match_vals)
+table(partial_match_vals, useNA = "ifany")
 ```
 
 *Check where ggmap did not label a location as a grocery store or supermarket*
 ```{r}
-grocer_type_flag <- map_int(grocer_gps, \(x) {
+grocer_type_flag <- rep(NA_integer_, nrow(panel))
+grocer_type_flag[valid_ids] <- map_int(grocer_gps[valid_ids], \(x) {
   types <- unlist(lapply(x$results, \(r) r$types))
   as.integer(any(c("grocery_or_supermarket", "supermarket") %in% types))
 })
 
-table(grocer_type_flag)
+table(grocer_type_flag, useNA = "ifany")
 ```
 
 *Add flags to panel*
