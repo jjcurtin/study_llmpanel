@@ -33,7 +33,6 @@ library(tidyverse)
 library(kableExtra, exclude = "group_rows")
 library(cowplot, include.only = c("plot_grid", "theme_half_open"))
 library(corrplot, include.only = "corrplot.mixed")
-library(geosphere)
 
 devtools::source_url("https://github.com/jjcurtin/lab_support/blob/main/fun_eda.R?raw=true")
 devtools::source_url("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
@@ -98,6 +97,32 @@ panel <- panel |>
 panel$duration_sus |> sort(decreasing = TRUE) |> head(10)
 plot_hist(panel, x = "duration_sus", bins = 10)
 ```
+
+#### *Click count*
+```{r}
+panel <- panel |>
+  rowwise() |> 
+  mutate(click_total = sum(c_across(contains("_click_count")), na.rm = TRUE)) |> 
+  ungroup()
+
+p_valid <- panel |> filter(is.na(flag))
+```
+
+```{r}
+p_valid$click_total |> sort(decreasing = TRUE) |> head(10)
+plot_hist(p_valid, x = "click_total")
+median(p_valid$click_total)
+mad(p_valid$click_total)
+
+p_valid |> filter(click_total >= 75) |> nrow()
+
+p_valid |> filter(click_total == 358) |> select(q_total_duration) |> print()
+
+```
+
+Median click count = 45
+MAD = 2.97
+max = 358
 
 #### *ReCaptcha Score*
 
@@ -232,8 +257,10 @@ p_valid |> filter(grocery_code == "gave_liquorstore" |
 ### Index Calculation
 
 ```{r}
-
-# NEED TO ADD IP MATCH _SUS variable, EXCLUDING THE HONEST DUPE PEOPLE
+panel <- panel |> 
+  mutate(
+    ip_sus = duplicated(ip_address) | duplicated(ip_address, fromLast = TRUE)
+  )
 
 completes <- panel |>
   filter(finished == TRUE) |> 
@@ -245,7 +272,8 @@ completes <- completes |>
   mutate(tone_sus = n_distinct(c_across(q1_legitimizing_1:q5_norms_1)) == 1) |> 
   ungroup() |> 
   mutate(
-    duration_sus = q_total_duration < 1300,
+    duration_sus = q_total_duration < 780,
+    click_sus = click_total >= 75,
     captcha_sus = q_recaptcha_score <= 0.5 |
                   is.na(q_recaptcha_score),
     audit_sus = audit_score >= 40,
@@ -258,8 +286,10 @@ completes <- completes |>
         grocery_code == "gave_twostores" |
         grocery_code == "gave_closedstore" |
         grocery_code == "gave_hospital", FALSE),
-    suspicion_index = tone_sus +
+    suspicion_index = ip_sus +
+                      tone_sus +
                       duration_sus +
+                      click_sus +
                       captcha_sus +
                       audit_sus +
                       gps_sus +
@@ -271,7 +301,124 @@ completes <- completes |>
 completes |> count(suspicion_index)
 
 plot_hist(completes, x = "suspicion_index", bins = 10)
+```
 
+```{r}
+# Use gps_diff to isolate remaining valid + manual reject respondents
+panel_510 <- panel |>
+  filter(!is.na(gps_diff))
+```
+
+```{r}
+panel_510 <- panel_510 |> 
+  rowwise() |> 
+  mutate(tone_sus = n_distinct(c_across(q1_legitimizing_1:q5_norms_1)) == 1) |> 
+  ungroup() |> 
+  mutate(
+    duration_sus = q_total_duration < 780,
+    click_sus = click_total >= 75,
+    captcha_sus = q_recaptcha_score <= 0.5 |
+                  is.na(q_recaptcha_score),
+    audit_sus = audit_score >= 40,
+    gps_sus = gps_diff > 750,
+    grocery_sus = replace_na(
+      grocery_code == "gave_liquorstore" |
+        grocery_code == "grocer_notfound" |
+        grocery_code == "match_plus_anomaly" |
+        grocery_code == "missing_street" |
+        grocery_code == "gave_twostores" |
+        grocery_code == "gave_closedstore" |
+        grocery_code == "gave_hospital", FALSE),
+    suspicion_index = ip_sus +
+                      tone_sus +
+                      duration_sus +
+                      click_sus +
+                      captcha_sus +
+                      audit_sus +
+                      gps_sus +
+                      grocery_sus
+  )
+```
+
+```{r}
+# Redefine valid sample w/ suspicion index
+p_valid <- panel_510 |> filter(is.na(flag))
+
+# Isolate rejects
+p_rejects <- panel_510 |> filter(!response_id %in% p_valid$response_id)
+```
+
+```{r}
+bind_rows(
+  p_valid |> mutate(group = "Valid"),
+  p_rejects |> mutate(group = "Rejected")
+) |>
+  ggplot(aes(x = suspicion_index, y = after_stat(density), fill = group)) +
+  geom_histogram(alpha = 0.7, binwidth = 1) +
+  geom_vline(
+    data = bind_rows(
+      p_valid |> summarise(mean_si = mean(suspicion_index, na.rm = TRUE), group = "Valid"),
+      p_rejects |> summarise(mean_si = mean(suspicion_index, na.rm = TRUE), group = "Rejected")
+    ),
+    aes(xintercept = mean_si, color = group),
+    linetype = "dashed", linewidth = 0.8, show.legend = FALSE
+  ) +
+  geom_text(
+    data = bind_rows(
+      p_valid |> summarise(mean_si = mean(suspicion_index, na.rm = TRUE), group = "Valid"),
+      p_rejects |> summarise(mean_si = mean(suspicion_index, na.rm = TRUE), group = "Rejected")
+    ),
+    aes(x = mean_si, y = Inf, label = paste0("Mean: ", round(mean_si, 2))),
+    vjust = 1.5, hjust = -3, size = 3.5, inherit.aes = FALSE
+  ) +
+  facet_wrap(~group, ncol = 1) +
+  scale_fill_manual(values = c("Valid" = "#1b9e77", "Rejected" = "#d95f02")) +
+  scale_color_manual(values = c("Valid" = "#1b9e77", "Rejected" = "#d95f02")) +
+  labs(x = "Suspicion Index", y = "Proportion") +
+  guides(fill = "none", color = "none")
+```
+plot_hist(panel_rejects, x = "suspicion_index", bins = 10)
+
+mean(panel_rejects$suspicion_index)
+```
+
+
+```{r}
+completes |>
+  filter(suspicion_index == 1) |>
+  summarise(across(c(ip_sus, tone_sus, duration_sus, click_sus,
+                     captcha_sus, audit_sus, gps_sus, grocery_sus), sum)) |>
+  pivot_longer(everything(), names_to = "flag", values_to = "count") |>
+  ggplot(aes(x = count, y = reorder(flag, count))) +
+  geom_col() +
+  labs(x = "Count", y = NULL,
+       title = "Suspicion flags among respondents with index = 1")
+```
+
+```{r}
+completes |>
+  summarise(across(c(ip_sus, tone_sus, duration_sus, click_sus,
+                     captcha_sus, audit_sus, gps_sus, grocery_sus), sum)) |>
+  pivot_longer(everything(), names_to = "flag", values_to = "count") |>
+  ggplot(aes(x = count, y = reorder(flag, count))) +
+  geom_col() +
+  labs(x = "Count", y = NULL,
+       title = "Suspicion flags among respondents")
+```
+
+```{R}
+completes |>
+  filter(suspicion_index == 3) |>
+  summarise(across(c(ip_sus, tone_sus, duration_sus, click_sus,
+                     captcha_sus, audit_sus, gps_sus, grocery_sus), sum)) |>
+  pivot_longer(everything(), names_to = "flag", values_to = "count") |>
+  ggplot(aes(x = count, y = reorder(flag, count))) +
+  geom_col() +
+  labs(x = "Count", y = NULL,
+       title = "Suspicion flags among respondents with index = 1")
+```
+
+```{r}
 completes |> 
   select(response_id, suspicion_index, tone_sus, duration_sus, captcha_sus, audit_sus, gps_sus, grocery_sus) |> 
   arrange(desc(suspicion_index))

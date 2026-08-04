@@ -14,26 +14,25 @@ library(geosphere)
 
 source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
 
-path_raw <- format_path("llmpanel/data_raw")
 path_processed <- format_path("llmpanel/data_processed")
 ```
 
 ```{r}
 panel <- read_csv(here::here(path_processed, "panel.csv"))
-grocery_info <- read_csv(here::here(path_processed, "grocery_info.csv"))
+gps_info <- read_csv(here::here(path_processed, "gps_info.csv"))
 ```
 
 ```{r}
 panel <- panel |> 
-  left_join(grocery_info, by = "response_id")
+  left_join(gps_info, by = "response_id")
 ```
 
 ```{r}
-# Separate valid respondents
-panel_valid <- panel |> 
-  filter(is.na(flag))
+# Separate respondents with updated grocery info (valid + manually rejected)
+panel_510 <- panel |>
+  filter(response_id %in% gps_info$response_id)
 
-panel_valid <- panel_valid |> 
+panel_510 <- panel_510 |> 
   mutate(
     
 #   Distance from city/state to IP address
@@ -49,7 +48,7 @@ panel_valid <- panel_valid |>
 
 # Return result to full panel
 
-panel_gps <- panel_valid |>
+panel_gps <- panel_510 |>
   select(response_id, gps_diff)
 
 panel <- panel |>

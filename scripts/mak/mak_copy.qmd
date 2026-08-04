@@ -451,7 +451,7 @@ Review of this table should identify 5 additional response IDs for removal, matc
 This code chunk loads in a .csv containing all suspicious response IDs identified by manual review, which will now be used to assign new values for the 'flag' column.
 
 ```{r}
-flag_ids <- read_csv(here::here(path_processed, "manual_flag_ids.csv"))
+flag_ids <- read_csv(here::here(path_processed, "dupe_ids.csv"))
 
 flag_ids <- flag_ids |>
   pivot_longer(everything(), names_to = "flag_value", values_to = "response_id") |>
