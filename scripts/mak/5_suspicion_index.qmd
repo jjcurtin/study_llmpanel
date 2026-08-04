@@ -1,0 +1,404 @@
+---
+title: "Suspicion Index for llmpanel"
+format: 
+  html:
+    page-layout: full
+    self-contained: true
+    toc: true
+    toc-depth: 3
+execute: 
+  warning: false
+editor_options: 
+  chunk_output_type: console
+---
+
+## Code Status
+
+In Progress
+
+## Purpose
+
+This script is used to conduct EDA and build a suspicion index to inform decision-making for any possible further exclusions from the remaining 456 eligible survey responses, prior to bringing data into the modelling workflow.
+
+- Conduct EDA on 8 'variables of concern' to establish a threshold where each variable will contribute a point towards the final suspicion index scores.
+
+- Construct the final index, make comparisons between remaining eligible responses and manually excluded responses previously flagged.
+
+- Decide suspicion index threshold to establish the final valid sample for analysis.
+
+## Setup
+
+```{r}
+library(tidyverse) 
+library(kableExtra, exclude = "group_rows")
+library(cowplot, include.only = c("plot_grid", "theme_half_open"))
+library(corrplot, include.only = "corrplot.mixed")
+
+source("https://github.com/jjcurtin/lab_support/blob/main/fun_eda.R?raw=true")
+source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
+source("https://github.com/jjcurtin/lab_support/blob/main/fun_plots.R?raw=true")
+
+path_processed <- format_path("llmpanel/data_processed")
+
+# Read in full panel
+panel <- read_csv(here::here(path_processed, "panel.csv"), show_col_types = FALSE)
+
+# Isolate responses that contain all required variables (eligible + manual rejects)
+panel <- panel |> filter(!is.na(gps_diff))
+```
+
+## Variables of Concern
+
+Each variable will be investigated separately with a unique threshhold determined by analyzing distributions.
+Note that the distributions being considered here will be restricted
+
+*Compare plot function*
+```{r}
+compare_plot <- function(var, bins = 10, display = "none", stat = "median") {
+  combined <- bind_rows(
+    p_valid |> mutate(group = "Valid"),
+    p_rejects |> mutate(group = "Rejected")
+  )
+
+  stat_fn <- if (stat == "mean") mean else median
+
+  stats <- bind_rows(
+    p_valid |> summarise(center = stat_fn(.data[[var]], na.rm = TRUE), min_val = min(.data[[var]], na.rm = TRUE), max_val = max(.data[[var]], na.rm = TRUE), group = "Valid"),
+    p_rejects |> summarise(center = stat_fn(.data[[var]], na.rm = TRUE), min_val = min(.data[[var]], na.rm = TRUE), max_val = max(.data[[var]], na.rm = TRUE), group = "Rejected")
+  )
+
+  stat_label <- if (stat == "mean") "Mean" else "Median"
+  stats <- stats |> mutate(
+    label = case_when(
+      display == "min" ~ paste0(stat_label, ": ", round(center, 2), " | Min: ", min_val),
+      display == "max" ~ paste0(stat_label, ": ", round(center, 2), " | Max: ", max_val),
+      .default = paste0(stat_label, ": ", round(center, 2))
+    )
+  )
+
+  ggplot(combined, aes(x = .data[[var]], y = after_stat(density), fill = group)) +
+    geom_histogram(alpha = 0.7, bins = bins) +
+    geom_vline(data = stats, aes(xintercept = center, color = group),
+      linetype = "dashed", linewidth = 0.8, show.legend = FALSE) +
+    geom_text(data = stats,
+      aes(x = center, y = Inf, label = label),
+      vjust = 1.5, hjust = -0.1, size = 3.5, inherit.aes = FALSE) +
+    facet_wrap(~group, ncol = 1) +
+    scale_fill_manual(values = c("Valid" = "#1b9e77", "Rejected" = "#d95f02")) +
+    scale_color_manual(values = c("Valid" = "#1b9e77", "Rejected" = "#d95f02")) +
+    labs(x = var, y = "Proportion") +
+    guides(fill = "none", color = "none")
+}
+```
+
+### IP Address
+
+IP is a variable of concern when an eligible respondent has a non-unique IP (at least 1 other survey attempt matches)
+
+*Construct IP Flag*
+```{r}
+# Flag all responses with a non-unique IP
+panel <- panel |> 
+  mutate(
+    ip_sus = duplicated(ip_address) | duplicated(ip_address, fromLast = TRUE)
+  )
+
+# Separate eligible and rejected responses
+p_valid <- panel |> filter(is.na(flag))
+p_rejects <- panel |> filter(!response_id %in% p_valid$response_id)
+```
+
+*Distributions*
+```{r}
+p_valid |> count(ip_sus)
+p_rejects |> count(ip_sus)
+
+bind_rows(
+  p_valid |> mutate(group = "Valid"),
+  p_rejects |> mutate(group = "Rejected")
+) |>
+  summarise(prop_ip_sus = mean(ip_sus, na.rm = TRUE), .by = group)
+```
+
+A higher proportion of flagged responses in the manually rejected subset is supporting evidence that we have selected a meaningful variable for the suspicion index.
+
+### Tone Survey Straight-lining
+
+We are concerned with responses that demonstrated 0 variability in the tone preferences survey - also known as straight-lining, a common method for speeding through surveys imprecisely.
+
+*Conduct straight-lining flag*
+```{r}
+# Flag responses with identical responses to all tone questions
+panel <- panel |> 
+  rowwise() |> 
+  mutate(tone_sus = n_distinct(c_across(q1_legitimizing_1:q5_norms_1)) == 1) |> 
+  ungroup()
+
+# Redefine eligible and rejected responses to include the flag
+p_valid <- panel |> filter(is.na(flag))
+p_rejects <- panel |> filter(!response_id %in% p_valid$response_id)
+```
+
+*Distributions*
+```{r}
+p_valid |> count(tone_sus)
+p_rejects |> count(tone_sus)
+
+bind_rows(
+  p_valid |> mutate(group = "Valid"),
+  p_rejects |> mutate(group = "Rejected")
+) |>
+  summarise(prop_tone_sus = mean(tone_sus), .by = group)
+```
+
+Another higher proportion of flags in the previously rejected subset!
+
+### Click Count
+
+Click count metadata was collected by Qualtrics in addition to time spent on each survey block. We are concerned with responses showing unusually high click counts which may be indicative of bot scraping behavior.
+
+*Construct click count total*
+```{r}
+# Take the sum of all by-block click counts
+panel <- panel |>
+  rowwise() |> 
+  mutate(click_total = sum(c_across(contains("_click_count")), na.rm = TRUE)) |> 
+  ungroup()
+
+# Redefine eligible and rejected responses to include the total
+p_valid <- panel |> filter(is.na(flag))
+p_rejects <- panel |> filter(!response_id %in% p_valid$response_id)
+```
+
+*Distributions*
+```{r}
+compare_plot("click_total", bins = 10)
+```
+
+We actually have higher median and max values in the eligible responses, with a notable outlier.
+
+```{r}
+p_valid$click_total |> sort(decreasing = TRUE) |> head(10)
+median(p_valid$click_total)
+mad(p_valid$click_total)
+
+p_valid |> filter(click_total >= 75) |> nrow()
+p_valid |> filter(click_total == 358) |> select(q_total_duration) |> print()
+```
+
+The outlier averaged roughly 1 click every 10 seconds for their ~40 survey completion time, realistically achievable. This variable may not be necessary to include in the suspicion index.
+
+#### Clicks per second
+
+Looking at the rate/frequency of clicks may be more informative that click count alone.
+
+*Create click rate variable*
+```{r}
+panel <- panel |> mutate(
+  click_rate = click_total / q_total_duration
+)
+
+# Redefine eligible and rejected responses to include the rate
+p_valid <- panel |> filter(is.na(flag))
+p_rejects <- panel |> filter(!response_id %in% p_valid$response_id)
+```
+
+*Distributions*
+```{r}
+compare_plot("click_rate")
+```
+
+No concerning click rates
+
+### Completion Time / Duration
+
+While a script exclusion criteria was enforced for responses that would have required > 400 WPM reading speed, we may still be concerned with unusually fast responses among the remaining eligible sample.
+
+*Distributions*
+```{r}
+compare_plot("q_total_duration", bins = 10)
+```
+
+```{r}
+mad(p_valid$q_total_duration)
+p_valid |> filter(q_total_duration < 780) |> nrow()
+```
+
+A filter at <13m flags 34 eligible respondents
+
+*Create duration flag*
+```{r}
+# Set threshhold at 13m
+panel <- panel |> 
+  mutate(
+    duration_sus = q_total_duration < 780
+  )
+
+# Redefine eligible and rejected responses to include the rate
+p_valid <- panel |> filter(is.na(flag))
+p_rejects <- panel |> filter(!response_id %in% p_valid$response_id)
+```
+
+### ReCaptcha Score
+
+We are concerned with responses with low or NA captcha scores
+
+*Distributions*
+```{r}
+compare_plot("q_recaptcha_score", bins = 10)
+
+mean(p_valid$q_recaptcha_score, na.rm = TRUE)
+mean(p_rejects$q_recaptcha_score, na.rm = TRUE)
+
+sd(p_valid$q_recaptcha_score, na.rm = TRUE)
+```
+
+*Construct captcha flag variable*
+```{r}
+# Flag minimum values of 0.5 & NAs
+panel <- panel |> 
+  mutate(
+    captcha_sus = q_recaptcha_score <= 0.5 |
+                  is.na(q_recaptcha_score)
+    )
+
+# Redefine eligible and rejected responses to include the flag
+p_valid <- panel |> filter(is.na(flag))
+p_rejects <- panel |> filter(!response_id %in% p_valid$response_id)
+```
+
+*Proportions*
+```{r}
+mean(p_valid$captcha_sus)
+mean(p_rejects$captcha_sus)
+```
+
+Rejects retain a higher proportion of flagged responses
+
+### Audit Score
+
+We are concerned with respondents who may have exaggerated AUDIT responses in an attempt to screen into the survey for compensation. A threshold of "perfect" AUDIT scores of 40 will be used for the index, which can also be thought of as another instance of straight-lining.
+
+*Distributions*
+```{r}
+compare_plot("audit_score")
+p_valid |> filter(audit_score == 40) |> nrow()
+```
+
+Minimum and median scores are higher in the rejected subset, but only the eligible respondents retained perfect scores of 40 (2 total).
+
+*Create AUDIT flag variable*
+```{r}
+# Flag "perfect" 40/40 scores
+panel <- panel |> 
+  mutate(
+    audit_sus = audit_score == 40
+  )
+
+# Redefine eligible and rejected responses to include the flag
+p_valid <- panel |> filter(is.na(flag))
+p_rejects <- panel |> filter(!response_id %in% p_valid$response_id)
+```
+
+### GPS Data
+
+We are concerned with respondents having a large discrepancy between their reported and observed location. The gps_diff variable contains the lowest of two value:
+
+- Distance from reported city/state to IP address location
+- Distance from reported city/state to reported grocery store
+
+*Distributions*
+```{r}
+compare_plot("gps_diff", bins = 10)
+mad(p_valid$gps_diff)
+p_valid |> filter(gps_diff > 750) |> nrow()
+```
+
+- The median distance in the rejected subset is lower by ~5km
+- A threshold at 750km flags 23 eligible respondents
+
+*Create GPS flag*
+```{r}
+# Flag responses with a distance over 750km
+panel <- panel |> 
+  mutate(
+    gps_sus = gps_diff > 750
+  )
+
+# Redefine eligible and rejected responses to include the flag
+p_valid <- panel |> filter(is.na(flag))
+p_rejects <- panel |> filter(!response_id %in% p_valid$response_id)
+```
+
+*Proportions*
+```{r}
+mean(p_valid$gps_sus)
+mean(p_rejects$gps_sus)
+```
+
+The flag threshold sees the rejected subset show a higher proportion of suspicious responses.
+
+### Grocery Store Anomalies
+
+We are concerned with respondents who gave anamalous open-text responses to the grocery store questions, across a variety of categories.
+
+*Construct grocery flag variable*
+```{r}
+# Flag all anomalous response types
+panel <- panel |> 
+  mutate(
+    grocery_sus = replace_na(
+      grocery_code == "gave_liquorstore" |
+      grocery_code == "grocer_notfound" |
+      grocery_code == "match_plus_anomaly" |
+      grocery_code == "missing_street" |
+      grocery_code == "gave_twostores" |
+      grocery_code == "gave_closedstore" |
+      grocery_code == "gave_hospital", FALSE)
+  )
+
+# Redefine eligible and rejected responses to include the flag
+p_valid <- panel |> filter(is.na(flag))
+p_rejects <- panel |> filter(!response_id %in% p_valid$response_id)
+```
+
+*Proportions*
+```{r}
+mean(p_valid$grocery_sus)
+mean(p_rejects$grocery_sus)
+```
+
+The rejected subset shows a higher proportion of suspicious grocery responses.
+
+## Suspicion Index Calculation
+
+All variables except for click_count will be included in the index.
+
+*Create suspicion index variable*
+```{r}
+# Add relevant columns
+panel <- panel |> 
+  mutate(
+       suspicion_index = ip_sus +
+                      tone_sus +
+                      duration_sus +
+                      captcha_sus +
+                      audit_sus +
+                      gps_sus +
+                      grocery_sus
+  )
+
+# Redefine eligible and rejected responses to include the index
+p_valid <- panel |> filter(is.na(flag))
+p_rejects <- panel |> filter(!response_id %in% p_valid$response_id)
+```
+
+*Distributions*
+```{r}
+compare_plot("suspicion_index", bins = 4, stat = "mean")
+```
+
+*Counts*
+```{r}
+p_valid |> count(suspicion_index)
+```

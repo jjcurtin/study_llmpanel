@@ -55,10 +55,10 @@ register_google(key = key_google)
 *Load in data*
 ```{r}
 panel <- read_csv(here::here(path_processed, "panel.csv"))
-
-# Separate remaining valid participants - we only need to geocode these
-panel_valid <- panel |> filter(is.na(flag))
 ```
+
+
+
 
 ## Cleaning open-text responses
 
@@ -212,7 +212,7 @@ state_abbrev_stds <- c(
   "(?i)^DC$" = "District of Columbia"
 )
 
-panel_valid <- panel_valid |>
+panel <- panel |>
   mutate(
     # Normalize curly apostrophes, then standardize name
     grocer_name = str_replace_all(grocer_name, "\u2019", "'") |> str_squish(),
@@ -248,7 +248,7 @@ address_fixes <- c(
   "(?i)24 Hours Food Mart Grocery Store, 500 Mannheim Rd, Bellwood, IL 60104, United States, Chicago, IL"  = "24 Hours Food Mart Grocery Store, 500 Mannheim Rd, Bellwood, IL"
 )
 
-panel_valid <- panel_valid |>
+panel <- panel |>
   mutate(
     grocer_address = str_replace_all(grocer_address, "\u2019", "'"),
     grocer_address = grocer_address |>
@@ -267,16 +267,27 @@ panel_valid <- panel_valid |>
 
 These coordinates reference the respondent's home city, to be compared with IP address lat/long coordinates from Qualtrics.
 
+```{r}
+grocery_info <- read_csv(here::here(path_processed, "grocery_info.csv"))
+
+panel_510 <- panel |>
+  filter(response_id %in% grocery_info$response_id) |> 
+  left_join(grocery_info, by = "response_id")
+
+inv <- panel_510 |> select(response_id, city, state)
+
+# Separate remaining valid participants - we only need to geocode these
+#panel_valid <- panel |> filter(is.na(flag))
+```
+
 *Pull API and bind directly to panel*
 ```{r}
 # API call only for valid respondents
-city_gps <- panel_valid |>
-  select(response_id, city, state) |>
-  mutate(geocode(paste(city, state))) |>
-  select(response_id, lat, lon)
+city_gps <- inv |>
+  mutate(geocode(paste(city, state)))
 
 # Join back to full panel, NAs for invalid respondents
-panel <- panel |>
+grocery_info_new <- grocery_info |>
   left_join(city_gps, by = "response_id") |>
   rename(
     city_longitude = lon,
@@ -284,7 +295,7 @@ panel <- panel |>
   )
 
 # Save updates to file
-panel |> write_csv(here::here(path_processed,"panel.csv"))
+#panel |> write_csv(here::here(path_processed,"panel.csv"))
 ```
 
 ### Grocery Store Addresses
