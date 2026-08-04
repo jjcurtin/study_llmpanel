@@ -10,6 +10,7 @@ editor: visual
 
 options(conflicts.policy = "depends.ok")
 library(tidyverse)
+library(geosphere)
 
 source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
 
@@ -21,11 +22,39 @@ path_processed <- format_path("llmpanel/data_processed")
 panel <- read_csv(here::here(path_processed, "panel.csv"))
 grocery_info <- read_csv(here::here(path_processed, "grocery_info.csv"))
 ```
+
 ```{r}
 panel <- panel |> 
   left_join(grocery_info, by = "response_id")
 ```
 
 ```{r}
-colnames(panel)
+# Separate valid respondents
+panel_valid <- panel |> 
+  filter(is.na(flag))
+
+panel_valid <- panel_valid |> 
+  mutate(
+    
+#   Distance from city/state to IP address
+    gps_city_to_ip = distHaversine(p1 = cbind(location_longitude, location_latitude),
+                                   p2 = cbind(city_longitude, city_latitude)) / 1000,
+    
+#   Distance from city/state to grocery store
+    gps_city_to_grocery = distHaversine(p1 = cbind(location_longitude, location_latitude),
+                                        p2 = cbind(grocery_longitude, grocery_latitude)) / 1000,
+
+#   Take the shortest of these two differences
+    gps_diff = pmin(gps_city_to_ip, gps_city_to_grocery, na.rm = TRUE))
+
+# Return result to full panel
+
+panel_gps <- panel_valid |>
+  select(response_id, gps_diff)
+
+panel <- panel |>
+  left_join(panel_gps, by = "response_id")
+
+# Save changes to file
+panel |> write_csv(here::here(path_processed,"panel.csv"))
 ```
