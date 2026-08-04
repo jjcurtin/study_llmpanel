@@ -239,6 +239,10 @@ p_valid <- panel |> filter(is.na(flag))
 p_rejects <- panel |> filter(!response_id %in% p_valid$response_id)
 ```
 
+```{r}
+p_valid |> count(duration_sus)
+```
+
 ### ReCaptcha Score
 
 We are concerned with responses with low or NA captcha scores
@@ -271,6 +275,8 @@ p_rejects <- panel |> filter(!response_id %in% p_valid$response_id)
 ```{r}
 mean(p_valid$captcha_sus)
 mean(p_rejects$captcha_sus)
+
+p_valid |> count(captcha_sus)
 ```
 
 Rejects retain a higher proportion of flagged responses
@@ -366,6 +372,8 @@ p_rejects <- panel |> filter(!response_id %in% p_valid$response_id)
 ```{r}
 mean(p_valid$grocery_sus)
 mean(p_rejects$grocery_sus)
+
+p_valid |> count(grocery_sus)
 ```
 
 The rejected subset shows a higher proportion of suspicious grocery responses.

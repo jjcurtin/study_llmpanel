@@ -294,6 +294,9 @@ grocery_info_new <- grocery_info |>
     city_latitude = lat
   )
 
+grocery_info_new <- grocery_info_new |> select(-city, -state)
+
+grocery_info_new |> write_csv("C:/Users/Andrew/Desktop/gps_info.csv")
 # Save updates to file
 #panel |> write_csv(here::here(path_processed,"panel.csv"))
 ```
