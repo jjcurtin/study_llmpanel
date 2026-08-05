@@ -121,5 +121,5 @@ grocery_info <- panel_grocery |>
 ```
 
 ```{r}
-grocery_info |> write_csv("C:/Users/Andrew/Desktop/grocery_info.csv")
+grocery_info |> write_csv("C:/Users/Andrew/Desktop/grocery_info.csv")-
 ```
