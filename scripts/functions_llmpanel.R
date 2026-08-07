@@ -3,12 +3,13 @@ compare_plot <- function(var,
                          top = NULL,
                          mid = NULL,
                          bot = NULL,
-                         top_label = "Rejected    (n = 54)",
-                         mid_label = "Total    (n = 510)",
+                         top_label = "Rejected    (n = 43)",
+                         mid_label = "Total    (n = 499)",
                          bot_label = "Eligible   (n = 456)",
                          bins = 10,
                          display = "none",
-                         stat = "median")
+                         stat = "median",
+                         labels = "right")
 {defaults <- c(top = "p_rejected", mid = "p_full", bot = "p_eligible")
 for (nm in names(defaults)) {
   if (is.null(get(nm))) {
@@ -60,8 +61,9 @@ ggplot(combined, aes(x = .data[[var]], fill = panel)) +
   geom_vline(data = stats, aes(xintercept = center),
              linetype = "dashed", linewidth = 0.8) +
   geom_text(data = stats,
-            aes(x = Inf, y = Inf, label = label),
-            vjust = 1.2, hjust = 1.05, size = 3.5, lineheight = 0.9) +
+            aes(x = if (labels == "left") -Inf else Inf, y = Inf, label = label),
+            vjust = 1.2, hjust = if (labels == "left") -0.05 else 1.05,
+            size = 3.5, lineheight = 0.9) +
   stat_bin(breaks = bin_breaks, geom = "text",
            aes(label = after_stat(ifelse(count > 0, count, ""))),
            vjust = -0.3, size = 3) +
@@ -87,4 +89,29 @@ split_panel <- function(data = panel) {
   assign("p_eligible", p_eligible, envir = parent.frame())
   assign("p_rejected", p_rejected, envir = parent.frame())
 }
-#`----------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
+
+# Proportion summary table for suspicion index
+prop_table <- function(var, full = NULL, eligible = NULL, rejected = NULL) {
+  defaults <- c(full = "p_full", eligible = "p_eligible", rejected = "p_rejected")
+  for (nm in names(defaults)) {
+    if (is.null(get(nm))) {
+      if (!exists(defaults[[nm]], envir = globalenv()))
+        stop("Default object '", defaults[[nm]],
+             "' not found. Either create it or pass a data frame to `", nm, "`.")
+      assign(nm, get(defaults[[nm]], envir = globalenv()))
+    }
+  }
+
+  bind_rows(
+    rejected |> mutate(group = paste0("Rejected n=", nrow(rejected))),
+    full     |> mutate(group = paste0("Full n=",     nrow(full))),
+    eligible |> mutate(group = paste0("Eligible n=", nrow(eligible)))
+  ) |>
+    summarise(
+      n_true = sum(.data[[var]], na.rm = TRUE),
+      prop   = mean(.data[[var]], na.rm = TRUE),
+      .by = group
+    )
+}
+#----------------------------------------------------------------------------
