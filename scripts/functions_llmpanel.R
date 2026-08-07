@@ -1,87 +1,86 @@
-
-# filter_value is used to screen our respondents based on a valid or threshhold
-#value for a variety of variables (timing/attention checks, etc.)
-filter_value <- function(data, col, valid = NULL, threshold = NULL, keep_col = FALSE, print = FALSE, num = FALSE) {
-  if (num) data <- data |> mutate(!!col := as.numeric(.data[[col]]))
-  
-  if (!is.null(threshold)) {
-    keep <- \(x) is.na(x) | x >= threshold
-    drop <- \(x) !is.na(x) & x < threshold
-  } else if (is.na(valid)) {
-    keep <- \(x) is.na(x)
-    drop <- \(x) !is.na(x)
-  } else {
-    keep <- \(x) x == valid
-    drop <- \(x) x != valid
+# 3-way comparison histogram for suspicion index
+compare_plot <- function(var,
+                         top = NULL,
+                         mid = NULL,
+                         bot = NULL,
+                         top_label = "Rejected    (n = 54)",
+                         mid_label = "Total    (n = 510)",
+                         bot_label = "Eligible   (n = 456)",
+                         bins = 10,
+                         display = "none",
+                         stat = "median")
+{defaults <- c(top = "p_rejected", mid = "p_full", bot = "p_eligible")
+for (nm in names(defaults)) {
+  if (is.null(get(nm))) {
+    if (!exists(defaults[[nm]], envir = globalenv()))
+      stop("Default object '", defaults[[nm]],
+           "' not found. Either create it or pass a data frame to `", nm, "`.")
+    assign(nm, get(defaults[[nm]], envir = globalenv()))
   }
-  
-  flow <<- flow |> full_join(tibble(
-    flow        = col,
-    n_remaining = data |> filter(keep(.data[[col]])) |> nrow(),
-    n_failed    = data |> filter(drop(.data[[col]])) |> nrow()
-  ))
-  
-  if (print) print(flow, n = 100)
-  
-  data |>
-    filter(keep(.data[[col]])) |>
-    (\(d) if (!keep_col) select(d, -all_of(col)) else d)()
 }
+panel_labels <- c(top = top_label, mid = mid_label, bot = bot_label)
+panels <- list(top = top, mid = mid, bot = bot)
+panel_names <- c("top", "mid", "bot"
+)
+stat_fn <- if (stat == "mean") mean else median
+stat_label <- if (stat == "mean") "Mean" else "Median"
 
-# extract_field pulls information from a geocode() large list object and binds it to the panel
-extract_field <- function(gps_list, i, field) {
-  res <- tryCatch(gps_list[[i]]$results[[1]], error = function(e) NULL)
-  switch(field,
-         formatted_address = if (is.null(res)) NA_character_ else res$formatted_address %||% NA_character_,
-         lat               = if (is.null(res)) NA_real_      else res$geometry$location$lat %||% NA_real_,
-         lng               = if (is.null(res)) NA_real_      else res$geometry$location$lng %||% NA_real_
+combined <- bind_rows(
+  lapply(panel_names, \(nm) panels[[nm]] |> mutate(panel = panel_labels[[nm]]))
+) |>
+  mutate(panel = factor(panel, levels = panel_labels))
+
+x_range <- range(combined[[var]], na.rm = TRUE)
+bin_breaks <- seq(x_range[1], x_range[2], length.out = bins + 1)
+
+stats <- bind_rows(
+  lapply(panel_names, \(nm) {
+    panels[[nm]] |>
+      summarise(
+        center = stat_fn(.data[[var]], na.rm = TRUE),
+        min_val = min(.data[[var]], na.rm = TRUE),
+        max_val = max(.data[[var]], na.rm = TRUE),
+        panel = nm
+      )
+  })
+) |>
+  mutate(
+    panel = factor(panel_labels[panel], levels = panel_labels),
+    label = case_when(
+      display == "min" ~ paste0(stat_label, ": ", round(center, 2), "\nMin: ", round(min_val, 2)),
+      display == "max" ~ paste0(stat_label, ": ", round(center, 2), "\nMax: ", round(max_val, 2)),
+      .default = paste0(stat_label, ": ", round(center, 2))
+    )
   )
-}
 
-# build_suspicion_index constructs a single value from a list of numeric and categorical variables of concern
-build_suspicion_index <- function(data,
-                                  numeric_high = NULL,
-                                  numeric_med  = NULL,
-                                  numeric_low  = NULL,
-                                  flag_high    = NULL,
-                                  flag_med     = NULL,
-                                  flag_low     = NULL,
-                                  numeric_weights = c(high = 3, med = 2, low = 1),
-                                  flag_values    = c(high = 3, med = 2, low = 1)) {
-  
-  score <- rep(0, nrow(data))
-  
-  # Weighted standardized numeric variables
-  for (priority in c("high", "med", "low")) {
-    vars <- switch(priority, high = numeric_high, med = numeric_med, low = numeric_low)
-    if (!is.null(vars)) {
-      score <- score + rowSums(data[vars] * numeric_weights[[priority]], na.rm = TRUE)
-    }
-  }
-  
-  # Fixed-value flag variables
-  for (priority in c("high", "med", "low")) {
-    vars <- switch(priority, high = flag_high, med = flag_med, low = flag_low)
-    if (!is.null(vars)) {
-      score <- score + rowSums(data[vars] * flag_values[[priority]], na.rm = TRUE)
-    }
-  }
-  
-  data |> mutate(suspicion_index = score)
-}
+fill_colors <- setNames(c("red3", "darkgoldenrod2", "chartreuse4"), panel_labels)
 
-# add_grocer_code makes a new column in the panel that codes for a variety of
-#failures with grocer address verifcations, using a csv created by manual review.
-add_grocer_code <- function(panel, grocer_codes) {
-  lookup <- grocer_codes |>
-    pivot_longer(everything(), names_to = "grocer_code", values_to = "subid") |>
-    drop_na(subid)
-  
-  dupe_ids <- lookup$subid[duplicated(lookup$subid)]
-  if (length(dupe_ids) > 0) warning("Duplicate subids in grocer_codes: ", paste(dupe_ids, collapse = ", "))
-  
-  panel |>
-    select(-any_of("grocer_code")) |>
-    left_join(lookup, by = "subid") |>
-    mutate(grocer_code = replace_na(grocer_code, "valid"))
+ggplot(combined, aes(x = .data[[var]], fill = panel)) +
+  geom_histogram(breaks = bin_breaks, alpha = 0.7) +
+  geom_vline(data = stats, aes(xintercept = center),
+             linetype = "dashed", linewidth = 0.8) +
+  geom_text(data = stats,
+            aes(x = Inf, y = Inf, label = label),
+            vjust = 1.2, hjust = 1.05, size = 3.5, lineheight = 0.9) +
+  stat_bin(breaks = bin_breaks, geom = "text",
+           aes(label = after_stat(ifelse(count > 0, count, ""))),
+           vjust = -0.3, size = 3) +
+  facet_wrap(~panel, ncol = 1, scales = "free_y") +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.15))) +
+  scale_fill_manual(values = fill_colors) +
+  labs(x = var, y = "Count") +
+  guides(fill = "none")
 }
+#-----------------------------------------------------------------------------
+
+# Custom 3-way split for suspicion index
+split_panel <- function(data = panel) {
+  p_full     <- data |> filter(!is.na(gps_diff))
+  p_eligible <- data |> filter(is.na(flag))
+  p_rejected <- data |> filter(!response_id %in% p_eligible$response_id)
+  
+  assign("p_full",     p_full,     envir = parent.frame())
+  assign("p_eligible", p_eligible, envir = parent.frame())
+  assign("p_rejected", p_rejected, envir = parent.frame())
+}
+#`----------------------------------------------------------------------------

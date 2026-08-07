@@ -30,21 +30,26 @@ This script is used to conduct EDA and build a suspicion index to inform decisio
 
 ```{r}
 library(tidyverse) 
-library(kableExtra, exclude = "group_rows")
-library(cowplot, include.only = c("plot_grid", "theme_half_open"))
-library(corrplot, include.only = "corrplot.mixed")
+#library(kableExtra, exclude = "group_rows")
+#library(cowplot, include.only = c("plot_grid", "theme_half_open"))
+#library(corrplot, include.only = "corrplot.mixed")
 
-source("https://github.com/jjcurtin/lab_support/blob/main/fun_eda.R?raw=true")
+#source("https://github.com/jjcurtin/lab_support/blob/main/fun_eda.R?raw=true")
 source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
-source("https://github.com/jjcurtin/lab_support/blob/main/fun_plots.R?raw=true")
+#source("https://github.com/jjcurtin/lab_support/blob/main/fun_plots.R?raw=true")
 
 path_processed <- format_path("llmpanel/data_processed")
 
 # Read in full panel
 panel <- read_csv(here::here(path_processed, "panel.csv"), show_col_types = FALSE)
+p_full <- panel |> filter(!is.na(gps_diff))
 
-# Isolate responses that contain all required variables (eligible + manual rejects)
-panel <- panel |> filter(!is.na(gps_diff))
+# Separate out remaining eligible and manually rejected responses
+p_eligible <- p_full |>
+  filter(is.na(flag))
+
+p_rejected <- p_full |> 
+  filter(!is.na(flag))
 ```
 
 ## Variables of Concern
@@ -54,40 +59,77 @@ Note that the distributions being considered here will be restricted
 
 *Compare plot function*
 ```{r}
-compare_plot <- function(var, bins = 10, display = "none", stat = "median") {
-  combined <- bind_rows(
-    p_valid |> mutate(group = "Valid"),
-    p_rejects |> mutate(group = "Rejected")
-  )
-
+compare_plot <- function(var,
+                         top = NULL,
+                         mid = NULL,
+                         bot = NULL,
+                         top_label = "Rejected    (n = 54)",
+                         mid_label = "Total    (n = 510)",
+                         bot_label = "Eligible   (n = 456)",
+                         bins = 10,
+                         display = "none",
+                         stat = "median")
+  {defaults <- c(top = "p_rejected", mid = "p_full", bot = "p_eligible")
+  for (nm in names(defaults)) {
+    if (is.null(get(nm))) {
+      if (!exists(defaults[[nm]], envir = globalenv()))
+        stop("Default object '", defaults[[nm]],
+             "' not found. Either create it or pass a data frame to `", nm, "`.")
+      assign(nm, get(defaults[[nm]], envir = globalenv()))
+    }
+  }
+  panel_labels <- c(top = top_label, mid = mid_label, bot = bot_label)
+  panels <- list(top = top, mid = mid, bot = bot)
+  panel_names <- c("top", "mid", "bot"
+                   )
   stat_fn <- if (stat == "mean") mean else median
+  stat_label <- if (stat == "mean") "Mean" else "Median"
+
+  combined <- bind_rows(
+    lapply(panel_names, \(nm) panels[[nm]] |> mutate(panel = panel_labels[[nm]]))
+  ) |>
+    mutate(panel = factor(panel, levels = panel_labels))
+
+  x_range <- range(combined[[var]], na.rm = TRUE)
+  bin_breaks <- seq(x_range[1], x_range[2], length.out = bins + 1)
 
   stats <- bind_rows(
-    p_valid |> summarise(center = stat_fn(.data[[var]], na.rm = TRUE), min_val = min(.data[[var]], na.rm = TRUE), max_val = max(.data[[var]], na.rm = TRUE), group = "Valid"),
-    p_rejects |> summarise(center = stat_fn(.data[[var]], na.rm = TRUE), min_val = min(.data[[var]], na.rm = TRUE), max_val = max(.data[[var]], na.rm = TRUE), group = "Rejected")
-  )
-
-  stat_label <- if (stat == "mean") "Mean" else "Median"
-  stats <- stats |> mutate(
-    label = case_when(
-      display == "min" ~ paste0(stat_label, ": ", round(center, 2), " | Min: ", min_val),
-      display == "max" ~ paste0(stat_label, ": ", round(center, 2), " | Max: ", max_val),
-      .default = paste0(stat_label, ": ", round(center, 2))
+    lapply(panel_names, \(nm) {
+      panels[[nm]] |>
+        summarise(
+          center = stat_fn(.data[[var]], na.rm = TRUE),
+          min_val = min(.data[[var]], na.rm = TRUE),
+          max_val = max(.data[[var]], na.rm = TRUE),
+          panel = nm
+        )
+    })
+  ) |>
+    mutate(
+      panel = factor(panel_labels[panel], levels = panel_labels),
+      label = case_when(
+        display == "min" ~ paste0(stat_label, ": ", round(center, 2), "\nMin: ", round(min_val, 2)),
+        display == "max" ~ paste0(stat_label, ": ", round(center, 2), "\nMax: ", round(max_val, 2)),
+        .default = paste0(stat_label, ": ", round(center, 2))
+      )
     )
-  )
 
-  ggplot(combined, aes(x = .data[[var]], y = after_stat(density), fill = group)) +
-    geom_histogram(alpha = 0.7, bins = bins) +
-    geom_vline(data = stats, aes(xintercept = center, color = group),
-      linetype = "dashed", linewidth = 0.8, show.legend = FALSE) +
+  fill_colors <- setNames(c("red3", "darkgoldenrod2", "chartreuse4"), panel_labels)
+
+  ggplot(combined, aes(x = .data[[var]], fill = panel)) +
+    geom_histogram(breaks = bin_breaks, alpha = 0.7) +
+    geom_vline(data = stats, aes(xintercept = center),
+      linetype = "dashed", linewidth = 0.8) +
     geom_text(data = stats,
-      aes(x = center, y = Inf, label = label),
-      vjust = 1.5, hjust = -0.1, size = 3.5, inherit.aes = FALSE) +
-    facet_wrap(~group, ncol = 1) +
-    scale_fill_manual(values = c("Valid" = "#1b9e77", "Rejected" = "#d95f02")) +
-    scale_color_manual(values = c("Valid" = "#1b9e77", "Rejected" = "#d95f02")) +
-    labs(x = var, y = "Proportion") +
-    guides(fill = "none", color = "none")
+      aes(x = Inf, y = Inf, label = label),
+      vjust = 1.2, hjust = 1.05, size = 3.5, lineheight = 0.9) +
+    stat_bin(breaks = bin_breaks, geom = "text",
+             aes(label = after_stat(ifelse(count > 0, count, ""))),
+      vjust = -0.3, size = 3) +
+    facet_wrap(~panel, ncol = 1, scales = "free_y") +
+    scale_y_continuous(expand = expansion(mult = c(0, 0.15))) +
+    scale_fill_manual(values = fill_colors) +
+    labs(x = var, y = "Count") +
+    guides(fill = "none")
 }
 ```
 
@@ -104,18 +146,26 @@ panel <- panel |>
   )
 
 # Separate eligible and rejected responses
-p_valid <- panel |> filter(is.na(flag))
-p_rejects <- panel |> filter(!response_id %in% p_valid$response_id)
+split_panel <- function(data = panel) {
+  p_full     <- data |> filter(!is.na(gps_diff))
+  p_eligible <- data |> filter(is.na(flag))
+  p_rejected <- data |> filter(!response_id %in% p_eligible$response_id)
+
+  assign("p_full",     p_full,     envir = parent.frame())
+  assign("p_eligible", p_eligible, envir = parent.frame())
+  assign("p_rejected", p_rejected, envir = parent.frame())
+}
+
+split_panels()
+
 ```
 
 *Distributions*
 ```{r}
-p_valid |> count(ip_sus)
-p_rejects |> count(ip_sus)
-
 bind_rows(
-  p_valid |> mutate(group = "Valid"),
-  p_rejects |> mutate(group = "Rejected")
+  p_full |> mutate(group = "Full n=510"), 
+  p_eligible |> mutate(group = "Eligible n=456"),
+  p_rejected |> mutate(group = "Rejected n=54")
 ) |>
   summarise(prop_ip_sus = mean(ip_sus, na.rm = TRUE), .by = group)
 ```
@@ -135,20 +185,22 @@ panel <- panel |>
   ungroup()
 
 # Redefine eligible and rejected responses to include the flag
-p_valid <- panel |> filter(is.na(flag))
-p_rejects <- panel |> filter(!response_id %in% p_valid$response_id)
+p_full <- panel |> filter(!is.na(gps_diff))
+p_eligible <- panel |> filter(is.na(flag))
+p_rejected <- panel |> filter(!response_id %in% p_eligible$response_id)
 ```
 
 *Distributions*
 ```{r}
-p_valid |> count(tone_sus)
-p_rejects |> count(tone_sus)
+p_eligible |> count(tone_sus)
+p_rejected |> count(tone_sus)
 
 bind_rows(
-  p_valid |> mutate(group = "Valid"),
-  p_rejects |> mutate(group = "Rejected")
+  p_full |> mutate(group = "Full n=510"), 
+  p_eligible |> mutate(group = "Eligible n=456"),
+  p_rejected |> mutate(group = "Rejected n=54")
 ) |>
-  summarise(prop_tone_sus = mean(tone_sus), .by = group)
+  summarise(prop_tone_sus = mean(tone_sus, na.rm = TRUE), .by = group)
 ```
 
 Another higher proportion of flags in the previously rejected subset!
@@ -166,8 +218,8 @@ panel <- panel |>
   ungroup()
 
 # Redefine eligible and rejected responses to include the total
-p_valid <- panel |> filter(is.na(flag))
-p_rejects <- panel |> filter(!response_id %in% p_valid$response_id)
+p_eligible <- panel |> filter(is.na(flag))
+p_rejected <- panel |> filter(!response_id %in% p_eligible$response_id)
 ```
 
 *Distributions*
@@ -178,12 +230,12 @@ compare_plot("click_total", bins = 5, display = 'max')
 We actually have higher median and max values in the eligible responses, with a notable outlier.
 
 ```{r}
-p_valid$click_total |> sort(decreasing = TRUE) |> head(10)
-median(p_valid$click_total)
-mad(p_valid$click_total)
+p_eligible$click_total |> sort(decreasing = TRUE) |> head(10)
+median(p_eligible$click_total)
+mad(p_eligible$click_total)
 
-p_valid |> filter(click_total >= 75) |> nrow()
-p_valid |> filter(click_total == 358) |> select(q_total_duration) |> print()
+p_eligible |> filter(click_total >= 75) |> nrow()
+p_eligible |> filter(click_total == 358) |> select(q_total_duration) |> print()
 ```
 
 The outlier averaged roughly 1 click every 10 seconds for their ~40 survey completion time, realistically achievable. This variable may not be necessary to include in the suspicion index.
@@ -199,8 +251,8 @@ panel <- panel |> mutate(
 )
 
 # Redefine eligible and rejected responses to include the rate
-p_valid <- panel |> filter(is.na(flag))
-p_rejects <- panel |> filter(!response_id %in% p_valid$response_id)
+p_eligible <- panel |> filter(is.na(flag))
+p_rejected <- panel |> filter(!response_id %in% p_eligible$response_id)
 ```
 
 *Distributions*
@@ -216,12 +268,12 @@ While a script exclusion criteria was enforced for responses that would have req
 
 *Distributions*
 ```{r}
-compare_plot("q_total_duration", stat = 'median', display = 'min', bins = 50)
+compare_plot("q_total_duration", stat = 'median', display = 'min', bins = 30)
 ```
 
 ```{r}
-mad(p_valid$q_total_duration)
-p_valid |> filter(q_total_duration < 780) |> nrow()
+mad(p_eligible$q_total_duration)
+p_eligible |> filter(q_total_duration < 780) |> nrow()
 ```
 
 A filter at <13m flags 34 eligible respondents
@@ -235,12 +287,12 @@ panel <- panel |>
   )
 
 # Redefine eligible and rejected responses to include the rate
-p_valid <- panel |> filter(is.na(flag))
-p_rejects <- panel |> filter(!response_id %in% p_valid$response_id)
+p_eligible <- panel |> filter(is.na(flag))
+p_rejected <- panel |> filter(!response_id %in% p_eligible$response_id)
 ```
 
 ```{r}
-p_valid |> count(duration_sus)
+p_eligible |> count(duration_sus)
 ```
 
 ### ReCaptcha Score
@@ -251,10 +303,10 @@ We are concerned with responses with low or NA captcha scores
 ```{r}
 compare_plot("q_recaptcha_score", stat = 'mean', bins = 10)
 
-mean(p_valid$q_recaptcha_score, na.rm = TRUE)
-mean(p_rejects$q_recaptcha_score, na.rm = TRUE)
+mean(p_eligible$q_recaptcha_score, na.rm = TRUE)
+mean(p_rejected$q_recaptcha_score, na.rm = TRUE)
 
-sd(p_valid$q_recaptcha_score, na.rm = TRUE)
+sd(p_eligible$q_recaptcha_score, na.rm = TRUE)
 ```
 
 *Construct captcha flag variable*
@@ -267,16 +319,16 @@ panel <- panel |>
     )
 
 # Redefine eligible and rejected responses to include the flag
-p_valid <- panel |> filter(is.na(flag))
-p_rejects <- panel |> filter(!response_id %in% p_valid$response_id)
+p_eligible <- panel |> filter(is.na(flag))
+p_rejected <- panel |> filter(!response_id %in% p_eligible$response_id)
 ```
 
 *Proportions*
 ```{r}
-mean(p_valid$captcha_sus)
-mean(p_rejects$captcha_sus)
+mean(p_eligible$captcha_sus)
+mean(p_rejected$captcha_sus)
 
-p_valid |> count(captcha_sus)
+p_eligible |> count(captcha_sus)
 ```
 
 Rejects retain a higher proportion of flagged responses
@@ -287,8 +339,8 @@ We are concerned with respondents who may have exaggerated AUDIT responses in an
 
 *Distributions*
 ```{r}
-compare_plot("audit_score")
-p_valid |> filter(audit_score == 40) |> nrow()
+compare_plot("audit_score", bins = 10, stat = "mean", display = "max")
+p_eligible |> filter(audit_score == 40) |> nrow()
 ```
 
 Minimum and median scores are higher in the rejected subset, but only the eligible respondents retained perfect scores of 40 (2 total).
@@ -302,8 +354,8 @@ panel <- panel |>
   )
 
 # Redefine eligible and rejected responses to include the flag
-p_valid <- panel |> filter(is.na(flag))
-p_rejects <- panel |> filter(!response_id %in% p_valid$response_id)
+p_eligible <- panel |> filter(is.na(flag))
+p_rejected <- panel |> filter(!response_id %in% p_eligible$response_id)
 ```
 
 ### GPS Data
@@ -315,9 +367,9 @@ We are concerned with respondents having a large discrepancy between their repor
 
 *Distributions*
 ```{r}
-compare_plot("gps_diff", bins = 10)
-mad(p_valid$gps_diff)
-p_valid |> filter(gps_diff > 750) |> nrow()
+compare_plot("gps_diff", bins = 10, display = "max", stat = "median")
+mad(p_eligible$gps_diff)
+p_eligible |> filter(gps_diff > 750) |> nrow()
 ```
 
 - The median distance in the rejected subset is lower by ~5km
@@ -332,14 +384,14 @@ panel <- panel |>
   )
 
 # Redefine eligible and rejected responses to include the flag
-p_valid <- panel |> filter(is.na(flag))
-p_rejects <- panel |> filter(!response_id %in% p_valid$response_id)
+p_eligible <- panel |> filter(is.na(flag))
+p_rejected <- panel |> filter(!response_id %in% p_eligible$response_id)
 ```
 
 *Proportions*
 ```{r}
-mean(p_valid$gps_sus)
-mean(p_rejects$gps_sus)
+mean(p_eligible$gps_sus)
+mean(p_rejected$gps_sus)
 ```
 
 The flag threshold sees the rejected subset show a higher proportion of suspicious responses.
@@ -352,8 +404,8 @@ panel <- panel |> mutate(
 )
 
 # Redefine eligible and rejected responses to include the flag
-p_valid <- panel |> filter(is.na(flag))
-p_rejects <- panel |> filter(!response_id %in% p_valid$response_id)
+p_eligible <- panel |> filter(is.na(flag))
+p_rejected <- panel |> filter(!response_id %in% p_eligible$response_id)
 ```
 
 
@@ -364,8 +416,8 @@ panel <- panel |> mutate(
 )
 
 # Redefine eligible and rejected responses to include the flag
-p_valid <- panel |> filter(is.na(flag))
-p_rejects <- panel |> filter(!response_id %in% p_valid$response_id)
+p_eligible <- panel |> filter(is.na(flag))
+p_rejected <- panel |> filter(!response_id %in% p_eligible$response_id)
 ```
 
 ### Grocery Store Anomalies
@@ -388,16 +440,16 @@ panel <- panel |>
   )
 
 # Redefine eligible and rejected responses to include the flag
-p_valid <- panel |> filter(is.na(flag))
-p_rejects <- panel |> filter(!response_id %in% p_valid$response_id)
+p_eligible <- panel |> filter(is.na(flag))
+p_rejected <- panel |> filter(!response_id %in% p_eligible$response_id)
 ```
 
 *Proportions*
 ```{r}
-mean(p_valid$grocery_sus)
-mean(p_rejects$grocery_sus)
+mean(p_eligible$grocery_sus)
+mean(p_rejected$grocery_sus)
 
-p_valid |> count(grocery_sus)
+p_eligible |> count(grocery_sus)
 ```
 
 The rejected subset shows a higher proportion of suspicious grocery responses.
@@ -423,8 +475,8 @@ panel <- panel |>
   )
 
 # Redefine eligible and rejected responses to include the index
-p_valid <- panel |> filter(is.na(flag))
-p_rejects <- panel |> filter(!response_id %in% p_valid$response_id)
+p_eligible <- panel |> filter(is.na(flag))
+p_rejected <- panel |> filter(!response_id %in% p_eligible$response_id)
 ```
 
 *Distributions*
@@ -434,10 +486,10 @@ compare_plot("suspicion_index", bins = 5, stat = "mean")
 
 *Counts*
 ```{r}
-p_valid |> count(suspicion_index)
+p_eligible |> count(suspicion_index)
 ```
 
 ### Exclusions
 ```{r}
-panel_final <- 
+panel_final <- p_full
 ```
