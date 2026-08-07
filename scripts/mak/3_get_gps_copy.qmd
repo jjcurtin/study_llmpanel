@@ -475,7 +475,7 @@ panel <- add_grocer_code(panel, grocer_codes) |>
 
 ## Save updated panel
 ```{r}
-panel |> write_csv(here::here(path_processed,"panel.csv"))
+panel |> filter(!is.na(gps_diff)) |> write_csv(here::here(path_processed,"panel.csv"))
 ```
 
 Done! Next is panel_eda which will investigate these results and other aspects of the data.
