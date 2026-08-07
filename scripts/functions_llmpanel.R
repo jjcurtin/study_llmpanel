@@ -77,8 +77,8 @@ ggplot(combined, aes(x = .data[[var]], fill = panel)) +
 split_panel <- function(data = panel) {
   p_full     <- data |> filter(!is.na(gps_diff)) |> 
     filter(!grepl("_dupe", flag, fixed = TRUE))
-  p_eligible <- data |> filter(is.na(flag))
-  p_rejected <- data |>
+  p_eligible <- p_full |> filter(is.na(flag))
+  p_rejected <- p_full |>
     filter(!response_id %in% p_eligible$response_id) |>
     filter(!grepl("_dupe", flag, fixed = TRUE))
     
