@@ -55,10 +55,16 @@ register_google(key = key_google)
 *Load in data*
 ```{r}
 panel <- read_csv(here::here(path_processed, "panel.csv"))
+
+panel |> count(flag) |> print(n=100)
 ```
 
-
-
+```{r}
+# Separate our valid and manually rejected responses
+panel_510 <- panel |> 
+  filter(is.na(q_duplicate_respondent)) |> 
+  filter(is.na(flag) | str_detect(flag, "_ip_") | flag == "straightliner")
+```
 
 ## Cleaning open-text responses
 
@@ -182,7 +188,6 @@ grocer_name_stds <- c(
   "(?i)^fry's\\s*food\\s*store$"     = "Fry's",
   "(?i)^save\\s*mart$"               = "Save Mart"
 )
-
 state_abbrev_stds <- c(
   "(?i)^AL$" = "Alabama",        "(?i)^AK$" = "Alaska",
   "(?i)^AZ$" = "Arizona",        "(?i)^AR$" = "Arkansas",
@@ -211,7 +216,6 @@ state_abbrev_stds <- c(
   "(?i)^WI$" = "Wisconsin",      "(?i)^WY$" = "Wyoming",
   "(?i)^DC$" = "District of Columbia"
 )
-
 panel <- panel |>
   mutate(
     # Normalize curly apostrophes, then standardize name
@@ -222,7 +226,6 @@ panel <- panel |>
     grocer_address = str_squish(
       paste(grocer_name, grocer_street, city, state, sep = " "))
   )
-
 # Remove junk phrases from the full address string
 remove_phrases <- regex(
   paste(
@@ -236,7 +239,6 @@ remove_phrases <- regex(
   ),
   ignore_case = TRUE
 )
-
 # Address-level fixes (duplicates, formatting, etc.)
 address_fixes <- c(
   "(?i)tell13"                                                                    = "tell 13",
@@ -247,7 +249,6 @@ address_fixes <- c(
   "(?i)Walmart, 1010 112th St Amory MS, Amory, MS"                                = "Walmart, 1010 112th St, Amory, MS",
   "(?i)24 Hours Food Mart Grocery Store, 500 Mannheim Rd, Bellwood, IL 60104, United States, Chicago, IL"  = "24 Hours Food Mart Grocery Store, 500 Mannheim Rd, Bellwood, IL"
 )
-
 panel <- panel |>
   mutate(
     grocer_address = str_replace_all(grocer_address, "\u2019", "'"),
@@ -268,7 +269,7 @@ panel <- panel |>
 These coordinates reference the respondent's home city, to be compared with IP address lat/long coordinates from Qualtrics.
 
 ```{r}
-grocery_info <- read_csv(here::here(path_processed, "grocery_info.csv"))
+gps_info <- read_csv(here::here(path_processed, "gps_info.csv"))
 
 panel_510 <- panel |>
   filter(response_id %in% grocery_info$response_id) |> 

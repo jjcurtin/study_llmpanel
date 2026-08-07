@@ -172,7 +172,7 @@ p_rejects <- panel |> filter(!response_id %in% p_valid$response_id)
 
 *Distributions*
 ```{r}
-compare_plot("click_total", bins = 10)
+compare_plot("click_total", bins = 5, display = 'max')
 ```
 
 We actually have higher median and max values in the eligible responses, with a notable outlier.
@@ -216,7 +216,7 @@ While a script exclusion criteria was enforced for responses that would have req
 
 *Distributions*
 ```{r}
-compare_plot("q_total_duration", bins = 10)
+compare_plot("q_total_duration", stat = 'median', display = 'min', bins = 50)
 ```
 
 ```{r}
@@ -249,7 +249,7 @@ We are concerned with responses with low or NA captcha scores
 
 *Distributions*
 ```{r}
-compare_plot("q_recaptcha_score", bins = 10)
+compare_plot("q_recaptcha_score", stat = 'mean', bins = 10)
 
 mean(p_valid$q_recaptcha_score, na.rm = TRUE)
 mean(p_rejects$q_recaptcha_score, na.rm = TRUE)
@@ -344,6 +344,30 @@ mean(p_rejects$gps_sus)
 
 The flag threshold sees the rejected subset show a higher proportion of suspicious responses.
 
+### Straightliner Flag
+
+```{r}
+panel <- panel |> mutate(
+  straight_sus = flag == "straightliner"
+)
+
+# Redefine eligible and rejected responses to include the flag
+p_valid <- panel |> filter(is.na(flag))
+p_rejects <- panel |> filter(!response_id %in% p_valid$response_id)
+```
+
+
+### Dupe response
+```{r}
+panel <- panel |> mutate(
+  dupe_sus = str_detect(flag, "_ip_")
+)
+
+# Redefine eligible and rejected responses to include the flag
+p_valid <- panel |> filter(is.na(flag))
+p_rejects <- panel |> filter(!response_id %in% p_valid$response_id)
+```
+
 ### Grocery Store Anomalies
 
 We are concerned with respondents who gave anamalous open-text responses to the grocery store questions, across a variety of categories.
@@ -393,7 +417,9 @@ panel <- panel |>
                       captcha_sus +
                       audit_sus +
                       gps_sus +
-                      grocery_sus
+                      grocery_sus +
+                      straight_sus +
+                      dupe_sus
   )
 
 # Redefine eligible and rejected responses to include the index
@@ -403,10 +429,15 @@ p_rejects <- panel |> filter(!response_id %in% p_valid$response_id)
 
 *Distributions*
 ```{r}
-compare_plot("suspicion_index", bins = 4, stat = "mean")
+compare_plot("suspicion_index", bins = 5, stat = "mean")
 ```
 
 *Counts*
 ```{r}
 p_valid |> count(suspicion_index)
+```
+
+### Exclusions
+```{r}
+panel_final <- 
 ```
