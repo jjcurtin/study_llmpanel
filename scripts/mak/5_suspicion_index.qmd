@@ -20,7 +20,7 @@ In Progress
 
 This script is used to conduct EDA and build a suspicion index to inform decision-making for any possible further exclusions from the remaining 456 eligible survey responses, prior to bringing data into the modelling workflow.
 
-- Conduct EDA on 8 'variables of concern' to establish a threshold where each variable will contribute a point towards the final suspicion index scores.
+- Conduct EDA on multiple 'variables of concern' to establish a threshold where each variable will contribute a point towards the final suspicion index scores.
 
 - Construct the final index, make comparisons between remaining eligible responses and manually excluded responses previously flagged.
 
@@ -29,135 +29,47 @@ This script is used to conduct EDA and build a suspicion index to inform decisio
 ## Setup
 
 ```{r}
-library(tidyverse) 
+library(tidyverse)
+source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
+source("https://github.com/jjcurtin/study_llmpanel/blob/main/scripts/functions_llmpanel.R?raw=true")
+
 #library(kableExtra, exclude = "group_rows")
 #library(cowplot, include.only = c("plot_grid", "theme_half_open"))
 #library(corrplot, include.only = "corrplot.mixed")
-
 #source("https://github.com/jjcurtin/lab_support/blob/main/fun_eda.R?raw=true")
-source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
 #source("https://github.com/jjcurtin/lab_support/blob/main/fun_plots.R?raw=true")
 
 path_processed <- format_path("llmpanel/data_processed")
 
 # Read in full panel
 panel <- read_csv(here::here(path_processed, "panel.csv"), show_col_types = FALSE)
-p_full <- panel |> filter(!is.na(gps_diff))
-
-# Separate out remaining eligible and manually rejected responses
-p_eligible <- p_full |>
-  filter(is.na(flag))
-
-p_rejected <- p_full |> 
-  filter(!is.na(flag))
 ```
 
 ## Variables of Concern
 
-Each variable will be investigated separately with a unique threshhold determined by analyzing distributions.
-Note that the distributions being considered here will be restricted
-
-*Compare plot function*
-```{r}
-compare_plot <- function(var,
-                         top = NULL,
-                         mid = NULL,
-                         bot = NULL,
-                         top_label = "Rejected    (n = 54)",
-                         mid_label = "Total    (n = 510)",
-                         bot_label = "Eligible   (n = 456)",
-                         bins = 10,
-                         display = "none",
-                         stat = "median")
-  {defaults <- c(top = "p_rejected", mid = "p_full", bot = "p_eligible")
-  for (nm in names(defaults)) {
-    if (is.null(get(nm))) {
-      if (!exists(defaults[[nm]], envir = globalenv()))
-        stop("Default object '", defaults[[nm]],
-             "' not found. Either create it or pass a data frame to `", nm, "`.")
-      assign(nm, get(defaults[[nm]], envir = globalenv()))
-    }
-  }
-  panel_labels <- c(top = top_label, mid = mid_label, bot = bot_label)
-  panels <- list(top = top, mid = mid, bot = bot)
-  panel_names <- c("top", "mid", "bot"
-                   )
-  stat_fn <- if (stat == "mean") mean else median
-  stat_label <- if (stat == "mean") "Mean" else "Median"
-
-  combined <- bind_rows(
-    lapply(panel_names, \(nm) panels[[nm]] |> mutate(panel = panel_labels[[nm]]))
-  ) |>
-    mutate(panel = factor(panel, levels = panel_labels))
-
-  x_range <- range(combined[[var]], na.rm = TRUE)
-  bin_breaks <- seq(x_range[1], x_range[2], length.out = bins + 1)
-
-  stats <- bind_rows(
-    lapply(panel_names, \(nm) {
-      panels[[nm]] |>
-        summarise(
-          center = stat_fn(.data[[var]], na.rm = TRUE),
-          min_val = min(.data[[var]], na.rm = TRUE),
-          max_val = max(.data[[var]], na.rm = TRUE),
-          panel = nm
-        )
-    })
-  ) |>
-    mutate(
-      panel = factor(panel_labels[panel], levels = panel_labels),
-      label = case_when(
-        display == "min" ~ paste0(stat_label, ": ", round(center, 2), "\nMin: ", round(min_val, 2)),
-        display == "max" ~ paste0(stat_label, ": ", round(center, 2), "\nMax: ", round(max_val, 2)),
-        .default = paste0(stat_label, ": ", round(center, 2))
-      )
-    )
-
-  fill_colors <- setNames(c("red3", "darkgoldenrod2", "chartreuse4"), panel_labels)
-
-  ggplot(combined, aes(x = .data[[var]], fill = panel)) +
-    geom_histogram(breaks = bin_breaks, alpha = 0.7) +
-    geom_vline(data = stats, aes(xintercept = center),
-      linetype = "dashed", linewidth = 0.8) +
-    geom_text(data = stats,
-      aes(x = Inf, y = Inf, label = label),
-      vjust = 1.2, hjust = 1.05, size = 3.5, lineheight = 0.9) +
-    stat_bin(breaks = bin_breaks, geom = "text",
-             aes(label = after_stat(ifelse(count > 0, count, ""))),
-      vjust = -0.3, size = 3) +
-    facet_wrap(~panel, ncol = 1, scales = "free_y") +
-    scale_y_continuous(expand = expansion(mult = c(0, 0.15))) +
-    scale_fill_manual(values = fill_colors) +
-    labs(x = var, y = "Count") +
-    guides(fill = "none")
-}
-```
+Each variable will be investigated separately and assigned a unique threshold for suspicion.
 
 ### IP Address
 
-IP is a variable of concern when an eligible respondent has a non-unique IP (at least 1 other survey attempt matches)
+We are concerned with responses with a non-unique IP (at least 1 other survey attempt matches). While all cases of IP + demographic matches have already been flagged as duplicates and removed from the remaining eligible sample, this component will add to the suspicion index if a respondent had a matching IP address with at least 1 other survey attempt that did not match on demographics.
+
+2. A respondent completed multiple 
 
 *Construct IP Flag*
 ```{r}
 # Flag all responses with a non-unique IP
-panel <- panel |> 
+panel <- panel |>
+  group_by(ip_address) |>
   mutate(
-    ip_sus = duplicated(ip_address) | duplicated(ip_address, fromLast = TRUE)
-  )
+    grp_other = sum(!is.na(flag) & flag != "same_ip_dupe"),       # We are excluding cases where
+    own       = as.integer(!is.na(flag) & flag != "same_ip_dupe"),# a respondent had multiple
+    ip_sus    = n() > 1 & (grp_other - own) > 0                   # completed surveys from the
+  ) |>                                                            # same IP with no logic fails.
+  ungroup() |>
+  select(-grp_other, -own)
 
-# Separate eligible and rejected responses
-split_panel <- function(data = panel) {
-  p_full     <- data |> filter(!is.na(gps_diff))
-  p_eligible <- data |> filter(is.na(flag))
-  p_rejected <- data |> filter(!response_id %in% p_eligible$response_id)
-
-  assign("p_full",     p_full,     envir = parent.frame())
-  assign("p_eligible", p_eligible, envir = parent.frame())
-  assign("p_rejected", p_rejected, envir = parent.frame())
-}
-
-split_panels()
-
+# Separate out eligible, rejected, and a combined subset
+split_panel(panel)
 ```
 
 *Distributions*

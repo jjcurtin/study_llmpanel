@@ -75,9 +75,13 @@ ggplot(combined, aes(x = .data[[var]], fill = panel)) +
 
 # Custom 3-way split for suspicion index
 split_panel <- function(data = panel) {
-  p_full     <- data |> filter(!is.na(gps_diff))
+  p_full     <- data |> filter(!is.na(gps_diff)) |> 
+    filter(!grepl("_dupe", flag, fixed = TRUE))
   p_eligible <- data |> filter(is.na(flag))
-  p_rejected <- data |> filter(!response_id %in% p_eligible$response_id)
+  p_rejected <- data |>
+    filter(!response_id %in% p_eligible$response_id) |>
+    filter(!grepl("_dupe", flag, fixed = TRUE))
+    
   
   assign("p_full",     p_full,     envir = parent.frame())
   assign("p_eligible", p_eligible, envir = parent.frame())
