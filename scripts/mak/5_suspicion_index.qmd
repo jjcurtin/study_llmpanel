@@ -33,12 +33,6 @@ library(tidyverse)
 source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
 source("https://github.com/jjcurtin/study_llmpanel/blob/main/scripts/functions_llmpanel.R?raw=true")
 
-#library(kableExtra, exclude = "group_rows")
-#library(cowplot, include.only = c("plot_grid", "theme_half_open"))
-#library(corrplot, include.only = "corrplot.mixed")
-#source("https://github.com/jjcurtin/lab_support/blob/main/fun_eda.R?raw=true")
-#source("https://github.com/jjcurtin/lab_support/blob/main/fun_plots.R?raw=true")
-
 path_processed <- format_path("llmpanel/data_processed")
 
 # Read in full panel
@@ -53,9 +47,8 @@ Each variable will be investigated separately and assigned a unique threshold fo
 
 We are concerned with responses with a non-unique IP (at least 1 other survey attempt matches). While all cases of IP + demographic matches have already been flagged as duplicates and removed from the remaining eligible sample, this component will add to the suspicion index if a respondent had a matching IP address with at least 1 other survey attempt that did not match on demographics.
 
-2. A respondent completed multiple 
-
 *Construct IP Flag*
+
 ```{r}
 # Flag all responses with a non-unique IP
 panel <- panel |>
@@ -72,7 +65,8 @@ panel <- panel |>
 split_panel(panel)
 ```
 
-*Distributions*
+*Proportions*
+
 ```{r}
 prop_table("ip_sus")
 ```
@@ -84,11 +78,12 @@ A higher proportion of non-unique IPs in our manually rejected responses is supp
 We are concerned about responses with 0 variability in the tone preferences survey - also known as straight-lining. While respondents who straight-lined on message ratings have already been rejected, respondents who only straight-lined on the tone survey have remained eligible.
 
 *Conduct straight-lining flag*
+
 ```{r}
 # Flag responses with identical responses to all tone questions
 panel <- panel |> 
-  rowwise() |> 
-  mutate(tone_sus = n_distinct(c_across(q1_legitimizing_1:q5_norms_1)) == 1) |> 
+  rowwise() |> mutate(
+    tone_sus = n_distinct(c_across(q1_legitimizing_1:q5_norms_1)) == 1) |> 
   ungroup()
 
 # Redefine eligible, rejected, and combined subsets
@@ -96,6 +91,7 @@ split_panel(panel)
 ```
 
 *Proportions*
+
 ```{r}
 prop_table("tone_sus")
 ```
@@ -107,6 +103,7 @@ Another higher proportion in the rejected subset for straight-lining! This shoul
 Click count metadata was collected by Qualtrics in addition to time spent on each survey block. Responses showing unusually high click counts may be indicative of bot scraping behavior, and may warrant suspicion as a result.
 
 *Construct click count total*
+
 ```{r}
 # Take the sum of all by-block click counts
 panel <- panel |>
@@ -119,6 +116,7 @@ split_panel(panel)
 ```
 
 *Distributions*
+
 ```{r}
 compare_plot("click_total", bins = 3, display = 'max')
 ```
@@ -141,6 +139,7 @@ The outlier averaged 1 click every 6.85 seconds for the entirety of their 41-min
 Looking at the rate/frequency of clicks may be more informative that click count alone.
 
 *Create click rate variable*
+
 ```{r}
 panel <- panel |> mutate(
   click_rate = click_total/q_total_duration # Switching to clicks per 1 second
@@ -151,6 +150,7 @@ split_panel(panel)
 ```
 
 *Distributions*
+
 ```{r}
 compare_plot("click_rate")
 ```
@@ -159,19 +159,22 @@ Aside from our 1 outlier, the distribution appears roughly normal without a majo
 
 ### Completion Time / Duration
 
-While a strict exclusion criteria was enforced for responses that would have required > 400 WPM reading speed, we may still be concerned with unusually fast responses among the remaining eligible sample.
+While a strict exclusion criteria was enforced for responses that would have required \> 400 WPM reading speed, we may still be concerned with unusually fast responses among the remaining eligible sample.
 
 *Distributions*
+
 ```{r}
-panel <- panel |> 
-  mutate(
-    duration_mins = q_total_duration/60 # Convert from seconds to minutes
+panel <- panel |> mutate(
+  duration_mins = q_total_duration/60 # Convert from seconds to minutes
   )
 
 # Redefine eligible, rejected, and combined subsets
 split_panel(panel)
 
 compare_plot("duration_mins", stat = 'median', display = 'min', bins = 4)
+
+duration_threshold <- quantile(p_eligible$q_total_duration, probs = 0.05)
+duration_threshold/60
 ```
 
 Our eligible subset contains both the lowest and highest values, with a notable long-duration outlier. Previous discussions have posited this observation was likely from a respondent who left the survey open on their device from a prolonged period, before returning to finish the remainder. If anything, this is likely evidence of a respondent paying very close attention to the questions instead of speeding through carelessly, and does not warrant suspicion as a result. Let's look at the distribution for what are likely our one-sitting completions for more granularity.
@@ -189,18 +192,25 @@ mad(p_eligible$duration_mins)
 p_eligible |> filter(q_total_duration < 720) |> nrow()
 ```
 
-A filter at <12m  (a bit more than 1 MAD below) flags 16 eligible respondents. Although we do not see major discrepancy between the eligible and rejected distributions, survey duration is still theoretically a very important indicator of how seriously a respondent considered each survey question. Because of our rather liberal cutoff of 400 wpm reading speed in the initial screening process, it feels proper to include suspicion for our remaining fastest responses.
+A filter at \<12m (a bit more than 1 MAD below) flags 16 eligible respondents. Although we do not see major discrepancy between the eligible and rejected distributions, survey duration is still theoretically a very important indicator of how seriously a respondent considered each survey question. Because of our rather liberal cutoff of 400 wpm reading speed in the initial screening process, it feels proper to include suspicion for our remaining fastest responses.
 
 *Create duration flag*
+
 ```{r}
-# Set threshhold at 13m
+# Set threshhold
 panel <- panel |> 
   mutate(
-    duration_sus = q_total_duration < 720
+    duration_sus = q_total_duration <= duration_threshold
   )
 
 # Redefine eligible, rejected, and combined subsets
 split_panel(panel)
+```
+
+*Proportions*
+
+```{r}
+prop_table("duration_sus")
 ```
 
 ### ReCaptcha Score
@@ -208,18 +218,25 @@ split_panel(panel)
 We are concerned with responses with low or NA captcha scores. These scores are a direct probability measure of whether or not a respondent is a human being (and not a bot), provided by Qualtrics through ReCaptcha proprietary methods. While scores below 0.5 were automatically rejected from our sample, remaining values can be as low as 0.5 or NA in the event that a 3rd party survey provider contracted through Qualtrics did not share a score for their respondents.
 
 *Distributions*
+
 ```{r}
 compare_plot("q_recaptcha_score", stat = 'mean', bins =6, display = "min", labels = "left")
+
+captcha_threshold <- quantile(p_eligible$q_recaptcha_score, probs = 0.05, na.rm = TRUE)
+captcha_threshold
 ```
 
 Captcha is an essential first step for identifying bots. As such, it feels proper to include suspicion for our lowest scores of 0.5, as well as NAs.
 
 *Construct captcha flag variable*
+
 ```{r}
-# Flag minimum values of 0.5 & NAs
+# Flag scores at or below the 5th percentile & NAs
+captcha_threshold <- quantile(p_eligible$q_recaptcha_score, probs = 0.05, na.rm = TRUE)
+
 panel <- panel |> 
   mutate(
-    captcha_sus = q_recaptcha_score <= 0.5 |
+    captcha_sus = q_recaptcha_score <= captcha_threshold |
                   is.na(q_recaptcha_score)
     )
 
@@ -228,6 +245,7 @@ split_panel(panel)
 ```
 
 *Proportions*
+
 ```{r}
 prop_table("captcha_sus")
 ```
@@ -239,6 +257,7 @@ While the histogram comparison did not indicate a major difference in the distri
 We are concerned with respondents who may have exaggerated AUDIT responses in an attempt to screen into the survey for compensation. A threshold of "perfect" AUDIT scores of 40 will be used for the index, which can also be thought of as another instance of straight-lining.
 
 *Distributions*
+
 ```{r}
 compare_plot("audit_score", bins = 20, stat = "mean", display = "max")
 
@@ -254,6 +273,7 @@ It first looks like we lack supporting evidence with the rejected subset contain
 All that said, it feels proper to include suspicion for max value AUDIT scores.
 
 *Create AUDIT flag variable*
+
 ```{r}
 # Flag "perfect" 40/40 scores
 panel <- panel |> 
@@ -273,31 +293,36 @@ We are concerned with respondents having a large discrepancy between their repor
 - Distance from reported city/state to reported grocery store
 
 *Distributions*
+
 ```{r}
 compare_plot("gps_diff", bins = 4, display = "max", stat = "median")
+
+gps_threshold <- quantile(p_eligible$gps_diff, probs = 0.95)
+gps_threshold
 ```
 
-As with AUDIT scores, this may be another case where the small rejected subset size is the reason why we don't see as many outliers when compared to the eligible subset. Regardless, a distance of hundreds or thousands of kilometers is convincingly suspicious. 
+As with AUDIT scores, this may be another case where the small rejected subset size is the reason why we don't see as many outliers when compared to the eligible subset. Regardless, a distance of hundreds or thousands of kilometers is convincingly suspicious.
 
 ```{r}
 mad(p_eligible$gps_diff)
 p_eligible |> filter(gps_diff > 500) |> nrow()
 ```
 
-A threshold of 100km distance (~311 miles) is over 30 MADs above the median, and feels like a plenty liberal threshold to use. This will flag 39 responses in the eligible subset.
+A threshold of 100km distance (\~311 miles) is over 30 MADs above the median, and feels like a plenty liberal threshold to use. This will flag 39 responses in the eligible subset.
 
 While a lower threshold could be set for establishing suspicion, the large 500km number was chosen for two reasons:
 
-1. There are some genuine explanations for large distances - IP addresses behave weirdly for smartphones completing the survey through cellular data, respondents living in very rural areas, etc. This current threshold should excuse most of these honest discrepancies, leaving suspicion primarily for distances so egregious that something is definitely wrong.
+1.  There are some genuine explanations for large distances - IP addresses behave weirdly for smartphones completing the survey through cellular data, respondents living in very rural areas, etc. This current threshold should excuse most of these honest discrepancies, leaving suspicion primarily for distances so egregious that something is definitely wrong.
 
-2. Lower thresholds do not create the increase in flagged proportion between the valid and rejected subset that we are in part using to calibrate the suspicion index. By 500km it has become pronounced enough to support the inclusion of this component.
+2.  Lower thresholds do not create the increase in flagged proportion between the valid and rejected subset that we are in part using to calibrate the suspicion index. By 500km it has become pronounced enough to support the inclusion of this component.
 
 *Create GPS flag*
+
 ```{r}
 # Flag responses with a distance over 500km
 panel <- panel |> 
   mutate(
-    gps_sus = gps_diff > 500
+    gps_sus = gps_diff >= gps_threshold
   )
 
 # Redefine eligible, rejected, and combined subsets
@@ -305,6 +330,7 @@ split_panel(panel)
 ```
 
 *Proportions*
+
 ```{r}
 prop_table('gps_sus')
 ```
@@ -313,9 +339,10 @@ The flag threshold sees the rejected subset show a higher proportion of suspicio
 
 ### Grocery Store Anomalies
 
-We are concerned with respondents who gave anamalous open-text responses to the grocery store questions, across a variety of categories. While many were excused as non-suspicious (e.g., online delivery), the remaining types were considered suspicious. 
+We are concerned with respondents who gave anamalous open-text responses to the grocery store questions, across a variety of categories. While many were excused as non-suspicious (e.g., online delivery), the remaining types were considered suspicious.
 
 *Construct grocery flag variable*
+
 ```{r}
 # Flag all anomalous response types
 panel <- panel |> 
@@ -335,6 +362,7 @@ split_panel(panel)
 ```
 
 *Proportions*
+
 ```{r}
 prop_table('grocery_sus')
 ```
@@ -346,6 +374,7 @@ The rejected subset shows a higher proportion of suspicious grocery responses!
 All variables except for click count/rate will be included in the index. There are currently no additional weightings being applied to any suspicion components, meaning that each component is being considered equally suspicious as all others.
 
 *Create suspicion index variable*
+
 ```{r}
 # Add relevant columns
 panel <- panel |> 
@@ -366,17 +395,20 @@ split_panel(panel)
 ### RESULTS
 
 *Distributions*
+
 ```{r}
 compare_plot("suspicion_index", bins = 5, stat = "mean", display = "max")
 ```
 
-1. The rejected sample shows a higher mean score for the final suspicion index, which is a sign of good calibration. The rejected sample also has a higher max value of 4, compared to a max value of 3 in the eligible subset.
+1.  The rejected sample shows a higher mean score for the final suspicion index, which is a sign of good calibration. The rejected sample also has a higher max value of 4, compared to a max value of 3 in the eligible subset.
 
-2. The highest possible score would be all 7, but the max value of 3 in the eligible sample means that even our most suspicious candidates were still FALSE for most of the suspicion components.
+2.  The highest possible score would be all 7, but the max value of 3 in the eligible sample means that even our most suspicious candidates were still FALSE for most of the suspicion components.
 
-3. If we exclude the most suspicious respondents among the remaining eligible sample, we will lose 4 with a final total of n = 452 for analysis.
+3.  If we exclude the most suspicious respondents among the remaining eligible sample, we will lose 4 with a final total of n = 452 for analysis.
 
 ## Exclusions
+
 ```{r}
-panel_final <- p_eligible |> filter(suspicion_index < 4) # PLACEHOLDER
+p_eligible |> filter(suspicion_index <= 1) |> write_csv(here::here(path_processed,"panel.csv"))
 ```
+
