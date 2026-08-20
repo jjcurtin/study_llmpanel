@@ -1,0 +1,133 @@
+---
+title: "panel_eda"
+format: html
+editor: visual
+---
+
+*Setup*
+
+```{r}
+options(conflicts.policy = "depends.ok")
+library(tidyverse)
+plot_grid <- cowplot::plot_grid
+source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
+source("https://github.com/jjcurtin/lab_support/blob/main/fun_eda.R?raw=true")
+source("https://github.com/jjcurtin/lab_support/blob/main/fun_plots.R?raw=true")
+source("https://github.com/jjcurtin/study_llmpanel/blob/main/scripts/functions_llmpanel.R?raw=true")
+
+path_processed <- format_path("llmpanel/data_processed")
+
+# Read in full panel
+panel_wide <- read_csv(here::here(path_processed, "panel.csv"), show_col_types = FALSE)
+
+# Add subids
+panel_wide <- panel_wide |> mutate(
+  subid = row_number()
+)
+```
+
+*Pivot long format*
+
+```{r}
+panel_long <- panel_wide |>
+  select(subid, dem_age:dem_minority, q1_legitimizing_1:q6_formality_1,
+         `x1_hi_1_fl_1`:`x4_li_10_in_1`,
+         -contains("timing"), -contains("attention")) |>
+  pivot_longer(
+    cols= `x1_hi_1_fl_1`:`x4_li_10_in_1`,
+    values_to = "message_rating",
+    names_to = "message_type") |>
+  separate(message_type,
+           sep = "_", into = c(
+             "survey_version", "context", "q_num", "tone_style"),
+           extra = "drop") |> 
+  mutate(
+    style = if_else(substr(tone_style, 1, 1) == "f", "formal", "informal"),
+    tone = case_when(
+      substr(tone_style, 2, 2) == "l" ~ "legitimizing",
+      substr(tone_style, 2, 2) == "n" ~ "norms",
+      substr(tone_style, 2, 2) == "s" ~ "self_efficacy",
+      substr(tone_style, 2, 2) == "a" ~ "acknowledging",
+      substr(tone_style, 2, 2) == "v" ~ "value_affirmation"),
+    context = case_when(
+      context == "hi" ~ "high_increasing",
+      context == "hd" ~ "high_decreasing",
+      context == "li" ~ "low_increasing")
+  ) |>
+  select(-q_num, -tone_style) |> 
+  filter(!is.na(message_rating),
+         str_trim(message_rating) != "")
+```
+
+## Univariate Demographics
+
+### Age
+
+```{r}
+hist(panel_wide$dem_age)
+```
+```{r}
+panel_wide |>
+  mutate(age_group = cut(dem_age,
+                         breaks = c(18, 29, 39, 49, 59, Inf),
+                         labels = c("18-29", "30-39", "40-49", "50-59", "60+"),
+                         right = TRUE, include.lowest = TRUE)) |>
+  ggplot(aes(x = age_group)) +
+  geom_bar()
+```
+
+Age is a roughly normal distribution with a longer right tail - which is sensible given our exclusion criteria for ages under 18 and context of the survey. Binning ages by decade (30's, 40's, 50's 60+ and rounding up 18-19 into 20's) leaves us with a roughly uniform distribution. Binning ages in such a manner may be useful for capturing non-linear relationships between age and message ratings or tone/style preferences.
+
+## Sex
+
+```{r}
+panel_wide |>
+  ggplot(aes(x = dem_sex)) +
+  geom_bar()
+```
+
+A mild class imbalance, with the sample being dominated by male respondents.
+
+## Gender Identity
+```{r}
+panel_wide |> count(dem_identity)
+
+panel_wide |>
+  filter(!is.na(dem_sex), !is.na(dem_identity)) |>
+  count(match = dem_sex == dem_identity)
+```
+Only 4 respondents provided a gender identity that did not match with their sex at birth. We likely lack sufficient variance in gender identities to use this demographic variable as a meaningful predictor.
+
+## Orientation
+
+```{r}
+panel_wide |> count(dem_orientation)
+
+panel_wide |>
+  mutate(orientation = if_else(dem_orientation == "straight", "straight", "other")) |>
+  ggplot(aes(x = orientation)) +
+  geom_bar()
+```
+347/396 = 87.62% of respondents identified as straight, leaving very few observations in remaining categories, and a large class imbalance even when all 'non-straight' classes are collapsed togther. We may lack sufficient variance in this demographic to use it as a meaningful predictor.
+
+```{r}
+panel_wide |> 
+  select(dem_sex, dem_orientation) |>
+  names() |>
+  map(\(name) plot_bar(df = panel_wide, x = name)) |>
+  plot_grid(plotlist = _, ncol = 2)
+```
+```{r}
+panel_wide |> 
+  select(dem_income, dem_marital_status) |>
+  names() |>
+  map(\(name) plot_bar(df = panel_wide, x = name)) |>
+  plot_grid(plotlist = _, ncol = 2)
+```
+```{r}
+panel_wide |>
+  summarise(across(starts_with("dem_race"), \(x) mean(!is.na(x)))) |>
+  pivot_longer(everything(), names_to = "race", values_to = "proportion") |>
+  mutate(race = str_remove(race, "dem_race_"),
+         percentage = round(proportion * 100, 1))
+```

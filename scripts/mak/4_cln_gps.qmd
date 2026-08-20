@@ -36,19 +36,13 @@ panel_510 <- panel |>
 panel_510 <- panel_510 |> 
   mutate(
     
-#   Distance from city/state to IP address
-    gps_city_to_ip = distHaversine(p1 = cbind(location_longitude, location_latitude),
-                                   p2 = cbind(city_longitude, city_latitude)) / 1000,
-    
-#   Distance from city/state to grocery store
-    gps_city_to_grocery = distHaversine(p1 = cbind(location_longitude, location_latitude),
-                                        p2 = cbind(grocery_longitude, grocery_latitude)) / 1000,
-
-#   Take the shortest of these two differences
-    gps_diff = pmin(gps_city_to_ip, gps_city_to_grocery, na.rm = TRUE))
+# Distance from city/state to IP address
+    gps_diff = distHaversine(
+      p1 = cbind(location_longitude,location_latitude),
+      p2 = cbind(city_longitude, city_latitude))
+    )
 
 # Return result to full panel
-
 panel_gps <- panel_510 |>
   select(response_id, gps_diff)
 
