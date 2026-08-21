@@ -1,7 +1,15 @@
 ---
-title: "panel_eda"
-format: html
-editor: visual
+title: "Panel EDA"
+format: 
+  html:
+    page-layout: full
+    self-contained: true
+    toc: true
+    toc-depth: 3
+execute: 
+  warning: false
+editor_options: 
+  chunk_output_type: console
 ---
 
 *Setup*
@@ -66,6 +74,7 @@ panel_long <- panel_wide |>
 ```{r}
 hist(panel_wide$dem_age)
 ```
+
 ```{r}
 panel_wide |>
   mutate(age_group = cut(dem_age,
@@ -108,7 +117,8 @@ panel_wide |>
   ggplot(aes(x = orientation)) +
   geom_bar()
 ```
-347/396 = 87.62% of respondents identified as straight, leaving very few observations in remaining categories, and a large class imbalance even when all 'non-straight' classes are collapsed togther. We may lack sufficient variance in this demographic to use it as a meaningful predictor.
+
+347/396 = 87.62% of respondents identified as straight, leaving very few observations in remaining categories, and a large class imbalance even when all 'non-straight' classes are collapsed together. We may lack sufficient variance in this demographic to use it as a meaningful predictor.
 
 ```{r}
 panel_wide |> 
@@ -117,6 +127,7 @@ panel_wide |>
   map(\(name) plot_bar(df = panel_wide, x = name)) |>
   plot_grid(plotlist = _, ncol = 2)
 ```
+
 ```{r}
 panel_wide |> 
   select(dem_income, dem_marital_status) |>
@@ -124,6 +135,7 @@ panel_wide |>
   map(\(name) plot_bar(df = panel_wide, x = name)) |>
   plot_grid(plotlist = _, ncol = 2)
 ```
+
 ```{r}
 panel_wide |>
   summarise(across(starts_with("dem_race"), \(x) mean(!is.na(x)))) |>
