@@ -87,7 +87,7 @@ panel_wide |>
 
 Age is a roughly normal distribution with a longer right tail - which is sensible given our exclusion criteria for ages under 18 and context of the survey. Binning ages by decade (30's, 40's, 50's 60+ and rounding up 18-19 into 20's) leaves us with a roughly uniform distribution. Binning ages in such a manner may be useful for capturing non-linear relationships between age and message ratings or tone/style preferences.
 
-## Sex
+### Sex
 
 ```{r}
 panel_wide |>
@@ -97,7 +97,8 @@ panel_wide |>
 
 A mild class imbalance, with the sample being dominated by male respondents.
 
-## Gender Identity
+### Gender Identity
+
 ```{r}
 panel_wide |> count(dem_identity)
 
@@ -105,9 +106,10 @@ panel_wide |>
   filter(!is.na(dem_sex), !is.na(dem_identity)) |>
   count(match = dem_sex == dem_identity)
 ```
+
 Only 4 respondents provided a gender identity that did not match with their sex at birth. We likely lack sufficient variance in gender identities to use this demographic variable as a meaningful predictor.
 
-## Orientation
+### Orientation
 
 ```{r}
 panel_wide |> count(dem_orientation)
@@ -120,21 +122,183 @@ panel_wide |>
 
 347/396 = 87.62% of respondents identified as straight, leaving very few observations in remaining categories, and a large class imbalance even when all 'non-straight' classes are collapsed together. We may lack sufficient variance in this demographic to use it as a meaningful predictor.
 
+### Education
+
 ```{r}
-panel_wide |> 
-  select(dem_sex, dem_orientation) |>
-  names() |>
-  map(\(name) plot_bar(df = panel_wide, x = name)) |>
-  plot_grid(plotlist = _, ncol = 2)
+panel_wide |> count(dem_education)
+
+panel_wide |>
+  ggplot(aes(x = dem_education)) +
+  geom_bar()
 ```
 
 ```{r}
-panel_wide |> 
-  select(dem_income, dem_marital_status) |>
-  names() |>
-  map(\(name) plot_bar(df = panel_wide, x = name)) |>
-  plot_grid(plotlist = _, ncol = 2)
+panel_wide |>
+  mutate(edu_collapsed = case_when(
+    dem_education %in% c("high_school_or_ged", "less_than_high_school_or_ged_degree") ~ "High School or Less",
+    dem_education == "some_college" ~ "Some College",
+    dem_education %in% c("2_year_degree", "4_year_degree", "advanced_degree") ~ "2-Year Degree or Higher"
+  )) |>
+  mutate(edu_collapsed = factor(edu_collapsed, levels = c("High School or Less", "Some College", "2-Year Degree or Higher"))) |>
+  ggplot(aes(x = edu_collapsed)) +
+  geom_bar() +
+  labs(x = "Education", y = "Count")
 ```
+
+Education status is largely imbalanced as a categorical variable, however collapsing into 3 categories roughly balances the distribution. Other considerations for modelling include treating education as ordinal or numericizing the amount of education consumed by each respondent - each of these methods may allow for models to learn more meaningful relationships for the less-than high school diploma respondents, despite only having very few of these responses.
+
+### Student Status
+
+```{r}
+panel_wide |> count(dem_student)
+
+panel_wide |>
+  ggplot(aes(x = dem_student)) +
+  geom_bar()
+```
+
+Very few active students in the sample. We likely lack sufficient variance to use this demographic variable as a meaningful predictor.
+
+### Income
+
+```{r}
+income_levels <- c(
+  "Less than $25,000",
+  "$25,000 - $37,499",
+  "$37,500 - $49,999",
+  "$50,000 - $74,999",
+  "$75,000 - $99,999",
+  "$100,000 - $149,999",
+  "$150,000 - $199,999",
+  "$200,000 or more"
+)
+
+panel_wide <- panel_wide |>
+  mutate(
+    dem_income = factor(dem_income, levels = income_levels, ordered = TRUE))
+    
+panel_wide |> count(dem_income)
+
+panel_wide |>
+  ggplot(aes(x = dem_income)) +
+  geom_bar()
+```
+
+```{r} 
+panel_wide |>
+  mutate(
+    dem_income = factor(dem_income, levels = income_levels, ordered = TRUE),
+    income_collapsed = case_when(
+      dem_income <= "$25,000 - $37,499"   ~ "Under $37,500",
+      dem_income <= "$50,000 - $74,999"   ~ "$37,500–$74,999",
+      .default                            = "$75,000 or more"
+    ),
+    income_collapsed = factor(income_collapsed,
+                              levels = c("Under $37,500", "$37,500–$74,999", "$75,000 or more"),
+                              ordered = TRUE)
+  ) |>
+  ggplot(aes(x = income_collapsed)) +
+  geom_bar() +
+  labs(x = "Income", y = "Count")
+```
+
+Income is a skewed distribution with a long right tail, which is understandable as we approach large incomes. Categories can be collapsed into roughly balanced categories, with other possibilities including numericizing or treating income as an ordinal variable.
+
+### Household Size
+
+```{r}
+hist(panel_wide$dem_n_household)
+```
+
+```{r}
+panel_wide |>
+  mutate(
+    household_collapsed = if_else(dem_n_household >= 4, "4+", as.character(dem_n_household)),
+    household_collapsed = factor(household_collapsed, levels = c("1", "2", "3", "4+"))
+  ) |>
+  ggplot(aes(x = household_collapsed)) +
+  geom_bar() +
+  labs(x = "Household Size", y = "Count")
+```
+
+Household size has a large right tail with few respondents having more than 4 members. Larger household sizes can be collapsed for a more balanced distribution to use this as a categorical variable, otherwise it can remain numerc.
+
+#### Income per household member
+
+Income information may be more useful in context of household size, as the lifestyle and financial reality of a household of 1 with a $75,000 income is much different than a household of 6 on that same income. 
+
+```{r}
+panel_wide |>
+  mutate(
+    income_numeric = case_when(
+      dem_income == "Less than $25,000"   ~ 12500,
+      dem_income == "$25,000 - $37,499"   ~ 31250,
+      dem_income == "$37,500 - $49,999"   ~ 43750,
+      dem_income == "$50,000 - $74,999"   ~ 62500,
+      dem_income == "$75,000 - $99,999"   ~ 87500,
+      dem_income == "$100,000 - $149,999" ~ 125000,
+      dem_income == "$150,000 - $199,999" ~ 175000,
+      dem_income == "$200,000 or more"    ~ 250000
+    ),
+    income_per_member = income_numeric / dem_n_household
+  ) |>
+  ggplot(aes(x = income_per_member)) +
+  geom_histogram(binwidth = 10000) +
+  scale_x_continuous(labels = scales::label_dollar(scale = 1e-3, suffix = "K")) +
+  labs(x = "Income per Household Member", y = "Count")
+```
+
+```{r}
+panel_wide |>
+  mutate(
+    income_numeric = case_when(
+      dem_income == "Less than $25,000"   ~ 12500,
+      dem_income == "$25,000 - $37,499"   ~ 31250,
+      dem_income == "$37,500 - $49,999"   ~ 43750,
+      dem_income == "$50,000 - $74,999"   ~ 62500,
+      dem_income == "$75,000 - $99,999"   ~ 87500,
+      dem_income == "$100,000 - $149,999" ~ 125000,
+      dem_income == "$150,000 - $199,999" ~ 175000,
+      dem_income == "$200,000 or more"    ~ 250000
+    ),
+    income_per_member = income_numeric / dem_n_household,
+    household_collapsed = if_else(dem_n_household >= 4, "4+", as.character(dem_n_household)),
+    household_collapsed = factor(household_collapsed, levels = c("1", "2", "3", "4+"))
+  ) |>
+  ggplot(aes(x = income_per_member, color = household_collapsed)) +
+  geom_density() +
+  scale_x_continuous(labels = scales::label_dollar(scale = 1e-3, suffix = "K")) +
+  labs(x = "Income per Household Member", y = "Density", color = "Household Size")
+```
+
+```{r}
+panel_wide |>
+  mutate(
+    income_numeric = case_when(
+      dem_income == "Less than $25,000"   ~ 12500,
+      dem_income == "$25,000 - $37,499"   ~ 31250,
+      dem_income == "$37,500 - $49,999"   ~ 43750,
+      dem_income == "$50,000 - $74,999"   ~ 62500,
+      dem_income == "$75,000 - $99,999"   ~ 87500,
+      dem_income == "$100,000 - $149,999" ~ 125000,
+      dem_income == "$150,000 - $199,999" ~ 175000,
+      dem_income == "$200,000 or more"    ~ 250000
+    ),
+    income_per_member = income_numeric / dem_n_household,
+    household_collapsed = if_else(dem_n_household >= 4, "4+", as.character(dem_n_household)),
+    household_collapsed = factor(household_collapsed, levels = c("1", "2", "3", "4+"))
+  ) |>
+  ggplot(aes(x = income_per_member, color = household_collapsed)) +
+  geom_density() +
+  scale_x_log10(labels = scales::label_dollar(scale = 1e-3, suffix = "K")) +
+  labs(x = "Income per Household Member (log scale)", y = "Density", color = "Household Size")
+```
+
+Single-person households have a notably wider spread of per-member income — with meaningful density above $100K — while 2-, 3-, and 4+ person households concentrate heavily below $50K per member regardless of raw income bracket. This separation suggests that `income_per_member` captures financial context that raw income obscures, and should be preferred over `dem_income` in any model where household financial pressure is the construct of interest.
+
+The secondary bumps visible around $75–125K in the size-1 curve are artifacts of kernel density smoothing over discrete midpoint values, not a genuine secondary mode. Bracket counts for single-person households decrease monotonically from low to high income (n = 28 down to n = 1), with only 7 respondents in the $75–99K bracket and 3 in $100–149K.
+
+### Race / Ethnicity
 
 ```{r}
 panel_wide |>
@@ -142,4 +306,123 @@ panel_wide |>
   pivot_longer(everything(), names_to = "race", values_to = "proportion") |>
   mutate(race = str_remove(race, "dem_race_"),
          percentage = round(proportion * 100, 1))
+```
+
+```{r}
+panel_wide |>
+  mutate(
+    white = !is.na(dem_race_white),
+    other =
+      !is.na(dem_race_native_alaskan) |
+      !is.na(dem_race_asian) |
+      !is.na(dem_race_hispanic) |
+      !is.na(dem_race_black),
+    race_group = if_else(white & !other, "White only", "Mixed/Other"),
+    race_group = factor(race_group, levels = c("White only", "Mixed/Other"))
+  ) |>
+  count(race_group) |>
+  ggplot(aes(x = race_group, y = n)) +
+  geom_col() +
+  labs(x = "Race/Ethnicity Group", y = "Count")
+```
+
+The race/ethnicity distribution is largely skewed and dominated by respondents identifying as white/Caucasian. When categories are collapsed to white and any mixed-race or minority ethnicity group, the distribution becomes more balanced at about 2/3 to 1/3 of the sample. We may lack sufficient variance to use race/ethnicity demographic information without collapsing categories in this manner.
+
+# Eyeball Sample
+
+```{r}
+eyeball_ids <- read_csv("C:/Users/Andrew/Desktop/eyeball_ids.csv")
+```
+
+```{r}
+eyeball_wide <- panel_wide |>
+  filter(response_id %in% eyeball_ids$eyeball_ids)
+
+eyeball_long <- panel_long |> 
+  filter(subid %in% eyeball_wide$subid)
+```
+
+## Bivariate Message Ratings
+
+```{r}
+eyeball_long <- eyeball_long |> 
+  mutate(rating_num = as.numeric(factor(message_rating, levels = rating_levels)))
+```
+
+### Age x Message Ratings
+
+```{r}
+r2 <- summary(lm(rating_num ~ dem_age, data = plot_data))$r.squared
+
+ggplot(plot_data, aes(x = dem_age, y = rating_num)) +
+  geom_jitter(width = 0, height = 0.2, alpha = 0.3, size = 1.5) +
+  geom_smooth(method = "lm", se = TRUE) +
+  annotate("text", x = Inf, y = Inf, hjust = 1.1, vjust = 1.5,
+           label = paste0("R² = ", round(r2, 3))) +
+  scale_y_continuous(
+    breaks = 1:7,
+    labels = rating_levels
+  ) +
+  labs(x = "Age", y = "Message Rating")
+```
+
+```{r}
+eyeball_long |>
+  mutate(
+    age_group = cut(dem_age, breaks = c(18, 29, 39, 49, 59, Inf),
+                    labels = c("18-29", "30-39", "40-49", "50-59", "60+"),
+                    right = TRUE, include.lowest = TRUE),
+    rating_num = as.numeric(factor(message_rating, levels = rating_levels))
+  ) |>
+  summarise(mean_rating = mean(rating_num, na.rm = TRUE), .by = age_group) |>
+  ggplot(aes(x = age_group, y = mean_rating)) +
+  geom_col() +
+  labs(x = "Age Group", y = "Mean Message Rating")
+```
+
+When examining age as either continuous or binned categorical variable, both methods show a slight negative correlation between age and message ratings. Age may be more useful as part of an engineered predictor than a raw variable.
+
+```{r}
+plot_ratings_by <- function(.data, var,
+                            tone_colors  = c("#4E79A7", "#F28E2B"),
+                            style_colors = c("#59A14F", "#E15759")) {
+  fill_label <- deparse(substitute(var))
+
+  summary_data <- .data |>
+    mutate(rating_num = as.numeric(factor(message_rating, levels = rating_levels))) |>
+    summarise(mean_rating = mean(rating_num, na.rm = TRUE),
+              .by = c(tone, style, {{ var }}))
+
+  p_tone <- summary_data |>
+    summarise(mean_rating = mean(mean_rating), .by = c(tone, {{ var }})) |>
+    ggplot(aes(x = tone, y = mean_rating, fill = {{ var }})) +
+    geom_col(position = "dodge") +
+    scale_fill_manual(values = tone_colors) +
+    labs(x = NULL, y = "Mean Message Rating", fill = fill_label, title = "Tone")
+
+  p_style <- summary_data |>
+    summarise(mean_rating = mean(mean_rating), .by = c(style, {{ var }})) |>
+    ggplot(aes(x = style, y = mean_rating, fill = {{ var }})) +
+    geom_col(position = "dodge", width = 0.9) +
+    scale_fill_manual(values = style_colors) +
+    labs(x = NULL, y = NULL, fill = fill_label, title = "Style")
+
+  p_tone + p_style + plot_layout(widths = c(5, 2), guides = "collect")
+}
+```
+
+### Sex x Message Ratings
+
+```{r}
+eyeball_long |>
+  filter(dem_sex %in% c("female", "male")) |>
+  plot_ratings_by(dem_sex)
+```
+
+### Orientation x Message Ratings
+
+```{r}
+eyeball_long |>
+  mutate(orientation = if_else(dem_orientation == "straight", "straight", "other")) |>
+  plot_ratings_by(orientation)
 ```

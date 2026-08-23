@@ -14,7 +14,7 @@ editor_options:
 
 ## Code Status
 
-In Progress
+Fully Functional
 
 ## Purpose
 
@@ -173,7 +173,7 @@ split_panel(panel)
 
 compare_plot("duration_mins", stat = 'median', display = 'min', bins = 4)
 
-duration_threshold <- quantile(p_eligible$q_total_duration, probs = 0.05)
+duration_threshold <- quantile(p_eligible$q_total_duration, probs = 0.025)
 duration_threshold/60
 ```
 
@@ -222,7 +222,7 @@ We are concerned with responses with low or NA captcha scores. These scores are 
 ```{r}
 compare_plot("q_recaptcha_score", stat = 'mean', bins =6, display = "min", labels = "left")
 
-captcha_threshold <- quantile(p_eligible$q_recaptcha_score, probs = 0.05, na.rm = TRUE)
+captcha_threshold <- quantile(p_eligible$q_recaptcha_score, probs = 0.025, na.rm = TRUE)
 captcha_threshold
 ```
 
@@ -232,7 +232,7 @@ Captcha is an essential first step for identifying bots. As such, it feels prope
 
 ```{r}
 # Flag scores at or below the 5th percentile & NAs
-captcha_threshold <- quantile(p_eligible$q_recaptcha_score, probs = 0.05, na.rm = TRUE)
+captcha_threshold <- quantile(p_eligible$q_recaptcha_score, probs = 0.025, na.rm = TRUE)
 
 panel <- panel |> 
   mutate(
@@ -409,6 +409,6 @@ compare_plot("suspicion_index", bins = 5, stat = "mean", display = "max")
 ## Exclusions
 
 ```{r}
-p_eligible |> filter(suspicion_index <= 1) |> write_csv(here::here(path_processed,"panel.csv"))
+#p_eligible |> filter(suspicion_index <= 1) |> #write_csv(here::here(path_processed,"panel.csv"))
 ```
 
