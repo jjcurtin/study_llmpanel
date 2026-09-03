@@ -409,6 +409,12 @@ compare_plot("suspicion_index", bins = 5, stat = "mean", display = "max")
 ## Exclusions
 
 ```{r}
-#p_eligible |> filter(suspicion_index <= 1) |> #write_csv(here::here(path_processed,"panel.csv"))
+# Filter down and assign sub-ids
+panel <- p_eligible |> filter(suspicion_index <=1) |>
+  mutate(subid = row_number()
+)
+
+# Save final panel
+panel |> write_csv(here::here(path_processed,"panel.csv"))
 ```
 

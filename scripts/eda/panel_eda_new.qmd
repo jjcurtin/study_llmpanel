@@ -26,15 +26,13 @@ source("https://github.com/jjcurtin/study_llmpanel/blob/main/scripts/functions_l
 path_processed <- format_path("llmpanel/data_processed")
 
 # Read in full panel
-panel_wide <- read_csv(here::here(path_processed, "panel.csv"), show_col_types = FALSE)
-
-# Add subids
-panel_wide <- panel_wide |> mutate(
-  subid = row_number()
-)
+panel_wide <- read_csv(here::here(path_processed, "panel.csv"),
+                       show_col_types = FALSE)
 ```
 
 *Pivot long format*
+
+We'll retain a separate wide-format object for now, to examine demographics etc.
 
 ```{r}
 panel_long <- panel_wide |>
@@ -65,6 +63,9 @@ panel_long <- panel_wide |>
   select(-q_num, -tone_style) |> 
   filter(!is.na(message_rating),
          str_trim(message_rating) != "")
+
+# Sanity-check that we have 30 rows per respondent
+nrow(panel_wide)*30 == nrow(panel_long)
 ```
 
 ## Univariate Demographics
@@ -145,7 +146,7 @@ panel_wide |>
   labs(x = "Education", y = "Count")
 ```
 
-Education status is largely imbalanced as a categorical variable, however collapsing into 3 categories roughly balances the distribution. Other considerations for modelling include treating education as ordinal or numericizing the amount of education consumed by each respondent - each of these methods may allow for models to learn more meaningful relationships for the less-than high school diploma respondents, despite only having very few of these responses.
+Education status is largely imbalanced, however collapsing into 3 categories roughly balances the distribution. Other considerations for modelling include treating education as ordinal or numericizing the amount of education consumed by each respondent - each of these methods may allow for models to learn more meaningful relationships for the less-than high school diploma respondents, despite only having very few of these responses.
 
 ### Student Status
 
@@ -221,7 +222,7 @@ panel_wide |>
   labs(x = "Household Size", y = "Count")
 ```
 
-Household size has a large right tail with few respondents having more than 4 members. Larger household sizes can be collapsed for a more balanced distribution to use this as a categorical variable, otherwise it can remain numerc.
+Household size has a large right tail with few respondents having more than 4 members. Larger household sizes can be collapsed for a more balanced distribution to use this as a categorical variable, otherwise it can remain numeric.
 
 #### Income per household member
 
@@ -294,9 +295,9 @@ panel_wide |>
   labs(x = "Income per Household Member (log scale)", y = "Density", color = "Household Size")
 ```
 
-Single-person households have a notably wider spread of per-member income — with meaningful density above $100K — while 2-, 3-, and 4+ person households concentrate heavily below $50K per member regardless of raw income bracket. This separation suggests that `income_per_member` captures financial context that raw income obscures, and should be preferred over `dem_income` in any model where household financial pressure is the construct of interest.
+Single-person households have a notably wider spread of per-member income with meaningful density above 100K, while 2, 3- and 4+ person households concentrate heavily below $50K per member regardless of raw income bracket. This separation suggests that income_per_member captures financial context that raw income obscures, and should be preferred over dem_income in any model where household financial pressure is the construct of interest.
 
-The secondary bumps visible around $75–125K in the size-1 curve are artifacts of kernel density smoothing over discrete midpoint values, not a genuine secondary mode. Bracket counts for single-person households decrease monotonically from low to high income (n = 28 down to n = 1), with only 7 respondents in the $75–99K bracket and 3 in $100–149K.
+The secondary bumps visible around 75–125K in the size 1 curve are artifacts of kernel density smoothing over discrete midpoint values, not a genuine secondary mode. Bracket counts for single-person households decrease monotonically from low to high income (n = 28 down to n = 1), with only 7 respondents in the 75–99K bracket and 3 in 100–149K.
 
 ### Race / Ethnicity
 
@@ -331,48 +332,46 @@ The race/ethnicity distribution is largely skewed and dominated by respondents i
 # Eyeball Sample
 
 ```{r}
-eyeball_ids <- read_csv("C:/Users/Andrew/Desktop/eyeball_ids.csv")
+set.seed(1183)
+eyeball_ids <- panel_wide |> slice_sample(n = 100) |> select(subid)
+eyeball <- panel_long |> filter(subid %in% eyeball_ids$subid)
 ```
 
-```{r}
-eyeball_wide <- panel_wide |>
-  filter(response_id %in% eyeball_ids$eyeball_ids)
-
-eyeball_long <- panel_long |> 
-  filter(subid %in% eyeball_wide$subid)
-```
-
-## Bivariate Message Ratings
+## Bivariate Demographics
 
 ```{r}
-eyeball_long <- eyeball_long |> 
-  mutate(rating_num = as.numeric(factor(message_rating, levels = rating_levels)))
+eyeball <- eyeball |> 
+  mutate(rating_num = as.numeric(factor(message_rating, levels = c("strongly_disagree",
+                                                                   "disagree",
+                                                                   "somewhat_disagree",
+                                                                   "neutral",
+                                                                   "somewhat_agree",
+                                                                   "agree",
+                                                                   "strongly_agree"))))
 ```
 
 ### Age x Message Ratings
 
 ```{r}
-r2 <- summary(lm(rating_num ~ dem_age, data = plot_data))$r.squared
+r2 <- summary(lm(rating_num ~ dem_age, data = eyeball))$r.squared
 
-ggplot(plot_data, aes(x = dem_age, y = rating_num)) +
+ggplot(eyeball, aes(x = dem_age, y = rating_num)) +
   geom_jitter(width = 0, height = 0.2, alpha = 0.3, size = 1.5) +
   geom_smooth(method = "lm", se = TRUE) +
   annotate("text", x = Inf, y = Inf, hjust = 1.1, vjust = 1.5,
            label = paste0("R² = ", round(r2, 3))) +
   scale_y_continuous(
     breaks = 1:7,
-    labels = rating_levels
   ) +
   labs(x = "Age", y = "Message Rating")
 ```
 
 ```{r}
-eyeball_long |>
+eyeball |>
   mutate(
     age_group = cut(dem_age, breaks = c(18, 29, 39, 49, 59, Inf),
                     labels = c("18-29", "30-39", "40-49", "50-59", "60+"),
                     right = TRUE, include.lowest = TRUE),
-    rating_num = as.numeric(factor(message_rating, levels = rating_levels))
   ) |>
   summarise(mean_rating = mean(rating_num, na.rm = TRUE), .by = age_group) |>
   ggplot(aes(x = age_group, y = mean_rating)) +
@@ -380,7 +379,7 @@ eyeball_long |>
   labs(x = "Age Group", y = "Mean Message Rating")
 ```
 
-When examining age as either continuous or binned categorical variable, both methods show a slight negative correlation between age and message ratings. Age may be more useful as part of an engineered predictor than a raw variable.
+When examining age as either continuous or binned categorical variable, both methods show very little relationship between age and message ratings. Age may be more useful as part of an engineered predictor than a raw variable.
 
 ```{r}
 plot_ratings_by <- function(.data, var,
@@ -389,7 +388,6 @@ plot_ratings_by <- function(.data, var,
   fill_label <- deparse(substitute(var))
 
   summary_data <- .data |>
-    mutate(rating_num = as.numeric(factor(message_rating, levels = rating_levels))) |>
     summarise(mean_rating = mean(rating_num, na.rm = TRUE),
               .by = c(tone, style, {{ var }}))
 
@@ -407,14 +405,14 @@ plot_ratings_by <- function(.data, var,
     scale_fill_manual(values = style_colors) +
     labs(x = NULL, y = NULL, fill = fill_label, title = "Style")
 
-  p_tone + p_style + plot_layout(widths = c(5, 2), guides = "collect")
+  patchwork::wrap_plots(p_tone, p_style, widths = c(5, 2), guides = "collect")
 }
 ```
 
-### Sex x Message Ratings
+### Sex
 
 ```{r}
-eyeball_long |>
+eyeball |>
   filter(dem_sex %in% c("female", "male")) |>
   plot_ratings_by(dem_sex)
 ```
