@@ -1,0 +1,94 @@
+---
+title: "Panel EDA"
+format: 
+  html:
+    page-layout: full
+    self-contained: true
+    toc: true
+    toc-depth: 3
+execute: 
+  warning: false
+editor_options: 
+  chunk_output_type: console
+---
+
+# Setup
+
+```{r}
+options(conflicts.policy = "depends.ok")
+library(tidyverse)
+plot_grid <- cowplot::plot_grid
+source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
+source("https://github.com/jjcurtin/lab_support/blob/main/fun_eda.R?raw=true")
+source("https://github.com/jjcurtin/lab_support/blob/main/fun_plots.R?raw=true")
+source("https://github.com/jjcurtin/study_llmpanel/blob/main/scripts/functions_llmpanel.R?raw=true")
+library(tidymodels)
+
+path_processed <- format_path("llmpanel/data_processed")
+
+# Read in full panel
+panel <- read_csv(here::here(path_processed, "panel.csv"),
+                       show_col_types = FALSE)
+```
+
+*Pivot long format*
+
+```{r}
+panel <- panel |>
+  select(subid, dem_age:dem_minority, q1_legitimizing_1:q6_formality_1,
+         `x1_hi_1_fl_1`:`x4_li_10_in_1`,
+         -contains("timing"), -contains("attention")) |>
+  pivot_longer(
+    cols= `x1_hi_1_fl_1`:`x4_li_10_in_1`,
+    values_to = "message_rating",
+    names_to = "message_type") |>
+  separate(message_type,
+           sep = "_", into = c(
+             "survey_version", "context", "q_num", "tone_style"),
+           extra = "drop") |> 
+  mutate(
+    style = if_else(substr(tone_style, 1, 1) == "f", "formal", "informal"),
+    tone = case_when(
+      substr(tone_style, 2, 2) == "l" ~ "legitimizing",
+      substr(tone_style, 2, 2) == "n" ~ "norms",
+      substr(tone_style, 2, 2) == "s" ~ "self_efficacy",
+      substr(tone_style, 2, 2) == "a" ~ "acknowledging",
+      substr(tone_style, 2, 2) == "v" ~ "value_affirmation"),
+    context = case_when(
+      context == "hi" ~ "high_increasing",
+      context == "hd" ~ "high_decreasing",
+      context == "li" ~ "low_increasing")
+  ) |>
+  select(-q_num, -tone_style) |> 
+  filter(!is.na(message_rating),
+         str_trim(message_rating) != "")
+
+# Sanity-check that we have 30 rows per respondent
+nrow(panel_wide)*30 == nrow(panel_long)
+```
+
+# Constant Features
+
+The following features will be used in all recipes, without changes across model configurations:
+
+## Sex
+
+Sex at birth will be used in its raw predictor form, dichotomous male/female.
+
+## Orientation
+
+Sexual Orientation will be used with collapsed categories Straight/Other, resulting from a lack of variability for non-straight orientations within the sample. 
+
+```{r}
+
+```
+
+## Race / Ethnicity
+
+Race will be used with collapsed categories White Only/Other, resulting from a lack of variability for non-white ethnicity groups within the sample.
+
+## Education?
+
+# Adjustable Features
+
+
