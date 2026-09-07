@@ -70,7 +70,7 @@ nrow(panel_wide)*30 == nrow(panel_long)
 
 ## Univariate Demographics
 
-### Age
+### Age (Numeric)
 
 ```{r}
 hist(panel_wide$dem_age)
@@ -98,7 +98,7 @@ panel_wide |>
 
 A mild class imbalance, with the sample being dominated by male respondents.
 
-### Gender Identity
+### Gender Identity (Remove)
 
 ```{r}
 panel_wide |> count(dem_identity)
@@ -110,7 +110,7 @@ panel_wide |>
 
 Only 4 respondents provided a gender identity that did not match with their sex at birth. We likely lack sufficient variance in gender identities to use this demographic variable as a meaningful predictor.
 
-### Orientation
+### Orientation (Dichotomous)
 
 ```{r}
 panel_wide |> count(dem_orientation)
@@ -123,7 +123,7 @@ panel_wide |>
 
 347/396 = 87.62% of respondents identified as straight, leaving very few observations in remaining categories, and a large class imbalance even when all 'non-straight' classes are collapsed together. We may lack sufficient variance in this demographic to use it as a meaningful predictor.
 
-### Education
+### Education (Binned)
 
 ```{r}
 panel_wide |> count(dem_education)
@@ -148,7 +148,7 @@ panel_wide |>
 
 Education status is largely imbalanced, however collapsing into 3 categories roughly balances the distribution. Other considerations for modelling include treating education as ordinal or numericizing the amount of education consumed by each respondent - each of these methods may allow for models to learn more meaningful relationships for the less-than high school diploma respondents, despite only having very few of these responses.
 
-### Student Status
+### Student Status (Remove)
 
 ```{r}
 panel_wide |> count(dem_student)
@@ -160,7 +160,7 @@ panel_wide |>
 
 Very few active students in the sample. We likely lack sufficient variance to use this demographic variable as a meaningful predictor.
 
-### Income
+### Income (Ordinal)
 
 ```{r}
 income_levels <- c(
@@ -205,7 +205,7 @@ panel_wide |>
 
 Income is a skewed distribution with a long right tail, which is understandable as we approach large incomes. Categories can be collapsed into roughly balanced categories, with other possibilities including numericizing or treating income as an ordinal variable.
 
-### Household Size
+### Household Size (Numeric)
 
 ```{r}
 hist(panel_wide$dem_n_household)
@@ -383,8 +383,8 @@ When examining age as either continuous or binned categorical variable, both met
 
 ```{r}
 plot_ratings_by <- function(.data, var,
-                            tone_colors  = c("#4E79A7", "#F28E2B"),
-                            style_colors = c("#59A14F", "#E15759")) {
+                            tone_colors  = c("#4E79A7", "#F28E2B", "#76B7B2"),
+                            style_colors = c("#59A14F", "#E15759", "#EDC948")) {
   fill_label <- deparse(substitute(var))
 
   summary_data <- .data |>
@@ -396,6 +396,11 @@ plot_ratings_by <- function(.data, var,
     ggplot(aes(x = tone, y = mean_rating, fill = {{ var }})) +
     geom_col(position = "dodge") +
     scale_fill_manual(values = tone_colors) +
+    scale_x_discrete(labels = c(acknowledging     = "ACK",
+                                legitimizing      = "LEG",
+                                norms             = "NRM",
+                                self_efficacy     = "SEF",
+                                value_affirmation = "VAF")) +
     labs(x = NULL, y = "Mean Message Rating", fill = fill_label, title = "Tone")
 
   p_style <- summary_data |>
@@ -406,6 +411,41 @@ plot_ratings_by <- function(.data, var,
     labs(x = NULL, y = NULL, fill = fill_label, title = "Style")
 
   patchwork::wrap_plots(p_tone, p_style, widths = c(5, 2), guides = "collect")
+}
+```
+
+```{r}
+plot_ratings_by_numeric <- function(.data, var,
+                                    tone_colors  = c("#4E79A7", "#F28E2B", "#76B7B2",
+                                                     "#59A14F", "#E15759"),
+                                    style_colors = c("#B07AA1", "#FF9DA7")) {
+  var_label <- deparse(substitute(var))
+
+  tone_data <- .data |>
+    summarise(mean_rating = mean(rating_num, na.rm = TRUE),
+              var_val     = first({{ var }}),
+              .by = c(subid, tone))
+
+  style_data <- .data |>
+    summarise(mean_rating = mean(rating_num, na.rm = TRUE),
+              var_val     = first({{ var }}),
+              .by = c(subid, style))
+
+  p_tone <- ggplot(tone_data, aes(x = var_val, y = mean_rating, color = tone)) +
+    geom_point(alpha = 0.3, size = 1.5) +
+    geom_smooth(method = "lm", se = FALSE, linewidth = 0.8) +
+    scale_color_manual(values = tone_colors) +
+    scale_x_continuous(labels = scales::label_dollar(scale = 1e-3, suffix = "K")) +
+    labs(x = var_label, y = "Mean Message Rating", color = "Tone", title = "By Tone")
+
+  p_style <- ggplot(style_data, aes(x = var_val, y = mean_rating, color = style)) +
+    geom_point(alpha = 0.3, size = 1.5) +
+    geom_smooth(method = "lm", se = FALSE, linewidth = 0.8) +
+    scale_color_manual(values = style_colors) +
+    scale_x_continuous(labels = scales::label_dollar(scale = 1e-3, suffix = "K")) +
+    labs(x = var_label, y = "Mean Message Rating", color = "Style", title = "By Style")
+
+  patchwork::wrap_plots(p_tone, p_style, ncol = 1)
 }
 ```
 
@@ -420,7 +460,326 @@ eyeball |>
 ### Orientation x Message Ratings
 
 ```{r}
-eyeball_long |>
+eyeball |>
   mutate(orientation = if_else(dem_orientation == "straight", "straight", "other")) |>
   plot_ratings_by(orientation)
+```
+
+### Education x Message Ratings
+
+```{r}
+eyeball |>
+  mutate(edu_collapsed = case_when(
+    dem_education %in% c("high_school_or_ged", "less_than_high_school_or_ged_degree") ~ "High School or Less",
+    dem_education == "some_college" ~ "Some College",
+    dem_education %in% c("2_year_degree", "4_year_degree", "advanced_degree") ~ "2-Year Degree or Higher"
+  )) |>
+  mutate(edu_collapsed = factor(edu_collapsed,
+                                levels = c("High School or Less", "Some College", "2-Year Degree or Higher"))) |>
+  plot_ratings_by(edu_collapsed)
+```
+
+### Income x Message Ratings
+
+```{r}
+eyeball |>
+  mutate(
+    income_numeric = case_when(
+      dem_income == "Less than $25,000"   ~ 12500,
+      dem_income == "$25,000 - $37,499"   ~ 31250,
+      dem_income == "$37,500 - $49,999"   ~ 43750,
+      dem_income == "$50,000 - $74,999"   ~ 62500,
+      dem_income == "$75,000 - $99,999"   ~ 87500,
+      dem_income == "$100,000 - $149,999" ~ 125000,
+      dem_income == "$150,000 - $199,999" ~ 175000,
+      dem_income == "$200,000 or more"    ~ 250000
+    ),
+    income_per_member = income_numeric / (dem_n_household**0.5)
+  ) |>
+  plot_ratings_by_numeric(income_per_member)
+```
+
+### Race / Ethnicity x Message Ratings
+
+```{r}
+eyeball |>
+  mutate(
+    white = !is.na(dem_race_white),
+    other =
+      !is.na(dem_race_native_alaskan) |
+      !is.na(dem_race_asian) |
+      !is.na(dem_race_hispanic) |
+      !is.na(dem_race_black),
+    race_group = if_else(white & !other, "White only", "Mixed/Other"),
+    race_group = factor(race_group, levels = c("White only", "Mixed/Other"))
+  ) |>
+  plot_ratings_by(race_group)
+```
+
+## Interactions
+
+### Race x Orientation
+
+```{r}
+eyeball |>
+  mutate(
+    white = !is.na(dem_race_white),
+    other =
+      !is.na(dem_race_native_alaskan) |
+      !is.na(dem_race_asian) |
+      !is.na(dem_race_hispanic) |
+      !is.na(dem_race_black),
+    race_group = if_else(white & !other, "White only", "Mixed/Other"),
+    race_group = factor(race_group, levels = c("White only", "Mixed/Other")),
+    orientation = if_else(dem_orientation == "straight", "Straight", "Other"),
+    orientation = factor(orientation, levels = c("Straight", "Other"))
+  ) |>
+  summarise(mean_rating = mean(rating_num, na.rm = TRUE),
+            .by = c(subid, race_group, orientation)) |>
+  ggplot(aes(x = race_group, y = mean_rating, fill = orientation)) +
+  geom_violin(position = position_dodge(width = 0.8), alpha = 0.4) +
+  geom_boxplot(position = position_dodge(width = 0.8), width = 0.2,
+               outlier.shape = NA) +
+  labs(x = "Race / Ethnicity", y = "Mean Message Rating", fill = "Orientation")
+```
+
+### Race x Sex
+
+```{r}
+eyeball |>
+  filter(dem_sex %in% c("female", "male")) |>
+  mutate(
+    white = !is.na(dem_race_white),
+    other =
+      !is.na(dem_race_native_alaskan) |
+      !is.na(dem_race_asian) |
+      !is.na(dem_race_hispanic) |
+      !is.na(dem_race_black),
+    race_group = if_else(white & !other, "White only", "Mixed/Other"),
+    race_group = factor(race_group, levels = c("White only", "Mixed/Other"))
+  ) |>
+  summarise(mean_rating = mean(rating_num, na.rm = TRUE),
+            .by = c(subid, race_group, dem_sex)) |>
+  ggplot(aes(x = race_group, y = mean_rating, fill = dem_sex)) +
+  geom_violin(position = position_dodge(width = 0.8), alpha = 0.4) +
+  geom_boxplot(position = position_dodge(width = 0.8), width = 0.2,
+               outlier.shape = NA) +
+  labs(x = "Race / Ethnicity", y = "Mean Message Rating", fill = "Sex")
+```
+
+### Sex x Orientation
+
+```{r}
+eyeball |>
+  filter(dem_sex %in% c("female", "male")) |>
+  mutate(
+    orientation = if_else(dem_orientation == "straight", "Straight", "Other"),
+    orientation = factor(orientation, levels = c("Straight", "Other"))
+  ) |>
+  summarise(mean_rating = mean(rating_num, na.rm = TRUE),
+            .by = c(subid, dem_sex, orientation)) |>
+  ggplot(aes(x = dem_sex, y = mean_rating, fill = orientation)) +
+  geom_violin(position = position_dodge(width = 0.8), alpha = 0.4) +
+  geom_boxplot(position = position_dodge(width = 0.8), width = 0.2,
+               outlier.shape = NA) +
+  labs(x = "Sex", y = "Mean Message Rating", fill = "Orientation")
+```
+
+### Sex x Orientation x Race
+
+```{r}
+eyeball |>
+  filter(dem_sex %in% c("female", "male")) |>
+  mutate(
+    orientation = if_else(dem_orientation == "straight", "straight", "other"),
+    orientation = factor(orientation, levels = c("straight", "other")),
+    white = !is.na(dem_race_white),
+    other_race =
+      !is.na(dem_race_native_alaskan) |
+      !is.na(dem_race_asian) |
+      !is.na(dem_race_hispanic) |
+      !is.na(dem_race_black),
+    race_group = if_else(white & !other_race, "White only", "Mixed/Other"),
+    race_group = factor(race_group, levels = c("White only", "Mixed/Other")),
+    rating_num = case_when(
+      message_rating == "strongly_disagree" ~ 1,
+      message_rating == "disagree"          ~ 2,
+      message_rating == "somewhat_disagree" ~ 3,
+      message_rating == "neutral"           ~ 4,
+      message_rating == "somewhat_agree"    ~ 5,
+      message_rating == "agree"             ~ 6,
+      message_rating == "strongly_agree"    ~ 7
+    )
+  ) |>
+  summarise(mean_rating = mean(rating_num, na.rm = TRUE),
+            .by = c(dem_sex, orientation, race_group)) |>
+  ggplot(aes(x = dem_sex, y = mean_rating, color = orientation, group = orientation)) +
+  geom_point() +
+  geom_line() +
+  facet_wrap(~ race_group) +
+  labs(x = "Sex", y = "Mean Message Rating", color = "Orientation")
+```
+
+### Age x Education
+
+```{r}
+eyeball |>
+  mutate(
+    age_group = cut(dem_age,
+                    breaks = c(18, 29, 39, 49, 59, Inf),
+                    labels = c("18-29", "30-39", "40-49", "50-59", "60+"),
+                    right = TRUE, include.lowest = TRUE),
+    edu_collapsed = case_when(
+      dem_education %in% c("high_school_or_ged", "less_than_high_school_or_ged_degree") ~ "High School or Less",
+      dem_education == "some_college" ~ "Some College",
+      dem_education %in% c("2_year_degree", "4_year_degree", "advanced_degree") ~ "2-Year Degree or Higher"
+    ),
+    edu_collapsed = factor(edu_collapsed, levels = c("High School or Less", "Some College", "2-Year Degree or Higher"))
+  ) |>
+  mutate(rating_num = case_when(
+    message_rating == "strongly_disagree" ~ 1,
+    message_rating == "disagree"          ~ 2,
+    message_rating == "somewhat_disagree" ~ 3,
+    message_rating == "neutral"           ~ 4,
+    message_rating == "somewhat_agree"    ~ 5,
+    message_rating == "agree"             ~ 6,
+    message_rating == "strongly_agree"    ~ 7
+  )) |>
+  summarise(mean_rating = mean(rating_num, na.rm = TRUE),
+            .by = c(subid, age_group, edu_collapsed)) |>
+  ggplot(aes(x = age_group, y = mean_rating, fill = edu_collapsed)) +
+  geom_violin(position = position_dodge(width = 0.8), alpha = 0.4) +
+  geom_boxplot(position = position_dodge(width = 0.8), width = 0.2,
+               outlier.shape = NA) +
+  labs(x = "Age Group", y = "Mean Message Rating", fill = "Education")
+```
+
+### Age x Income
+
+```{r}
+eyeball |>
+  mutate(
+    age_group = cut(dem_age,
+                    breaks = c(18, 29, 39, 49, 59, Inf),
+                    labels = c("18-29", "30-39", "40-49", "50-59", "60+"),
+                    right = TRUE, include.lowest = TRUE),
+    dem_income = factor(dem_income, levels = income_levels),
+    rating_num = case_when(
+      message_rating == "strongly_disagree" ~ 1,
+      message_rating == "disagree"          ~ 2,
+      message_rating == "somewhat_disagree" ~ 3,
+      message_rating == "neutral"           ~ 4,
+      message_rating == "somewhat_agree"    ~ 5,
+      message_rating == "agree"             ~ 6,
+      message_rating == "strongly_agree"    ~ 7
+    )
+  ) |>
+  summarise(mean_rating = mean(rating_num, na.rm = TRUE),
+            .by = c(subid, age_group, dem_income)) |>
+  ggplot(aes(x = age_group, y = mean_rating)) +
+  geom_violin(alpha = 0.4) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  facet_wrap(~ dem_income, ncol = 2) +
+  labs(x = "Age Group", y = "Mean Message Rating")
+```
+
+### Education x Income
+
+```{r}
+eyeball |>
+  mutate(
+    edu_collapsed = case_when(
+      dem_education %in% c("high_school_or_ged", "less_than_high_school_or_ged_degree") ~ "High School or Less",
+      dem_education == "some_college" ~ "Some College",
+      dem_education %in% c("2_year_degree", "4_year_degree", "advanced_degree") ~ "2-Year Degree or Higher"
+    ),
+    edu_collapsed = factor(edu_collapsed, levels = c("High School or Less", "Some College", "2-Year Degree or Higher")),
+    dem_income = factor(dem_income, levels = income_levels),
+    rating_num = case_when(
+      message_rating == "strongly_disagree" ~ 1,
+      message_rating == "disagree"          ~ 2,
+      message_rating == "somewhat_disagree" ~ 3,
+      message_rating == "neutral"           ~ 4,
+      message_rating == "somewhat_agree"    ~ 5,
+      message_rating == "agree"             ~ 6,
+      message_rating == "strongly_agree"    ~ 7
+    )
+  ) |>
+  summarise(mean_rating = mean(rating_num, na.rm = TRUE),
+            .by = c(subid, edu_collapsed, dem_income)) |>
+  ggplot(aes(x = edu_collapsed, y = mean_rating)) +
+  geom_violin(alpha = 0.4) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  facet_wrap(~ dem_income, ncol = 2) +
+  labs(x = "Education", y = "Mean Message Rating")
+```
+
+### Age x Education x Income
+
+```{r}
+panel_long |>
+  mutate(
+    age_group = cut(dem_age,
+                    breaks = c(18, 29, 39, 49, 59, Inf),
+                    labels = c("18-29", "30-39", "40-49", "50-59", "60+"),
+                    right = TRUE, include.lowest = TRUE),
+    edu_collapsed = case_when(
+      dem_education %in% c("high_school_or_ged", "less_than_high_school_or_ged_degree") ~ "High School or Less",
+      dem_education == "some_college" ~ "Some College",
+      dem_education %in% c("2_year_degree", "4_year_degree", "advanced_degree") ~ "2-Year Degree or Higher"
+    ),
+    edu_collapsed = factor(edu_collapsed, levels = c("High School or Less", "Some College", "2-Year Degree or Higher")),
+    income_binned = case_when(
+      dem_income %in% c("Less than $25,000", "$25,000 - $37,499", "$37,500 - $49,999") ~ "Under $50K",
+      dem_income %in% c("$50,000 - $74,999", "$75,000 - $99,999") ~ "$50K - $100K",
+      dem_income %in% c("$100,000 - $149,999", "$150,000 - $199,999", "$200,000 or more") ~ "$100K+"
+    ),
+    income_binned = factor(income_binned, levels = c("Under $50K", "$50K - $100K", "$100K+")),
+    rating_num = case_when(
+      message_rating == "strongly_disagree" ~ 1,
+      message_rating == "disagree"          ~ 2,
+      message_rating == "somewhat_disagree" ~ 3,
+      message_rating == "neutral"           ~ 4,
+      message_rating == "somewhat_agree"    ~ 5,
+      message_rating == "agree"             ~ 6,
+      message_rating == "strongly_agree"    ~ 7
+    )
+  ) |>
+  summarise(mean_rating = mean(rating_num, na.rm = TRUE),
+            .by = c(age_group, edu_collapsed, income_binned)) |>
+  ggplot(aes(x = age_group, y = mean_rating, color = edu_collapsed, group = edu_collapsed)) +
+  geom_point() +
+  geom_line() +
+  facet_wrap(~ income_binned) +
+  labs(x = "Age Group", y = "Mean Message Rating", color = "Education")
+```
+
+### Age x Household Size
+
+```{r}
+eyeball |>
+  mutate(
+    age_group = cut(dem_age,
+                    breaks = c(18, 29, 39, 49, 59, Inf),
+                    labels = c("18-29", "30-39", "40-49", "50-59", "60+"),
+                    right = TRUE, include.lowest = TRUE),
+    household_collapsed = if_else(dem_n_household >= 4, "4+", as.character(dem_n_household)),
+    household_collapsed = factor(household_collapsed, levels = c("1", "2", "3", "4+")),
+    rating_num = case_when(
+      message_rating == "strongly_disagree" ~ 1,
+      message_rating == "disagree"          ~ 2,
+      message_rating == "somewhat_disagree" ~ 3,
+      message_rating == "neutral"           ~ 4,
+      message_rating == "somewhat_agree"    ~ 5,
+      message_rating == "agree"             ~ 6,
+      message_rating == "strongly_agree"    ~ 7
+    )
+  ) |>
+  summarise(mean_rating = mean(rating_num, na.rm = TRUE),
+            .by = c(subid, age_group, household_collapsed)) |>
+  ggplot(aes(x = age_group, y = mean_rating)) +
+  geom_violin(alpha = 0.4) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  facet_wrap(~ household_collapsed, ncol = 2) +
+  labs(x = "Age Group", y = "Mean Message Rating")
 ```
