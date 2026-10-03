@@ -12,6 +12,16 @@ editor_options:
   chunk_output_type: console
 ---
 
+## Code Status
+
+Fully Functional
+
+## Purpose
+
+- This script is used to define which engineered features are up for consideration when building recipes.
+
+- This script outlines a recipe builder function that can be used to quickly assemble any particular combination of features, for a total of 30 unique recipes. (60 counting a version of each that does not include interactions)
+
 # Setup
 
 ```{r}
@@ -22,6 +32,11 @@ source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true
 source("https://github.com/jjcurtin/lab_support/blob/main/fun_eda.R?raw=true")
 source("https://github.com/jjcurtin/lab_support/blob/main/fun_plots.R?raw=true")
 source("https://github.com/jjcurtin/study_llmpanel/blob/main/scripts/functions_llmpanel.R?raw=true")
+# Keep tidyverse/base versions of masked objects so tidymodels attaches under depends.ok
+conflictRules("scales", exclude = c("discard", "col_factor"))
+conflictRules("recipes", exclude = "fixed")
+conflictRules("modeldata", exclude = "penguins")
+conflictRules("yardstick", exclude = "spec")
 library(tidymodels)
 
 path_processed <- format_path("llmpanel/data_processed")
@@ -204,7 +219,7 @@ nrow(panel) * 30 == nrow(panel_long)
 GLMnet requires a fully numeric, complete design matrix, and the penalty assumes all predictors are on the same scale. Every recipe built by `rec_glmnet_build()` (below) therefore follows the same rules:
 
 - **Outcome:** `message_rating` is scored 1 (strongly disagree) to 7 (strongly agree) and modeled as numeric (gaussian GLMnet).
-- **Controls (all recipes):** attitude items `q1`–`q6` as ordinal scores, and `context`, `style`, `tone`, `survey_version` dummy coded.
+- **Controls (all recipes):** tone survey items `q1`–`q6` as ordinal scores, and `context`, `style`, `tone`, `survey_version` dummy coded.
 - **Constant demographics (all recipes):** `dem_sex` (±0.5), `dem_race` (±0.5), `dem_orientation` (dummy coded), `dem_n_household` (raw numeric).
 - **Nominal features** are dummy coded with `step_dummy()` (ordered factors are first converted with `step_unorder()` so they get treatment rather than polynomial contrasts). **Ordinal features** are converted to integer scores with `step_ordinalscore()`.
 - **Interactions** are built after dummy coding and before normalization. Three-way terms include their two-way terms (`(a + b + c)^3`). When adjusted income is *added*, interactions use the income bracket. When it *replaces* income bracket, Age x Income x Education uses adjusted income, and Income x Household Size is dropped because adjusted income is already a function of household size.

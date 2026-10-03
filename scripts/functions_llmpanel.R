@@ -127,15 +127,18 @@ glmnet_controls <- c("q1_legitimizing_1", "q2_self_efficacy_1", "q3_acknowledgin
 glmnet_dem_constant <- c("dem_sex", "dem_race", "dem_orientation", "dem_n_household")
 
 # One row per feature option: the variable it uses, how it is encoded,
-# and the term it contributes to step_interact()
+# and the term it contributes to step_interact().
+# Dummy selectors exclude "_x_" so later interaction steps don't pick up
+# interaction columns created by earlier steps (which would add unrequested
+# higher-order terms).
 glmnet_feature_specs <- tibble::tribble(
   ~feature,    ~option,    ~var,                  ~encoding,         ~int_term,
   "age",       "numeric",  "dem_age",             "numeric",         "dem_age",
-  "age",       "nominal",  "dem_age_binned",      "nominal_ordered", 'starts_with("dem_age_binned_")',
+  "age",       "nominal",  "dem_age_binned",      "nominal_ordered", 'matches("^dem_age_binned_(?!.*_x_)", perl = TRUE)',
   "age",       "ordinal",  "dem_age_binned",      "ordinal",         "dem_age_binned",
   "education", "ordinal",  "dem_education",       "ordinal",         "dem_education",
-  "education", "nominal",  "dem_edu_collapsed",   "nominal",         'starts_with("dem_edu_collapsed_")',
-  "income",    "nominal",  "dem_income",          "nominal_ordered", 'starts_with("dem_income_")',
+  "education", "nominal",  "dem_edu_collapsed",   "nominal",         'matches("^dem_edu_collapsed_(?!.*_x_)", perl = TRUE)',
+  "income",    "nominal",  "dem_income",          "nominal_ordered", 'matches("^dem_income_(?!.*_x_)", perl = TRUE)',
   "income",    "ordinal",  "dem_income",          "ordinal",         "dem_income",
   "income",    "adjusted", "dem_income_adjusted", "numeric",         "dem_income_adjusted"
 )
@@ -297,12 +300,12 @@ rec_glmnet_build <- function(data,
     inc_term <- term_for("income")
     # Keep dem_income_adjusted out of the income-bracket dummy selector
     if (income == "nominal" && income_adjusted) {
-      inc_term <- 'matches("^dem_income_(?!adjusted)", perl = TRUE)'
+      inc_term <- 'matches("^dem_income_(?!adjusted)(?!.*_x_)", perl = TRUE)'
     }
 
     int_formulas <- c(
       age_income_education = paste0("~ (", age_term, " + ", inc_term, " + ", edu_term, ")^3"),
-      sex_race_orientation = '~ (dem_sex + dem_race + starts_with("dem_orientation_"))^3',
+      sex_race_orientation = '~ (dem_sex + dem_race + matches("^dem_orientation_(?!.*_x_)", perl = TRUE))^3',
       age_household = paste0("~ ", age_term, ":dem_n_household"),
       income_household = paste0("~ ", inc_term, ":dem_n_household"))
     # Fixed order keeps output columns consistent regardless of argument order

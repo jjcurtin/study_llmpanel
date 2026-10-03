@@ -11,6 +11,13 @@ execute:
 editor_options: 
   chunk_output_type: console
 ---
+## Code Status
+
+Fully Functional
+
+## Purpose
+
+This script is used to conduct EDA and infer feature enginnering approaches to be used for modelling.
 
 *Setup*
 
