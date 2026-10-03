@@ -116,6 +116,204 @@ prop_table <- function(var, full = NULL, eligible = NULL, rejected = NULL) {
 }
 #----------------------------------------------------------------------------
 
-# Feature engineering
+# GLMnet data prep and recipe builder
+# Requires tidyverse and tidymodels to be loaded before calling the functions.
+# See scripts/eda/6_panel_recipes.qmd for the design rationale.
 
-make_orientation
+# Predictors included in every GLMnet recipe
+glmnet_controls <- c("q1_legitimizing_1", "q2_self_efficacy_1", "q3_acknowledging_1",
+                     "q4_value_affirmation_1", "q5_norms_1", "q6_formality_1",
+                     "context", "style", "tone", "survey_version")
+glmnet_dem_constant <- c("dem_sex", "dem_race", "dem_orientation", "dem_n_household")
+
+# One row per feature option: the variable it uses, how it is encoded,
+# and the term it contributes to step_interact()
+glmnet_feature_specs <- tibble::tribble(
+  ~feature,    ~option,    ~var,                  ~encoding,         ~int_term,
+  "age",       "numeric",  "dem_age",             "numeric",         "dem_age",
+  "age",       "nominal",  "dem_age_binned",      "nominal_ordered", 'starts_with("dem_age_binned_")',
+  "age",       "ordinal",  "dem_age_binned",      "ordinal",         "dem_age_binned",
+  "education", "ordinal",  "dem_education",       "ordinal",         "dem_education",
+  "education", "nominal",  "dem_edu_collapsed",   "nominal",         'starts_with("dem_edu_collapsed_")',
+  "income",    "nominal",  "dem_income",          "nominal_ordered", 'starts_with("dem_income_")',
+  "income",    "ordinal",  "dem_income",          "ordinal",         "dem_income",
+  "income",    "adjusted", "dem_income_adjusted", "numeric",         "dem_income_adjusted"
+)
+
+# Interactions available to rec_glmnet_build(interactions = ...)
+glmnet_interactions <- c("age_income_education", "sex_race_orientation",
+                         "age_household", "income_household")
+
+# The 60 standard configurations (30 main effects, 30 with all interactions).
+# Pass the argument columns to rec_glmnet_build() with purrr::pmap();
+# `config` is a short label for naming recipes.
+glmnet_configs <- tidyr::expand_grid(
+  age = c("numeric", "nominal", "ordinal"),
+  education = c("ordinal", "nominal"),
+  income = c("nominal", "ordinal", "adjusted"),
+  income_adjusted = c(FALSE, TRUE),
+  interactions = c("none", "all")) |>
+  dplyr::filter(!(income == "adjusted" & income_adjusted)) |>
+  dplyr::mutate(config = paste0(
+    "age", substr(age, 1, 3),
+    "_edu", substr(education, 1, 3),
+    "_", ifelse(income == "adjusted", "adjinc", paste0("inc", substr(income, 1, 3))),
+    ifelse(income_adjusted, "_adj", ""),
+    ifelse(interactions == "all", "_int", "")))
+#----------------------------------------------------------------------------
+
+# Convert pivoted panel_long (with engineered demographic features) to GLMnet-ready data
+prep_glmnet_data <- function(data) {
+  required <- c("message_rating", glmnet_controls, glmnet_dem_constant,
+                unique(glmnet_feature_specs$var))
+  missing_cols <- setdiff(required, names(data))
+  if (length(missing_cols) > 0) {
+    stop("`data` is missing required columns: ", paste(missing_cols, collapse = ", "),
+         ". Run the feature engineering in 6_panel_recipes.qmd before pivoting.")
+  }
+
+  rating_levels <- c("strongly_disagree", "disagree", "somewhat_disagree", "neutral",
+                     "somewhat_agree", "agree", "strongly_agree")
+  formality_levels <- c("strongly_prefer_formal", "moderately_prefer_formal",
+                        "slightly_prefer_formal", "slightly_prefer_informal",
+                        "moderately_prefer_informal", "strongly_prefer_informal")
+  education_levels <- c("less_than_high_school_or_ged_degree", "high_school_or_ged",
+                        "some_college", "2_year_degree", "4_year_degree", "advanced_degree")
+  income_levels <- c("Less than $25,000", "$25,000 - $37,499", "$37,500 - $49,999",
+                     "$50,000 - $74,999", "$75,000 - $99,999", "$100,000 - $149,999",
+                     "$150,000 - $199,999", "$200,000 or more")
+
+  # Short labels give readable dummy column names
+  data |>
+    mutate(
+      message_rating = as.numeric(factor(message_rating, levels = rating_levels)),
+      across(q1_legitimizing_1:q5_norms_1,
+             \(x) factor(x, levels = rating_levels, ordered = TRUE)),
+      q6_formality_1 = factor(q6_formality_1, levels = formality_levels, ordered = TRUE),
+      dem_age_binned = factor(dem_age_binned,
+        labels = c("under_30", "age_30s", "age_40s", "age_50s", "age_60_plus"),
+        ordered = TRUE),
+      dem_education = factor(dem_education, levels = education_levels, ordered = TRUE),
+      dem_edu_collapsed = factor(dem_edu_collapsed,
+        levels = c("High School or Less", "Some College", "2-Year Degree or Higher"),
+        labels = c("hs_or_less", "some_college", "degree_2yr_plus")),
+      dem_income = factor(dem_income, levels = income_levels,
+        labels = c("under_25k", "from_25k", "from_37k", "from_50k",
+                   "from_75k", "from_100k", "from_150k", "from_200k"),
+        ordered = TRUE),
+      across(c(context, style, tone, survey_version, dem_orientation), factor))
+}
+#----------------------------------------------------------------------------
+
+# Shared recipe start: outcome, ID, controls, constant demographics
+rec_glmnet_base <- function(data, dem_adjustable) {
+  rec_formula <- reformulate(
+    c("subid", glmnet_controls, glmnet_dem_constant, dem_adjustable),
+    response = "message_rating")
+
+  recipe(rec_formula, data = data) |>
+    update_role(subid, new_role = "id") |>
+    step_ordinalscore(matches("^q[1-6]_")) |>
+    step_dummy(context, style, tone, survey_version, dem_orientation)
+}
+#----------------------------------------------------------------------------
+
+# Build a GLMnet recipe from feature options
+#   data:            output of prep_glmnet_data()
+#   age:             "numeric", "nominal" (binned, dummy coded), or "ordinal" (binned, scored)
+#   education:       "ordinal" (6 levels, scored) or "nominal" (collapsed to 3, dummy coded)
+#   income:          "nominal" or "ordinal" income bracket, or "adjusted" to use
+#                    household-adjusted income in place of the bracket
+#   income_adjusted: TRUE adds household-adjusted income alongside the income bracket
+#   interactions:    "none", "all", or any subset of glmnet_interactions
+rec_glmnet_build <- function(data,
+                             age = c("numeric", "nominal", "ordinal"),
+                             education = c("ordinal", "nominal"),
+                             income = c("nominal", "ordinal", "adjusted"),
+                             income_adjusted = FALSE,
+                             interactions = "none") {
+  age <- match.arg(age)
+  education <- match.arg(education)
+  income <- match.arg(income)
+
+  if (!is.logical(income_adjusted) || length(income_adjusted) != 1 || is.na(income_adjusted)) {
+    stop("`income_adjusted` must be TRUE or FALSE.")
+  }
+  if (income == "adjusted" && income_adjusted) {
+    stop("`income_adjusted = TRUE` adds adjusted income alongside the income bracket, ",
+         "so it requires `income = \"nominal\"` or `\"ordinal\"`.")
+  }
+
+  # Income x Household Size is not used with adjusted income, which already
+  # incorporates household size
+  available_ints <- if (income == "adjusted") {
+    setdiff(glmnet_interactions, "income_household")
+  } else {
+    glmnet_interactions
+  }
+  if (identical(interactions, "all")) {
+    interactions <- available_ints
+  } else if (identical(interactions, "none") || length(interactions) == 0) {
+    interactions <- character(0)
+  } else {
+    unknown <- setdiff(interactions, glmnet_interactions)
+    if (length(unknown) > 0) {
+      stop("Unknown interaction(s): ", paste(unknown, collapse = ", "),
+           ". Use \"none\", \"all\", or any of: ", paste(glmnet_interactions, collapse = ", "), ".")
+    }
+    if (!all(interactions %in% available_ints)) {
+      stop("\"income_household\" is not available with `income = \"adjusted\"`.")
+    }
+  }
+
+  specs <- dplyr::bind_rows(
+    glmnet_feature_specs[glmnet_feature_specs$feature == "age" &
+                           glmnet_feature_specs$option == age, ],
+    glmnet_feature_specs[glmnet_feature_specs$feature == "education" &
+                           glmnet_feature_specs$option == education, ],
+    glmnet_feature_specs[glmnet_feature_specs$feature == "income" &
+                           glmnet_feature_specs$option == income, ],
+    if (income_adjusted) {
+      tibble::tibble(feature = "income_adjusted", option = "added",
+                     var = "dem_income_adjusted", encoding = "numeric", int_term = NA_character_)
+    })
+  vars_with <- \(enc) specs$var[specs$encoding %in% enc]
+
+  rec <- rec_glmnet_base(data, specs$var)
+  if (length(vars_with("nominal_ordered")) > 0) {
+    rec <- rec |> step_unorder(all_of(vars_with("nominal_ordered")))
+  }
+  if (length(vars_with("ordinal")) > 0) {
+    rec <- rec |> step_ordinalscore(all_of(vars_with("ordinal")))
+  }
+  if (length(vars_with(c("nominal", "nominal_ordered"))) > 0) {
+    rec <- rec |> step_dummy(all_of(vars_with(c("nominal", "nominal_ordered"))))
+  }
+
+  if (length(interactions) > 0) {
+    term_for <- \(feat) specs$int_term[specs$feature == feat]
+    age_term <- term_for("age")
+    edu_term <- term_for("education")
+    inc_term <- term_for("income")
+    # Keep dem_income_adjusted out of the income-bracket dummy selector
+    if (income == "nominal" && income_adjusted) {
+      inc_term <- 'matches("^dem_income_(?!adjusted)", perl = TRUE)'
+    }
+
+    int_formulas <- c(
+      age_income_education = paste0("~ (", age_term, " + ", inc_term, " + ", edu_term, ")^3"),
+      sex_race_orientation = '~ (dem_sex + dem_race + starts_with("dem_orientation_"))^3',
+      age_household = paste0("~ ", age_term, ":dem_n_household"),
+      income_household = paste0("~ ", inc_term, ":dem_n_household"))
+    # Fixed order keeps output columns consistent regardless of argument order
+    for (f in int_formulas[intersect(glmnet_interactions, interactions)]) {
+      rec <- rec |> step_interact(terms = !!as.formula(f))
+    }
+    rec <- rec |> step_nzv(contains("_x_"))
+  }
+
+  rec |>
+    step_zv(all_predictors()) |>
+    step_normalize(all_predictors())
+}
+#----------------------------------------------------------------------------
