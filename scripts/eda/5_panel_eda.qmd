@@ -32,7 +32,7 @@ panel_wide <- read_csv(here::here(path_processed, "panel.csv"),
 
 *Pivot long format*
 
-We'll retain a separate wide-format object for now, to examine demographics etc.
+We'll retain a separate wide-format object to examine demographics etc.
 
 ```{r}
 panel_long <- panel_wide |>
@@ -123,7 +123,7 @@ panel_wide |>
 
 347/396 = 87.62% of respondents identified as straight, leaving very few observations in remaining categories, and a large class imbalance even when all 'non-straight' classes are collapsed together. We may lack sufficient variance in this demographic to use it as a meaningful predictor.
 
-### Education (Binned)
+### Education (Collapsed)
 
 ```{r}
 panel_wide |> count(dem_education)
