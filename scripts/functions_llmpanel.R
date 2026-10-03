@@ -115,3 +115,7 @@ prop_table <- function(var, full = NULL, eligible = NULL, rejected = NULL) {
     )
 }
 #----------------------------------------------------------------------------
+
+# Feature engineering
+
+make_orientation

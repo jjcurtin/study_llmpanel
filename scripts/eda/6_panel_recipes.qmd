@@ -31,11 +31,143 @@ panel <- read_csv(here::here(path_processed, "panel.csv"),
                        show_col_types = FALSE)
 ```
 
-*Pivot long format*
+# Constant Demographic Features
+
+The following features will be used in all recipes, without changes across model configurations:
+
+## Sex
+
+Sex at birth will be used as a dummy coded, dichotomous predictor: female (0.5) or male (-0.5).
+
+```{r}
+panel |> count(dem_sex)
+
+panel <- panel |> 
+  mutate(dem_sex = if_else(dem_sex == "female", 0.5, -0.5))
+
+panel |> count(dem_sex)
+```
+
+## Orientation
+
+Sexual Orientation will be used with collapsed categories Straight/Other, resulting from a lack of variability for non-straight orientations within the sample. 
+
+```{r}
+panel |> count(dem_orientation)
+
+panel <- panel |> 
+  mutate(dem_orientation = if_else(dem_orientation == "straight", "straight", "other"))
+       
+panel |> count(dem_orientation)
+```
+
+## Race / Ethnicity
+
+Race will be used with collapsed categories White Only/Other, resulting from a lack of variability for non-white ethnicity groups within the sample.
 
 ```{r}
 panel <- panel |>
-  select(subid, dem_age:dem_minority, q1_legitimizing_1:q6_formality_1,
+  mutate(
+    white = !is.na(dem_race_white),
+    other =
+      !is.na(dem_race_native_alaskan) |
+      !is.na(dem_race_asian) |
+      !is.na(dem_race_hispanic) |
+      !is.na(dem_race_black),
+    dem_race = if_else(white & !other, -0.5, +0.5))
+
+panel |> count(dem_race)
+```
+
+## Household Size
+
+Household size will be used in its raw numeric form (`dem_n_household`).
+
+```{r}
+panel |> count(dem_n_household)
+```
+
+# Adjustable Demographic Features
+
+## Age
+
+Age can be used in its raw numeric predictor form, or it can be binned into roughly equal categories:
+
+```{r}
+panel <- panel |>
+  mutate(dem_age_binned = cut(
+    dem_age, breaks = c(18, 29, 39, 49, 59, Inf),
+    labels = c("18-29", "30-39", "40-49", "50-59", "60+"),
+    right = TRUE, include.lowest = TRUE))
+
+panel |> count(dem_age_binned)
+```
+
+The binned age predictor can be treated as either an ordinal or just a multi-category variable.
+
+## Education
+
+Education will be handled in two possible ways: The first option will be to treat it as an ordinal predictor with increasing amounts of education, and other will be to collapse into 3 categories.
+
+```{r}
+panel <- panel |>
+  mutate(dem_edu_collapsed = case_when(
+    dem_education %in% c("high_school_or_ged", "less_than_high_school_or_ged_degree") ~ "High School or Less",
+    dem_education == "some_college" ~ "Some College",
+    dem_education %in% c("2_year_degree", "4_year_degree", "advanced_degree") ~ "2-Year Degree or Higher"
+  ))
+
+panel |> count(dem_edu_collapsed)
+```
+
+## Income (+ Household Adjusted)
+
+Income will be handled in 3 possible ways: First will be to treat income bracket as either a multi-category or ordinal variable.
+
+Another engineered feature will be 'Household Size-Adjusted Income':
+
+```{r}
+panel <- panel |>
+  mutate(
+    income_numeric = case_when(
+      dem_income == "Less than $25,000"   ~ 12500, # Midpoint estimates for each bracket
+      dem_income == "$25,000 - $37,499"   ~ 31250,
+      dem_income == "$37,500 - $49,999"   ~ 43750,
+      dem_income == "$50,000 - $74,999"   ~ 62500,
+      dem_income == "$75,000 - $99,999"   ~ 87500,
+      dem_income == "$100,000 - $149,999" ~ 125000,
+      dem_income == "$150,000 - $199,999" ~ 175000,
+      dem_income == "$200,000 or more"    ~ 250000 # The cap for this one is debatable
+    ),
+    dem_income_adjusted = income_numeric / sqrt(dem_n_household))
+```
+
+There is precedent for this feature, and logically it is used to reflect 'economies of scale' in a household environment. The cost of living when moving from a 1 -> 2 person household will be greater than moving from a 5 -> 6 person household is the primary assumption that justifies the transformation of household size. The most tenuous assumption of this feature is choosing a numeric estimate for our highest income bracket, which did not have a fixed cap.
+
+Household size is a constant feature, so it is included in every recipe. When this feature is included in a recipe, it may or may not have a separate predictor for income bracket included. As in, this feature could be used in addition to income bracket, or as a replacement for it to reduce dimensionality.
+
+## Interactions
+
+When explicitly defining interactions is required, the following combinations will be considered:
+
+- Age x Income x Education
+
+- Sex x Race x Orientation
+
+- Age x Household Size
+
+- Income x Household Size
+
+# Pivot Long Format
+
+The pivot happens after all demographic features are engineered so they carry through to the message-level data. Note that the feature engineering chunks above modify `panel` in place and are not idempotent (e.g., re-running the sex recode sets everyone to -0.5), so re-run from the Setup chunk if needed.
+
+```{r}
+panel_long <- panel |>
+  select(subid, dem_age:dem_minority,
+         dem_race, dem_age_binned, dem_edu_collapsed,
+         dem_income_adjusted,
+         q1_legitimizing_1:q6_formality_1,
          `x1_hi_1_fl_1`:`x4_li_10_in_1`,
          -contains("timing"), -contains("attention")) |>
   pivot_longer(
@@ -64,31 +196,1399 @@ panel <- panel |>
          str_trim(message_rating) != "")
 
 # Sanity-check that we have 30 rows per respondent
-nrow(panel_wide)*30 == nrow(panel_long)
+nrow(panel) * 30 == nrow(panel_long)
 ```
 
-# Constant Features
+# GLMnet Recipes
 
-The following features will be used in all recipes, without changes across model configurations:
+GLMnet requires a fully numeric, complete design matrix, and the penalty assumes all predictors are on the same scale. Every recipe below therefore follows the same rules:
 
-## Sex
+- **Outcome:** `message_rating` is scored 1 (strongly disagree) to 7 (strongly agree) and modeled as numeric (gaussian GLMnet).
+- **Controls (all recipes):** attitude items `q1`–`q6` as ordinal scores, and `context`, `style`, `tone`, `survey_version` dummy coded.
+- **Constant demographics (all recipes):** `dem_sex` (±0.5), `dem_race` (±0.5), `dem_orientation` (dummy coded), `dem_n_household` (raw numeric).
+- **Nominal features** are dummy coded with `step_dummy()` (ordered factors are first converted with `step_unorder()` so they get treatment rather than polynomial contrasts). **Ordinal features** are converted to integer scores with `step_ordinalscore()`.
+- **Interactions** are built after dummy coding and before normalization. Three-way terms include their two-way terms (`(a + b + c)^3`). When adjusted income is *added*, interactions use the income bracket. When it *replaces* income bracket, Age x Income x Education uses adjusted income, and Income x Household Size is dropped because adjusted income is already a function of household size.
+- In the interaction variants, `step_nzv()` removes near-zero variance interaction columns (those containing `_x_`) using the default cutoffs (ratio of most-common to second-most-common value > 95/5 and < 10% unique values). It is limited to interaction columns so that main-effect dummies for small categories are kept. `step_zv()` then removes any remaining constant columns, and `step_normalize()` scales all predictors.
 
-Sex at birth will be used in its raw predictor form, dichotomous male/female.
+Configurations are the full crossing of:
 
-## Orientation
+| Feature | Options |
+|---|---|
+| Age | Numeric (`agenum`), Binned Nominal (`agenom`), Binned Ordinal (`ageord`) |
+| Education | Ordinal (`eduord`), Collapsed Nominal (`edunom`) |
+| Income | Nominal (`incnom`), Ordinal (`incord`) |
+| Adjusted Income | Absent, Added to income bracket (`_adj`), Replaces income bracket (`adjinc`) |
 
-Sexual Orientation will be used with collapsed categories Straight/Other, resulting from a lack of variability for non-straight orientations within the sample. 
+This gives 3 x 2 x (2 x 2 + 1) = 30 main-effect configurations, each with an all-interactions variant (suffix `_int`), for 60 recipes. Feature sets are baked and summarized but not stored, to keep memory manageable.
+
+Demographics are constant within respondent, so the effective sample size for demographic effects is the number of respondents (n = 424), not the number of ratings. The interaction variants with several nominal features produce many sparse columns before `step_nzv()`, and penalization will be doing much of the work there.
+
+## GLMnet Setup
 
 ```{r}
+rating_levels <- c("strongly_disagree", "disagree", "somewhat_disagree", "neutral",
+                   "somewhat_agree", "agree", "strongly_agree")
+formality_levels <- c("strongly_prefer_formal", "moderately_prefer_formal", "slightly_prefer_formal",
+                      "slightly_prefer_informal", "moderately_prefer_informal", "strongly_prefer_informal")
+education_levels <- c("less_than_high_school_or_ged_degree", "high_school_or_ged", "some_college",
+                      "2_year_degree", "4_year_degree", "advanced_degree")
+income_levels <- c("Less than $25,000", "$25,000 - $37,499", "$37,500 - $49,999", "$50,000 - $74,999",
+                   "$75,000 - $99,999", "$100,000 - $149,999", "$150,000 - $199,999", "$200,000 or more")
 
+# Short labels give readable dummy column names
+d_glmnet <- panel_long |>
+  mutate(
+    message_rating = as.numeric(factor(message_rating, levels = rating_levels)),
+    across(q1_legitimizing_1:q5_norms_1,
+           \(x) factor(x, levels = rating_levels, ordered = TRUE)),
+    q6_formality_1 = factor(q6_formality_1, levels = formality_levels, ordered = TRUE),
+    dem_age_binned = factor(dem_age_binned,
+      labels = c("under_30", "age_30s", "age_40s", "age_50s", "age_60_plus"),
+      ordered = TRUE),
+    dem_education = factor(dem_education, levels = education_levels, ordered = TRUE),
+    dem_edu_collapsed = factor(dem_edu_collapsed,
+      levels = c("High School or Less", "Some College", "2-Year Degree or Higher"),
+      labels = c("hs_or_less", "some_college", "degree_2yr_plus")),
+    dem_income = factor(dem_income, levels = income_levels,
+      labels = c("under_25k", "from_25k", "from_37k", "from_50k",
+                 "from_75k", "from_100k", "from_150k", "from_200k"),
+      ordered = TRUE),
+    across(c(context, style, tone, survey_version, dem_orientation), factor))
+
+glmnet_controls <- c("q1_legitimizing_1", "q2_self_efficacy_1", "q3_acknowledging_1",
+                     "q4_value_affirmation_1", "q5_norms_1", "q6_formality_1",
+                     "context", "style", "tone", "survey_version")
+glmnet_dem_constant <- c("dem_sex", "dem_race", "dem_orientation", "dem_n_household")
+
+d_glmnet |>
+  select(message_rating, all_of(glmnet_controls), all_of(glmnet_dem_constant),
+         dem_age, dem_age_binned, dem_education, dem_edu_collapsed,
+         dem_income, dem_income_adjusted) |>
+  summarise(across(everything(), \(x) sum(is.na(x)))) |>
+  pivot_longer(everything(), names_to = "variable", values_to = "n_missing") |>
+  filter(n_missing > 0)
 ```
 
-## Race / Ethnicity
+Shared recipe start (outcome, ID, controls, constant demographics) and a feature set review helper:
 
-Race will be used with collapsed categories White Only/Other, resulting from a lack of variability for non-white ethnicity groups within the sample.
+```{r}
+rec_glmnet_base <- function(dem_adjustable, data = d_glmnet) {
+  rec_formula <- reformulate(
+    c("subid", glmnet_controls, glmnet_dem_constant, dem_adjustable),
+    response = "message_rating")
 
-## Education?
+  recipe(rec_formula, data = data) |>
+    update_role(subid, new_role = "id") |>
+    step_ordinalscore(matches("^q[1-6]_")) |>
+    step_dummy(context, style, tone, survey_version, dem_orientation)
+}
 
-# Adjustable Features
+review_features <- function(feat) {
+  predictors <- setdiff(names(feat), c("subid", "message_rating"))
+  dem <- str_subset(predictors, "^dem_")
+  tibble(
+    n_obs = nrow(feat),
+    n_predictors = length(predictors),
+    n_dem_main = sum(!str_detect(dem, "_x_")),
+    n_dem_interactions = sum(str_detect(dem, "_x_")),
+    n_missing = sum(is.na(feat))
+  ) |>
+    print()
+  feat |>
+    select(all_of(dem), -contains("_x_")) |>
+    glimpse()
+}
+```
 
+## Age: Numeric | Education: Ordinal
 
+### Income: Nominal
+
+#### Main Effects
+
+```{r}
+rec_glmnet_agenum_eduord_incnom <- rec_glmnet_base(
+  c("dem_age", "dem_education", "dem_income")) |>
+  step_unorder(dem_income) |>
+  step_ordinalscore(dem_education) |>
+  step_dummy(dem_income) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_agenum_eduord_incnom |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+#### All Interactions
+
+```{r}
+rec_glmnet_agenum_eduord_incnom_int <- rec_glmnet_base(
+  c("dem_age", "dem_education", "dem_income")) |>
+  step_unorder(dem_income) |>
+  step_ordinalscore(dem_education) |>
+  step_dummy(dem_income) |>
+  step_interact(terms = ~ (dem_age + starts_with("dem_income_") + dem_education)^3) |>
+  step_interact(terms = ~ (dem_sex + dem_race + starts_with("dem_orientation_"))^3) |>
+  step_interact(terms = ~ dem_age:dem_n_household) |>
+  step_interact(terms = ~ starts_with("dem_income_"):dem_n_household) |>
+  step_nzv(contains("_x_")) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_agenum_eduord_incnom_int |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+### Income: Nominal + Adjusted Income
+
+#### Main Effects
+
+```{r}
+rec_glmnet_agenum_eduord_incnom_adj <- rec_glmnet_base(
+  c("dem_age", "dem_education", "dem_income", "dem_income_adjusted")) |>
+  step_unorder(dem_income) |>
+  step_ordinalscore(dem_education) |>
+  step_dummy(dem_income) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_agenum_eduord_incnom_adj |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+#### All Interactions
+
+```{r}
+rec_glmnet_agenum_eduord_incnom_adj_int <- rec_glmnet_base(
+  c("dem_age", "dem_education", "dem_income", "dem_income_adjusted")) |>
+  step_unorder(dem_income) |>
+  step_ordinalscore(dem_education) |>
+  step_dummy(dem_income) |>
+  step_interact(terms = ~ (dem_age + matches("^dem_income_(?!adjusted)", perl = TRUE) + dem_education)^3) |>
+  step_interact(terms = ~ (dem_sex + dem_race + starts_with("dem_orientation_"))^3) |>
+  step_interact(terms = ~ dem_age:dem_n_household) |>
+  step_interact(terms = ~ matches("^dem_income_(?!adjusted)", perl = TRUE):dem_n_household) |>
+  step_nzv(contains("_x_")) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_agenum_eduord_incnom_adj_int |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+### Income: Ordinal
+
+#### Main Effects
+
+```{r}
+rec_glmnet_agenum_eduord_incord <- rec_glmnet_base(
+  c("dem_age", "dem_education", "dem_income")) |>
+  step_ordinalscore(dem_education, dem_income) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_agenum_eduord_incord |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+#### All Interactions
+
+```{r}
+rec_glmnet_agenum_eduord_incord_int <- rec_glmnet_base(
+  c("dem_age", "dem_education", "dem_income")) |>
+  step_ordinalscore(dem_education, dem_income) |>
+  step_interact(terms = ~ (dem_age + dem_income + dem_education)^3) |>
+  step_interact(terms = ~ (dem_sex + dem_race + starts_with("dem_orientation_"))^3) |>
+  step_interact(terms = ~ dem_age:dem_n_household) |>
+  step_interact(terms = ~ dem_income:dem_n_household) |>
+  step_nzv(contains("_x_")) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_agenum_eduord_incord_int |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+### Income: Ordinal + Adjusted Income
+
+#### Main Effects
+
+```{r}
+rec_glmnet_agenum_eduord_incord_adj <- rec_glmnet_base(
+  c("dem_age", "dem_education", "dem_income", "dem_income_adjusted")) |>
+  step_ordinalscore(dem_education, dem_income) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_agenum_eduord_incord_adj |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+#### All Interactions
+
+```{r}
+rec_glmnet_agenum_eduord_incord_adj_int <- rec_glmnet_base(
+  c("dem_age", "dem_education", "dem_income", "dem_income_adjusted")) |>
+  step_ordinalscore(dem_education, dem_income) |>
+  step_interact(terms = ~ (dem_age + dem_income + dem_education)^3) |>
+  step_interact(terms = ~ (dem_sex + dem_race + starts_with("dem_orientation_"))^3) |>
+  step_interact(terms = ~ dem_age:dem_n_household) |>
+  step_interact(terms = ~ dem_income:dem_n_household) |>
+  step_nzv(contains("_x_")) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_agenum_eduord_incord_adj_int |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+### Adjusted Income (replaces Income)
+
+#### Main Effects
+
+```{r}
+rec_glmnet_agenum_eduord_adjinc <- rec_glmnet_base(
+  c("dem_age", "dem_education", "dem_income_adjusted")) |>
+  step_ordinalscore(dem_education) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_agenum_eduord_adjinc |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+#### All Interactions
+
+```{r}
+rec_glmnet_agenum_eduord_adjinc_int <- rec_glmnet_base(
+  c("dem_age", "dem_education", "dem_income_adjusted")) |>
+  step_ordinalscore(dem_education) |>
+  step_interact(terms = ~ (dem_age + dem_income_adjusted + dem_education)^3) |>
+  step_interact(terms = ~ (dem_sex + dem_race + starts_with("dem_orientation_"))^3) |>
+  step_interact(terms = ~ dem_age:dem_n_household) |>
+  step_nzv(contains("_x_")) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_agenum_eduord_adjinc_int |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+## Age: Numeric | Education: Collapsed Nominal
+
+### Income: Nominal
+
+#### Main Effects
+
+```{r}
+rec_glmnet_agenum_edunom_incnom <- rec_glmnet_base(
+  c("dem_age", "dem_edu_collapsed", "dem_income")) |>
+  step_unorder(dem_income) |>
+  step_dummy(dem_edu_collapsed, dem_income) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_agenum_edunom_incnom |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+#### All Interactions
+
+```{r}
+rec_glmnet_agenum_edunom_incnom_int <- rec_glmnet_base(
+  c("dem_age", "dem_edu_collapsed", "dem_income")) |>
+  step_unorder(dem_income) |>
+  step_dummy(dem_edu_collapsed, dem_income) |>
+  step_interact(terms = ~ (dem_age + starts_with("dem_income_") + starts_with("dem_edu_collapsed_"))^3) |>
+  step_interact(terms = ~ (dem_sex + dem_race + starts_with("dem_orientation_"))^3) |>
+  step_interact(terms = ~ dem_age:dem_n_household) |>
+  step_interact(terms = ~ starts_with("dem_income_"):dem_n_household) |>
+  step_nzv(contains("_x_")) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_agenum_edunom_incnom_int |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+### Income: Nominal + Adjusted Income
+
+#### Main Effects
+
+```{r}
+rec_glmnet_agenum_edunom_incnom_adj <- rec_glmnet_base(
+  c("dem_age", "dem_edu_collapsed", "dem_income", "dem_income_adjusted")) |>
+  step_unorder(dem_income) |>
+  step_dummy(dem_edu_collapsed, dem_income) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_agenum_edunom_incnom_adj |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+#### All Interactions
+
+```{r}
+rec_glmnet_agenum_edunom_incnom_adj_int <- rec_glmnet_base(
+  c("dem_age", "dem_edu_collapsed", "dem_income", "dem_income_adjusted")) |>
+  step_unorder(dem_income) |>
+  step_dummy(dem_edu_collapsed, dem_income) |>
+  step_interact(terms = ~ (dem_age + matches("^dem_income_(?!adjusted)", perl = TRUE) + starts_with("dem_edu_collapsed_"))^3) |>
+  step_interact(terms = ~ (dem_sex + dem_race + starts_with("dem_orientation_"))^3) |>
+  step_interact(terms = ~ dem_age:dem_n_household) |>
+  step_interact(terms = ~ matches("^dem_income_(?!adjusted)", perl = TRUE):dem_n_household) |>
+  step_nzv(contains("_x_")) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_agenum_edunom_incnom_adj_int |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+### Income: Ordinal
+
+#### Main Effects
+
+```{r}
+rec_glmnet_agenum_edunom_incord <- rec_glmnet_base(
+  c("dem_age", "dem_edu_collapsed", "dem_income")) |>
+  step_ordinalscore(dem_income) |>
+  step_dummy(dem_edu_collapsed) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_agenum_edunom_incord |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+#### All Interactions
+
+```{r}
+rec_glmnet_agenum_edunom_incord_int <- rec_glmnet_base(
+  c("dem_age", "dem_edu_collapsed", "dem_income")) |>
+  step_ordinalscore(dem_income) |>
+  step_dummy(dem_edu_collapsed) |>
+  step_interact(terms = ~ (dem_age + dem_income + starts_with("dem_edu_collapsed_"))^3) |>
+  step_interact(terms = ~ (dem_sex + dem_race + starts_with("dem_orientation_"))^3) |>
+  step_interact(terms = ~ dem_age:dem_n_household) |>
+  step_interact(terms = ~ dem_income:dem_n_household) |>
+  step_nzv(contains("_x_")) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_agenum_edunom_incord_int |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+### Income: Ordinal + Adjusted Income
+
+#### Main Effects
+
+```{r}
+rec_glmnet_agenum_edunom_incord_adj <- rec_glmnet_base(
+  c("dem_age", "dem_edu_collapsed", "dem_income", "dem_income_adjusted")) |>
+  step_ordinalscore(dem_income) |>
+  step_dummy(dem_edu_collapsed) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_agenum_edunom_incord_adj |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+#### All Interactions
+
+```{r}
+rec_glmnet_agenum_edunom_incord_adj_int <- rec_glmnet_base(
+  c("dem_age", "dem_edu_collapsed", "dem_income", "dem_income_adjusted")) |>
+  step_ordinalscore(dem_income) |>
+  step_dummy(dem_edu_collapsed) |>
+  step_interact(terms = ~ (dem_age + dem_income + starts_with("dem_edu_collapsed_"))^3) |>
+  step_interact(terms = ~ (dem_sex + dem_race + starts_with("dem_orientation_"))^3) |>
+  step_interact(terms = ~ dem_age:dem_n_household) |>
+  step_interact(terms = ~ dem_income:dem_n_household) |>
+  step_nzv(contains("_x_")) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_agenum_edunom_incord_adj_int |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+### Adjusted Income (replaces Income)
+
+#### Main Effects
+
+```{r}
+rec_glmnet_agenum_edunom_adjinc <- rec_glmnet_base(
+  c("dem_age", "dem_edu_collapsed", "dem_income_adjusted")) |>
+  step_dummy(dem_edu_collapsed) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_agenum_edunom_adjinc |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+#### All Interactions
+
+```{r}
+rec_glmnet_agenum_edunom_adjinc_int <- rec_glmnet_base(
+  c("dem_age", "dem_edu_collapsed", "dem_income_adjusted")) |>
+  step_dummy(dem_edu_collapsed) |>
+  step_interact(terms = ~ (dem_age + dem_income_adjusted + starts_with("dem_edu_collapsed_"))^3) |>
+  step_interact(terms = ~ (dem_sex + dem_race + starts_with("dem_orientation_"))^3) |>
+  step_interact(terms = ~ dem_age:dem_n_household) |>
+  step_nzv(contains("_x_")) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_agenum_edunom_adjinc_int |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+## Age: Binned Nominal | Education: Ordinal
+
+### Income: Nominal
+
+#### Main Effects
+
+```{r}
+rec_glmnet_agenom_eduord_incnom <- rec_glmnet_base(
+  c("dem_age_binned", "dem_education", "dem_income")) |>
+  step_unorder(dem_age_binned, dem_income) |>
+  step_ordinalscore(dem_education) |>
+  step_dummy(dem_age_binned, dem_income) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_agenom_eduord_incnom |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+#### All Interactions
+
+```{r}
+rec_glmnet_agenom_eduord_incnom_int <- rec_glmnet_base(
+  c("dem_age_binned", "dem_education", "dem_income")) |>
+  step_unorder(dem_age_binned, dem_income) |>
+  step_ordinalscore(dem_education) |>
+  step_dummy(dem_age_binned, dem_income) |>
+  step_interact(terms = ~ (starts_with("dem_age_binned_") + starts_with("dem_income_") + dem_education)^3) |>
+  step_interact(terms = ~ (dem_sex + dem_race + starts_with("dem_orientation_"))^3) |>
+  step_interact(terms = ~ starts_with("dem_age_binned_"):dem_n_household) |>
+  step_interact(terms = ~ starts_with("dem_income_"):dem_n_household) |>
+  step_nzv(contains("_x_")) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_agenom_eduord_incnom_int |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+### Income: Nominal + Adjusted Income
+
+#### Main Effects
+
+```{r}
+rec_glmnet_agenom_eduord_incnom_adj <- rec_glmnet_base(
+  c("dem_age_binned", "dem_education", "dem_income", "dem_income_adjusted")) |>
+  step_unorder(dem_age_binned, dem_income) |>
+  step_ordinalscore(dem_education) |>
+  step_dummy(dem_age_binned, dem_income) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_agenom_eduord_incnom_adj |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+#### All Interactions
+
+```{r}
+rec_glmnet_agenom_eduord_incnom_adj_int <- rec_glmnet_base(
+  c("dem_age_binned", "dem_education", "dem_income", "dem_income_adjusted")) |>
+  step_unorder(dem_age_binned, dem_income) |>
+  step_ordinalscore(dem_education) |>
+  step_dummy(dem_age_binned, dem_income) |>
+  step_interact(terms = ~ (starts_with("dem_age_binned_") + matches("^dem_income_(?!adjusted)", perl = TRUE) + dem_education)^3) |>
+  step_interact(terms = ~ (dem_sex + dem_race + starts_with("dem_orientation_"))^3) |>
+  step_interact(terms = ~ starts_with("dem_age_binned_"):dem_n_household) |>
+  step_interact(terms = ~ matches("^dem_income_(?!adjusted)", perl = TRUE):dem_n_household) |>
+  step_nzv(contains("_x_")) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_agenom_eduord_incnom_adj_int |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+### Income: Ordinal
+
+#### Main Effects
+
+```{r}
+rec_glmnet_agenom_eduord_incord <- rec_glmnet_base(
+  c("dem_age_binned", "dem_education", "dem_income")) |>
+  step_unorder(dem_age_binned) |>
+  step_ordinalscore(dem_education, dem_income) |>
+  step_dummy(dem_age_binned) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_agenom_eduord_incord |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+#### All Interactions
+
+```{r}
+rec_glmnet_agenom_eduord_incord_int <- rec_glmnet_base(
+  c("dem_age_binned", "dem_education", "dem_income")) |>
+  step_unorder(dem_age_binned) |>
+  step_ordinalscore(dem_education, dem_income) |>
+  step_dummy(dem_age_binned) |>
+  step_interact(terms = ~ (starts_with("dem_age_binned_") + dem_income + dem_education)^3) |>
+  step_interact(terms = ~ (dem_sex + dem_race + starts_with("dem_orientation_"))^3) |>
+  step_interact(terms = ~ starts_with("dem_age_binned_"):dem_n_household) |>
+  step_interact(terms = ~ dem_income:dem_n_household) |>
+  step_nzv(contains("_x_")) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_agenom_eduord_incord_int |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+### Income: Ordinal + Adjusted Income
+
+#### Main Effects
+
+```{r}
+rec_glmnet_agenom_eduord_incord_adj <- rec_glmnet_base(
+  c("dem_age_binned", "dem_education", "dem_income", "dem_income_adjusted")) |>
+  step_unorder(dem_age_binned) |>
+  step_ordinalscore(dem_education, dem_income) |>
+  step_dummy(dem_age_binned) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_agenom_eduord_incord_adj |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+#### All Interactions
+
+```{r}
+rec_glmnet_agenom_eduord_incord_adj_int <- rec_glmnet_base(
+  c("dem_age_binned", "dem_education", "dem_income", "dem_income_adjusted")) |>
+  step_unorder(dem_age_binned) |>
+  step_ordinalscore(dem_education, dem_income) |>
+  step_dummy(dem_age_binned) |>
+  step_interact(terms = ~ (starts_with("dem_age_binned_") + dem_income + dem_education)^3) |>
+  step_interact(terms = ~ (dem_sex + dem_race + starts_with("dem_orientation_"))^3) |>
+  step_interact(terms = ~ starts_with("dem_age_binned_"):dem_n_household) |>
+  step_interact(terms = ~ dem_income:dem_n_household) |>
+  step_nzv(contains("_x_")) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_agenom_eduord_incord_adj_int |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+### Adjusted Income (replaces Income)
+
+#### Main Effects
+
+```{r}
+rec_glmnet_agenom_eduord_adjinc <- rec_glmnet_base(
+  c("dem_age_binned", "dem_education", "dem_income_adjusted")) |>
+  step_unorder(dem_age_binned) |>
+  step_ordinalscore(dem_education) |>
+  step_dummy(dem_age_binned) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_agenom_eduord_adjinc |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+#### All Interactions
+
+```{r}
+rec_glmnet_agenom_eduord_adjinc_int <- rec_glmnet_base(
+  c("dem_age_binned", "dem_education", "dem_income_adjusted")) |>
+  step_unorder(dem_age_binned) |>
+  step_ordinalscore(dem_education) |>
+  step_dummy(dem_age_binned) |>
+  step_interact(terms = ~ (starts_with("dem_age_binned_") + dem_income_adjusted + dem_education)^3) |>
+  step_interact(terms = ~ (dem_sex + dem_race + starts_with("dem_orientation_"))^3) |>
+  step_interact(terms = ~ starts_with("dem_age_binned_"):dem_n_household) |>
+  step_nzv(contains("_x_")) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_agenom_eduord_adjinc_int |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+## Age: Binned Nominal | Education: Collapsed Nominal
+
+### Income: Nominal
+
+#### Main Effects
+
+```{r}
+rec_glmnet_agenom_edunom_incnom <- rec_glmnet_base(
+  c("dem_age_binned", "dem_edu_collapsed", "dem_income")) |>
+  step_unorder(dem_age_binned, dem_income) |>
+  step_dummy(dem_age_binned, dem_edu_collapsed, dem_income) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_agenom_edunom_incnom |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+#### All Interactions
+
+```{r}
+rec_glmnet_agenom_edunom_incnom_int <- rec_glmnet_base(
+  c("dem_age_binned", "dem_edu_collapsed", "dem_income")) |>
+  step_unorder(dem_age_binned, dem_income) |>
+  step_dummy(dem_age_binned, dem_edu_collapsed, dem_income) |>
+  step_interact(terms = ~ (starts_with("dem_age_binned_") + starts_with("dem_income_") + starts_with("dem_edu_collapsed_"))^3) |>
+  step_interact(terms = ~ (dem_sex + dem_race + starts_with("dem_orientation_"))^3) |>
+  step_interact(terms = ~ starts_with("dem_age_binned_"):dem_n_household) |>
+  step_interact(terms = ~ starts_with("dem_income_"):dem_n_household) |>
+  step_nzv(contains("_x_")) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_agenom_edunom_incnom_int |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+### Income: Nominal + Adjusted Income
+
+#### Main Effects
+
+```{r}
+rec_glmnet_agenom_edunom_incnom_adj <- rec_glmnet_base(
+  c("dem_age_binned", "dem_edu_collapsed", "dem_income", "dem_income_adjusted")) |>
+  step_unorder(dem_age_binned, dem_income) |>
+  step_dummy(dem_age_binned, dem_edu_collapsed, dem_income) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_agenom_edunom_incnom_adj |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+#### All Interactions
+
+```{r}
+rec_glmnet_agenom_edunom_incnom_adj_int <- rec_glmnet_base(
+  c("dem_age_binned", "dem_edu_collapsed", "dem_income", "dem_income_adjusted")) |>
+  step_unorder(dem_age_binned, dem_income) |>
+  step_dummy(dem_age_binned, dem_edu_collapsed, dem_income) |>
+  step_interact(terms = ~ (starts_with("dem_age_binned_") + matches("^dem_income_(?!adjusted)", perl = TRUE) + starts_with("dem_edu_collapsed_"))^3) |>
+  step_interact(terms = ~ (dem_sex + dem_race + starts_with("dem_orientation_"))^3) |>
+  step_interact(terms = ~ starts_with("dem_age_binned_"):dem_n_household) |>
+  step_interact(terms = ~ matches("^dem_income_(?!adjusted)", perl = TRUE):dem_n_household) |>
+  step_nzv(contains("_x_")) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_agenom_edunom_incnom_adj_int |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+### Income: Ordinal
+
+#### Main Effects
+
+```{r}
+rec_glmnet_agenom_edunom_incord <- rec_glmnet_base(
+  c("dem_age_binned", "dem_edu_collapsed", "dem_income")) |>
+  step_unorder(dem_age_binned) |>
+  step_ordinalscore(dem_income) |>
+  step_dummy(dem_age_binned, dem_edu_collapsed) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_agenom_edunom_incord |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+#### All Interactions
+
+```{r}
+rec_glmnet_agenom_edunom_incord_int <- rec_glmnet_base(
+  c("dem_age_binned", "dem_edu_collapsed", "dem_income")) |>
+  step_unorder(dem_age_binned) |>
+  step_ordinalscore(dem_income) |>
+  step_dummy(dem_age_binned, dem_edu_collapsed) |>
+  step_interact(terms = ~ (starts_with("dem_age_binned_") + dem_income + starts_with("dem_edu_collapsed_"))^3) |>
+  step_interact(terms = ~ (dem_sex + dem_race + starts_with("dem_orientation_"))^3) |>
+  step_interact(terms = ~ starts_with("dem_age_binned_"):dem_n_household) |>
+  step_interact(terms = ~ dem_income:dem_n_household) |>
+  step_nzv(contains("_x_")) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_agenom_edunom_incord_int |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+### Income: Ordinal + Adjusted Income
+
+#### Main Effects
+
+```{r}
+rec_glmnet_agenom_edunom_incord_adj <- rec_glmnet_base(
+  c("dem_age_binned", "dem_edu_collapsed", "dem_income", "dem_income_adjusted")) |>
+  step_unorder(dem_age_binned) |>
+  step_ordinalscore(dem_income) |>
+  step_dummy(dem_age_binned, dem_edu_collapsed) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_agenom_edunom_incord_adj |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+#### All Interactions
+
+```{r}
+rec_glmnet_agenom_edunom_incord_adj_int <- rec_glmnet_base(
+  c("dem_age_binned", "dem_edu_collapsed", "dem_income", "dem_income_adjusted")) |>
+  step_unorder(dem_age_binned) |>
+  step_ordinalscore(dem_income) |>
+  step_dummy(dem_age_binned, dem_edu_collapsed) |>
+  step_interact(terms = ~ (starts_with("dem_age_binned_") + dem_income + starts_with("dem_edu_collapsed_"))^3) |>
+  step_interact(terms = ~ (dem_sex + dem_race + starts_with("dem_orientation_"))^3) |>
+  step_interact(terms = ~ starts_with("dem_age_binned_"):dem_n_household) |>
+  step_interact(terms = ~ dem_income:dem_n_household) |>
+  step_nzv(contains("_x_")) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_agenom_edunom_incord_adj_int |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+### Adjusted Income (replaces Income)
+
+#### Main Effects
+
+```{r}
+rec_glmnet_agenom_edunom_adjinc <- rec_glmnet_base(
+  c("dem_age_binned", "dem_edu_collapsed", "dem_income_adjusted")) |>
+  step_unorder(dem_age_binned) |>
+  step_dummy(dem_age_binned, dem_edu_collapsed) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_agenom_edunom_adjinc |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+#### All Interactions
+
+```{r}
+rec_glmnet_agenom_edunom_adjinc_int <- rec_glmnet_base(
+  c("dem_age_binned", "dem_edu_collapsed", "dem_income_adjusted")) |>
+  step_unorder(dem_age_binned) |>
+  step_dummy(dem_age_binned, dem_edu_collapsed) |>
+  step_interact(terms = ~ (starts_with("dem_age_binned_") + dem_income_adjusted + starts_with("dem_edu_collapsed_"))^3) |>
+  step_interact(terms = ~ (dem_sex + dem_race + starts_with("dem_orientation_"))^3) |>
+  step_interact(terms = ~ starts_with("dem_age_binned_"):dem_n_household) |>
+  step_nzv(contains("_x_")) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_agenom_edunom_adjinc_int |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+## Age: Binned Ordinal | Education: Ordinal
+
+### Income: Nominal
+
+#### Main Effects
+
+```{r}
+rec_glmnet_ageord_eduord_incnom <- rec_glmnet_base(
+  c("dem_age_binned", "dem_education", "dem_income")) |>
+  step_unorder(dem_income) |>
+  step_ordinalscore(dem_age_binned, dem_education) |>
+  step_dummy(dem_income) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_ageord_eduord_incnom |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+#### All Interactions
+
+```{r}
+rec_glmnet_ageord_eduord_incnom_int <- rec_glmnet_base(
+  c("dem_age_binned", "dem_education", "dem_income")) |>
+  step_unorder(dem_income) |>
+  step_ordinalscore(dem_age_binned, dem_education) |>
+  step_dummy(dem_income) |>
+  step_interact(terms = ~ (dem_age_binned + starts_with("dem_income_") + dem_education)^3) |>
+  step_interact(terms = ~ (dem_sex + dem_race + starts_with("dem_orientation_"))^3) |>
+  step_interact(terms = ~ dem_age_binned:dem_n_household) |>
+  step_interact(terms = ~ starts_with("dem_income_"):dem_n_household) |>
+  step_nzv(contains("_x_")) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_ageord_eduord_incnom_int |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+### Income: Nominal + Adjusted Income
+
+#### Main Effects
+
+```{r}
+rec_glmnet_ageord_eduord_incnom_adj <- rec_glmnet_base(
+  c("dem_age_binned", "dem_education", "dem_income", "dem_income_adjusted")) |>
+  step_unorder(dem_income) |>
+  step_ordinalscore(dem_age_binned, dem_education) |>
+  step_dummy(dem_income) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_ageord_eduord_incnom_adj |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+#### All Interactions
+
+```{r}
+rec_glmnet_ageord_eduord_incnom_adj_int <- rec_glmnet_base(
+  c("dem_age_binned", "dem_education", "dem_income", "dem_income_adjusted")) |>
+  step_unorder(dem_income) |>
+  step_ordinalscore(dem_age_binned, dem_education) |>
+  step_dummy(dem_income) |>
+  step_interact(terms = ~ (dem_age_binned + matches("^dem_income_(?!adjusted)", perl = TRUE) + dem_education)^3) |>
+  step_interact(terms = ~ (dem_sex + dem_race + starts_with("dem_orientation_"))^3) |>
+  step_interact(terms = ~ dem_age_binned:dem_n_household) |>
+  step_interact(terms = ~ matches("^dem_income_(?!adjusted)", perl = TRUE):dem_n_household) |>
+  step_nzv(contains("_x_")) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_ageord_eduord_incnom_adj_int |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+### Income: Ordinal
+
+#### Main Effects
+
+```{r}
+rec_glmnet_ageord_eduord_incord <- rec_glmnet_base(
+  c("dem_age_binned", "dem_education", "dem_income")) |>
+  step_ordinalscore(dem_age_binned, dem_education, dem_income) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_ageord_eduord_incord |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+#### All Interactions
+
+```{r}
+rec_glmnet_ageord_eduord_incord_int <- rec_glmnet_base(
+  c("dem_age_binned", "dem_education", "dem_income")) |>
+  step_ordinalscore(dem_age_binned, dem_education, dem_income) |>
+  step_interact(terms = ~ (dem_age_binned + dem_income + dem_education)^3) |>
+  step_interact(terms = ~ (dem_sex + dem_race + starts_with("dem_orientation_"))^3) |>
+  step_interact(terms = ~ dem_age_binned:dem_n_household) |>
+  step_interact(terms = ~ dem_income:dem_n_household) |>
+  step_nzv(contains("_x_")) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_ageord_eduord_incord_int |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+### Income: Ordinal + Adjusted Income
+
+#### Main Effects
+
+```{r}
+rec_glmnet_ageord_eduord_incord_adj <- rec_glmnet_base(
+  c("dem_age_binned", "dem_education", "dem_income", "dem_income_adjusted")) |>
+  step_ordinalscore(dem_age_binned, dem_education, dem_income) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_ageord_eduord_incord_adj |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+#### All Interactions
+
+```{r}
+rec_glmnet_ageord_eduord_incord_adj_int <- rec_glmnet_base(
+  c("dem_age_binned", "dem_education", "dem_income", "dem_income_adjusted")) |>
+  step_ordinalscore(dem_age_binned, dem_education, dem_income) |>
+  step_interact(terms = ~ (dem_age_binned + dem_income + dem_education)^3) |>
+  step_interact(terms = ~ (dem_sex + dem_race + starts_with("dem_orientation_"))^3) |>
+  step_interact(terms = ~ dem_age_binned:dem_n_household) |>
+  step_interact(terms = ~ dem_income:dem_n_household) |>
+  step_nzv(contains("_x_")) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_ageord_eduord_incord_adj_int |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+### Adjusted Income (replaces Income)
+
+#### Main Effects
+
+```{r}
+rec_glmnet_ageord_eduord_adjinc <- rec_glmnet_base(
+  c("dem_age_binned", "dem_education", "dem_income_adjusted")) |>
+  step_ordinalscore(dem_age_binned, dem_education) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_ageord_eduord_adjinc |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+#### All Interactions
+
+```{r}
+rec_glmnet_ageord_eduord_adjinc_int <- rec_glmnet_base(
+  c("dem_age_binned", "dem_education", "dem_income_adjusted")) |>
+  step_ordinalscore(dem_age_binned, dem_education) |>
+  step_interact(terms = ~ (dem_age_binned + dem_income_adjusted + dem_education)^3) |>
+  step_interact(terms = ~ (dem_sex + dem_race + starts_with("dem_orientation_"))^3) |>
+  step_interact(terms = ~ dem_age_binned:dem_n_household) |>
+  step_nzv(contains("_x_")) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_ageord_eduord_adjinc_int |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+## Age: Binned Ordinal | Education: Collapsed Nominal
+
+### Income: Nominal
+
+#### Main Effects
+
+```{r}
+rec_glmnet_ageord_edunom_incnom <- rec_glmnet_base(
+  c("dem_age_binned", "dem_edu_collapsed", "dem_income")) |>
+  step_unorder(dem_income) |>
+  step_ordinalscore(dem_age_binned) |>
+  step_dummy(dem_edu_collapsed, dem_income) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_ageord_edunom_incnom |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+#### All Interactions
+
+```{r}
+rec_glmnet_ageord_edunom_incnom_int <- rec_glmnet_base(
+  c("dem_age_binned", "dem_edu_collapsed", "dem_income")) |>
+  step_unorder(dem_income) |>
+  step_ordinalscore(dem_age_binned) |>
+  step_dummy(dem_edu_collapsed, dem_income) |>
+  step_interact(terms = ~ (dem_age_binned + starts_with("dem_income_") + starts_with("dem_edu_collapsed_"))^3) |>
+  step_interact(terms = ~ (dem_sex + dem_race + starts_with("dem_orientation_"))^3) |>
+  step_interact(terms = ~ dem_age_binned:dem_n_household) |>
+  step_interact(terms = ~ starts_with("dem_income_"):dem_n_household) |>
+  step_nzv(contains("_x_")) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_ageord_edunom_incnom_int |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+### Income: Nominal + Adjusted Income
+
+#### Main Effects
+
+```{r}
+rec_glmnet_ageord_edunom_incnom_adj <- rec_glmnet_base(
+  c("dem_age_binned", "dem_edu_collapsed", "dem_income", "dem_income_adjusted")) |>
+  step_unorder(dem_income) |>
+  step_ordinalscore(dem_age_binned) |>
+  step_dummy(dem_edu_collapsed, dem_income) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_ageord_edunom_incnom_adj |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+#### All Interactions
+
+```{r}
+rec_glmnet_ageord_edunom_incnom_adj_int <- rec_glmnet_base(
+  c("dem_age_binned", "dem_edu_collapsed", "dem_income", "dem_income_adjusted")) |>
+  step_unorder(dem_income) |>
+  step_ordinalscore(dem_age_binned) |>
+  step_dummy(dem_edu_collapsed, dem_income) |>
+  step_interact(terms = ~ (dem_age_binned + matches("^dem_income_(?!adjusted)", perl = TRUE) + starts_with("dem_edu_collapsed_"))^3) |>
+  step_interact(terms = ~ (dem_sex + dem_race + starts_with("dem_orientation_"))^3) |>
+  step_interact(terms = ~ dem_age_binned:dem_n_household) |>
+  step_interact(terms = ~ matches("^dem_income_(?!adjusted)", perl = TRUE):dem_n_household) |>
+  step_nzv(contains("_x_")) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_ageord_edunom_incnom_adj_int |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+### Income: Ordinal
+
+#### Main Effects
+
+```{r}
+rec_glmnet_ageord_edunom_incord <- rec_glmnet_base(
+  c("dem_age_binned", "dem_edu_collapsed", "dem_income")) |>
+  step_ordinalscore(dem_age_binned, dem_income) |>
+  step_dummy(dem_edu_collapsed) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_ageord_edunom_incord |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+#### All Interactions
+
+```{r}
+rec_glmnet_ageord_edunom_incord_int <- rec_glmnet_base(
+  c("dem_age_binned", "dem_edu_collapsed", "dem_income")) |>
+  step_ordinalscore(dem_age_binned, dem_income) |>
+  step_dummy(dem_edu_collapsed) |>
+  step_interact(terms = ~ (dem_age_binned + dem_income + starts_with("dem_edu_collapsed_"))^3) |>
+  step_interact(terms = ~ (dem_sex + dem_race + starts_with("dem_orientation_"))^3) |>
+  step_interact(terms = ~ dem_age_binned:dem_n_household) |>
+  step_interact(terms = ~ dem_income:dem_n_household) |>
+  step_nzv(contains("_x_")) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_ageord_edunom_incord_int |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+### Income: Ordinal + Adjusted Income
+
+#### Main Effects
+
+```{r}
+rec_glmnet_ageord_edunom_incord_adj <- rec_glmnet_base(
+  c("dem_age_binned", "dem_edu_collapsed", "dem_income", "dem_income_adjusted")) |>
+  step_ordinalscore(dem_age_binned, dem_income) |>
+  step_dummy(dem_edu_collapsed) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_ageord_edunom_incord_adj |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+#### All Interactions
+
+```{r}
+rec_glmnet_ageord_edunom_incord_adj_int <- rec_glmnet_base(
+  c("dem_age_binned", "dem_edu_collapsed", "dem_income", "dem_income_adjusted")) |>
+  step_ordinalscore(dem_age_binned, dem_income) |>
+  step_dummy(dem_edu_collapsed) |>
+  step_interact(terms = ~ (dem_age_binned + dem_income + starts_with("dem_edu_collapsed_"))^3) |>
+  step_interact(terms = ~ (dem_sex + dem_race + starts_with("dem_orientation_"))^3) |>
+  step_interact(terms = ~ dem_age_binned:dem_n_household) |>
+  step_interact(terms = ~ dem_income:dem_n_household) |>
+  step_nzv(contains("_x_")) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_ageord_edunom_incord_adj_int |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+### Adjusted Income (replaces Income)
+
+#### Main Effects
+
+```{r}
+rec_glmnet_ageord_edunom_adjinc <- rec_glmnet_base(
+  c("dem_age_binned", "dem_edu_collapsed", "dem_income_adjusted")) |>
+  step_ordinalscore(dem_age_binned) |>
+  step_dummy(dem_edu_collapsed) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_ageord_edunom_adjinc |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+#### All Interactions
+
+```{r}
+rec_glmnet_ageord_edunom_adjinc_int <- rec_glmnet_base(
+  c("dem_age_binned", "dem_edu_collapsed", "dem_income_adjusted")) |>
+  step_ordinalscore(dem_age_binned) |>
+  step_dummy(dem_edu_collapsed) |>
+  step_interact(terms = ~ (dem_age_binned + dem_income_adjusted + starts_with("dem_edu_collapsed_"))^3) |>
+  step_interact(terms = ~ (dem_sex + dem_race + starts_with("dem_orientation_"))^3) |>
+  step_interact(terms = ~ dem_age_binned:dem_n_household) |>
+  step_nzv(contains("_x_")) |>
+  step_zv(all_predictors()) |>
+  step_normalize(all_predictors())
+
+rec_glmnet_ageord_edunom_adjinc_int |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+## Rebuilding Recipes from Configuration Codes
+
+`rec_glmnet_build()` rebuilds any of the 60 recipes above from its configuration code (the recipe object name without the `rec_glmnet_` prefix, e.g. `"agenom_edunom_incnom_adj_int"`). It applies the same encoding and interaction rules as the hand-written recipes, so downstream scripts can loop over `glmnet_configs$config` instead of copying recipe code. It depends on `d_glmnet`, `glmnet_controls`, `glmnet_dem_constant`, and `rec_glmnet_base()` from the GLMnet Setup section.
+
+```{r}
+# One row per configuration code: the variable it uses, how it is encoded,
+# and the term it contributes to step_interact()
+glmnet_feature_specs <- tribble(
+  ~code,    ~var,                  ~encoding,         ~int_term,
+  "agenum", "dem_age",             "numeric",         "dem_age",
+  "agenom", "dem_age_binned",      "nominal_ordered", 'starts_with("dem_age_binned_")',
+  "ageord", "dem_age_binned",      "ordinal",         "dem_age_binned",
+  "eduord", "dem_education",       "ordinal",         "dem_education",
+  "edunom", "dem_edu_collapsed",   "nominal",         'starts_with("dem_edu_collapsed_")',
+  "incnom", "dem_income",          "nominal_ordered", 'starts_with("dem_income_")',
+  "incord", "dem_income",          "ordinal",         "dem_income",
+  "adj",    "dem_income_adjusted", "numeric",         NA,
+  "adjinc", "dem_income_adjusted", "numeric",         "dem_income_adjusted"
+)
+
+glmnet_configs <- expand_grid(
+  age = c("agenum", "agenom", "ageord"),
+  edu = c("eduord", "edunom"),
+  inc = c("incnom", "incnom_adj", "incord", "incord_adj", "adjinc"),
+  int = c("", "_int")) |>
+  mutate(config = str_c(age, "_", edu, "_", inc, int))
+
+rec_glmnet_build <- function(config, data = d_glmnet) {
+  if (length(config) != 1 || !config %in% glmnet_configs$config) {
+    stop("Unknown GLMnet configuration: '", paste(config, collapse = ", "),
+         "'. See `glmnet_configs$config` for valid codes.")
+  }
+
+  parts <- str_split_1(config, "_")
+  specs <- glmnet_feature_specs[match(setdiff(parts, "int"), glmnet_feature_specs$code), ]
+  vars_with <- \(enc) specs$var[specs$encoding %in% enc]
+
+  rec <- rec_glmnet_base(specs$var, data = data)
+  if (length(vars_with("nominal_ordered")) > 0) {
+    rec <- rec |> step_unorder(all_of(vars_with("nominal_ordered")))
+  }
+  if (length(vars_with("ordinal")) > 0) {
+    rec <- rec |> step_ordinalscore(all_of(vars_with("ordinal")))
+  }
+  if (length(vars_with(c("nominal", "nominal_ordered"))) > 0) {
+    rec <- rec |> step_dummy(all_of(vars_with(c("nominal", "nominal_ordered"))))
+  }
+
+  if ("int" %in% parts) {
+    term_for <- \(prefix) specs$int_term[str_starts(specs$code, prefix)]
+    adj_only <- "adjinc" %in% parts
+    age_term <- term_for("age")
+    edu_term <- term_for("edu")
+    inc_term <- if (adj_only) term_for("adjinc") else term_for("inc")
+    # Keep dem_income_adjusted out of the income-bracket dummy selector
+    if (all(c("adj", "incnom") %in% parts)) {
+      inc_term <- 'matches("^dem_income_(?!adjusted)", perl = TRUE)'
+    }
+
+    int_formulas <- c(
+      paste0("~ (", age_term, " + ", inc_term, " + ", edu_term, ")^3"),
+      '~ (dem_sex + dem_race + starts_with("dem_orientation_"))^3',
+      paste0("~ ", age_term, ":dem_n_household"))
+    # Adjusted income already incorporates household size
+    if (!adj_only) {
+      int_formulas <- c(int_formulas, paste0("~ ", inc_term, ":dem_n_household"))
+    }
+    for (f in int_formulas) {
+      rec <- rec |> step_interact(terms = !!as.formula(f))
+    }
+    rec <- rec |> step_nzv(contains("_x_"))
+  }
+
+  rec |>
+    step_zv(all_predictors()) |>
+    step_normalize(all_predictors())
+}
+
+glmnet_configs |> count(int)
+```
+
+Example usage:
+
+```{r}
+rec_glmnet_build("agenom_edunom_incnom_adj_int") |>
+  prep() |>
+  bake(new_data = NULL) |>
+  review_features()
+```
+
+Check that the builder matches the hand-written recipes for a spread of configurations (every encoding option, each adjusted-income option, with and without interactions):
+
+```{r}
+check_configs <- c("agenum_eduord_incnom", "agenom_edunom_incnom_adj_int",
+                   "ageord_eduord_incord_int", "agenom_eduord_incnom_adj",
+                   "ageord_edunom_adjinc_int", "agenum_edunom_adjinc")
+
+map_lgl(check_configs, \(cfg) {
+  hand <- get(str_c("rec_glmnet_", cfg)) |> prep() |> bake(new_data = NULL)
+  built <- rec_glmnet_build(cfg) |> prep() |> bake(new_data = NULL)
+  identical(hand, built)
+}) |>
+  set_names(check_configs)
+```
