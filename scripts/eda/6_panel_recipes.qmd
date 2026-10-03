@@ -20,7 +20,7 @@ Fully Functional
 
 - This script is used to define which engineered features are up for consideration when building recipes.
 
-- This script outlines a recipe builder function that can be used to quickly assemble any particular combination of features, for a total of 30 unique recipes. (60 counting a version of each that does not include interactions)
+- This script outlines a recipe builder function that can be used to quickly assemble any particular combination of features, for a total of 30 standard recipes. Each includes demographic and base interactions by default, and either set can be turned off.
 
 # Setup
 
@@ -163,7 +163,7 @@ Household size is a constant feature, so it is included in every recipe. When th
 
 ## Interactions
 
-When explicitly defining interactions is required, the following combinations will be considered:
+When explicitly defining interactions is required, the following demographic combinations will be considered:
 
 - Age x Income x Education
 
@@ -172,6 +172,12 @@ When explicitly defining interactions is required, the following combinations wi
 - Age x Household Size
 
 - Income x Household Size
+
+The following interactions between the participant-level message preferences and the message features will also be considered:
+
+- Each of Legitimizing, Self-Efficacy, Acknowledging, Value Affirmation, and Norms (q1–q5) x Tone
+
+- Formality preference (q6) x Style
 
 # Pivot Long Format
 
@@ -222,8 +228,8 @@ GLMnet requires a fully numeric, complete design matrix, and the penalty assumes
 - **Controls (all recipes):** tone survey items `q1`–`q6` as ordinal scores, and `context`, `style`, `tone`, `survey_version` dummy coded.
 - **Constant demographics (all recipes):** `dem_sex` (±0.5), `dem_race` (±0.5), `dem_orientation` (dummy coded), `dem_n_household` (raw numeric).
 - **Nominal features** are dummy coded with `step_dummy()` (ordered factors are first converted with `step_unorder()` so they get treatment rather than polynomial contrasts). **Ordinal features** are converted to integer scores with `step_ordinalscore()`.
-- **Interactions** are built after dummy coding and before normalization. Three-way terms include their two-way terms (`(a + b + c)^3`). When adjusted income is *added*, interactions use the income bracket. When it *replaces* income bracket, Age x Income x Education uses adjusted income, and Income x Household Size is dropped because adjusted income is already a function of household size.
-- In the interaction variants, `step_nzv()` removes near-zero variance interaction columns (those containing `_x_`) using the default cutoffs (ratio of most-common to second-most-common value > 95/5 and < 10% unique values). It is limited to interaction columns so that main-effect dummies for small categories are kept. `step_zv()` then removes any remaining constant columns, and `step_normalize()` scales all predictors.
+- **Interactions** are built after dummy coding and before normalization. Three-way terms include their two-way terms (`(a + b + c)^3`). When adjusted income is *added*, Age x Income x Education uses the income bracket. When it *replaces* the income bracket, Age x Income x Education uses adjusted income. In both cases Income x Household Size is dropped because adjusted income is already a function of household size. Base interactions multiply the scored q1–q5 items by the tone dummies (acknowledging is the reference level) and the scored q6 item by the style dummy.
+- When interactions are included, `step_nzv()` removes near-zero variance interaction columns (those containing `_x_`) using the default cutoffs (ratio of most-common to second-most-common value > 95/5 and < 10% unique values). It is limited to interaction columns so that main-effect dummies for small categories are kept. `step_zv()` then removes any remaining constant columns, and `step_normalize()` scales all predictors.
 
 Each feature option is an argument to `rec_glmnet_build()` (first value is the default):
 
@@ -231,13 +237,13 @@ Each feature option is an argument to `rec_glmnet_build()` (first value is the d
 |---|---|
 | `age` | `"numeric"`, `"nominal"` (binned, dummy coded), `"ordinal"` (binned, scored) |
 | `education` | `"ordinal"` (6 levels, scored), `"nominal"` (collapsed to 3, dummy coded) |
-| `income` | `"nominal"` or `"ordinal"` income bracket, or `"adjusted"` (household-adjusted income replaces the bracket) |
-| `income_adjusted` | `FALSE`, or `TRUE` to add household-adjusted income alongside the bracket |
-| `interactions` | `"none"`, `"all"`, or any subset of `"age_income_education"`, `"sex_race_orientation"`, `"age_household"`, `"income_household"` |
+| `income` | `"nominal"` or `"ordinal"` income bracket; `"adjusted"` (household-adjusted income replaces the bracket); `"nominal+adjusted"` or `"ordinal+adjusted"` (household-adjusted income added alongside the bracket) |
+| `dem_interactions` | `"all"` (every interaction available for the income option), `"none"`, or any subset of `"age_income_education"`, `"sex_race_orientation"`, `"age_household"`, `"income_household"` |
+| `base_interactions` | `"all"`, `"none"`, or any subset of `"attitudes_tone"` (q1–q5 x tone), `"formality_style"` (q6 x style) |
 
-The standard set (`glmnet_configs`) crosses these options with `interactions` set to `"none"` or `"all"`: 3 x 2 x (2 x 2 + 1) = 30 main-effect configurations, each with an all-interactions variant, for 60 recipes. Each has a short label in `glmnet_configs$config` (e.g. `agenum_eduord_incord`, `agenom_edunom_incnom_adj_int`) for naming.
+The standard set (`glmnet_configs`) crosses the feature options: 3 x 2 x 5 = 30 configurations, each with a short label in `glmnet_configs$config` (e.g. `agenum_eduord_incord`, `agenom_edunom_incnom_adj`) for naming. Interactions are not part of the grid; every standard recipe includes all available demographic and base interactions, and either set can be turned off for all 30 recipes (see Examples).
 
-Demographics are constant within respondent, so the effective sample size for demographic effects is the number of respondents (n = 424), not the number of ratings. The interaction variants with several nominal features produce many sparse columns before `step_nzv()`, and penalization will be doing much of the work there.
+Demographics are constant within respondent, so the effective sample size for demographic effects is the number of respondents (n = 424), not the number of ratings. Recipes with several nominal features produce many sparse interaction columns before `step_nzv()`, and penalization will be doing much of the work there.
 
 ## GLMnet Setup
 
@@ -270,6 +276,7 @@ review_features <- function(feat) {
     n_predictors = length(predictors),
     n_dem_main = sum(!str_detect(dem, "_x_")),
     n_dem_interactions = sum(str_detect(dem, "_x_")),
+    n_base_interactions = sum(str_detect(predictors, "^q[1-6]_.*_x_")),
     n_missing = sum(is.na(feat))
   ) |>
     print()
@@ -281,17 +288,17 @@ review_features <- function(feat) {
 
 ## Recipe Builder
 
-`rec_glmnet_build()` (in `functions_llmpanel.R`) takes the prepped data as its first argument, followed by the feature options in the table above. `glmnet_feature_specs` maps each option to its variable, encoding, and interaction term. The builder was checked against hand-written versions of all 60 standard recipes and produced identical feature sets.
+`rec_glmnet_build()` (in `functions_llmpanel.R`) takes the prepped data as its first argument, followed by the feature options in the table above. `glmnet_feature_specs` maps each option to its variable, encoding, and interaction term. The builder was checked against hand-written versions of the standard recipes and produced identical feature sets.
 
 ```{r}
 glmnet_feature_specs
 
-glmnet_configs |> count(interactions)
+glmnet_configs
 ```
 
 ## Examples
 
-A main-effects recipe (numeric age, ordinal education, ordinal income):
+A standard recipe (numeric age, ordinal education, ordinal income) with the default interactions:
 
 ```{r}
 rec_glmnet_build(d_glmnet, age = "numeric", education = "ordinal", income = "ordinal")
@@ -302,32 +309,39 @@ rec_glmnet_build(d_glmnet, age = "numeric", education = "ordinal", income = "ord
   review_features()
 ```
 
-An interaction recipe (binned nominal age, collapsed nominal education, nominal income plus adjusted income, all interactions):
+The same recipe with both interaction sets turned off (main effects only):
 
 ```{r}
-rec_glmnet_build(d_glmnet,
-                 age = "nominal",
-                 education = "nominal",
-                 income = "nominal",
-                 income_adjusted = TRUE,
-                 interactions = "all") |>
+rec_glmnet_build(d_glmnet, age = "numeric", education = "ordinal", income = "ordinal",
+                 dem_interactions = "none", base_interactions = "none") |>
   prep() |>
   bake(new_data = NULL) |>
   review_features()
 ```
 
-Interactions can also be chosen individually, e.g. only Sex x Race x Orientation and Age x Household Size:
+Interactions can also be chosen individually, e.g. only Sex x Race x Orientation and Age x Household Size, with no base interactions:
 
 ```{r}
 rec_glmnet_build(d_glmnet,
                  age = "ordinal",
-                 interactions = c("sex_race_orientation", "age_household")) |>
+                 dem_interactions = c("sex_race_orientation", "age_household"),
+                 base_interactions = "none") |>
   prep() |>
   bake(new_data = NULL) |>
   review_features()
 ```
 
-All 60 standard recipes as a named list (unprepped), e.g. for a workflow set:
+The base interaction columns (preferences x message features):
+
+```{r}
+rec_glmnet_build(d_glmnet, dem_interactions = "none") |>
+  prep() |>
+  bake(new_data = NULL) |>
+  select(contains("_x_")) |>
+  names()
+```
+
+All 30 standard recipes as a named list (unprepped), e.g. for a workflow set:
 
 ```{r}
 glmnet_recipes <- glmnet_configs |>
@@ -336,4 +350,93 @@ glmnet_recipes <- glmnet_configs |>
   set_names(glmnet_configs$config)
 
 length(glmnet_recipes)
+```
+
+An interaction set can be turned off for all 30 by passing it through `pmap()`, e.g. without demographic interactions:
+
+```{r}
+#| eval: false
+glmnet_recipes_no_dem <- glmnet_configs |>
+  select(-config) |>
+  pmap(rec_glmnet_build, data = d_glmnet, dem_interactions = "none") |>
+  set_names(glmnet_configs$config)
+```
+
+## Recipe Options Summary
+
+The options available in `rec_glmnet_build()`, built from `glmnet_feature_specs` so the table stays in sync with the builder:
+
+```{r}
+encoding_labels <- c(numeric = "Numeric", ordinal = "Ordinal score",
+                     nominal = "Dummy coded", nominal_ordered = "Dummy coded")
+
+feature_rows <- glmnet_feature_specs |>
+  mutate(variable = paste0(var, " (", encoding_labels[encoding], ")"),
+         in_int = !is.na(int_term)) |>
+  summarise(variables = paste(variable, collapse = " + "),
+            interaction_var = paste(var[in_int], collapse = ", "),
+            .by = c(feature, option)) |>
+  mutate(notes = case_when(
+    feature == "age" & option != "numeric" ~ "Binned into 5 groups",
+    feature == "education" & option == "ordinal" ~ "6 levels",
+    feature == "education" & option == "nominal" ~ "Collapsed to 3 levels",
+    option == "adjusted" ~ "Replaces the bracket; Income x Household Size unavailable",
+    str_detect(option, "\\+adjusted") ~ paste(
+      "Adjusted income added alongside the bracket and not used in interactions;",
+      "Income x Household Size unavailable"),
+    .default = ""))
+
+interaction_rows <- bind_rows(
+  tibble(
+    feature = "dem_interactions",
+    option = glmnet_dem_interactions,
+    variables = c("Age x Income x Education (with all two-way terms)",
+                  "Sex x Race x Orientation (with all two-way terms)",
+                  "Age x Household Size",
+                  "Income x Household Size"),
+    notes = c("", "", "", "Not available when adjusted income is in the model")),
+  tibble(
+    feature = "base_interactions",
+    option = glmnet_base_interactions,
+    variables = c("Each of q1-q5 x Tone", "q6 Formality x Style"),
+    notes = c("Acknowledging is the tone reference level", ""))) |>
+  mutate(interaction_var = "")
+
+bind_rows(feature_rows, interaction_rows) |>
+  # The first option listed for each feature is the function default
+  mutate(option = if_else(!duplicated(feature) & !str_detect(feature, "interactions"),
+                          paste0(option, " (default)"), option)) |>
+  gt::gt(groupname_col = "feature") |>
+  gt::cols_label(option = "Option", variables = "Predictors",
+                 interaction_var = "Enters interactions as", notes = "Notes") |>
+  gt::tab_header(
+    title = "rec_glmnet_build() options",
+    subtitle = paste("Both interaction arguments default to \"all\" (every available",
+                     "interaction) and also accept \"none\" or a subset")) |>
+  gt::tab_options(row_group.font.weight = "bold")
+```
+
+All 30 standard configurations, with the number of predictors after prep under the default (all interactions) and with each interaction set turned off. Counts reflect the `step_nzv()` / `step_zv()` filtering on this data, so they can change if the data change. Prepping 90 recipes takes a couple of minutes.
+
+```{r}
+count_predictors <- \(r)
+  r |> prep() |> bake(new_data = NULL) |> select(-subid, -message_rating) |> ncol()
+
+glmnet_configs |>
+  mutate(
+    n_all = map_int(glmnet_recipes, count_predictors),
+    n_no_base = pmap_int(list(age, education, income), \(a, e, i)
+      count_predictors(rec_glmnet_build(d_glmnet, a, e, i, base_interactions = "none"))),
+    n_main = pmap_int(list(age, education, income), \(a, e, i)
+      count_predictors(rec_glmnet_build(d_glmnet, a, e, i, dem_interactions = "none",
+                                        base_interactions = "none")))) |>
+  relocate(config, .after = income) |>
+  gt::gt(groupname_col = "age", row_group_as_column = TRUE) |>
+  gt::tab_spanner(label = "Predictors", columns = c(n_all, n_no_base, n_main)) |>
+  gt::cols_label(education = "Education", income = "Income", config = "Config",
+                 n_all = "All interactions (default)", n_no_base = "Demographic only",
+                 n_main = "Main effects only") |>
+  gt::tab_stubhead(label = "Age") |>
+  gt::tab_header(title = "Standard GLMnet recipe configurations",
+                 subtitle = "glmnet_configs: 30 feature combinations")
 ```
