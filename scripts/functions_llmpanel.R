@@ -116,69 +116,10 @@ prop_table <- function(var, full = NULL, eligible = NULL, rejected = NULL) {
 }
 #----------------------------------------------------------------------------
 
-# GLMnet data prep and recipe builder
-# Requires tidyverse and tidymodels to be loaded before calling the functions.
+# Model data prep and recipe builder
+# Requires tidyverse and tidymodels to be loaded, and configs_llmpanel.R to be
+# sourced, before calling the functions.
 # See scripts/eda/6_panel_recipes.qmd for the design rationale.
-
-# Predictors included in every GLMnet recipe
-glmnet_controls <- c("q1_legitimizing_1", "q2_self_efficacy_1", "q3_acknowledging_1",
-                     "q4_value_affirmation_1", "q5_norms_1", "q6_formality_1",
-                     "context", "style", "tone", "survey_version")
-glmnet_dem_constant <- c("dem_sex", "dem_race", "dem_orientation", "dem_n_household")
-
-# One row per variable used by each feature option: the variable, how it is
-# encoded, and the term it contributes to step_interact() (NA = not used in
-# interactions).
-# Dummy selectors exclude "_x_" so later interaction steps don't pick up
-# interaction columns created by earlier steps (which would add unrequested
-# higher-order terms).
-# The "+adjusted" income options add household-adjusted income alongside the
-# bracket; interactions use only the bracket, the bracket dummy selector
-# excludes dem_income_adjusted, and Income x Household Size is not available.
-glmnet_feature_specs <- tibble::tribble(
-  ~feature,    ~option,            ~var,                  ~encoding,         ~int_term,
-  "age",       "numeric",          "dem_age",             "numeric",         "dem_age",
-  "age",       "nominal",          "dem_age_binned",      "nominal_ordered", 'matches("^dem_age_binned_(?!.*_x_)", perl = TRUE)',
-  "age",       "ordinal",          "dem_age_binned",      "ordinal",         "dem_age_binned",
-  "education", "ordinal",          "dem_education",       "ordinal",         "dem_education",
-  "education", "nominal",          "dem_edu_collapsed",   "nominal",         'matches("^dem_edu_collapsed_(?!.*_x_)", perl = TRUE)',
-  "income",    "nominal",          "dem_income",          "nominal_ordered", 'matches("^dem_income_(?!.*_x_)", perl = TRUE)',
-  "income",    "ordinal",          "dem_income",          "ordinal",         "dem_income",
-  "income",    "adjusted",         "dem_income_adjusted", "numeric",         "dem_income_adjusted",
-  "income",    "nominal+adjusted", "dem_income",          "nominal_ordered", 'matches("^dem_income_(?!adjusted)(?!.*_x_)", perl = TRUE)',
-  "income",    "nominal+adjusted", "dem_income_adjusted", "numeric",         NA,
-  "income",    "ordinal+adjusted", "dem_income",          "ordinal",         "dem_income",
-  "income",    "ordinal+adjusted", "dem_income_adjusted", "numeric",         NA
-)
-
-glmnet_income_options <- c("nominal", "ordinal", "adjusted",
-                           "nominal+adjusted", "ordinal+adjusted")
-
-# Interactions available to rec_glmnet_build(dem_interactions = ...)
-glmnet_dem_interactions <- c("age_income_education", "sex_race_orientation",
-                             "age_household", "income_household")
-
-# Interactions available to rec_glmnet_build(base_interactions = ...)
-#   attitudes_tone:  each of q1-q5 x message tone
-#   formality_style: q6 formality preference x message style
-glmnet_base_interactions <- c("attitudes_tone", "formality_style")
-
-# The 30 standard feature configurations. Interactions are not part of the
-# grid: every recipe gets all available demographic and base interactions by
-# default, and these can be turned off in the pmap() call
-# (e.g. dem_interactions = "none").
-# Pass the argument columns to rec_glmnet_build() with purrr::pmap();
-# `config` is a short label for naming recipes.
-glmnet_configs <- tidyr::expand_grid(
-  age = c("numeric", "nominal", "ordinal"),
-  education = c("ordinal", "nominal"),
-  income = glmnet_income_options) |>
-  dplyr::mutate(config = paste0(
-    "age", substr(age, 1, 3),
-    "_edu", substr(education, 1, 3),
-    "_", c(nominal = "incnom", ordinal = "incord", adjusted = "adjinc",
-           "nominal+adjusted" = "incnom_adj", "ordinal+adjusted" = "incord_adj")[income]))
-#----------------------------------------------------------------------------
 
 # Resolve an interactions argument ("none", "all", or a subset) to a character
 # vector. `available` is the subset allowed for the current options.
@@ -193,10 +134,11 @@ resolve_interactions <- function(requested, choices, available = choices, arg) {
   requested
 }
 
-# Convert pivoted panel_long (with engineered demographic features) to GLMnet-ready data
-prep_glmnet_data <- function(data) {
-  required <- c("message_rating", glmnet_controls, glmnet_dem_constant,
-                unique(glmnet_feature_specs$var))
+# Convert pivoted panel_long (with engineered demographic features) to
+# model-ready data for rec_llmpanel()
+prep_llmpanel_data <- function(data) {
+  required <- c("message_rating", llmpanel_controls, llmpanel_dem_constant,
+                unique(llmpanel_feature_specs$var))
   missing_cols <- setdiff(required, names(data))
   if (length(missing_cols) > 0) {
     stop("`data` is missing required columns: ", paste(missing_cols, collapse = ", "),
@@ -237,79 +179,113 @@ prep_glmnet_data <- function(data) {
 #----------------------------------------------------------------------------
 
 # Shared recipe start: outcome, ID, controls, constant demographics
-rec_glmnet_base <- function(data, dem_adjustable) {
+#   dummy: "treatment" drops the reference level (penalized linear models),
+#          "one_hot" keeps a column for every level, "none" leaves nominal
+#          controls as factors (engines that split factors natively)
+rec_llmpanel_base <- function(data, dem_adjustable,
+                              dummy = c("treatment", "one_hot", "none")) {
+  dummy <- match.arg(dummy)
   rec_formula <- reformulate(
-    c("subid", glmnet_controls, glmnet_dem_constant, dem_adjustable),
+    c("subid", llmpanel_controls, llmpanel_dem_constant, dem_adjustable),
     response = "message_rating")
 
-  recipe(rec_formula, data = data) |>
+  rec <- recipe(rec_formula, data = data) |>
     update_role(subid, new_role = "id") |>
-    step_ordinalscore(matches("^q[1-6]_")) |>
-    step_dummy(context, style, tone, survey_version, dem_orientation)
+    step_ordinalscore(matches("^q[1-6]_"))
+  if (dummy != "none") {
+    rec <- rec |> step_dummy(context, style, tone, survey_version, dem_orientation,
+                             one_hot = dummy == "one_hot")
+  }
+  rec
 }
 #----------------------------------------------------------------------------
 
-# Build a GLMnet recipe from feature options
-#   data:            output of prep_glmnet_data()
-#   age:             "numeric", "nominal" (binned, dummy coded), or "ordinal" (binned, scored)
-#   education:       "ordinal" (6 levels, scored) or "nominal" (collapsed to 3, dummy coded)
-#   income:          "nominal" or "ordinal" income bracket; "adjusted" to use
-#                    household-adjusted income in place of the bracket; or
-#                    "nominal+adjusted" / "ordinal+adjusted" to add adjusted
-#                    income alongside the bracket
+# Build a recipe for an algorithm from feature options
+#   data:      output of prep_llmpanel_data()
+#   algorithm: "glmnet", "xgboost", or "ranger"; sets the defaults for any
+#              argument left NULL (see llmpanel_algorithm_defaults) and the
+#              preprocessing (see llmpanel_algorithm_prep):
+#                glmnet:  treatment dummies, step_nzv() on interaction
+#                         columns, step_normalize()
+#                xgboost: one-hot dummies, no step_nzv() or step_normalize()
+#                         (splits are unaffected by scaling)
+#                ranger:  nominal features stay factors (no dummies), no
+#                         step_nzv() or step_normalize(); explicit
+#                         interactions are not supported. Use
+#                         respect.unordered.factors = "order" in the model spec.
+#   age:       "numeric", "nominal" (binned, dummy coded), or "ordinal" (binned, scored)
+#   education: "ordinal" (6 levels, scored) or "nominal" (collapsed to 3, dummy coded)
+#   income:    "nominal" or "ordinal" income bracket; "adjusted" to use
+#              household-adjusted income in place of the bracket; or
+#              "nominal+adjusted" / "ordinal+adjusted" to add adjusted
+#              income alongside the bracket
 #   dem_interactions:  "all" (every interaction available for the income
-#                      option), "none", or any subset of glmnet_dem_interactions
-#   base_interactions: "all", "none", or any subset of glmnet_base_interactions
-rec_glmnet_build <- function(data,
-                             age = c("numeric", "nominal", "ordinal"),
-                             education = c("ordinal", "nominal"),
-                             income = glmnet_income_options,
-                             dem_interactions = "all",
-                             base_interactions = "all") {
-  age <- match.arg(age)
-  education <- match.arg(education)
-  income <- match.arg(income)
+#                      option), "none", or any subset of llmpanel_dem_interactions
+#   base_interactions: "all", "none", or any subset of llmpanel_base_interactions
+rec_llmpanel <- function(data,
+                         algorithm = llmpanel_algorithms,
+                         age = NULL,
+                         education = NULL,
+                         income = NULL,
+                         dem_interactions = NULL,
+                         base_interactions = NULL) {
+  algorithm <- match.arg(algorithm)
+  defaults <- llmpanel_algorithm_defaults[[algorithm]]
+  age <- match.arg(age %||% defaults$age, llmpanel_age_options)
+  education <- match.arg(education %||% defaults$education, llmpanel_education_options)
+  income <- match.arg(income %||% defaults$income, llmpanel_income_options)
+  dem_interactions <- dem_interactions %||% defaults$dem_interactions
+  base_interactions <- base_interactions %||% defaults$base_interactions
 
   # Income x Household Size is not used whenever adjusted income is in the
   # model (alone or alongside the bracket), since it already incorporates
   # household size
   uses_adjusted <- grepl("adjusted", income, fixed = TRUE)
   available_dem <- if (uses_adjusted) {
-    setdiff(glmnet_dem_interactions, "income_household")
+    setdiff(llmpanel_dem_interactions, "income_household")
   } else {
-    glmnet_dem_interactions
+    llmpanel_dem_interactions
   }
-  dem_interactions <- resolve_interactions(dem_interactions, glmnet_dem_interactions,
+  dem_interactions <- resolve_interactions(dem_interactions, llmpanel_dem_interactions,
                                            available_dem, "dem_interactions")
   if (!all(dem_interactions %in% available_dem)) {
     stop("\"income_household\" is not available with `income = \"", income,
          "\"` because adjusted income already incorporates household size.")
   }
-  base_interactions <- resolve_interactions(base_interactions, glmnet_base_interactions,
+  base_interactions <- resolve_interactions(base_interactions, llmpanel_base_interactions,
                                             arg = "base_interactions")
 
+  prep_opts <- llmpanel_algorithm_prep[llmpanel_algorithm_prep$algorithm == algorithm, ]
+  if (!prep_opts$interactions && length(dem_interactions) + length(base_interactions) > 0) {
+    stop("Explicit interactions are not supported for `algorithm = \"", algorithm,
+         "\"` because nominal features stay as factors. Trees model interactions ",
+         "through splits; leave `dem_interactions` and `base_interactions` as \"none\".")
+  }
+
   specs <- dplyr::bind_rows(
-    glmnet_feature_specs[glmnet_feature_specs$feature == "age" &
-                           glmnet_feature_specs$option == age, ],
-    glmnet_feature_specs[glmnet_feature_specs$feature == "education" &
-                           glmnet_feature_specs$option == education, ],
-    glmnet_feature_specs[glmnet_feature_specs$feature == "income" &
-                           glmnet_feature_specs$option == income, ])
+    llmpanel_feature_specs[llmpanel_feature_specs$feature == "age" &
+                             llmpanel_feature_specs$option == age, ],
+    llmpanel_feature_specs[llmpanel_feature_specs$feature == "education" &
+                             llmpanel_feature_specs$option == education, ],
+    llmpanel_feature_specs[llmpanel_feature_specs$feature == "income" &
+                             llmpanel_feature_specs$option == income, ])
   vars_with <- \(enc) specs$var[specs$encoding %in% enc]
 
-  rec <- rec_glmnet_base(data, specs$var)
+  rec <- rec_llmpanel_base(data, specs$var, dummy = prep_opts$dummy)
   # step_dummy() turns ordered factors into polynomial contrasts (linear,
   # quadratic, ...) rather than 0/1 indicators. Unordering first gives
   # treatment-coded indicators, so glmnet penalizes each level's deviation
-  # from the reference rather than higher-order trend terms.
+  # from the reference rather than higher-order trend terms. Without dummies
+  # (ranger), unordering lets the engine treat the levels as categories.
   if (length(vars_with("nominal_ordered")) > 0) {
     rec <- rec |> step_unorder(all_of(vars_with("nominal_ordered")))
   }
   if (length(vars_with("ordinal")) > 0) {
     rec <- rec |> step_ordinalscore(all_of(vars_with("ordinal")))
   }
-  if (length(vars_with(c("nominal", "nominal_ordered"))) > 0) {
-    rec <- rec |> step_dummy(all_of(vars_with(c("nominal", "nominal_ordered"))))
+  if (prep_opts$dummy != "none" && length(vars_with(c("nominal", "nominal_ordered"))) > 0) {
+    rec <- rec |> step_dummy(all_of(vars_with(c("nominal", "nominal_ordered"))),
+                             one_hot = prep_opts$dummy == "one_hot")
   }
 
   if (length(dem_interactions) > 0) {
@@ -324,7 +300,7 @@ rec_glmnet_build <- function(data,
       age_household = paste0("~ ", age_term, ":dem_n_household"),
       income_household = paste0("~ ", inc_term, ":dem_n_household"))
     # Fixed order keeps output columns consistent regardless of argument order
-    for (f in dem_formulas[intersect(glmnet_dem_interactions, dem_interactions)]) {
+    for (f in dem_formulas[intersect(llmpanel_dem_interactions, dem_interactions)]) {
       rec <- rec |> step_interact(terms = !!as.formula(f))
     }
   }
@@ -334,17 +310,21 @@ rec_glmnet_build <- function(data,
       attitudes_tone = paste0('~ matches("^q[1-5]_(?!.*_x_)", perl = TRUE):',
                               'matches("^tone_(?!.*_x_)", perl = TRUE)'),
       formality_style = '~ q6_formality_1:matches("^style_(?!.*_x_)", perl = TRUE)')
-    for (f in base_formulas[intersect(glmnet_base_interactions, base_interactions)]) {
+    for (f in base_formulas[intersect(llmpanel_base_interactions, base_interactions)]) {
       rec <- rec |> step_interact(terms = !!as.formula(f))
     }
   }
 
-  if (length(dem_interactions) + length(base_interactions) > 0) {
+  # Sparse interaction columns destabilize penalized fits; trees just rarely
+  # split on them, so the filter is glmnet-only
+  if (prep_opts$nzv && length(dem_interactions) + length(base_interactions) > 0) {
     rec <- rec |> step_nzv(contains("_x_"))
   }
 
-  rec |>
-    step_zv(all_predictors()) |>
-    step_normalize(all_predictors())
+  rec <- rec |> step_zv(all_predictors())
+  if (prep_opts$normalize) {
+    rec <- rec |> step_normalize(all_predictors())
+  }
+  rec
 }
 #----------------------------------------------------------------------------
