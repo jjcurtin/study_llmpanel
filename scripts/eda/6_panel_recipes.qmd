@@ -18,21 +18,24 @@ Fully Functional
 
 ## Purpose
 
-- This script is used to define which engineered features are up for consideration when building recipes.
+- Examine the features under consideration when building recipes.
 
-- This script outlines a recipe builder function, `rec_llmpanel()`, that assembles any combination of features for a given algorithm. The standard sets are 30 GLMnet recipes (each includes demographic and base interactions by default; either set can be turned off) and 3 XGBoost recipes (no explicit interactions by default).
+- This script demonstrates a recipe builder function, `rec_llmpanel()`,
+  that assembles any combination of features for a given algorithm.
 
-# Setup
+## Setup
 
 ```{r}
 options(conflicts.policy = "depends.ok")
 library(tidyverse)
+
 plot_grid <- cowplot::plot_grid
 source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
 source("https://github.com/jjcurtin/lab_support/blob/main/fun_eda.R?raw=true")
 source("https://github.com/jjcurtin/lab_support/blob/main/fun_plots.R?raw=true")
 source("https://github.com/jjcurtin/study_llmpanel/blob/main/scripts/configs_llmpanel.R?raw=true")
 source("https://github.com/jjcurtin/study_llmpanel/blob/main/scripts/functions_llmpanel.R?raw=true")
+
 # Keep tidyverse/base versions of masked objects so tidymodels attaches under depends.ok
 conflictRules("scales", exclude = c("discard", "col_factor"))
 conflictRules("recipes", exclude = "fixed")
@@ -40,9 +43,9 @@ conflictRules("modeldata", exclude = "penguins")
 conflictRules("yardstick", exclude = "spec")
 library(tidymodels)
 
-path_processed <- format_path("llmpanel/data_processed")
+# Read in data
 
-# Read in full panel
+path_processed <- format_path("llmpanel/data_processed")
 panel <- read_csv(here::here(path_processed, "panel.csv"),
                        show_col_types = FALSE)
 ```
@@ -51,35 +54,37 @@ panel <- read_csv(here::here(path_processed, "panel.csv"),
 
 The following features will be used in all recipes, without changes across model configurations:
 
-## Sex
+## Sex at Birth
 
-Sex at birth will be used as a dummy coded, dichotomous predictor: female (0.5) or male (-0.5).
+Sex will be used as a dichotomous predictor: male (-0.5) or female (+0.5).
 
 ```{r}
 panel |> count(dem_sex)
 
 panel <- panel |> 
-  mutate(dem_sex = if_else(dem_sex == "female", 0.5, -0.5))
+  mutate(dem_sex = if_else(dem_sex == "male", -0.5, +0.5))
 
 panel |> count(dem_sex)
 ```
 
-## Orientation
+## Sexual Orientation
 
-Sexual Orientation will be used with collapsed categories Straight/Other, resulting from a lack of variability for non-straight orientations within the sample. 
+Orientation will be collapsed into 'Straight' (-0.5) or 'Other' (+0.5),
+resulting from insufficient sample size for specific non-straight orientations.
 
 ```{r}
 panel |> count(dem_orientation)
 
 panel <- panel |> 
-  mutate(dem_orientation = if_else(dem_orientation == "straight", "straight", "other"))
+  mutate(dem_orientation = if_else(dem_orientation == "straight", -0.5, +0.5))
        
 panel |> count(dem_orientation)
 ```
 
 ## Race / Ethnicity
 
-Race will be used with collapsed categories White Only/Other, resulting from a lack of variability for non-white ethnicity groups within the sample.
+Race will be collapsed into 'White Only' (-0.5) and 'Mixed/Other' (+0.5),
+resulting from insufficient sample size for specific non-white ethnicities.
 
 ```{r}
 panel <- panel |>
@@ -103,11 +108,15 @@ Household size will be used in its raw numeric form (`dem_n_household`).
 panel |> count(dem_n_household)
 ```
 
+Binning household size was previously considered, but has been abandoned to
+reduce dimensionality across feature sets.
+
 # Adjustable Demographic Features
 
 ## Age
 
-Age can be used in its raw numeric predictor form, or it can be binned into roughly equal categories:
+Age can be used in its raw numeric predictor form, or it can be
+binned into roughly equal categories:
 
 ```{r}
 panel <- panel |>
@@ -119,11 +128,16 @@ panel <- panel |>
 panel |> count(dem_age_binned)
 ```
 
-The binned age predictor can be treated as either an ordinal or just a multi-category variable.
+The binned age predictor can be treated as either an ordinal or purely
+categorical variable.
 
 ## Education
 
-Education will be handled in two possible ways: The first option will be to treat it as an ordinal predictor with increasing amounts of education, and other will be to collapse into 3 categories.
+Education has two options:
+
+- First is using education as an ordinal predictor with all levels retained.
+
+- Second is collapsing to 3 categories, and treating it as purely categorical.
 
 ```{r}
 panel <- panel |>
@@ -158,7 +172,7 @@ panel <- panel |>
     dem_income_adjusted = income_numeric / sqrt(dem_n_household))
 ```
 
-There is precedent for this feature, and logically it is used to reflect 'economies of scale' in a household environment. The cost of living when moving from a 1 -> 2 person household will be greater than moving from a 5 -> 6 person household is the primary assumption that justifies the transformation of household size. The most tenuous assumption of this feature is choosing a numeric estimate for our highest income bracket, which did not have a fixed cap.
+There is precedent for this feature, and logically it is used to reflect 'economies of scale' in a household environment. The cost of living when moving from a 1 -> 2 person household will be greater than moving from a 5 -> 6 person household is the primary assumption that justifies the transformation of household size. There is a tenuous assumption of this feature in choosing a numeric estimate for our highest income bracket, which did not have a fixed cap.
 
 Household size is a constant feature, so it is included in every recipe. When this feature is included in a recipe, it may or may not have a separate predictor for income bracket included. As in, this feature could be used in addition to income bracket, or as a replacement for it to reduce dimensionality.
 
@@ -181,8 +195,6 @@ The following interactions between the participant-level message preferences and
 - Formality preference (q6) x Style
 
 # Pivot Long Format
-
-The pivot happens after all demographic features are engineered so they carry through to the message-level data. Note that the feature engineering chunks above modify `panel` in place and are not idempotent (e.g., re-running the sex recode sets everyone to -0.5), so re-run from the Setup chunk if needed.
 
 ```{r}
 panel_long <- panel |>
@@ -253,7 +265,7 @@ Shared across algorithms:
 
 - **Outcome:** `message_rating` is scored 1 (strongly disagree) to 7 (strongly agree) and modeled as numeric.
 - **Controls (all recipes):** tone survey items `q1`–`q6` as ordinal scores, and `context`, `style`, `tone`, `survey_version` dummy coded.
-- **Constant demographics (all recipes):** `dem_sex` (±0.5), `dem_race` (±0.5), `dem_orientation` (dummy coded), `dem_n_household` (raw numeric).
+- **Constant demographics (all recipes):** `dem_sex` (±0.5), `dem_race` (±0.5), `dem_orientation` (±0.5), `dem_n_household` (raw numeric).
 - **Nominal features** are dummy coded with `step_dummy()` (ordered factors are first converted with `step_unorder()` so they get indicator rather than polynomial contrasts). **Ordinal features** are converted to integer scores with `step_ordinalscore()`.
 - **Interactions**, when included, are built after dummy coding. Three-way terms include their two-way terms (`(a + b + c)^3`). When adjusted income is *added*, Age x Income x Education uses the income bracket. When it *replaces* the income bracket, Age x Income x Education uses adjusted income. In both cases Income x Household Size is dropped because adjusted income is already a function of household size. Base interactions multiply the scored q1–q5 items by the tone dummies and the scored q6 item by the style dummies.
 
@@ -273,27 +285,6 @@ d_model |>
   summarise(across(everything(), \(x) sum(is.na(x)))) |>
   pivot_longer(everything(), names_to = "variable", values_to = "n_missing") |>
   filter(n_missing > 0)
-```
-
-A helper for reviewing baked feature sets:
-
-```{r}
-review_features <- function(feat) {
-  predictors <- setdiff(names(feat), c("subid", "message_rating"))
-  dem <- str_subset(predictors, "^dem_")
-  tibble(
-    n_obs = nrow(feat),
-    n_predictors = length(predictors),
-    n_dem_main = sum(!str_detect(dem, "_x_")),
-    n_dem_interactions = sum(str_detect(dem, "_x_")),
-    n_base_interactions = sum(str_detect(predictors, "^q[1-6]_.*_x_")),
-    n_missing = sum(is.na(feat))
-  ) |>
-    print()
-  feat |>
-    select(all_of(dem), -contains("_x_")) |>
-    glimpse()
-}
 ```
 
 ## Feature Options
@@ -351,13 +342,6 @@ bind_rows(feature_rows, interaction_rows) |>
     subtitle = paste("Interaction arguments accept \"all\", \"none\", or a subset;",
                      "defaults depend on `algorithm`")) |>
   gt::tab_options(row_group.font.weight = "bold")
-```
-
-A helper for counting predictors after prep, used in the configuration tables below:
-
-```{r}
-count_predictors <- \(r)
-  r |> prep() |> bake(new_data = NULL) |> select(-subid, -message_rating) |> ncol()
 ```
 
 # GLMnet Recipes
@@ -563,7 +547,7 @@ tibble(
 
 Random forests also split on thresholds, so the XGBoost reasoning for feature options carries over: raw age, the 6-level education score, and only the income representation varied (`rf_configs` uses the same three options as `xgb_configs`). The differences are in preprocessing and evaluation:
 
-- **Nominal features stay as factors.** ranger splits factors natively, so `context`, `style`, `tone`, `survey_version`, and `dem_orientation` are not dummy coded. With `respect.unordered.factors = "order"`, ranger sorts a factor's levels by mean outcome and finds the best grouping of levels at each split; on dummies, a split can only separate one level from the rest. Keeping factors also keeps `mtry` meaningful: one-hot coding would turn `tone` into 5 columns and make it far more likely to be sampled at each split than single-column predictors.
+- **Nominal features stay as factors.** ranger splits factors natively, so `context`, `style`, `tone`, and `survey_version` are not dummy coded. With `respect.unordered.factors = "order"`, ranger sorts a factor's levels by mean outcome and finds the best grouping of levels at each split; on dummies, a split can only separate one level from the rest. Keeping factors also keeps `mtry` meaningful: one-hot coding would turn `tone` into 5 columns and make it far more likely to be sampled at each split than single-column predictors.
 - **The model spec must set `respect.unordered.factors = "order"`.** ranger's default (`"ignore"`) treats unordered factors as ordered by their level index (alphabetical here), which imposes an arbitrary order:
 
   ```r
@@ -631,7 +615,7 @@ How the nominal controls are represented under each algorithm, for the default r
 ```{r}
 rf_example <- rec_llmpanel(d_model, algorithm = "ranger")
 examples <- list(glmnet = glmnet_example, xgboost = xgb_example, ranger = rf_example)
-nominal_controls <- c("context", "style", "tone", "survey_version", "dem_orientation")
+nominal_controls <- c("context", "style", "tone", "survey_version")
 
 control_columns <- examples |>
   map(\(r) bake(prep(r), new_data = NULL)) |>
@@ -647,7 +631,7 @@ tibble(
   gt::tab_spanner(label = "Columns per nominal control", columns = all_of(nominal_controls)) |>
   gt::cols_label(algorithm = "Algorithm", steps = "Recipe steps", n_predictors = "Predictors",
                  context = "Context", style = "Style", tone = "Tone",
-                 survey_version = "Survey version", dem_orientation = "Orientation") |>
+                 survey_version = "Survey version") |>
   gt::tab_header(title = "Preprocessing by algorithm",
                  subtitle = paste("Default interactions for each algorithm;",
                                   "1 column for ranger is the factor itself"))
