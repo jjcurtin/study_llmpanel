@@ -174,7 +174,7 @@ prep_llmpanel_data <- function(data) {
         labels = c("under_25k", "from_25k", "from_37k", "from_50k",
                    "from_75k", "from_100k", "from_150k", "from_200k"),
         ordered = TRUE),
-      across(c(context, style, tone, survey_version, dem_orientation), factor))
+      across(c(context, style, tone, survey_version), factor))
 }
 #----------------------------------------------------------------------------
 
@@ -193,7 +193,7 @@ rec_llmpanel_base <- function(data, dem_adjustable,
     update_role(subid, new_role = "id") |>
     step_ordinalscore(matches("^q[1-6]_"))
   if (dummy != "none") {
-    rec <- rec |> step_dummy(context, style, tone, survey_version, dem_orientation,
+    rec <- rec |> step_dummy(context, style, tone, survey_version,
                              one_hot = dummy == "one_hot")
   }
   rec
@@ -296,7 +296,7 @@ rec_llmpanel <- function(data,
 
     dem_formulas <- c(
       age_income_education = paste0("~ (", age_term, " + ", inc_term, " + ", edu_term, ")^3"),
-      sex_race_orientation = '~ (dem_sex + dem_race + matches("^dem_orientation_(?!.*_x_)", perl = TRUE))^3',
+      sex_race_orientation = "~ (dem_sex + dem_race + dem_orientation)^3",
       age_household = paste0("~ ", age_term, ":dem_n_household"),
       income_household = paste0("~ ", inc_term, ":dem_n_household"))
     # Fixed order keeps output columns consistent regardless of argument order
@@ -328,3 +328,28 @@ rec_llmpanel <- function(data,
   rec
 }
 #----------------------------------------------------------------------------
+
+# A helper function for reviewing feature sets
+
+review_features <- function(feat) {
+  predictors <- setdiff(names(feat), c("subid", "message_rating"))
+  dem <- str_subset(predictors, "^dem_")
+  tibble(
+    n_obs = nrow(feat),
+    n_predictors = length(predictors),
+    n_dem_main = sum(!str_detect(dem, "_x_")),
+    n_dem_interactions = sum(str_detect(dem, "_x_")),
+    n_base_interactions = sum(str_detect(predictors, "^q[1-6]_.*_x_")),
+    n_missing = sum(is.na(feat))
+  ) |>
+    print()
+  feat |>
+    select(all_of(dem), -contains("_x_")) |>
+    glimpse()
+}
+
+# A helper for counting predictors after prep, used in the configuration tables below:
+  
+count_predictors <- \(r)
+r |> prep() |> bake(new_data = NULL) |> select(-subid, -message_rating) |> ncol()
+
