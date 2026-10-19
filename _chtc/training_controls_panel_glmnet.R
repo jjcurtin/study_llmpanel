@@ -10,17 +10,20 @@
 # version 9: limited scaling to numeric predictors
 # version 10: dropped zero variance on message ratings
 # version 11: re-start with baseline glmnet 
+# version 12: glmnet with final reduced sample (Andrew)
 
 
 # SET GLOBAL PARAMETERS---------------------------------------------------------
-version <- "v11"
+version <- "v12"
 algorithm <- "glmnet"  # glmnet, random_forest, xgboost
 
 # CONFIGURATIONS ---------------------------------------------------------------
-# ordinal_nominal
-# ordinal = c(numeric, onehot, target)
-# nominal = c(onehot, target)
-feature_set <- c("numeric_onehot")
+# Two recipes: education as ordinal or collapsed categorical.
+# All other feature options (age, income) are constant across configs.
+glmnet_configs <- tibble(
+  algorithm   = algorithm,
+  feature_set = c("edu_ordinal", "edu_collapsed")
+)
 
 # ML PARAMETERS ----------------------------------------------------------------
 ml_mode <- "regression"   # regression or classification
@@ -63,7 +66,7 @@ path_batch <- format_path(str_c("llmpanel/chtc/", name_batch))
 
 # location of data set for the batch
 path_data <- format_path("llmpanel/data_processed/")
-data_trn <- "panel_long.csv"
+data_trn <- "panel.csv"
 
 # ALGORITHM-SPECIFIC HYPERPARAMETERS--------------------------------------------
 hp1_glmnet <- seq(0, 1, by = .1) # alpha (mixture)
@@ -73,72 +76,122 @@ hp2_glmnet_out <- 200 # length of penalty grid
 
 # FORMAT DATA-------------------------------------------------------------------
 format_data <- function (d){
-  d <- d |> 
-    rename(y = message_rating, 
-           pref_legitimizing = q1_legitimizing,
-           pref_self_efficacy = q2_self_efficacy,
-           pref_acknowledging = q3_acknowledging,
-           pref_value_affirmation = q4_value_affirmation,
-           pref_norms = q5_norms,
-           pref_formality = q6_formality) |> 
-    mutate(dem_orientation2 = if_else(dem_orientation == "straight", "straight", "other")) |> 
-    select(-dem_orientation, -dem_orientation_other_text)
   
-  # get numeric options for ordinal predictors
-  # will choose among them in recipe
-  # for recoding in recipe below   
-  q_cols <- c(
-    "pref_legitimizing_ord",
-    "pref_self_efficacy_ord",
-    "pref_acknowledging_ord",
-    "pref_value_affirmation_ord",
-    "pref_norms_ord"
-  )
+  likert_cols <- c(
+    "pref_legitimizing",
+    "pref_self_efficacy",
+    "pref_acknowledging",
+    "pref_value_affirmation",
+    "pref_norms")
   
   d <- d |>
-    mutate(pref_legitimizing_ord = pref_legitimizing,
-           pref_self_efficacy_ord = pref_self_efficacy,
-           pref_acknowledging_ord = pref_acknowledging,
-           pref_value_affirmation_ord = pref_value_affirmation,
-           pref_norms_ord = pref_norms) |>
-    mutate(across(all_of(q_cols), # preferences
-      ~ recode_values(
-        .x,
-        "strongly_disagree" ~ 1,
-        "disagree"          ~ 2,
-        "somewhat_disagree" ~ 3,
-        "neutral"           ~ 4,
-        "somewhat_agree"    ~ 5,
-        "agree"             ~ 6,
-        "strongly_agree"    ~ 7))) |> 
-    mutate(pref_formality_ord = recode_values(
-      pref_formality,
-      "strongly_prefer_informal"   ~ 1,
-      "moderately_prefer_informal" ~ 2,
-      "slightly_prefer_informal"   ~ 3,
-      "neutral"                    ~ 4,
-      "slightly_prefer_formal"     ~ 5,
-      "moderately_prefer_formal"   ~ 6,
-      "strongly_prefer_formal"     ~ 7)) |>
-    mutate(dem_education_ord = recode_values(
-      dem_education,
-      "high_school_or_ged" ~ 1,
-      "some_college"       ~ 2,
-      "2-year_degree"      ~ 3,
-      "4-year_degree"      ~ 4,
-      "advanced_degree"    ~ 5)) |>
-    mutate(dem_income_ord = recode_values(
-      dem_income,
-      "Less than $25,000"     ~ 1,
-      "$25,000 - $37,499"     ~ 2,
-      "$37,500 - $49,999"     ~ 3,
-      "$50,000 - $74,999"     ~ 4,
-      "$75,000 - $99,999"     ~ 5,
-      "$100,000 - $149,999"   ~ 6,
-      "$150,000 - $199,999"   ~ 7,
-      "$200,000 or more"      ~ 8))
+    # Rename vars
+    rename( 
+           pref_legitimizing = q1_legitimizing_1,
+           pref_self_efficacy = q2_self_efficacy_1,
+           pref_acknowledging = q3_acknowledging_1,
+           pref_value_affirmation = q4_value_affirmation_1,
+           pref_norms = q5_norms_1,
+           pref_formality = q6_formality_1) |>
+    
+    # Numericize likert scales
+    mutate(across(all_of(likert_cols),
+                  ~ recode_values(
+                    .x,
+                    "strongly_disagree" ~ 1,
+                    "disagree"          ~ 2,
+                    "somewhat_disagree" ~ 3,
+                    "neutral"           ~ 4,
+                    "somewhat_agree"    ~ 5,
+                    "agree"             ~ 6,
+                    "strongly_agree"    ~ 7))) |>
+    
+    # Numericize formality scale
+    mutate(
+      pref_formality = recode_values(
+        pref_formality,
+        "strongly_prefer_informal"   ~ 1,
+        "moderately_prefer_informal" ~ 2,
+        "slightly_prefer_informal"   ~ 3,
+        "neutral"                    ~ 4,
+        "slightly_prefer_formal"     ~ 5,
+        "moderately_prefer_formal"   ~ 6,
+        "strongly_prefer_formal"     ~ 7),
+      
+      # Numericize income scale
+      dem_income = recode_values(
+        dem_income,
+        "Less than $25,000"   ~ 12500,   # Midpoint estimates for each bracket
+        "$25,000 - $37,499"   ~ 31250,
+        "$37,500 - $49,999"   ~ 43750,
+        "$50,000 - $74,999"   ~ 62500,
+        "$75,000 - $99,999"   ~ 87500,
+        "$100,000 - $149,999" ~ 125000,
+        "$150,000 - $199,999" ~ 175000,
+        "$200,000 or more"    ~ 250000), # The cap for this one is debatable
+      
+      # Household-adjust income
+      dem_income = dem_income / sqrt(dem_n_household),
+      
+      # Collapse categories for orientation
+      dem_orientation = if_else(
+        dem_orientation == "straight", "straight", "other"),
+      
+      # Collapse categories for race
+      race_white = !is.na(dem_race_white),
+      race_other =
+        !is.na(dem_race_native_alaskan) |
+        !is.na(dem_race_asian) |
+        !is.na(dem_race_hispanic) |
+        !is.na(dem_race_black),
+      dem_ethnicity = if_else(race_white & !race_other, "white_only", "other")) |> 
+    
+    # Drop columns not used for modelling
+    select(subid, contains("pref_"), contains("dem_"),
+           -contains("race"), -dem_marital_status, -dem_minority,
+           -dem_identity, -dem_n_household, -dem_student, contains("_hi_"),
+           contains("_hd_"), contains("_li_"), -contains("timing")) |>
+    
+    # Pivot long format
+    pivot_longer(
+      cols= `x1_hi_1_fl_1`:`x4_li_10_in_1`,
+      values_to = "y",
+      names_to = "message_type") |>
+    
+    separate(message_type,
+             sep = "_", into = c(
+               "survey_version", "context", "q_num", "tone_style"),
+             extra = "drop") |> 
+    
+    mutate(
+      style = if_else(substr(tone_style, 1, 1) == "f", "formal", "informal"),
+      
+      tone = case_when(
+        substr(tone_style, 2, 2) == "l" ~ "legitimizing",
+        substr(tone_style, 2, 2) == "n" ~ "norms",
+        substr(tone_style, 2, 2) == "s" ~ "self_efficacy",
+        substr(tone_style, 2, 2) == "a" ~ "acknowledging",
+        substr(tone_style, 2, 2) == "v" ~ "value_affirmation")) |>
+    
+    select(-q_num, -tone_style, -context, -survey_version) |>
+    
+    # Numericize outcome variable (y)
+    
+    mutate(
+      y = recode_values(
+      y,
+      "strongly_disagree" ~ 1,
+      "disagree"          ~ 2,
+      "somewhat_disagree" ~ 3,
+      "neutral"           ~ 4,
+      "somewhat_agree"    ~ 5,
+      "agree"             ~ 6,
+      "strongly_agree"    ~ 7)) |> 
+    
+    # Remove empty rows
+    filter(!is.na(y),
+           str_trim(y) != "")
 }
-  
 
 # BUILD RECIPE------------------------------------------------------------------
 # Script should have a single build_recipe function to be compatible with fit script. 
@@ -150,100 +203,62 @@ build_recipe <- function(d, config) {
   # setup of constants ---------------------------------------------------------
   algorithm <- config$algorithm
   feature_set <- config$feature_set
-
  
   #----------------------------------------------------------------------------- 
   # Set recipe steps for all model configurations for GLMNET--------------------
   rec <- recipe(y ~ ., data = d) |> 
-    step_mutate(y = recode_values(
-      y,
-      "strongly_disagree" ~ 1,
-      "disagree"          ~ 2,
-      "somewhat_disagree" ~ 3,
-      "neutral"           ~ 4,
-      "somewhat_agree"    ~ 5,
-      "agree"             ~ 6,
-      "strongly_agree"    ~ 7)) |> 
-   step_rm(subid, survey_version, context, contains(c("identity", "text", "input")), 
-           dem_student, dem_n_household, dem_minority, dem_race_multiple) |> 
     step_zv(all_predictors()) |> 
     step_impute_median(all_numeric_predictors()) |>  
     step_impute_mode(all_nominal_predictors())
     
-  # dummy always used for binary categorical across all configs to avoid 2 features
+  # dummy for binary categorical across all configs to avoid 2 features,
+  # one-hot for multi-category tone
   rec <- rec |> 
-    step_dummy(dem_sex, dem_orientation2, dem_hispanic, matches("^dem_race"), 
-               one_hot = FALSE) 
+    step_dummy(dem_sex, dem_orientation, dem_ethnicity, style, 
+               one_hot = FALSE) |> 
+    step_dummy(tone, one_hot = TRUE)
    
   #----------------------------------------------------------------------------- 
-  # Configs for ordinal predictors ---------------------------------------------
+  # Configs for education ---------------------------------------------
   
-  # handle ordinal predictors as numeric 
-  if (str_detect(feature_set, "^ordinal_")) {
- 
-    # rm cols that begin with pref and dont end with ord 
-    # and education and incomes
+  # Education as ordered factor
+  if (str_detect(feature_set, "edu_ordinal")) {
+     education_levels <- c("less_than_high_school_or_ged_degree", "high_school_or_ged",
+                          "some_college", "2_year_degree", "4_year_degree", "advanced_degree")
     rec <- rec |>   
-      step_rm(matches("^pref_(?!.*_ord$)", perl = TRUE)) |>  
-      step_rm(dem_education, dem_income)
+      step_mutate(
+        dem_education = factor(dem_education, levels = education_levels, ordered = TRUE)
+      )
   }
  
-  
-  # handle ordinal predictors with onehot 
-  if (str_detect(feature_set, "^onehot_")) {
-    
-    # NEED TO UPDATE
-    
-    # rm cols that end with ord 
-    # and education and incomes
-    rec <- rec |>   
-      step_rm(matches("_ord$")) 
-  }
-  
-  
-  # handle ordinal predictors with target encoding
-  if (str_detect(feature_set, "^target_")) {
-    # NEED TO UPDATE
-  }
- 
-  
-  # ----------------------------------------------------------------------------
-  # Configs for multi-level nominal predictors ---------------------------------
-  
-  # handle nominal predictors with onehot 
-  # UPDATE TO HANDLE RACE HERE FOR ONE HOT AND BELOW FOR TARGET
-  # WILL NEED TO CALCULATE SINGLE RACE VARIABLE IN FORMAT DATA  
-  if (str_detect(feature_set, "_onehot$")) {
+  # Education as collapsed categorical 
+  if (str_detect(feature_set, "edu_collapsed")) {
     rec <- rec |> 
-      step_dummy(tone, style, dem_marital_status, 
-                 one_hot = TRUE) 
+      step_mutate(
+        dem_education = factor(case_when(
+          dem_education %in% c("high_school_or_ged", "less_than_high_school_or_ged_degree") ~ "hs_or_less",
+          dem_education == "some_college" ~ "some_college",
+          dem_education %in% c("2_year_degree", "4_year_degree", "advanced_degree") ~ "2_year_degree_or_higher"
+        ))) |> 
+      step_dummy(dem_education, one_hot = TRUE)
   }
-  
-  # handle nominal predictors with target encoding
-  if (str_detect(feature_set, "_target$")) {
-    # NEED TO UPDATE
-  }
-  
+   
   # ----------------------------------------------------------------------------
   # add interactions -----------------------------------------------------------
-  # UPDATE - DOES THIS NEED TO CHANGE BASED ON HOW WE HANDLE CATEGORICAL PREDICTORS?
-  # rec <- rec |>   
-  #   step_interact(terms = ~ matches("^tone_(legitimizing|norms|value_affirmation|self_efficacy|acknowledging)$"):starts_with("dem_")) |> 
-  #   step_interact(terms = ~ matches("^style_informal$"):starts_with("dem_"))
-  #   step_interact(terms = ~ matches("^tone_(legitimizing|norms|value_affirmation|self_efficacy|acknowledging)$"):starts_with("pref_")) |> 
-  #   step_interact(terms = ~ matches("^style_informal$"):starts_with("pref_")) 
+
+  rec <- rec |>
+    # dem_ x tone_ and dem_ x style (exclude existing interaction cols via _x_)
+    step_interact(terms = ~ matches("^dem_(?!.*_x_)", perl = TRUE):starts_with("tone_")) |>
+    step_interact(terms = ~ matches("^dem_(?!.*_x_)", perl = TRUE):all_of("style_informal")) |>
+    # pref_ (except pref_formality) x tone_
+    step_interact(terms = ~ matches("^pref_(legitimizing|self_efficacy|acknowledging|value_affirmation|norms)$"):starts_with("tone_")) |>
+    # pref_formality x style
+    step_interact(terms = ~ all_of("pref_formality"):all_of("style_informal"))
+  
+  
   
   # ----------------------------------------------------------------------------
-  # standardize ONLY numeric predictors -----------------------------------------------------------
-    
-  # UPDATE - HOW TO DO THIS BASED ON CONFIG
-  rec <- rec |> 
-    # consider standardizing only numeric predictors in a later version
-    step_normalize(matches(c("pref_", "dem_age", "dem_education", "dem_income"))) 
-       
-  # ----------------------------------------------------------------------------
-  # finish last steps-----------------------------------------------------------
-  
+ 
   # final steps 
   rec <- rec |> 
     # drop columns with NA values after imputation (100% NA)

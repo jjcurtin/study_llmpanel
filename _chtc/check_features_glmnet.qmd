@@ -1,0 +1,22 @@
+---
+title: "check_features_glmnet"
+format: html
+editor: visual
+---
+
+# load packages
+```{r}
+library(tidyverse)
+library(stringr, exclude = "fixed")
+library(dplyr, exclude = "col_factor")
+library(recipes, exclude = "fixed")
+source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
+
+path_processed <- format_path("llmpanel/data_processed")
+
+source("./_chtc/training_controls_panel_glmnet.R")
+
+path_processed <- format_path("llmpanel/data_processed")
+panel <- read_csv(here::here(path_processed, "panel.csv"),
+                       show_col_types = FALSE)
+```
