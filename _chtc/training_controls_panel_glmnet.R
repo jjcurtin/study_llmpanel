@@ -32,7 +32,7 @@ y_col_name <- "message_rating"
 
 # CHTC SPECIFIC CONTROLS----------------------------
 configs_per_job <- 100 # used for batching configs within CHTC jobs
-username <- "jjcurtin" # for setting staging directory (until we have group staging folder)
+username <- "aksanford" # for setting staging directory (until we have group staging folder)
 stage_data <- FALSE # If FALSE .sif will still be staged, just not data_trn
 max_idle <- 1000
 request_cpus <- 1 
