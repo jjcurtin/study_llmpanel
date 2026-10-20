@@ -93,39 +93,36 @@ format_data <- function (d){
     
     # Numericize likert scales
     mutate(across(all_of(likert_cols),
-                  ~ recode_values(
-                    .x,
-                    "strongly_disagree" ~ 1,
-                    "disagree"          ~ 2,
-                    "somewhat_disagree" ~ 3,
-                    "neutral"           ~ 4,
-                    "somewhat_agree"    ~ 5,
-                    "agree"             ~ 6,
-                    "strongly_agree"    ~ 7))) |>
+                  ~ case_when(
+                    .x == "strongly_disagree" ~ 1,
+                    .x == "disagree"          ~ 2,
+                    .x == "somewhat_disagree" ~ 3,
+                    .x == "neutral"           ~ 4,
+                    .x == "somewhat_agree"    ~ 5,
+                    .x == "agree"             ~ 6,
+                    .x == "strongly_agree"    ~ 7))) |>
     
     # Numericize formality scale
     mutate(
-      pref_formality = recode_values(
-        pref_formality,
-        "strongly_prefer_informal"   ~ 1,
-        "moderately_prefer_informal" ~ 2,
-        "slightly_prefer_informal"   ~ 3,
-        "neutral"                    ~ 4,
-        "slightly_prefer_formal"     ~ 5,
-        "moderately_prefer_formal"   ~ 6,
-        "strongly_prefer_formal"     ~ 7),
+      pref_formality = case_when(
+        pref_formality == "strongly_prefer_informal"   ~ 1,
+        pref_formality == "moderately_prefer_informal" ~ 2,
+        pref_formality == "slightly_prefer_informal"   ~ 3,
+        pref_formality == "neutral"                    ~ 4,
+        pref_formality == "slightly_prefer_formal"     ~ 5,
+        pref_formality == "moderately_prefer_formal"   ~ 6,
+        pref_formality == "strongly_prefer_formal"     ~ 7),
       
       # Numericize income scale
-      dem_income = recode_values(
-        dem_income,
-        "Less than $25,000"   ~ 12500,   # Midpoint estimates for each bracket
-        "$25,000 - $37,499"   ~ 31250,
-        "$37,500 - $49,999"   ~ 43750,
-        "$50,000 - $74,999"   ~ 62500,
-        "$75,000 - $99,999"   ~ 87500,
-        "$100,000 - $149,999" ~ 125000,
-        "$150,000 - $199,999" ~ 175000,
-        "$200,000 or more"    ~ 250000), # The cap for this one is debatable
+      dem_income = case_when(
+        dem_income == "Less than $25,000"   ~ 12500,   # Midpoint estimates for each bracket
+        dem_income == "$25,000 - $37,499"   ~ 31250,
+        dem_income == "$37,500 - $49,999"   ~ 43750,
+        dem_income == "$50,000 - $74,999"   ~ 62500,
+        dem_income == "$75,000 - $99,999"   ~ 87500,
+        dem_income == "$100,000 - $149,999" ~ 125000,
+        dem_income == "$150,000 - $199,999" ~ 175000,
+        dem_income == "$200,000 or more"    ~ 250000), # The cap for this one is debatable
       
       # Household-adjust income
       dem_income = dem_income / sqrt(dem_n_household),
@@ -175,15 +172,14 @@ format_data <- function (d){
     # Numericize outcome variable (y)
     
     mutate(
-      y = recode_values(
-        y,
-        "strongly_disagree" ~ 1,
-        "disagree"          ~ 2,
-        "somewhat_disagree" ~ 3,
-        "neutral"           ~ 4,
-        "somewhat_agree"    ~ 5,
-        "agree"             ~ 6,
-        "strongly_agree"    ~ 7)) |> 
+      y = case_when(
+        y == "strongly_disagree" ~ 1,
+        y == "disagree"          ~ 2,
+        y == "somewhat_disagree" ~ 3,
+        y == "neutral"           ~ 4,
+        y == "somewhat_agree"    ~ 5,
+        y == "agree"             ~ 6,
+        y == "strongly_agree"    ~ 7)) |> 
     
     # Remove empty rows
     filter(!is.na(y),
@@ -223,14 +219,13 @@ build_recipe <- function(d, config) {
   if (str_detect(feature_set, "edu_ordinal")) {
     rec <- rec |>
       step_mutate(
-        dem_education = recode_values(
-          dem_education,
-          "less_than_high_school_or_ged_degree" ~ 1,
-          "high_school_or_ged"                  ~ 2,
-          "some_college"                        ~ 3,
-          "2_year_degree"                       ~ 4,
-          "4_year_degree"                       ~ 5,
-          "advanced_degree"                     ~ 6))
+        dem_education = case_when(
+          dem_education == "less_than_high_school_or_ged_degree" ~ 1,
+          dem_education == "high_school_or_ged"                  ~ 2,
+          dem_education == "some_college"                        ~ 3,
+          dem_education == "2_year_degree"                       ~ 4,
+          dem_education == "4_year_degree"                       ~ 5,
+          dem_education == "advanced_degree"                     ~ 6))
   }
    
   # Education as collapsed categorical 
