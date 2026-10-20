@@ -20,10 +20,7 @@ algorithm <- "glmnet"  # glmnet, random_forest, xgboost
 # CONFIGURATIONS ---------------------------------------------------------------
 # Two recipes: education as ordinal or collapsed categorical.
 # All other feature options (age, income) are constant across configs.
-glmnet_configs <- tibble(
-  algorithm   = algorithm,
-  feature_set = c("edu_ordinal", "edu_collapsed")
-)
+feature_set <- c("edu_ordinal", "edu_collapsed")
 
 # ML PARAMETERS ----------------------------------------------------------------
 ml_mode <- "regression"   # regression or classification
