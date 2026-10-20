@@ -5,6 +5,7 @@ editor: visual
 ---
 
 # setup
+
 ```{r}
 library(tidyverse)
 library(stringr, exclude = "fixed")
@@ -37,9 +38,11 @@ d_collapsed <- baked$edu_collapsed
 ```
 
 # Ordinal Education Feature set
+
 ```{r}
 d_ordinal |> colnames()
 ```
+
 No anomalous interaction columns!
 
 ```{r}
