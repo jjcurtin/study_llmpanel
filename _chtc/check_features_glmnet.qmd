@@ -4,19 +4,63 @@ format: html
 editor: visual
 ---
 
-# load packages
+# setup
 ```{r}
 library(tidyverse)
 library(stringr, exclude = "fixed")
 library(dplyr, exclude = "col_factor")
 library(recipes, exclude = "fixed")
+
 source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
-
-path_processed <- format_path("llmpanel/data_processed")
-
-source("./_chtc/training_controls_panel_glmnet.R")
+source("https://github.com/jjcurtin/study_llmpanel/blob/main/_chtc/training_controls_panel_glmnet.R?raw=true")
 
 path_processed <- format_path("llmpanel/data_processed")
 panel <- read_csv(here::here(path_processed, "panel.csv"),
                        show_col_types = FALSE)
+```
+
+```{r}
+d <- format_data(panel)
+
+baked <- glmnet_configs |>
+  purrr::pmap(function(algorithm, feature_set) {
+    config <- tibble(algorithm = algorithm, feature_set = feature_set)
+    build_recipe(d, config) |>
+      prep(training = d) |>
+      bake(new_data = NULL)
+  }) |>
+  purrr::set_names(glmnet_configs$feature_set)
+
+d_ordinal <- baked$edu_ordinal
+
+d_collapsed <- baked$edu_collapsed
+```
+
+# Ordinal Education Feature set
+```{r}
+d_ordinal |> colnames()
+```
+No anomalous interaction columns!
+
+```{r}
+# In d_collapsed but not d_ordinal
+setdiff(colnames(d_collapsed), colnames(d_ordinal))
+```
+
+Interaction columns are expanded across all three categories of education in this config, as intended.
+
+```{r}
+# In d_ordinal but not d_collapsed
+
+setdiff(colnames(d_ordinal), colnames(d_collapsed))
+```
+
+The numeric dem_education column and related interactions are removed, as intended.
+
+```{r}
+glimpse(d_ordinal)
+```
+
+```{r}
+glimpse(d_collapsed)
 ```

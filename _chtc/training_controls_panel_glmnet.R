@@ -179,14 +179,14 @@ format_data <- function (d){
     
     mutate(
       y = recode_values(
-      y,
-      "strongly_disagree" ~ 1,
-      "disagree"          ~ 2,
-      "somewhat_disagree" ~ 3,
-      "neutral"           ~ 4,
-      "somewhat_agree"    ~ 5,
-      "agree"             ~ 6,
-      "strongly_agree"    ~ 7)) |> 
+        y,
+        "strongly_disagree" ~ 1,
+        "disagree"          ~ 2,
+        "somewhat_disagree" ~ 3,
+        "neutral"           ~ 4,
+        "somewhat_agree"    ~ 5,
+        "agree"             ~ 6,
+        "strongly_agree"    ~ 7)) |> 
     
     # Remove empty rows
     filter(!is.na(y),
@@ -206,7 +206,8 @@ build_recipe <- function(d, config) {
  
   #----------------------------------------------------------------------------- 
   # Set recipe steps for all model configurations for GLMNET--------------------
-  rec <- recipe(y ~ ., data = d) |> 
+  rec <- recipe(y ~ ., data = d) |>
+    step_rm(subid) |> 
     step_zv(all_predictors()) |> 
     step_impute_median(all_numeric_predictors()) |>  
     step_impute_mode(all_nominal_predictors())
@@ -223,14 +224,18 @@ build_recipe <- function(d, config) {
   
   # Education as ordered factor
   if (str_detect(feature_set, "edu_ordinal")) {
-     education_levels <- c("less_than_high_school_or_ged_degree", "high_school_or_ged",
-                          "some_college", "2_year_degree", "4_year_degree", "advanced_degree")
-    rec <- rec |>   
+    rec <- rec |>
       step_mutate(
-        dem_education = factor(dem_education, levels = education_levels, ordered = TRUE)
-      )
+        dem_education = recode_values(
+          dem_education,
+          "less_than_high_school_or_ged_degree" ~ 1,
+          "high_school_or_ged"                  ~ 2,
+          "some_college"                        ~ 3,
+          "2_year_degree"                       ~ 4,
+          "4_year_degree"                       ~ 5,
+          "advanced_degree"                     ~ 6))
   }
- 
+   
   # Education as collapsed categorical 
   if (str_detect(feature_set, "edu_collapsed")) {
     rec <- rec |> 
