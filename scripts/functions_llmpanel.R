@@ -353,3 +353,78 @@ review_features <- function(feat) {
 count_predictors <- \(r)
 r |> prep() |> bake(new_data = NULL) |> select(-subid, -message_rating) |> ncol()
 
+format_eda <- function (d){
+  
+  likert_cols <- c(
+    "pref_legitimizing",
+    "pref_self_efficacy",
+    "pref_acknowledging",
+    "pref_value_affirmation",
+    "pref_norms")
+  
+  d <- d |>
+    # Rename vars
+    rename( 
+      pref_legitimizing = q1_legitimizing_1,
+      pref_self_efficacy = q2_self_efficacy_1,
+      pref_acknowledging = q3_acknowledging_1,
+      pref_value_affirmation = q4_value_affirmation_1,
+      pref_norms = q5_norms_1,
+      pref_formality = q6_formality_1) |>
+    
+    # Numericize likert scales
+    mutate(across(all_of(likert_cols),
+                  ~ case_when(
+                    .x == "strongly_disagree" ~ 1,
+                    .x == "disagree"          ~ 2,
+                    .x == "somewhat_disagree" ~ 3,
+                    .x == "neutral"           ~ 4,
+                    .x == "somewhat_agree"    ~ 5,
+                    .x == "agree"             ~ 6,
+                    .x == "strongly_agree"    ~ 7))) |>
+    
+    # Numericize formality scale
+    mutate(
+      pref_formality = case_when(
+        pref_formality == "strongly_prefer_informal"   ~ 1,
+        pref_formality == "moderately_prefer_informal" ~ 2,
+        pref_formality == "slightly_prefer_informal"   ~ 3,
+        pref_formality == "neutral"                    ~ 4,
+        pref_formality == "slightly_prefer_formal"     ~ 5,
+        pref_formality == "moderately_prefer_formal"   ~ 6,
+        pref_formality == "strongly_prefer_formal"     ~ 7),
+      
+      # Numericize income scale
+      dem_income_num = case_when(
+        dem_income == "Less than $25,000"   ~ 12500,   # Midpoint estimates for each bracket
+        dem_income == "$25,000 - $37,499"   ~ 31250,
+        dem_income == "$37,500 - $49,999"   ~ 43750,
+        dem_income == "$50,000 - $74,999"   ~ 62500,
+        dem_income == "$75,000 - $99,999"   ~ 87500,
+        dem_income == "$100,000 - $149,999" ~ 125000,
+        dem_income == "$150,000 - $199,999" ~ 175000,
+        dem_income == "$200,000 or more"    ~ 250000), # The cap for this one is debatable
+      
+      # Household-adjust income
+      dem_income_num = dem_income_num / sqrt(dem_n_household),
+      
+      # Collapse categories for orientation
+      dem_orientation = if_else(
+        dem_orientation == "straight", "straight", "other"),
+      
+      # Collapse categories for race
+      race_white = !is.na(dem_race_white),
+      race_other =
+        !is.na(dem_race_native_alaskan) |
+        !is.na(dem_race_asian) |
+        !is.na(dem_race_hispanic) |
+        !is.na(dem_race_black),
+      dem_ethnicity = if_else(race_white & !race_other, "white_only", "other")) |> 
+    
+    # Drop columns not used for modelling
+    select(subid, contains("pref_"), contains("dem_"),
+           -contains("race"), -dem_marital_status, -dem_minority,
+           -dem_identity, -dem_n_household, -dem_student, contains("_hi_"),
+           contains("_hd_"), contains("_li_"), -contains("timing"))
+}
+

@@ -1,0 +1,269 @@
+---
+title: "Report on Variability in Tone Preferences and Message Ratings"
+format: 
+  html:
+    page-layout: full
+    self-contained: true
+    toc: true
+    toc-depth: 3
+execute: 
+  warning: false
+editor_options: 
+  chunk_output_type: console
+---
+## Setup
+```{r}
+options(conflicts.policy = "depends.ok")
+library(tidyverse)
+plot_grid <- cowplot::plot_grid
+source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
+source("https://github.com/jjcurtin/lab_support/blob/main/fun_eda.R?raw=true")
+source("https://github.com/jjcurtin/lab_support/blob/main/fun_plots.R?raw=true")
+#source("https://github.com/jjcurtin/study_llmpanel/blob/main/scripts/functions_llmpanel.R?raw=true")
+
+path_processed <- format_path("llmpanel/data_processed")
+
+# Read in and format full panel (wide)
+panel <- format_eda(read_csv(
+  here::here(path_processed, "panel.csv"),show_col_types = FALSE))
+```
+
+# Tone Preferences
+```{r}
+pref_means <- panel |> summarise(
+  'Legitimizing' = mean(pref_legitimizing, na.rm = TRUE),
+  'Norms' = mean(pref_norms, na.rm = TRUE),
+  'Value Affirmation' = mean(pref_value_affirmation, na.rm = TRUE),
+  'Self Efficacy' = mean(pref_self_efficacy, na.rm = TRUE),
+  'Acknowledging' = mean(pref_acknowledging, na.rm = TRUE)) |>
+  pivot_longer(everything(), names_to = "tone", values_to = "mean_pref")
+
+pref_means |>
+  ggplot(aes(x = reorder(tone, -mean_pref), y = mean_pref, fill = tone)) +
+  geom_col(show.legend = FALSE) +
+  geom_text(aes(label = round(mean_pref, 2)), vjust = -0.5) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
+  labs(x = "Tone", y = "Mean Preference")
+```
+
+```{r}
+pref_long <- panel |>
+  select(subid, pref_legitimizing, pref_norms, pref_value_affirmation,
+         pref_self_efficacy, pref_acknowledging) |>
+  pivot_longer(-subid, names_to = "tone", values_to = "pref") |>
+  mutate(subid = factor(subid),
+         tone = case_match(
+    tone,
+    "pref_legitimizing" ~ "Legitimizing",
+    "pref_norms" ~ "Norms",
+    "pref_value_affirmation" ~ "Value Affirmation",
+    "pref_self_efficacy" ~ "Self Efficacy",
+    "pref_acknowledging" ~ "Acknowledging"),
+    tone = fct_reorder(tone, pref, mean, na.rm = TRUE))
+
+pref_long |>
+  ggplot(aes(x = tone, y = pref, fill = tone)) +
+  geom_boxplot(outlier.shape = NA, show.legend = FALSE) +
+  geom_jitter(
+    data = \(d) d |>
+      group_by(tone) |>
+      filter(pref < quantile(pref, .25, na.rm = TRUE) - 1.5 * IQR(pref, na.rm = TRUE) |
+               pref > quantile(pref, .75, na.rm = TRUE) + 1.5 * IQR(pref, na.rm = TRUE)),
+    position = position_jitter(width = 0.25, height = 0.05, seed = 123),
+    alpha = 0.6, show.legend = FALSE) +
+  stat_summary(fun = mean, geom = "point", shape = 23, size = 2, fill = "white") +
+  stat_summary(fun = mean, geom = "text",
+               aes(label = round(after_stat(y), 2)), vjust = -1) +
+  scale_y_continuous(limits = c(1, 7), breaks = 1:7) +
+  labs(x = "Tone", y = "Preference")
+```
+
+## Inferential Tests
+
+Repeated-measures ANOVA: does mean preference differ across tones?
+
+```{r}
+aov_tone <- afex::aov_ez(
+  id = "subid", dv = "pref", data = pref_long, within = "tone",
+  anova_table = list(correction = "GG"))
+aov_tone
+```
+
+Pairwise comparisons for the ANOVA (Holm-adjusted)
+
+```{r}
+emmeans::emmeans(aov_tone, pairwise ~ tone, adjust = "holm")
+```
+
+Friedman test (non-parametric check on the same question)
+
+```{r}
+friedman.test(pref ~ tone | subid, data = pref_long)
+```
+
+Pairwise comparisons for the Friedman test: paired Wilcoxon signed-rank tests (Holm-adjusted)
+
+```{r}
+pref_complete <- pref_long |>
+  group_by(subid) |>
+  filter(!any(is.na(pref))) |>
+  ungroup() |>
+  arrange(tone, subid)
+
+pairwise.wilcox.test(
+  pref_complete$pref, pref_complete$tone,
+  paired = TRUE, p.adjust.method = "holm", exact = FALSE)
+```
+
+### Takeaways
+
+These findings provide support for the removal of value-affirmation and acknowledging tones, whose mean ratings are significantly lower than the top 3. Within the grouping of legitimizing, self-efficacy and norms tones we see support for utilizing these tones together for the potential benefits of variability in support messages across a long period.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+*Pivot long format*
+
+We'll retain a separate wide-format object to examine demographics etc.
+
+```{r}
+panel_long <- panel |>
+  select(subid, dem_age:dem_minority, q1_legitimizing_1:q6_formality_1,
+         `x1_hi_1_fl_1`:`x4_li_10_in_1`,
+         -contains("timing"), -contains("attention")) |>
+  pivot_longer(
+    cols= `x1_hi_1_fl_1`:`x4_li_10_in_1`,
+    values_to = "message_rating",
+    names_to = "message_type") |>
+  separate(message_type,
+           sep = "_", into = c(
+             "survey_version", "context", "q_num", "tone_style"),
+           extra = "drop") |> 
+  mutate(
+    style = if_else(substr(tone_style, 1, 1) == "f", "formal", "informal"),
+    tone = case_when(
+      substr(tone_style, 2, 2) == "l" ~ "legitimizing",
+      substr(tone_style, 2, 2) == "n" ~ "norms",
+      substr(tone_style, 2, 2) == "s" ~ "self_efficacy",
+      substr(tone_style, 2, 2) == "a" ~ "acknowledging",
+      substr(tone_style, 2, 2) == "v" ~ "value_affirmation"),
+    context = case_when(
+      context == "hi" ~ "high_increasing",
+      context == "hd" ~ "high_decreasing",
+      context == "li" ~ "low_increasing")
+  ) |>
+  select(-q_num, -tone_style) |> 
+  filter(!is.na(message_rating),
+         str_trim(message_rating) != "")
+
+# Sanity-check that we have 30 rows per respondent
+nrow(panel_wide)*30 == nrow(panel_long)
+```
+
+```{r}
+r2 <- summary(lm(rating_num ~ dem_age, data = panel_long))$r.squared
+
+ggplot(eyeball, aes(x = dem_age, y = rating_num)) +
+  geom_jitter(width = 0, height = 0.2, alpha = 0.3, size = 1.5) +
+  geom_smooth(method = "lm", se = TRUE) +
+  annotate("text", x = Inf, y = Inf, hjust = 1.1, vjust = 1.5,
+           label = paste0("R² = ", round(r2, 3))) +
+  scale_y_continuous(
+    breaks = 1:7,
+  ) +
+  labs(x = "Age", y = "Message Rating")
+```
+
+# Preferences by Demographic
+
+`pref_test()` regresses each `pref_` column on a `dem_` column with `lm()`
+(equivalent to a t-test for a two-level variable) and returns the coefficients and p-values.
+
+```{r}
+pref_test <- function(data, dem) {
+  dem <- rlang::as_name(rlang::ensym(dem))
+
+  data |>
+    select(all_of(dem), starts_with("pref_")) |>
+    pivot_longer(starts_with("pref_"), names_to = "pref", values_to = "value") |>
+    nest(.by = pref) |>
+    mutate(fit = map(data, \(d) broom::tidy(lm(reformulate(dem, "value"), data = d)))) |>
+    select(pref, fit) |>
+    unnest(fit) |>
+    filter(term != "(Intercept)") |>
+    select(pref, term, estimate, std.error, statistic, p.value) |>
+    arrange(p.value)
+}
+
+panel |> pref_test(dem_sex)
+```
+
+Run `pref_test()` across binary/numeric `dem_` columns and keep the significant tests.
+
+```{r}
+dem_cols <- str_subset(names(panel), "^dem_") |>
+  setdiff(c("dem_income", "dem_education"))
+
+all_tests <- dem_cols |>
+  set_names() |>
+  map(possibly(\(d) pref_test(panel, !!rlang::sym(d)), otherwise = NULL)) |>
+  list_rbind(names_to = "dem") |>
+  arrange(p.value)
+
+sig_tests <- all_tests |>
+  filter(p.value < .05) |>
+  arrange(pref, p.value) |>
+  select(-dem)
+sig_tests
+```
+
+# Message Ratings by Tone
+
+Each respondent rated several messages per tone, so ratings are first averaged within respondent and tone. The tests then mirror the preference analysis: a repeated-measures ANOVA and a Friedman test across the five tones, each followed by Holm-adjusted pairwise comparisons.
+
+```{r}
+rating_levels <- c("strongly_disagree", "disagree", "somewhat_disagree", "neutral",
+                   "somewhat_agree", "agree", "strongly_agree")
+
+rating_by_tone <- panel_long |>
+  mutate(rating_num = as.numeric(factor(message_rating, levels = rating_levels))) |>
+  summarise(rating = mean(rating_num, na.rm = TRUE), .by = c(subid, tone)) |>
+  mutate(subid = factor(subid),
+         tone = fct_reorder(tone, rating, mean, na.rm = TRUE))
+
+rating_by_tone |> summarise(mean = mean(rating, na.rm = TRUE), .by = tone) |> arrange(mean)
+```
+
+```{r}
+aov_rating <- afex::aov_ez(
+  id = "subid", dv = "rating", data = rating_by_tone, within = "tone",
+  anova_table = list(correction = "GG"))
+aov_rating
+
+emmeans::emmeans(aov_rating, pairwise ~ tone, adjust = "holm")
+```
+
+```{r}
+friedman.test(rating ~ tone | subid, data = rating_by_tone)
+
+rating_complete <- rating_by_tone |>
+  group_by(subid) |>
+  filter(!any(is.na(rating))) |>
+  ungroup() |>
+  arrange(tone, subid)
+
+pairwise.wilcox.test(
+  rating_complete$rating, rating_complete$tone,
+  paired = TRUE, p.adjust.method = "holm", exact = FALSE)
+```

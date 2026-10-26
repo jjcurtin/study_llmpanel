@@ -10,7 +10,7 @@ format:
   html:
     embed-resources: true
 params:
-  version: "v9"
+  version: "v12"
 editor_options: 
   chunk_output_type: console
 ---
@@ -48,13 +48,12 @@ best <- folds |>
   summarise(rsq = mean(rsq),
             mae = mean(mae),
             n = n(),
-            .by = c(hp1, hp2, hp3)) |> 
+            .by = c(feature_set, hp1, hp2, hp3)) |> 
   arrange(desc(rsq)) |> 
   filter(hp1 <= .1) |> 
   slice_head(n = 1)
 
 best$algorithm <- "glmnet"
-best$feature_set <- "pref"
 
 best
 ```

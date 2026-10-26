@@ -3,7 +3,7 @@ title: "Held-out helpfulness"
 author: "John Curtin"
 date: "`r lubridate::today()`"
 params:
-  version: "v9"
+  version: "v12"
 format:
   html:
     toc: true 
@@ -119,12 +119,11 @@ for (i_outer in 1:30){
 ```{r}
 config_best <- folds |>
   summarise(rsq = mean(rsq),
-            .by = c(hp1, hp2)) |> 
+            .by = c(feature_set, hp1, hp2)) |> 
   arrange(desc(rsq)) |> 
   filter(hp1 <= .1) |> 
   slice_head(n = 1)
 config_best$algorithm <- "glmnet"
-config_best$feature_set <- "pref"
 
 config_best
 ```

@@ -11,10 +11,11 @@
 # version 10: dropped zero variance on message ratings
 # version 11: re-start with baseline glmnet 
 # version 12: glmnet with final reduced sample (Andrew)
+# version 13: glmnet with final reduced sample + normalized predictors
 
 
 # SET GLOBAL PARAMETERS---------------------------------------------------------
-version <- "v12"
+version <- "v13"
 algorithm <- "glmnet"  # glmnet, random_forest, xgboost
 
 # CONFIGURATIONS ---------------------------------------------------------------
@@ -239,6 +240,11 @@ build_recipe <- function(d, config) {
         ))) |> 
       step_dummy(dem_education, one_hot = TRUE)
   }
+  
+  # center & scale continuous predictors BEFORE interactions
+  rec <- rec |>
+    step_normalize(starts_with("pref_"), dem_age, dem_income,
+                   any_of("dem_education"))
    
   # ----------------------------------------------------------------------------
   # add interactions -----------------------------------------------------------
