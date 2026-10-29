@@ -22,6 +22,7 @@ plot_grid <- cowplot::plot_grid
 source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
 source("https://github.com/jjcurtin/lab_support/blob/main/fun_eda.R?raw=true")
 source("https://github.com/jjcurtin/lab_support/blob/main/fun_plots.R?raw=true")
+source("https://github.com/jjcurtin/study_llmpanel/blob/main/scripts/functions_llmpanel.R?raw=true")
 
 path_processed <- format_path("llmpanel/data_processed")
 
@@ -731,6 +732,182 @@ dem_diff_models <- dem_diff_models |>
   arrange(model_p, p.value)
 
 dem_diff_models
+```
+
+## Ranked Mean Rating by Tone + Style Format
+
+All 10 tone + style formats ranked from highest (1) to lowest mean rating. Ratings are averaged within respondent and format first (across that format's 3 messages), then across respondents. Error bars are 95% confidence intervals.
+
+```{r}
+format_ranking <- panel_long |>
+  summarise(rating = mean(rating_num, na.rm = TRUE), .by = c(subid, tone, style)) |>
+  drop_na(rating) |>
+  summarise(mean = mean(rating), se = sd(rating) / sqrt(n()), n = n(),
+            .by = c(tone, style)) |>
+  mutate(rank = min_rank(desc(mean)),
+         format = paste(str_to_sentence(str_replace(tone, "_", " ")), style, sep = " + ")) |>
+  arrange(rank)
+
+format_ranking |> select(rank, format, mean, se, n)
+
+format_ranking |>
+  ggplot(aes(x = fct_reorder(format, mean), y = mean, fill = style)) +
+  geom_col() +
+  geom_errorbar(aes(ymin = mean - 1.96 * se, ymax = mean + 1.96 * se), width = 0.25) +
+  geom_text(aes(label = round(mean, 2)), hjust = 1.2, color = "white") +
+  coord_flip(ylim = c(1, 7)) +
+  scale_y_continuous(breaks = 1:7) +
+  labs(x = NULL, y = "Mean message rating", fill = "Style")
+```
+
+## Do Tone Rankings Differ by Style?
+
+For each respondent, the five tones are ranked (1 = highest mean rating) separately for formal and for informal messages. A respondent's order is "the same" only if every tone has the same rank in both styles (ties share the lower rank). Each tone-by-style mean rests on only 3 messages, so some disagreement is expected from noise alone, and with 5 tones a random pair of orders matches only about 1 time in 120. Because "identical order" is such a strict test, the table also reports whether the top-ranked tone matched and the rank correlation (Spearman's rho) between each respondent's formal and informal tone means.
+
+```{r}
+tone_style_ranks <- panel_long |>
+  summarise(rating = mean(rating_num, na.rm = TRUE), .by = c(subid, tone, style)) |>
+  mutate(rank = rank(-rating, ties.method = "min"), .by = c(subid, style)) |>
+  pivot_wider(names_from = style, values_from = c(rating, rank)) |>
+  drop_na()
+
+rank_agreement <- tone_style_ranks |>
+  summarise(
+    same_order = all(rank_formal == rank_informal),
+    same_top = setequal(tone[rank_formal == 1], tone[rank_informal == 1]),
+    rho = suppressWarnings(cor(rating_formal, rating_informal, method = "spearman")),
+    .by = subid)
+
+rank_agreement |>
+  summarise(
+    respondents = n(),
+    identical_order = sum(same_order),
+    different_order = sum(!same_order),
+    pct_different = mean(!same_order),
+    same_top_tone = mean(same_top),
+    median_rho = median(rho, na.rm = TRUE),
+    mean_rho = mean(rho, na.rm = TRUE))
+
+rank_agreement |>
+  filter(!is.na(rho)) |>
+  ggplot(aes(x = rho)) +
+  geom_histogram(binwidth = 0.2, boundary = -1, fill = "steelblue", color = "white") +
+  geom_vline(xintercept = 0, linetype = "dashed") +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
+  labs(x = "Spearman correlation between formal and informal tone means",
+       y = "Respondents",
+       subtitle = paste0("Per respondent (n = ", sum(!is.na(rank_agreement$rho)),
+                         "); 1 = identical tone order, 0 = unrelated"))
+```
+
+## Does Style Change How Tones Are Rated?
+
+The ranking comparison above is a weak test, because small differences between tone means flip rank order easily. The direct question is whether the effect of style (formal vs. informal) differs by tone, which is the tone-by-style interaction. This subsection answers it four ways: an interaction test on respondent means, the style gap within each tone, equivalence tests against a margin of 0.25 rating points (the smallest style effect considered meaningful), and a mixed model that uses every message and tests whether individuals differ.
+
+### Interaction Test (Repeated-Measures ANOVA)
+
+Each respondent's mean rating in each of the 10 tone + style cells is analyzed with tone and style as within-subject factors (Greenhouse-Geisser corrected). The `tone:style` row tests whether the style effect differs across tones, and `pes` is the partial eta-squared.
+
+```{r}
+tost_margin <- 0.25
+
+ts_means <- panel_long |>
+  summarise(rating = mean(rating_num, na.rm = TRUE), .by = c(subid, tone, style)) |>
+  drop_na(rating) |>
+  filter(n() == 10, .by = subid) |>
+  mutate(subid = factor(subid), tone = factor(tone), style = factor(style))
+
+n_distinct(ts_means$subid)
+
+aov_ts <- afex::aov_ez(
+  id = "subid", dv = "rating", data = ts_means, within = c("tone", "style"),
+  anova_table = list(correction = "GG", es = "pes"))
+aov_ts
+```
+
+### Style Gap Within Each Tone, With Equivalence Tests
+
+For each tone, the gap is each respondent's mean informal rating minus their mean formal rating (positive = informal higher). Each gap gets a paired t-test against 0 and a two one-sided test (TOST) of equivalence to 0 within the margin of +/- 0.25. `p_adj` and `p_tost_adj` are Holm-adjusted across all rows. A gap is "Equivalent" when its TOST is significant (the gap is credibly smaller than the margin), "Different" when it differs from 0, and "Inconclusive" otherwise.
+
+```{r}
+gap_summary <- function(d, delta) {
+  n <- length(d)
+  m <- mean(d)
+  se <- sd(d) / sqrt(n)
+  tt <- t.test(d)
+  tibble(
+    n = n,
+    mean_diff = m,
+    ci_low = tt$conf.int[1],
+    ci_high = tt$conf.int[2],
+    cohens_dz = m / sd(d),
+    p = tt$p.value,
+    p_tost = max(pt((m + delta) / se, n - 1, lower.tail = FALSE),
+                 pt((m - delta) / se, n - 1, lower.tail = TRUE)))
+}
+
+style_gap_by_tone <- ts_means |>
+  pivot_wider(names_from = style, values_from = rating) |>
+  mutate(diff = informal - formal)
+
+style_gaps <- bind_rows(
+  style_gap_by_tone |>
+    transmute(subid, tone = as.character(tone), diff),
+  style_gap_by_tone |>
+    summarise(diff = mean(diff), .by = subid) |>
+    mutate(tone = "all tones"))
+
+gap_tests <- style_gaps |>
+  reframe(gap_summary(diff, tost_margin), .by = tone) |>
+  mutate(p_adj = p.adjust(p, method = "holm"),
+         p_tost_adj = p.adjust(p_tost, method = "holm"),
+         conclusion = case_when(
+           p_adj < .05 ~ "Different",
+           p_tost_adj < .05 ~ "Equivalent (within margin)",
+           .default = "Inconclusive")) |>
+  arrange(factor(tone, levels = c(sort(unique(style_gap_by_tone$tone) |> as.character()), "all tones")))
+
+gap_tests
+```
+
+```{r}
+gap_tests |>
+  ggplot(aes(x = fct_rev(fct_inorder(tone)), y = mean_diff)) +
+  annotate("rect", xmin = -Inf, xmax = Inf, ymin = -tost_margin, ymax = tost_margin,
+           fill = "steelblue", alpha = 0.15) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_pointrange(aes(ymin = ci_low, ymax = ci_high)) +
+  coord_flip() +
+  labs(x = NULL, y = "Informal minus formal mean rating",
+       subtitle = "Points = mean gap with 95% CI; shaded band = equivalence margin (+/- 0.25)")
+```
+
+### Do Individuals Differ? (Mixed Model)
+
+This model uses all 30 ratings per respondent instead of cell means: ratings depend on tone, style and their interaction, with random intercepts for respondent, respondent-by-tone, respondent-by-style, and respondent-by-tone-by-style. The last term is the variance in each person's own tone-by-style pattern, so removing it tests whether individuals differ in how style changes their tone ratings beyond message-level noise. Models are fit by maximum likelihood so they can be compared with likelihood-ratio tests. The p-value for the random-effect comparison is on the boundary of the parameter space and is conservative, so it is approximately halved when reported.
+
+```{r}
+ratings_mixed <- panel_long |>
+  mutate(subid = factor(subid), tone = factor(tone), style = factor(style))
+
+m_full <- lme4::lmer(
+  rating_num ~ tone * style + (1 | subid) + (1 | subid:tone) +
+    (1 | subid:style) + (1 | subid:tone:style),
+  data = ratings_mixed, REML = FALSE)
+
+# Fixed tone x style interaction
+m_no_interaction <- update(m_full, . ~ . - tone:style)
+anova(m_no_interaction, m_full)
+
+# Individual differences in the tone x style pattern
+m_no_individual <- update(m_full, . ~ . - (1 | subid:tone:style))
+lrt_individual <- anova(m_no_individual, m_full)
+lrt_individual
+
+# Conservative boundary-corrected p-value for the random-effect test
+lrt_individual$`Pr(>Chisq)`[2] / 2
+
+lme4::VarCorr(m_full)
 ```
 
 ## Respondents Who Rated Formal Messages Higher

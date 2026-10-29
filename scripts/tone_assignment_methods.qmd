@@ -1,0 +1,554 @@
+---
+title: "Report on Alternaitve Tone Assignment Methods"
+format: 
+  html:
+    page-layout: full
+    self-contained: true
+    toc: true
+    toc-depth: 3
+execute: 
+  warning: false
+editor_options: 
+  chunk_output_type: console
+---
+## Setup
+
+```{r}
+#| label: Setup
+options(conflicts.policy = "depends.ok")
+library(tidyverse)
+plot_grid <- cowplot::plot_grid
+source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
+source("https://github.com/jjcurtin/lab_support/blob/main/fun_eda.R?raw=true")
+source("https://github.com/jjcurtin/lab_support/blob/main/fun_plots.R?raw=true")
+source("https://github.com/jjcurtin/study_llmpanel/blob/main/scripts/functions_llmpanel.R?raw=true")
+
+path_processed <- format_path("llmpanel/data_processed")
+
+# Read in and format full panel (wide)
+panel <- format_eda(read_csv(
+  here::here(path_processed, "panel.csv"),show_col_types = FALSE))
+
+# Constants used below
+pref_cols <- c("pref_legitimizing", "pref_norms", "pref_value_affirmation",
+               "pref_self_efficacy", "pref_acknowledging")
+
+rating_levels <- c("strongly_disagree", "disagree", "somewhat_disagree", "neutral",
+                   "somewhat_agree", "agree", "strongly_agree")
+
+tone_levels <- c("norms", "acknowledging", "legitimizing", "self_efficacy", "value_affirmation")
+
+# Pivot long format
+panel_long <- panel |>
+  select(subid, starts_with("dem_"), all_of(c(pref_cols, "pref_formality")),
+         matches("^x[0-9]+_(hi|hd|li)_[0-9]+_"),
+         -contains("timing"), -contains("attention")) |>
+  pivot_longer(
+    cols = matches("^x[0-9]+_(hi|hd|li)_[0-9]+_"),
+    values_to = "message_rating",
+    names_to = "message_type") |>
+  separate(message_type,
+           sep = "_", into = c(
+             "survey_version", "context", "q_num", "tone_style"),
+           extra = "drop") |>
+  mutate(
+    style = if_else(substr(tone_style, 1, 1) == "f", "formal", "informal"),
+    tone = case_when(
+      substr(tone_style, 2, 2) == "l" ~ "legitimizing",
+      substr(tone_style, 2, 2) == "n" ~ "norms",
+      substr(tone_style, 2, 2) == "s" ~ "self_efficacy",
+      substr(tone_style, 2, 2) == "a" ~ "acknowledging",
+      substr(tone_style, 2, 2) == "v" ~ "value_affirmation"),
+    context = case_when(
+      context == "hi" ~ "high_increasing",
+      context == "hd" ~ "high_decreasing",
+      context == "li" ~ "low_increasing")) |>
+  select(-q_num, -tone_style) |>
+  filter(!is.na(message_rating),
+         str_trim(message_rating) != "") |>
+  mutate(rating_num = as.numeric(factor(message_rating, levels = rating_levels)))
+
+# Histogram of respondent-level mean ratings with the mean and SD marked
+plot_rating_hist <- function(data, col, title, fill = "steelblue") {
+  x <- data[[col]]
+  m <- mean(x, na.rm = TRUE)
+  s <- sd(x, na.rm = TRUE)
+
+  ggplot(data, aes(x = .data[[col]])) +
+    annotate("rect", xmin = m - s, xmax = m + s, ymin = -Inf, ymax = Inf,
+             fill = "firebrick", alpha = 0.12) +
+    geom_histogram(binwidth = 0.25, boundary = 1, fill = fill, color = "white") +
+    geom_vline(xintercept = m, color = "firebrick", linewidth = 0.8) +
+    annotate("text", x = 0.8, y = Inf, hjust = 0, vjust = 1.5,
+             label = paste0("Mean = ", round(m, 2), "\nSD = ", round(s, 2))) +
+    scale_x_continuous(breaks = 1:7) +
+    scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
+    coord_cartesian(xlim = c(0.75, 7.25)) +
+    labs(x = "Mean message rating", y = "Respondents", title = title,
+         subtitle = paste0("n = ", sum(!is.na(x)), "; shaded band = mean ± 1 SD"))
+}
+
+# Each respondent's mean rating for each of the 5 tones. Style is ignored: ratings
+# are averaged across formal and informal messages (6 messages per tone).
+tone_means <- panel_long |>
+  summarise(rating = mean(rating_num, na.rm = TRUE), .by = c(subid, tone))
+
+# Add a row for one method to a tracking tibble (replacing any row with the same name).
+#   tracker: existing tracking tibble (NULL to start a new one)
+#   method:  data frame with subid and one rating column (as for compare_methods())
+#   kept:    tones the method uses. A character vector (same tones for every respondent)
+#            or a data frame with subid and tone (tones used per respondent).
+#            Kept tones are shown in equal proportion unless `weights` is given.
+#   weights: optional named numeric vector of how often each tone is shown (rescaled to
+#            sum to 1). Tones with weight 0 are not used. Use instead of `kept`.
+#   name:    row label (default: the data frame's "label" attribute)
+# Reported columns:
+#   mean, sd:       respondent-level mean helpfulness and its SD
+#   weighted_opt:   average share of a respondent's messages written in their
+#                   highest-rated tone(s) (all tied tones count)
+#   weighted_dis:   average share of a respondent's messages written in their
+#                   lowest-rated tone(s) (all tied tones count)
+track_method <- function(tracker, method, kept = NULL, name = NULL, weights = NULL) {
+  name <- name %||% attr(method, "label") %||% deparse(substitute(method))
+  col <- setdiff(names(method), "subid")
+  if (length(col) != 1) stop("`method` must have exactly one rating column besides `subid`.")
+  if (is.null(kept) && is.null(weights)) stop("Supply `kept` or `weights`.")
+
+  # How often each respondent sees each kept tone
+  exposure_long <- if (!is.null(weights)) {
+    expand_grid(subid = method$subid,
+                tibble(tone = names(weights), weight = unname(weights))) |>
+      filter(weight > 0)
+  } else {
+    kept_long <- if (is.data.frame(kept)) kept else expand_grid(subid = method$subid, tone = kept)
+    mutate(kept_long, weight = 1)
+  }
+  exposure <- exposure_long |>
+    mutate(weight = weight / sum(weight), .by = subid) |>
+    summarise(kept = list(tone), weight = list(weight), .by = subid)
+
+  respondents <- tone_means |>
+    summarise(top = list(tone[near(rating, max(rating))]),
+              bottom = list(tone[near(rating, min(rating))]),
+              .by = subid) |>
+    inner_join(exposure, by = "subid") |>
+    filter(subid %in% method$subid) |>
+    mutate(weighted_opt = pmap_dbl(list(top, kept, weight), \(t, k, w) sum(w[k %in% t])),
+           weighted_dis = pmap_dbl(list(bottom, kept, weight), \(b, k, w) sum(w[k %in% b])))
+
+  ratings <- method[[col]]
+  row <- tibble(
+    method = name,
+    mean = mean(ratings),
+    sd = sd(ratings),
+    weighted_opt = mean(respondents$weighted_opt),
+    weighted_dis = mean(respondents$weighted_dis))
+
+  if (is.null(tracker)) return(row)
+  bind_rows(filter(tracker, method != name), row)
+}
+
+# Stack the distributions of up to 3 methods vertically on the same scale.
+#   top, mid, bot: data frames with subid and one rating column, in stacking order.
+#                  Leave any blank and the remaining two are stacked, e.g.
+#                  compare_methods(top = panel_worst, bot = panel_best)
+#                  compare_methods(top = panel_uniform, mid = panel_2tone, bot = panel_best)
+# Each data frame's "label" and "fill" attributes set its facet label and color;
+# otherwise the label comes from the object name ("panel_mean" -> "Mean") and the
+# fill is steelblue. The subtitle gives each panel's mean paired difference from
+# the bottom panel.
+compare_methods <- function(top = NULL, mid = NULL, bot = NULL) {
+  nm <- c(top = deparse(substitute(top)),
+          mid = deparse(substitute(mid)),
+          bot = deparse(substitute(bot)))
+  panels <- compact(list(top = top, mid = mid, bot = bot))
+  if (length(panels) < 2) stop("Supply at least two of `top`, `mid`, and `bot`.")
+
+  info <- imap(panels, \(df, pos) {
+    col <- setdiff(names(df), "subid")
+    if (length(col) != 1) {
+      stop("`", pos, "` must have exactly one rating column besides `subid`.")
+    }
+    list(
+      data = df |> transmute(subid, rating = .data[[col]]),
+      label = attr(df, "label") %||%
+        (nm[[pos]] |> str_remove("^panel_") |> str_replace_all("_", " ") |> str_to_sentence()),
+      fill = attr(df, "fill") %||% "steelblue")
+  })
+
+  labels <- map_chr(info, "label")
+  if (anyDuplicated(labels)) stop("Each stacked method needs a distinct label.")
+  fills <- setNames(map_chr(info, "fill"), labels)
+
+  cases <- imap(info, \(x, pos) mutate(x$data, case = x$label)) |>
+    list_rbind() |>
+    mutate(case = factor(case, levels = labels))
+
+  stats <- cases |>
+    summarise(mean = mean(rating), sd = sd(rating), .by = case) |>
+    mutate(label = paste0("Mean = ", round(mean, 2), "
+SD = ", round(sd, 2)))
+
+  ref <- info[[length(info)]]
+  gaps <- info[-length(info)] |>
+    map_dbl(\(x) {
+      j <- inner_join(x$data, ref$data, by = "subid", suffix = c(".x", ".ref"))
+      mean(j$rating.x - j$rating.ref)
+    })
+  gap_text <- paste0(labels[-length(labels)], " ", sprintf("%+.2f", gaps), collapse = "; ")
+
+  cases |>
+    ggplot(aes(x = rating, fill = case)) +
+    geom_rect(data = stats, inherit.aes = FALSE,
+              aes(xmin = mean - sd, xmax = mean + sd, ymin = -Inf, ymax = Inf),
+              fill = "firebrick", alpha = 0.12) +
+    geom_histogram(binwidth = 0.25, boundary = 1, color = "white", show.legend = FALSE) +
+    geom_vline(data = stats, aes(xintercept = mean),
+               color = "firebrick", linewidth = 0.8) +
+    geom_text(data = stats, inherit.aes = FALSE,
+              aes(label = label), x = 0.8, y = Inf, hjust = 0, vjust = 1.3) +
+    facet_grid(rows = vars(case)) +
+    scale_fill_manual(values = fills) +
+    scale_x_continuous(breaks = 1:7) +
+    scale_y_continuous(expand = expansion(mult = c(0, 0.15))) +
+    coord_cartesian(xlim = c(0.75, 7.25)) +
+    labs(x = "Mean message rating", y = "Respondents",
+         title = "Mean message rating by assignment method",
+         subtitle = paste0("Mean difference vs. ", ref$label, ": ", gap_text,
+                           "; shaded band = mean ± 1 SD"))
+}
+```
+
+# Introduction
+
+This script will detail various tone assignment methods in competition with each other as the most optimal strategy for personalizing support messages. The differentiation between these methods relies on a unique balance of two factors:
+
+- Maximizing message helpfulness (user ratings). Our leading principle is an assumption that increases in self-reported helpfulness may translate to improved efficacy of support messages. The 'mean-only' method, for instance, would assign the singular tone that was rated highest on average across the whole sample to each participant indiscriminately.
+
+- Retaining variability in tone. Users who receive support messages on a daily schedule may develop fatigue if they encounter the same tone repeatedly. If we alternate higher-rated and lower-rated tones in-vivo, this may help to prevent any specific tone from losing efficacy over time. Methods in this script will range from maximum to minimum amounts of variability, which can be viewed as a trade-off with mean message helpfulness.
+
+Our goal is to determine what amount of variability may be required to maintain optimal message efficacy, and at what point may we begin to experience diminishing returns with variability where an increase in consistency with higher-rated tones would be more beneficial.
+
+## A Note on Style
+
+Style (formal vs. informal) is ignored throughout this script. Tone effects did not meaningfully depend on style (the tone-by-style interaction was very small, and individuals showed no differences in their tone-by-style pattern), so every tone is evaluated using each respondent's ratings of that tone averaged across formal and informal messages. Because formal messages were rated about 0.13 points lower on average, absolute helpfulness here is slightly pessimistic relative to informal-only delivery, and methods that choose each respondent's tones from their own ratings are optimistic. Both shifts affect all methods similarly, so the comparisons between methods are the focus.
+
+# Benchmarking
+
+No tone received 'perfect' 7/7 ratings from every single participant, which means that we have a natural limit to how far we can improve message helpfulness through any method. Let's look at our best and worst case scenarios in terms of message helpfulness:
+
+## Worst-Case Method (Every user gets their lowest-rated tone only)
+```{r}
+#| label: Worst-Case Method
+# This code chunk will take the panel data, and identify
+# for each user whichever tone (of the 5 possible tones) has the lowest mean rating (averaged across the 6 messages written in that tone, formal and informal).
+# A new dataframe 'panel_worst' will be created, that contains a single column with that 1 worst mean rating for each respondent.
+#'panel_worst' will be used to create a histogram that includes the mean and standard deviation within the plot.
+
+panel_worst <- tone_means |>
+  slice_min(rating, n = 1, by = subid, with_ties = FALSE) |>
+  select(subid, worst_rating = rating)
+attr(panel_worst, "label") <- "Worst case"
+attr(panel_worst, "fill") <- "firebrick"
+
+plot_rating_hist(panel_worst, "worst_rating",
+                 "Worst-case: each respondent's lowest-rated tone",
+                 fill = "firebrick")
+```
+
+## Best-Case Method (Every user gets their highest-rated tone only)
+```{r}
+#| label: Best-Case Method
+# This code takes the panel data and identifies for each user whichever tone
+# has the highest mean rating (averaged across the 6 messages written in that
+# tone, formal and informal).
+
+panel_best <- tone_means |>
+  slice_max(rating, n = 1, by = subid, with_ties = FALSE) |>
+  select(subid, best_rating = rating)
+attr(panel_best, "label") <- "Best case"
+attr(panel_best, "fill") <- "forestgreen"
+
+plot_rating_hist(panel_best, "best_rating",
+                 "Best-case: each respondent's highest-rated tone",
+                 fill = "forestgreen")
+```
+
+To be clear, we are unable to deploy the best-case method in-vivo as we will only have data from the preferences survey and demographics to make tone assignments. This distribution assumes that for our sample, the assignment method ended up producing a perfect result with maximum attainable helpfulness.
+
+```{r}
+#| label: Best vs Worst Case
+# Best-case (top) and worst-case (bottom) distributions stacked on the same scale.
+compare_methods(top = panel_worst, bot = panel_best)
+```
+
+Here we can see a substantial difference between our best and worst-case scenarios. Our contender methods for in-vivo assignment will attempt be produce results that are comparable to the best-case distribution while retaining some reasonable amount of variability.
+
+# Baseline Methods
+
+## Uniform Variability (All Tones)
+
+On the maximum variability end, our default method would be to use all tones in equal proportion. There are two primary justifications for this approach:
+
+- We run the lowest risk of any particular tone losing efficacy across time if all tones are used equally often.
+
+- If we are unsure about which tones may be better than others for a particular user, we ought not reduce or eliminate the presence of any particular tone.
+
+```{r}
+#| label: Uniform Variability
+# This code chunk will create a histogram that shows the distribution of each respondent's mean message rating across all tones (ignoring style).
+
+panel_uniform <- tone_means |>
+  summarise(uniform_rating = mean(rating), .by = subid)
+attr(panel_uniform, "label") <- "Uniform variability"
+attr(panel_uniform, "fill") <- "grey60"
+
+plot_rating_hist(panel_uniform, "uniform_rating",
+                 "Uniform variability: each respondent's mean across all tones")
+```
+
+```{r}
+# Compared with the best and worst-case
+compare_methods(top = panel_worst, mid = panel_uniform, bot = panel_best)
+```
+
+Uniform variability sits pretty square in the middle between our best and worst-case assignments. This is a plausible method, especially if we lacked preferences data from a user, but we may be able to meaningfully improve helpfulness and still retain a reasonable amount of variability. Such as approach with retain most of the benefit from this method while theoretically improving outcomes further.
+
+## Mean-Only Assignment
+
+On the no-variability end, our default method would be to use the single tone that was rated highest on average across the whole sample. In-vivo, this means that every user would receive the exact same tone regardless of their self-reported preferences.
+
+```{r}
+#| label: Mean-Only Assignment
+# This code chunk will identify the tone that was rated highest on average across the whole sample.
+# Then, a df 'panel_mean' will be created, that contains a single column with the mean message rating for each individual user for that same tone.
+#'panel_mean' will be used to create a histogram that includes the mean and standard deviation within the plot.
+
+# Tone with the highest mean rating across the whole sample
+tone_sample_means <- tone_means |>
+  summarise(mean_rating = mean(rating, na.rm = TRUE), .by = tone) |>
+  arrange(desc(mean_rating))
+tone_sample_means
+
+best_tone <- tone_sample_means$tone[1]
+
+# Readable label, e.g. "Self efficacy"
+best_tone_label <- best_tone |>
+  str_replace_all("_", " ") |>
+  str_to_sentence()
+
+panel_mean <- tone_means |>
+  filter(tone == best_tone) |>
+  select(subid, mean_only_rating = rating)
+attr(panel_mean, "label") <- paste0("Mean-only (", best_tone_label, ")")
+attr(panel_mean, "fill") <- "darkorange"
+
+plot_rating_hist(panel_mean, "mean_only_rating",
+                 paste0("Mean-only: everyone receives ", best_tone_label),
+                 fill = "darkorange")
+```
+
+```{r}
+# Compared with the best case
+compare_methods(top = panel_worst, mid = panel_mean, bot = panel_best)
+```
+
+The mean-only method is more comparable to the best-case distribution, however we still see a substantial left-hand tail. This indicates that some users particularly dislike the mean message format.
+
+```{r}
+#| label: Worst-Case Tone Counts
+# Each respondent's worst-case tone: tone-level mean rating (averaged across
+# formal and informal), then the lowest-rated tone(s). Ties count once per tied tone.
+worst_tone_counts <- tone_means |>
+  filter(near(rating, min(rating)), .by = subid) |>
+  count(tone, name = "n_respondents", sort = TRUE) |>
+  mutate(pct_of_respondents = n_respondents / n_distinct(tone_means$subid))
+
+worst_tone_counts
+```
+
+Here we see ~18% of respondents are receiving their worst-case tone with the mean-only method. This is quite problematic if we consider almost 1/5 users being disadvantaged as much as possible. We are also sacrificing all variability with this approach, which raises our concern about helpfulness declining even among those who most preferred the mean format.
+
+# Simple Exclusion Methods
+
+Using sample-wide patterns in the data, we can exclude the tones which were generally lower-rated, and least likely to be someones highest-rated. While we sacrifice some variability with each tone being removed, we can hope to still gain many benefits over a single tone assignment method.
+
+## 2-Tone Variability (Value Affirmation & Self-Efficacy)
+
+These two tones were the highest rated on average. This method would restrict
+variability for all users to an alternating pattern of support messages written
+in both tones. Performance for this method will be estimated by averaging user
+ratings across both tones.
+
+```{r}
+#| label: 2-Tone Variability (VA & SE)
+# This code chunk will calculate the average message rating
+# for each user across the "value affirmation" and "self efficacy" tones
+# combined.
+# Then, a df 'panel_2tone' will be created, that contains a single column with
+# the mean message rating for each individual user across the combination of
+# those two tones.
+
+panel_2tone <- panel_long |>
+  filter(tone %in% c("value_affirmation", "self_efficacy")) |>
+  summarise(two_tone_rating = mean(rating_num, na.rm = TRUE), .by = subid)
+attr(panel_2tone, "label") <- "2-tone (Value affirmation & Self efficacy)"
+attr(panel_2tone, "fill") <- "steelblue"
+```
+
+```{r}
+# Compared with uniform variability and the best case
+compare_methods(top = panel_uniform, mid = panel_2tone, bot = panel_best)
+```
+
+This method moves mean helpfulness closer to the best-case distribution,
+with a slight spike in the left-hand tail. Some users will have had their
+highest-rated tone removed with this method, however the majority of users did
+not rate those tones highly and are benefiting as a result.
+
+```{R}
+#| label: Disadvantaged by 2-tone
+# How many users disadvantaged by 2tone
+```
+
+## 3-Tone Variability (Value Affirmation, Self-Efficacy, Legitimizing)
+
+This method adds the 3rd highest rated tone on average, introducing a bit more
+variability at the potential cost of immediate message helpfulness.
+Performance for this method will be estimated by averaging user
+ratings across all 3 tones.
+
+```{r}
+#| label: 3-Tone Variability (VA, SE, LE)
+# This code chunk will calculate the average message rating
+# for each user across the "value affirmation", "self efficacy" and 
+# 'legitimizing' tones combined.
+# Then, a df 'panel_3tone' will be created, that contains a single column with
+# the mean message rating for each individual user across the combination of
+# those 3 tones.
+
+panel_3tone <- panel_long |>
+  filter(tone %in% c("value_affirmation", "self_efficacy", "legitimizing")) |>
+  summarise(three_tone_rating = mean(rating_num, na.rm = TRUE), .by = subid)
+attr(panel_3tone, "label") <- "3-tone (Value affirmation, Self efficacy & Legitimizing)"
+attr(panel_3tone, "fill") <- "mediumpurple"
+```
+
+```{r}
+# Compared with uniform variability and the best case
+compare_methods(top = panel_uniform, mid = panel_2tone, bot = panel_3tone)
+```
+
+As expected, the 3-tone method moves us slightly back away from the best-case
+distribution, however we have flattened the left-hand tail in comparison to
+the 2-tone distribution. Less users are disadvantaged this way, and the impact
+on mean helpfulness is marginal.
+
+It should be noted that both of these simple exclusion methods remain very
+similar to uniform variability with only small improvements in mean helpfulness.
+
+# Method Summary
+
+Each method is scored on its mean helpfulness (and the SD across respondents) and on two exposure metrics that describe how often respondents actually see their best and worst tones. Style is ignored: each respondent's tone ratings are averaged across formal and informal messages. Kept tones are shown in equal proportion unless the method specifies weights.
+
+- **weighted_opt:** the average proportion of a respondent's messages written in their highest-rated tone(s). If tones are tied for highest, messages in any of them count. For example, with the 30/30/20/10/10 weighting, someone whose top tone is Self efficacy has a weighted_opt of .30.
+- **weighted_dis:** the average proportion of messages written in the respondent's lowest-rated tone(s), with the same tie rule.
+
+Respondents tied across all five tones have every tone as both highest and lowest, so they contribute 1 to both metrics. Uniform variability uses every tone, the mean-only method uses only the sample's highest-rated tone, and the best-case and worst-case benchmarks use only each respondent's own highest- or lowest-rated tone. Add a row for any new method with `track_method()`.
+
+```{r}
+#| label: Method Tracker
+kept_best <- tone_means |>
+  slice_max(rating, n = 1, by = subid, with_ties = FALSE) |>
+  select(subid, tone)
+
+kept_worst <- tone_means |>
+  slice_min(rating, n = 1, by = subid, with_ties = FALSE) |>
+  select(subid, tone)
+
+method_tracker <- NULL |>
+  track_method(panel_worst, kept_worst) |>
+  track_method(panel_uniform, tone_levels) |>
+  track_method(panel_mean, best_tone) |>
+  track_method(panel_2tone, c("value_affirmation", "self_efficacy")) |>
+  track_method(panel_3tone, c("value_affirmation", "self_efficacy", "legitimizing")) |>
+  track_method(panel_best, kept_best)
+
+method_tracker
+```
+
+# Weighted Variability (Primary and Secondary Tones)
+
+Up until now, our methods with variability have been evaluated under an
+assumption that tones will be used in equal proportion to one another. This 
+section considers alternate versions of these methods where users can have a
+rank order that leads a user to see certain retained tones more often than
+others. This demonstration with the weighted version of the uniform variability
+method will help to explain:
+
+## Uniform Weighted (30/30/20/10/10)
+
+```{r}
+# This chunk will create a new object 'panel_uniform_weighted' that takes the
+# weighted average of a users message ratings according to this formula:
+# .30(self efficacy) + .30(value affirmation) + .20(legitimizing) + .10(norms)
+# + .10(acknowledging)
+
+tone_weights <- c(self_efficacy = .30, value_affirmation = .30, legitimizing = .20,
+                  norms = .10, acknowledging = .10)
+stopifnot(all.equal(sum(tone_weights), 1),
+          setequal(names(tone_weights), tone_levels))
+
+# Weighted mean of each respondent's tone-level ratings (weights rescaled by the
+# weights actually present, in case a tone rating is missing)
+panel_uniform_weighted <- tone_means |>
+  mutate(weight = tone_weights[tone]) |>
+  summarise(weighted_rating = sum(weight * rating) / sum(weight), .by = subid)
+attr(panel_uniform_weighted, "label") <- "Weighted variability (30/30/20/10/10)"
+attr(panel_uniform_weighted, "fill") <- "darkcyan"
+
+plot_rating_hist(panel_uniform_weighted, "weighted_rating",
+                 "Weighted variability: primary and secondary tones weighted by rank",
+                 fill = "darkcyan")
+
+# Compared with equal-proportion uniform variability and the best case
+compare_methods(top = panel_uniform, mid = panel_uniform_weighted, bot = panel_best)
+```
+
+## 3-Tone Weighted (40/40/20)
+
+The 3-tone method with its tones shown unequally: Self efficacy and Value
+affirmation (the two highest-rated tones) each make up 40% of messages, and
+Legitimizing makes up 20%.
+
+```{r}
+#| label: 3-Tone Weighted
+tone_weights_3 <- c(self_efficacy = .40, value_affirmation = .40, legitimizing = .20)
+stopifnot(all.equal(sum(tone_weights_3), 1))
+
+panel_3tone_weighted <- tone_means |>
+  filter(tone %in% names(tone_weights_3)) |>
+  mutate(weight = tone_weights_3[tone]) |>
+  summarise(weighted_3tone_rating = sum(weight * rating) / sum(weight), .by = subid)
+attr(panel_3tone_weighted, "label") <- "3-tone weighted (40/40/20)"
+attr(panel_3tone_weighted, "fill") <- "slateblue"
+
+plot_rating_hist(panel_3tone_weighted, "weighted_3tone_rating",
+                 "3-tone weighted: Self efficacy 40%, Value affirmation 40%, Legitimizing 20%",
+                 fill = "slateblue")
+
+# Compared with the equal-proportion 3-tone method and the best case
+compare_methods(top = panel_3tone, mid = panel_3tone_weighted, bot = panel_best)
+```
+
+```{r}
+#| label: Weighted Method Tracker
+method_tracker <- method_tracker |>
+  track_method(panel_uniform_weighted, weights = tone_weights) |>
+  track_method(panel_3tone_weighted, weights = tone_weights_3)
+
+method_tracker
+```
+
+# Individualized 
+
