@@ -389,10 +389,9 @@ format_eda <- function (d){
         pref_formality == "strongly_prefer_informal"   ~ 1,
         pref_formality == "moderately_prefer_informal" ~ 2,
         pref_formality == "slightly_prefer_informal"   ~ 3,
-        pref_formality == "neutral"                    ~ 4,
-        pref_formality == "slightly_prefer_formal"     ~ 5,
-        pref_formality == "moderately_prefer_formal"   ~ 6,
-        pref_formality == "strongly_prefer_formal"     ~ 7),
+        pref_formality == "slightly_prefer_formal"     ~ 4,
+        pref_formality == "moderately_prefer_formal"   ~ 5,
+        pref_formality == "strongly_prefer_formal"     ~ 6),
       
       # Numericize income scale
       dem_income_num = case_when(
@@ -423,8 +422,171 @@ format_eda <- function (d){
     
     # Drop columns not used for modelling
     select(subid, contains("pref_"), contains("dem_"),
-           -contains("race"), -dem_marital_status, -dem_minority,
+           -contains("race"), -dem_marital_status,
            -dem_identity, -dem_n_household, -dem_student, contains("_hi_"),
            contains("_hd_"), contains("_li_"), -contains("timing"))
 }
 
+
+
+# Change in mean message rating from a reference tone to every other tone,
+# among respondents whose highest-rated tone (ties included) is the reference.
+# `extremes` has subid and list column rating_top; `ratings` has subid, tone, rating.
+# Respondents who rated all five tones identically are excluded.
+plot_change_from_top <- function(ref_tone, extremes, ratings, colors) {
+  ref_label <- str_replace(ref_tone, "_", " ")
+
+  ids <- extremes |>
+    filter(map_lgl(rating_top, \(x) ref_tone %in% x), lengths(rating_top) < 5) |>
+    pull(subid)
+
+  changes <- ratings |>
+    filter(subid %in% ids, !is.na(rating)) |>
+    mutate(change = rating - rating[tone == ref_tone], .by = subid) |>
+    filter(tone != ref_tone) |>
+    mutate(tone = fct_reorder(as.character(tone), change, mean))
+
+  tests <- changes |>
+    summarise(
+      mean_change = mean(change),
+      p = tryCatch(wilcox.test(change, mu = 0, exact = FALSE)$p.value,
+                   error = \(e) NA_real_),
+      .by = tone) |>
+    mutate(p_adj = p.adjust(p, method = "holm"),
+           label = if_else(p_adj < .001, "p < .001",
+                           paste0("p = ", sub("^0", "", sprintf("%.3f", p_adj)))))
+
+  plot <- changes |>
+    ggplot(aes(x = tone, y = change, fill = tone)) +
+    geom_hline(yintercept = 0, linetype = "dashed") +
+    geom_boxplot(show.legend = FALSE) +
+    geom_text(data = tests, aes(x = tone, y = Inf, label = label),
+              vjust = 1.5, inherit.aes = FALSE) +
+    stat_summary(fun = mean, geom = "point", shape = 23, size = 2, fill = "white") +
+    stat_summary(fun = mean, geom = "text",
+                 aes(label = round(after_stat(y), 2)), vjust = -1) +
+    scale_fill_manual(values = colors) +
+    scale_x_discrete(labels = \(x) str_to_sentence(str_replace(x, "_", " "))) +
+    labs(x = "Tone", y = paste("Change in mean rating vs.", ref_label),
+         subtitle = paste0("Respondents with ", ref_label, " rated highest (n = ",
+                           length(ids), "); p-values: Wilcoxon signed-rank vs. 0, Holm-adjusted"))
+
+  list(plot = plot, tests = tests, n = length(ids))
+}
+
+# Distribution of mean message ratings across all tones, among respondents whose
+# highest-rated tone on the preferences survey (ties included) is `top_tone`.
+# `panel` has subid, the list column pref_top, and the logical pref_straightline;
+# `ratings` has subid, tone, rating. Straightliners are excluded.
+plot_ratings_by_pref_top <- function(top_tone, panel, ratings, colors) {
+  top_label <- str_replace(top_tone, "_", " ")
+
+  ids <- panel |>
+    filter(map_lgl(pref_top, \(x) top_tone %in% x), !pref_straightline) |>
+    pull(subid)
+
+  plot <- ratings |>
+    filter(subid %in% ids, !is.na(rating)) |>
+    mutate(tone = fct_reorder(as.character(tone), rating, mean)) |>
+    ggplot(aes(x = tone, y = rating, fill = tone)) +
+    geom_boxplot(show.legend = FALSE) +
+    stat_summary(fun = mean, geom = "point", shape = 23, size = 2, fill = "white") +
+    stat_summary(fun = mean, geom = "text",
+                 aes(label = round(after_stat(y), 2)), vjust = -1) +
+    scale_fill_manual(values = colors) +
+    scale_x_discrete(labels = \(x) str_to_sentence(str_replace(x, "_", " "))) +
+    scale_y_continuous(limits = c(1, 7), breaks = 1:7) +
+    labs(x = "Tone", y = "Mean Message Rating",
+         subtitle = paste0("Respondents with ", top_label,
+                           " rated highest on preferences (n = ", length(ids),
+                           "; straightliners excluded)"))
+
+  list(plot = plot, n = length(ids))
+}
+
+# Among respondents whose highest-preferred tone (ties included) is `top_tone`,
+# plot each respondent's change in message rating from `top_tone` to every other
+# tone. Changes are positive when a tone was rated higher than the preferred tone.
+# Same inputs as plot_ratings_by_pref_top(); straightliners are excluded.
+plot_change_from_pref_top <- function(top_tone, panel, ratings, colors) {
+  top_label <- str_replace(top_tone, "_", " ")
+
+  ids <- panel |>
+    filter(map_lgl(pref_top, \(x) top_tone %in% x), !pref_straightline) |>
+    pull(subid)
+
+  changes <- ratings |>
+    filter(subid %in% ids, !is.na(rating)) |>
+    mutate(tone = as.character(tone),
+           change = rating - rating[tone == top_tone], .by = subid) |>
+    filter(tone != top_tone) |>
+    mutate(tone = fct_reorder(tone, change, mean))
+
+  tests <- changes |>
+    summarise(
+      mean_change = mean(change),
+      p = tryCatch(wilcox.test(change, mu = 0, exact = FALSE)$p.value,
+                   error = \(e) NA_real_),
+      .by = tone) |>
+    mutate(p_adj = p.adjust(p, method = "holm"),
+           label = if_else(p_adj < .001, "p < .001",
+                           paste0("p = ", sub("^0", "", sprintf("%.3f", p_adj)))))
+
+  plot <- changes |>
+    ggplot(aes(x = tone, y = change, fill = tone)) +
+    geom_hline(yintercept = 0, linetype = "dashed") +
+    geom_boxplot(show.legend = FALSE) +
+    geom_text(data = tests, aes(x = tone, y = Inf, label = label),
+              vjust = 1.5, inherit.aes = FALSE) +
+    stat_summary(fun = mean, geom = "point", shape = 23, size = 2, fill = "white") +
+    stat_summary(fun = mean, geom = "text",
+                 aes(label = round(after_stat(y), 2)), vjust = -1) +
+    scale_fill_manual(values = colors) +
+    scale_x_discrete(labels = \(x) str_to_sentence(str_replace(x, "_", " "))) +
+    labs(x = "Tone", y = paste("Change in mean rating vs.", top_label),
+         subtitle = paste0("Respondents with ", top_label, " preferred (n = ", length(ids),
+                           "; straightliners excluded); p-values: Wilcoxon signed-rank vs. 0, Holm-adjusted"))
+
+  list(plot = plot, tests = tests, n = length(ids))
+}
+
+# Compare a logical grouping column against a set of columns: Welch t-test and
+# Cohen's d for numeric columns, chi-square (Fisher's exact when any expected
+# count is below 5) and Cramer's V for the rest. p-values are also adjusted
+# across all columns with Benjamini-Hochberg.
+compare_groups <- function(data, group, cols) {
+  group <- rlang::as_name(rlang::ensym(group))
+
+  map(cols, \(v) {
+    d <- data |>
+      select(g = all_of(group), x = all_of(v)) |>
+      drop_na()
+    if (n_distinct(d$x) < 2 || n_distinct(d$g) < 2) return(NULL)
+
+    if (is.numeric(d$x)) {
+      x1 <- d$x[d$g]
+      x0 <- d$x[!d$g]
+      pooled_sd <- sqrt(((length(x1) - 1) * var(x1) + (length(x0) - 1) * var(x0)) /
+                          (length(x1) + length(x0) - 2))
+      tibble(variable = v, type = "numeric", n = nrow(d), test = "Welch t-test",
+             group = sprintf("%.2f", mean(x1)), rest = sprintf("%.2f", mean(x0)),
+             effect = (mean(x1) - mean(x0)) / pooled_sd,
+             p = t.test(x1, x0)$p.value)
+    } else {
+      tab <- table(d$x, d$g)
+      chi <- suppressWarnings(chisq.test(tab, correct = FALSE))
+      small <- any(chi$expected < 5)
+      tibble(variable = v, type = "categorical", n = nrow(d),
+             test = if (small) "Fisher's exact" else "Chi-square",
+             group = "", rest = "",
+             effect = sqrt(unname(chi$statistic) / (sum(tab) * (min(dim(tab)) - 1))),
+             p = if (small) {
+               tryCatch(fisher.test(tab)$p.value,
+                        error = \(e) fisher.test(tab, simulate.p.value = TRUE, B = 1e4)$p.value)
+             } else chi$p.value)
+    }
+  }) |>
+    list_rbind() |>
+    mutate(p_adj = p.adjust(p, method = "BH")) |>
+    arrange(p)
+}
