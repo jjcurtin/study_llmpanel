@@ -353,7 +353,10 @@ review_features <- function(feat) {
 count_predictors <- \(r)
 r |> prep() |> bake(new_data = NULL) |> select(-subid, -message_rating) |> ncol()
 
-format_eda <- function (d){
+# Format the wide panel. With long = TRUE, return one row per message rating instead:
+# the demographic and preference columns plus survey_version, context, style, tone,
+# message_rating (text), and rating_num (1-7).
+format_eda <- function (d, long = FALSE){
   
   likert_cols <- c(
     "pref_legitimizing",
@@ -425,6 +428,41 @@ format_eda <- function (d){
            -contains("race"), -dem_marital_status,
            -dem_identity, -dem_n_household, -dem_student, contains("_hi_"),
            contains("_hd_"), contains("_li_"), -contains("timing"))
+
+  if (!long) return(d)
+
+  rating_levels <- c("strongly_disagree", "disagree", "somewhat_disagree", "neutral",
+                     "somewhat_agree", "agree", "strongly_agree")
+
+  # Pivot the 120 message-rating columns to one row per message rating
+  d |>
+    select(subid, starts_with("dem_"), all_of(c(likert_cols, "pref_formality")),
+           matches("^x[0-9]+_(hi|hd|li)_[0-9]+_"),
+           -contains("timing"), -contains("attention")) |>
+    pivot_longer(
+      cols = matches("^x[0-9]+_(hi|hd|li)_[0-9]+_"),
+      values_to = "message_rating",
+      names_to = "message_type") |>
+    separate(message_type,
+             sep = "_", into = c(
+               "survey_version", "context", "q_num", "tone_style"),
+             extra = "drop") |>
+    mutate(
+      style = if_else(substr(tone_style, 1, 1) == "f", "formal", "informal"),
+      tone = case_when(
+        substr(tone_style, 2, 2) == "l" ~ "legitimizing",
+        substr(tone_style, 2, 2) == "n" ~ "norms",
+        substr(tone_style, 2, 2) == "s" ~ "self_efficacy",
+        substr(tone_style, 2, 2) == "a" ~ "acknowledging",
+        substr(tone_style, 2, 2) == "v" ~ "value_affirmation"),
+      context = case_when(
+        context == "hi" ~ "high_increasing",
+        context == "hd" ~ "high_decreasing",
+        context == "li" ~ "low_increasing")) |>
+    select(-q_num, -tone_style) |>
+    filter(!is.na(message_rating),
+           str_trim(message_rating) != "") |>
+    mutate(rating_num = as.numeric(factor(message_rating, levels = rating_levels)))
 }
 
 
@@ -589,4 +627,189 @@ compare_groups <- function(data, group, cols) {
     list_rbind() |>
     mutate(p_adj = p.adjust(p, method = "BH")) |>
     arrange(p)
+}
+
+# ---------------------------------------------------------------------------
+# Tone assignment methods (used by scripts/tone_assignment_methods.qmd)
+# Requires tidyverse to be loaded. `tone_means` is a data frame of each
+# respondent's mean rating per tone (subid, tone, rating).
+# ---------------------------------------------------------------------------
+
+# Histogram of respondent-level mean ratings with the mean and SD marked
+plot_rating_hist <- function(data, col, title, fill = "steelblue") {
+  x <- data[[col]]
+  m <- mean(x, na.rm = TRUE)
+  s <- sd(x, na.rm = TRUE)
+
+  ggplot(data, aes(x = .data[[col]])) +
+    annotate("rect", xmin = m - s, xmax = m + s, ymin = -Inf, ymax = Inf,
+             fill = "firebrick", alpha = 0.12) +
+    geom_histogram(binwidth = 0.25, boundary = 1, fill = fill, color = "white") +
+    geom_vline(xintercept = m, color = "firebrick", linewidth = 0.8) +
+    annotate("text", x = 0.8, y = Inf, hjust = 0, vjust = 1.5,
+             label = paste0("Mean = ", round(m, 2), "\nSD = ", round(s, 2))) +
+    scale_x_continuous(breaks = 1:7) +
+    scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
+    coord_cartesian(xlim = c(0.75, 7.25)) +
+    labs(x = "Mean message rating", y = "Respondents", title = title,
+         subtitle = paste0("n = ", sum(!is.na(x)), "; shaded band = mean ± 1 SD"))
+}
+
+# Each respondent's highest- (fn = max) or lowest-rated (fn = min) tone(s) and their
+# rating, with every tied tone in its own column: <tone_prefix>_1 ... <tone_prefix>_<n_max>
+# (NA where a respondent has fewer tied tones). Stops if any tie is larger than n_max.
+extreme_tones_wide <- function(ratings, fn, rating_name, tone_prefix, n_max = 4) {
+  tied <- ratings |>
+    filter(near(rating, fn(rating)), .by = subid) |>
+    mutate(k = row_number(), .by = subid)
+  if (max(tied$k) > n_max) {
+    stop("A respondent has more than ", n_max, " tied tones; increase `n_max`.")
+  }
+
+  rating_tbl <- tied |> summarise(rating = first(rating), .by = subid)
+  names(rating_tbl)[2] <- rating_name
+
+  tone_tbl <- tied |>
+    select(subid, k, tone) |>
+    complete(subid, k = seq_len(n_max)) |>
+    pivot_wider(names_from = k, values_from = tone, names_prefix = paste0(tone_prefix, "_"))
+
+  left_join(rating_tbl, tone_tbl, by = "subid")
+}
+
+# Long format (subid, tone) of the tied tones stored in <tone_prefix>_* columns
+tied_tones_long <- function(data, tone_prefix) {
+  data |>
+    select(subid, starts_with(paste0(tone_prefix, "_"))) |>
+    pivot_longer(-subid, values_to = "tone") |>
+    drop_na(tone) |>
+    select(subid, tone)
+}
+
+# Add a row for one method to a tracking tibble (replacing any row with the same name).
+#   tracker: existing tracking tibble (NULL to start a new one)
+#   method:  data frame with subid and one rating column (as for compare_methods())
+#   kept:    tones the method uses. A character vector (same tones for every respondent)
+#            or a data frame with subid and tone (tones used per respondent).
+#            Kept tones are shown in equal proportion unless `weights` is given.
+#   weights: optional named numeric vector of how often each tone is shown (rescaled to
+#            sum to 1). Tones with weight 0 are not used. Use instead of `kept`.
+#   name:    row label (default: the data frame's "label" attribute)
+#   tone_ratings: data frame with subid, tone, rating (each respondent's mean
+#            rating per tone). Defaults to `tone_means`, as built in the calling script.
+# Reported columns:
+#   mean, sd:       respondent-level mean helpfulness and its SD
+#   weighted_opt:   average share of a respondent's messages written in their
+#                   highest-rated tone(s) (all tied tones count)
+#   weighted_dis:   average share of a respondent's messages written in their
+#                   lowest-rated tone(s) (all tied tones count)
+track_method <- function(tracker, method, kept = NULL, name = NULL, weights = NULL,
+                         tone_ratings = tone_means) {
+  name <- name %||% attr(method, "label") %||% deparse(substitute(method))
+  col <- setdiff(names(method)[map_lgl(method, is.numeric)], "subid")
+  if (length(col) != 1) stop("`method` must have exactly one numeric rating column besides `subid`.")
+  if (is.null(kept) && is.null(weights)) stop("Supply `kept` or `weights`.")
+
+  # How often each respondent sees each kept tone
+  exposure_long <- if (!is.null(weights)) {
+    expand_grid(subid = method$subid,
+                tibble(tone = names(weights), weight = unname(weights))) |>
+      filter(weight > 0)
+  } else {
+    kept_long <- if (is.data.frame(kept)) kept else expand_grid(subid = method$subid, tone = kept)
+    mutate(kept_long, weight = 1)
+  }
+  exposure <- exposure_long |>
+    mutate(weight = weight / sum(weight), .by = subid) |>
+    summarise(kept = list(tone), weight = list(weight), .by = subid)
+
+  respondents <- tone_ratings |>
+    summarise(top = list(tone[near(rating, max(rating))]),
+              bottom = list(tone[near(rating, min(rating))]),
+              .by = subid) |>
+    inner_join(exposure, by = "subid") |>
+    filter(subid %in% method$subid) |>
+    mutate(weighted_opt = pmap_dbl(list(top, kept, weight), \(t, k, w) sum(w[k %in% t])),
+           weighted_dis = pmap_dbl(list(bottom, kept, weight), \(b, k, w) sum(w[k %in% b])))
+
+  ratings <- method[[col]]
+  row <- tibble(
+    method = name,
+    mean = mean(ratings),
+    sd = sd(ratings),
+    weighted_opt = mean(respondents$weighted_opt),
+    weighted_dis = mean(respondents$weighted_dis))
+
+  if (is.null(tracker)) return(row)
+  bind_rows(filter(tracker, method != name), row)
+}
+
+# Stack the distributions of up to 3 methods vertically on the same scale.
+#   top, mid, bot: data frames with subid and one rating column, in stacking order.
+#                  Leave any blank and the remaining two are stacked, e.g.
+#                  compare_methods(top = panel_worst, bot = panel_best)
+#                  compare_methods(top = panel_uniform, mid = panel_2tone, bot = panel_best)
+# Each data frame's "label" and "fill" attributes set its facet label and color;
+# otherwise the label comes from the object name ("panel_mean" -> "Mean") and the
+# fill is steelblue. The subtitle gives each panel's mean paired difference from
+# the bottom panel.
+compare_methods <- function(top = NULL, mid = NULL, bot = NULL) {
+  nm <- c(top = deparse(substitute(top)),
+          mid = deparse(substitute(mid)),
+          bot = deparse(substitute(bot)))
+  panels <- compact(list(top = top, mid = mid, bot = bot))
+  if (length(panels) < 2) stop("Supply at least two of `top`, `mid`, and `bot`.")
+
+  info <- imap(panels, \(df, pos) {
+    col <- setdiff(names(df)[map_lgl(df, is.numeric)], "subid")
+    if (length(col) != 1) {
+      stop("`", pos, "` must have exactly one numeric rating column besides `subid`.")
+    }
+    list(
+      data = df |> transmute(subid, rating = .data[[col]]),
+      label = attr(df, "label") %||%
+        (nm[[pos]] |> str_remove("^panel_") |> str_replace_all("_", " ") |> str_to_sentence()),
+      fill = attr(df, "fill") %||% "steelblue")
+  })
+
+  labels <- map_chr(info, "label")
+  if (anyDuplicated(labels)) stop("Each stacked method needs a distinct label.")
+  fills <- setNames(map_chr(info, "fill"), labels)
+
+  cases <- imap(info, \(x, pos) mutate(x$data, case = x$label)) |>
+    list_rbind() |>
+    mutate(case = factor(case, levels = labels))
+
+  stats <- cases |>
+    summarise(mean = mean(rating), sd = sd(rating), .by = case) |>
+    mutate(label = paste0("Mean = ", round(mean, 2), "
+SD = ", round(sd, 2)))
+
+  ref <- info[[length(info)]]
+  gaps <- info[-length(info)] |>
+    map_dbl(\(x) {
+      j <- inner_join(x$data, ref$data, by = "subid", suffix = c(".x", ".ref"))
+      mean(j$rating.x - j$rating.ref)
+    })
+  gap_text <- paste0(labels[-length(labels)], " ", sprintf("%+.2f", gaps), collapse = "; ")
+
+  cases |>
+    ggplot(aes(x = rating, fill = case)) +
+    geom_rect(data = stats, inherit.aes = FALSE,
+              aes(xmin = mean - sd, xmax = mean + sd, ymin = -Inf, ymax = Inf),
+              fill = "firebrick", alpha = 0.12) +
+    geom_histogram(binwidth = 0.25, boundary = 1, color = "white", show.legend = FALSE) +
+    geom_vline(data = stats, aes(xintercept = mean),
+               color = "firebrick", linewidth = 0.8) +
+    geom_text(data = stats, inherit.aes = FALSE,
+              aes(label = label), x = 0.8, y = Inf, hjust = 0, vjust = 1.3) +
+    facet_grid(rows = vars(case)) +
+    scale_fill_manual(values = fills) +
+    scale_x_continuous(breaks = 1:7) +
+    scale_y_continuous(expand = expansion(mult = c(0, 0.15))) +
+    coord_cartesian(xlim = c(0.75, 7.25)) +
+    labs(x = "Mean message rating", y = "Respondents",
+         title = "Mean message rating by assignment method",
+         subtitle = paste0("Mean difference vs. ", ref$label, ": ", gap_text,
+                           "; shaded band = mean ± 1 SD"))
 }
