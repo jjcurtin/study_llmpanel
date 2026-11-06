@@ -1,5 +1,5 @@
 ---
-title: "Report on Alternaitve Tone Assignment Methods"
+title: "Report on Tone Assignment Methods"
 format: 
   html:
     page-layout: full
@@ -27,35 +27,80 @@ path_processed <- format_path("llmpanel/data_processed")
 
 # Read in and format the panel in long format (one row per message rating)
 panel_long <- format_eda(read_csv(
-  here::here(path_processed, "panel.csv"), show_col_types = FALSE), long = TRUE)
+  here::here(path_processed, "panel.csv"),
+  show_col_types = FALSE), long = TRUE)
 
 # Constants used below
-tone_levels <- c("norms", "acknowledging", "legitimizing", "self_efficacy", "value_affirmation")
+tone_levels <- c("norms", "acknowledging", "legitimizing",
+                 "self_efficacy", "value_affirmation")
 
-# Each respondent's mean rating for each of the 5 tones. Style is ignored: ratings
-# are averaged across formal and informal messages (6 messages per tone).
+# Each respondent's mean rating for each of the 5 tones, ignoring style.
+# (Ratings are averaged across formal and informal messages)
 tone_means <- panel_long |>
   summarise(rating = mean(rating_num, na.rm = TRUE), .by = c(subid, tone))
-
 ```
 
 # Introduction
 
-This script will detail various tone assignment methods in competition with each other as the most optimal strategy for personalizing support messages. The differentiation between these methods relies on a unique balance of two factors:
+This script will detail various tone assignment methods in competition with
+each other as the most optimal strategy for personalizing support messages.
+The differentiation between these methods relies on a unique balance of
+two factors:
 
-- Maximizing message helpfulness (user ratings). Our leading principle is an assumption that increases in self-reported helpfulness may translate to improved efficacy of support messages. The 'mean-only' method, for instance, would assign the singular tone that was rated highest on average across the whole sample to each participant indiscriminately.
+- Maximizing message helpfulness. Our leading principle is an
+assumption that increases in self-reported helpfulness may translate to
+improved efficacy of support messages. The 'mean-only' method, for instance,
+would assign the singular tone that was rated highest on average across the
+whole sample to each participant indiscriminately.
 
-- Retaining variability in tone. Users who receive support messages on a daily schedule may develop fatigue if they encounter the same tone repeatedly. If we alternate higher-rated and lower-rated tones in-vivo, this may help to prevent any specific tone from losing efficacy over time. Methods in this script will range from maximum to minimum amounts of variability, which can be viewed as a trade-off with mean message helpfulness.
+-- We also have two unique performance metrics that expand from message
+   helpfulness and provide additional insight into how equitable each
+   assignment method is:
+   
+--- Rate of Optimization: For each method, how often would a user receive a
+    message from their highest-rated tone(s)? Averaged across the sample.
+    
+--- Rate of Disadvantage: For each method, how often would a user receive a
+    message from their lowest-rated tone(s)? Averaged across the sample.
+    
+  We can imagine that two methods may have equivalent mean helpfulness, but one
+  will have improved rates of Optimization or Disadvantage that ensure fewer
+  users are on the negative end of a deployed method's bias. 
+  
+  Candidate methods will follow a checklist: Satisfying mean helpfulness within
+  an acceptable range, minimizing disadvantage, then maximizing optimization.
+  The other consideration is:
 
-Our goal is to determine what amount of variability may be required to maintain optimal message efficacy, and at what point may we begin to experience diminishing returns with variability where an increase in consistency with higher-rated tones would be more beneficial.
+- Retaining variability in tone. Users who receive support messages on a daily
+schedule may develop fatigue if they encounter the same tone repeatedly. If we
+alternate higher-rated and lower-rated tones in-vivo, this may help to prevent
+any specific tone from losing efficacy over time. Methods in this script will
+range from maximum to minimum amounts of variability, which can be viewed as a
+trade-off with mean message helpfulness, as well as rates of optimization and
+disadvantage.
+
+Our goal is to determine what amount of variability may be required to
+maintain optimal message efficacy, and at what point may we begin to experience
+diminishing returns with variability where an increase in consistency with
+higher-rated tones would be more beneficial.
 
 ## A Note on Style
 
-Style (formal vs. informal) is ignored throughout this script. Tone effects did not meaningfully depend on style (the tone-by-style interaction was very small, and individuals showed no differences in their tone-by-style pattern), so every tone is evaluated using each respondent's ratings of that tone averaged across formal and informal messages. Because formal messages were rated about 0.13 points lower on average, absolute helpfulness here is slightly pessimistic relative to informal-only delivery, and methods that choose each respondent's tones from their own ratings are optimistic. Both shifts affect all methods similarly, so the comparisons between methods are the focus.
+Style (formal vs. informal) is ignored throughout this script. Tone effects did
+not meaningfully depend on style (the tone-by-style interaction was very small,
+and individuals showed no differences in their tone-by-style pattern), so every
+tone is evaluated using each respondent's ratings of that tone averaged across
+formal and informal messages. Because formal messages were rated about 0.13
+points lower on average, absolute helpfulness here is slightly pessimistic
+relative to informal-only delivery. Both shifts affect all methods
+similarly, so the comparison between methods is the focus.
 
 # Benchmarking
 
-No tone received 'perfect' 7/7 ratings from every single participant, which means that we have a natural limit to how far we can improve message helpfulness through any method. Let's look at our best and worst case scenarios in terms of message helpfulness:
+No tone received 'perfect' 7/7 ratings from every single participant, which
+means that we have a natural limit to how far we can improve message helpfulness
+through any method. Let's look at our best and worst case scenarios in terms of
+message helpfulness:
 
 ## Worst-Case Method (Every user gets their lowest-rated tone only)
 ```{r}
@@ -73,19 +118,15 @@ attr(panel_worst, "fill") <- "firebrick"
 plot_rating_hist(panel_worst, "worst_rating",
                  "Worst-case: each respondent's lowest-rated tone",
                  fill = "firebrick")
-
-# How often each tone was lowest-rated (a tone is counted once for every respondent it is tied for lowest)
-panel_worst |> tied_tones_long("worst_tone") |> count(tone, sort = TRUE)
 ```
 
 ## Best-Case Method (Every user gets their highest-rated tone only)
 ```{r}
 #| label: Best-Case Method
-# This code takes the panel data and identifies for each user whichever tone(s)
-# has the highest mean rating (averaged across the 6 messages written in that
-# tone, formal and informal).
+# This code takes the panel data and identifies for each
+# user the tone(s) with the highest mean rating.
 
-# Tied tones are kept in best_tone_1 ... best_tone_4 (NA when there is no tie that large).
+# Tied tones are kept in best_tone_1 ... best_tone_4
 panel_best <- extreme_tones_wide(tone_means, max, "best_rating", "best_tone")
 attr(panel_best, "label") <- "Best case"
 attr(panel_best, "fill") <- "forestgreen"
@@ -93,47 +134,12 @@ attr(panel_best, "fill") <- "forestgreen"
 plot_rating_hist(panel_best, "best_rating",
                  "Best-case: each respondent's highest-rated tone",
                  fill = "forestgreen")
-
-# How often each tone was highest-rated (a tone is counted once for every respondent it is tied for highest)
-panel_best |> tied_tones_long("best_tone") |> count(tone, sort = TRUE)
 ```
 
-```{r}
-#| label: Tied Highest and Lowest Tones
-# Respondents with 2 or more tones tied for highest (or lowest) mean rating.
-# A tie across all 5 tones means the respondent rated every tone identically.
-tie_counts <- tone_means |>
-  summarise(n_tied_top = sum(near(rating, max(rating))),
-            n_tied_bottom = sum(near(rating, min(rating))),
-            .by = subid)
-
-# Size of the tie among highest-rated tones (1 = no tie, 2 = two-way tie, ...)
-tie_counts |> count(n_tied_top, name = "respondents")
-
-# Size of the tie among lowest-rated tones
-tie_counts |> count(n_tied_bottom, name = "respondents")
-
-# Both side by side, labeled by tie type
-tie_counts |>
-  pivot_longer(c(n_tied_top, n_tied_bottom), names_to = "end", values_to = "tied_tones") |>
-  mutate(end = if_else(end == "n_tied_top", "Highest", "Lowest")) |>
-  count(end, tied_tones, name = "respondents") |>
-  mutate(tie = case_match(tied_tones, 1 ~ "No tie", 2 ~ "2-way tie", 3 ~ "3-way tie",
-                          4 ~ "4-way tie", 5 ~ "5-way tie (all tones)"),
-         pct = respondents / n_distinct(tie_counts$subid)) |>
-  select(end, tie, respondents, pct) |>
-  pivot_wider(names_from = end, values_from = c(respondents, pct), values_fill = 0)
-
-tie_counts |>
-  summarise(respondents = n(),
-            tied_top = sum(n_tied_top >= 2),
-            pct_tied_top = mean(n_tied_top >= 2),
-            tied_bottom = sum(n_tied_bottom >= 2),
-            pct_tied_bottom = mean(n_tied_bottom >= 2),
-            tied_all_five = sum(n_tied_top == 5))
-```
-
-To be clear, we are unable to deploy the best-case method in-vivo as we will only have data from the preferences survey and demographics to make tone assignments. This distribution assumes that for our sample, the assignment method ended up producing a perfect result with maximum attainable helpfulness.
+To be clear, we are unable to deploy this best-case method in-vivo as we will
+only have data from the preferences survey and demographics to make tone
+assignments. This distribution assumes that for our sample, the assignment
+method ended up producing a perfect result with maximum attainable helpfulness.
 
 ```{r}
 #| label: Best vs Worst Case
@@ -141,21 +147,29 @@ To be clear, we are unable to deploy the best-case method in-vivo as we will onl
 compare_methods(top = panel_worst, bot = panel_best)
 ```
 
-Here we can see a substantial difference between our best and worst-case scenarios. Our contender methods for in-vivo assignment will attempt be produce results that are comparable to the best-case distribution while retaining some reasonable amount of variability.
+Here we can see a substantial difference between our best and worst-case
+scenarios, suggesting further that tone really does matter. Our contender
+methods for in-vivo assignment will attempt be produce results that are
+comparable to the best-case distribution while retaining some reasonable amount
+of variability.
 
 # Baseline Methods
 
 ## Uniform Variability (All Tones)
 
-On the maximum variability end, our default method would be to use all tones in equal proportion. There are two primary justifications for this approach:
+On the maximum variability end, our default method would be to use all tones in
+equal proportion. There are two primary justifications for this approach:
 
-- We run the lowest risk of any particular tone losing efficacy across time if all tones are used equally often.
+- We run the lowest risk of any particular tone losing efficacy over time if
+all tones are used equally often.
 
-- If we are unsure about which tones may be better than others for a particular user, we ought not reduce or eliminate the presence of any particular tone.
+- If we are unsure about which tones may be better than others for a particular
+user, we ought not reduce or eliminate the presence of any particular tone.
 
 ```{r}
 #| label: Uniform Variability
-# This code chunk will create a histogram that shows the distribution of each respondent's mean message rating across all tones (ignoring style).
+# This code chunk will create a histogram that shows the distribution of each
+# respondent's mean message rating across all tones (ignoring style).
 
 panel_uniform <- tone_means |>
   summarise(uniform_rating = mean(rating), .by = subid)
@@ -166,20 +180,17 @@ plot_rating_hist(panel_uniform, "uniform_rating",
                  "Uniform variability: each respondent's mean across all tones")
 ```
 
-```{r}
-# Compared with the best and worst-case
-compare_methods(top = panel_worst, mid = panel_uniform, bot = panel_best)
-```
-
-Uniform variability sits pretty square in the middle between our best and worst-case assignments. This is a plausible method, especially if we lacked preferences data from a user, but we may be able to meaningfully improve helpfulness and still retain a reasonable amount of variability. Such as approach with retain most of the benefit from this method while theoretically improving outcomes further.
-
 ## Mean-Only Assignment
 
-On the no-variability end, our default method would be to use the single tone that was rated highest on average across the whole sample. In-vivo, this means that every user would receive the exact same tone regardless of their self-reported preferences.
+On the no-variability end, our default method would be to use the single tone
+that was rated highest on average across the whole sample. In-vivo, this means
+that every user would receive the exact same tone regardless of their
+self-reported preferences.
 
 ```{r}
 #| label: Mean-Only Assignment
-# This code chunk will identify the tone that was rated highest on average across the whole sample.
+# This code chunk will identify the tone that was rated highest on average
+# across the whole sample.
 # Then, a df 'panel_mean' will be created, that contains a single column with the mean message rating for each individual user for that same tone.
 #'panel_mean' will be used to create a histogram that includes the mean and standard deviation within the plot.
 
@@ -208,11 +219,12 @@ plot_rating_hist(panel_mean, "mean_only_rating",
 ```
 
 ```{r}
-# Compared with the best case
-compare_methods(top = panel_worst, mid = panel_mean, bot = panel_best)
+# Compare baselines with best-case
+compare_methods(top = panel_uniform, mid = panel_mean, bot = panel_best)
 ```
 
-The mean-only method is more comparable to the best-case distribution, however we still see a substantial left-hand tail. This indicates that some users particularly dislike the mean message format.
+Both baseline methods are already comparable to the best-case method, with the
+uniform variability method theoretically benefitting from 
 
 ```{r}
 #| label: Worst-Case Tone Counts
@@ -226,11 +238,18 @@ worst_tone_counts <- tone_means |>
 worst_tone_counts
 ```
 
-Here we see ~18% of respondents are receiving their worst-case tone with the mean-only method. This is quite problematic if we consider almost 1/5 users being disadvantaged as much as possible. We are also sacrificing all variability with this approach, which raises our concern about helpfulness declining even among those who most preferred the mean format.
+Here we see ~18% of respondents are receiving their worst-case tone with the
+mean-only method. This is quite problematic if we consider almost 1/5 users
+being disadvantaged as much as possible. We are also sacrificing all variability
+with this approach, which raises our concern about helpfulness declining even
+among those who most preferred the mean format.
 
 # Simple Exclusion Methods
 
-Using sample-wide patterns in the data, we can exclude the tones which were generally lower-rated, and least likely to be someones highest-rated. While we sacrifice some variability with each tone being removed, we can hope to still gain many benefits over a single tone assignment method.
+Using sample-wide patterns in the data, we can exclude the tones which were
+generally lower-rated, and least likely to be someones highest-rated. While we
+sacrifice some variability with each tone being removed, we can hope to still
+gain many benefits over a single tone assignment method.
 
 ## 2-Tone Variability (Value Affirmation & Self-Efficacy)
 
@@ -308,7 +327,10 @@ similar to uniform variability with only small improvements in mean helpfulness.
 
 # Method Summary
 
-Each method is scored on its mean helpfulness (and the SD across respondents) and on two exposure metrics that describe how often respondents actually see their best and worst tones. Style is ignored: each respondent's tone ratings are averaged across formal and informal messages. Kept tones are shown in equal proportion unless the method specifies weights.
+Each method is scored on its mean helpfulness (and the SD across respondents)
+and on two exposure metrics that describe how often respondents actually see
+their best and worst tones. Kept tones are shown in equal proportion unless the
+method specifies weights.
 
 - **weighted_opt:** the average proportion of a respondent's messages written in their highest-rated tone(s). If tones are tied for highest, messages in any of them count. For example, with the 30/30/20/10/10 weighting, someone whose top tone is Self efficacy has a weighted_opt of .30.
 - **weighted_dis:** the average proportion of messages written in the respondent's lowest-rated tone(s), with the same tie rule.
@@ -332,7 +354,7 @@ method_tracker <- NULL |>
 method_tracker
 ```
 
-# Weighted Variability (Primary and Secondary Tones)
+# Weighted Methods
 
 Up until now, our methods with variability have been evaluated under an
 assumption that tones will be used in equal proportion to one another. This 
@@ -396,6 +418,42 @@ plot_rating_hist(panel_3tone_weighted, "weighted_3tone_rating",
 compare_methods(top = panel_3tone, mid = panel_3tone_weighted, bot = panel_best)
 ```
 
+### 3-Tone Weighted: Alternative Weight Sets
+
+The same three tones with the primary tones (Self efficacy and Value affirmation,
+weighted equally) given more or less of the messages. Five sets are compared: 35/35/30,
+37.5/37.5/25, 40/40/20 (above), 42.5/42.5/15, and 45/45/10. The third number is
+Legitimizing's share.
+
+```{r}
+#| label: 3-Tone Weighted Sweep
+sweep_weights <- list(
+  "35/35/30" = c(self_efficacy = .35, value_affirmation = .35, legitimizing = .30),
+  "37.5/37.5/25" = c(self_efficacy = .375, value_affirmation = .375, legitimizing = .25),
+  "42.5/42.5/15" = c(self_efficacy = .425, value_affirmation = .425, legitimizing = .15),
+  "45/45/10" = c(self_efficacy = .45, value_affirmation = .45, legitimizing = .10))
+stopifnot(all(map_dbl(sweep_weights, sum) == 1))
+
+panels_3tone_sweep <- imap(sweep_weights, \(w, nm) {
+  weighted_method(
+    expand_grid(subid = unique(tone_means$subid),
+                tibble(tone = names(w), weight = unname(w))),
+    label = paste0("3-tone weighted (", nm, ")"), fill = "slateblue",
+    rating_name = "weighted_3tone_rating")
+})
+
+# From the most even weighting (top) through 40/40/20 (middle) to the most uneven (bottom)
+compare_methods(top = panels_3tone_sweep[["35/35/30"]], mid = panel_3tone_weighted,
+                bot = panels_3tone_sweep[["45/45/10"]])
+
+# Track the new weight sets (40/40/20 is tracked below)
+for (nm in names(sweep_weights)) {
+  w <- sweep_weights[[nm]]
+  method_tracker <- track_method(method_tracker, panels_3tone_sweep[[nm]], weights = w)
+}
+method_tracker
+```
+
 ```{r}
 #| label: Weighted Method Tracker
 method_tracker <- method_tracker |>
@@ -405,5 +463,351 @@ method_tracker <- method_tracker |>
 method_tracker
 ```
 
-# Individualized 
+# Simple Individualized Exclusion
 
+Up until now, we have made generalization about the sample as a whole, with
+each assignment method applying the same tone exclusions universally across
+all participants. Methods in this section will leverage data from the tone
+preferences survey to personalize which tones are excluded.
+
+## Drop Least-Preferred Tone
+
+This method eliminates the least-preferred tone(s) according to the tone
+preferences survey, and assigns the remaining 1-4 tones in equal proportion.
+
+```{r}
+# For each respondent, identify which tone(s) were lowest on the preferences
+# survey, and remove the corresponding message ratings. Average message ratings
+# across the remaining tone(s) and use that for the new 'panel_drop_low' object.
+
+# Each respondent's preference score for each tone (from the preferences survey)
+pref_by_tone <- panel_long |>
+  distinct(subid, pref_legitimizing, pref_norms, pref_value_affirmation,
+           pref_self_efficacy, pref_acknowledging) |>
+  pivot_longer(-subid, names_to = "tone", names_prefix = "pref_", values_to = "pref")
+
+# Tones kept after dropping the lowest-preferred tone(s). All tones tied for lowest
+# are dropped together; a respondent who rated every tone the same keeps all five.
+kept_drop_low <- drop_least_preferred(pref_by_tone, n_drop = 1)
+
+panel_drop_low <- tone_means |>
+  semi_join(kept_drop_low, by = c("subid", "tone")) |>
+  summarise(drop_low_rating = mean(rating), .by = subid)
+attr(panel_drop_low, "label") <- "Drop least-preferred tone"
+attr(panel_drop_low, "fill") <- "indianred"
+
+plot_rating_hist(panel_drop_low, "drop_low_rating",
+                 "Drop least-preferred tone(s): mean rating across remaining tones",
+                 fill = "indianred")
+
+# Tones remaining per respondent
+kept_drop_low |> count(subid) |> count(n, name = "respondents")
+
+# Compared with uniform variability and the best case
+compare_methods(top = panel_uniform, mid = panel_drop_low, bot = panel_best)
+```
+
+## Drop Two Tones
+
+This method eliminates the 2 least-preferred tones according to the tone
+preferences survey, and assigns the remaining tones in equal proportion.
+
+```{r}
+# For each respondent, identify which 2 tones were lowest (5th and 4th place)
+# on the preferences survey, and remove the corresponding message ratings.
+# Average message ratings across the remaining tone(s) and use that for the new
+# 'panel_drop_two' object.
+# If there was a 2-way tie at the bottom, drop only those 2 and keep 3 left
+# If there was a 3-way tie at the bottom, drop those 3 and keep 2 left
+# If there was a 4-way tie at the bottom, keep only the top-preferred tone.
+# (A tie that straddles the cutoff is dropped together, and a respondent who rated
+# every tone the same keeps all five.)
+
+kept_drop_two <- drop_least_preferred(pref_by_tone, n_drop = 2)
+
+panel_drop_two <- tone_means |>
+  semi_join(kept_drop_two, by = c("subid", "tone")) |>
+  summarise(drop_two_rating = mean(rating), .by = subid)
+attr(panel_drop_two, "label") <- "Drop two least-preferred tones"
+attr(panel_drop_two, "fill") <- "goldenrod"
+
+plot_rating_hist(panel_drop_two, "drop_two_rating",
+                 "Drop two least-preferred tones: mean rating across remaining tones",
+                 fill = "goldenrod")
+
+# Tones remaining per respondent
+kept_drop_two |> count(subid) |> count(n, name = "respondents")
+
+# Compared with dropping only the least-preferred tone and the best case
+compare_methods(top = panel_drop_low, mid = panel_drop_two, bot = panel_best)
+```
+
+```{r}
+#| label: Individualized Exclusion Tracker
+method_tracker <- method_tracker |>
+  track_method(panel_drop_low, kept_drop_low) |>
+  track_method(panel_drop_two, kept_drop_two)
+
+method_tracker
+```
+
+## Weighted individualized Exclusion
+
+```{r}
+# This method sorts each respondent's preference survey into 1-5 tiers from
+# highest to lowest preference rating. Respondent's with a 2-way tie at the
+# bottom will have only 4 tiers, for instance.
+# Message ratings will then be weighted appropriately based upon how many tiers
+# their preferences sort into, and how many messages per tier, and the preference
+# ratings themselves. For instance, tones with a preference rating of 7 should be
+# seen 1/6 more often than tones rated at a 6, and so on.
+#
+# Implementation: each tone's weight is (preference score - 1) divided by the sum of
+# (preference score - 1) across that respondent's five tones, so tied tones get equal
+# weights (a tier with more tones is shown more in total), a tone at the scale
+# minimum is never shown, and a respondent with every tone at the minimum gets equal
+# weights. Each respondent's method rating is the weighted mean of their tone ratings.
+
+weights_individual <- preference_weights(pref_by_tone, offset = 1)
+
+panel_weighted_indiv <- tone_means |>
+  inner_join(weights_individual, by = c("subid", "tone")) |>
+  summarise(weighted_indiv_rating = sum(weight * rating), .by = subid)
+attr(panel_weighted_indiv, "label") <- "Weighted individualized (preference - 1)"
+attr(panel_weighted_indiv, "fill") <- "mediumseagreen"
+
+plot_rating_hist(panel_weighted_indiv, "weighted_indiv_rating",
+                 "Weighted individualized: tones weighted by preference score - 1",
+                 fill = "mediumseagreen")
+
+# Number of preference tiers per respondent (tied tones share a tier)
+pref_by_tone |>
+  drop_na(pref) |>
+  summarise(n_tiers = n_distinct(pref), .by = subid) |>
+  count(n_tiers, name = "respondents")
+
+# Compared with uniform variability and the best case
+compare_methods(top = panel_uniform, mid = panel_weighted_indiv, bot = panel_best)
+```
+
+```{r}
+#| label: Weighted Individualized Tracker
+method_tracker <- method_tracker |>
+  track_method(panel_weighted_indiv, weights = weights_individual)
+
+method_tracker
+```
+
+## Tier-Weighted Individualized
+
+A sharper version of the weighted method that uses only the order of each
+respondent's preferences. Tones are sorted into preference tiers (tied tones
+share a tier), and each tier is shown half as often as the tier above it: tier 1
+twice as often as tier 2, four times as often as tier 3, and so on. Tied tones
+each get their tier's weight. Unlike the previous method, the size of the
+preference gaps does not matter, only the ranking.
+
+```{r}
+#| label: Tier-Weighted Individualized
+weights_tier <- tier_weights(pref_by_tone, ratio = 2)
+
+panel_tier_weighted <- tone_means |>
+  inner_join(weights_tier, by = c("subid", "tone")) |>
+  summarise(tier_weighted_rating = sum(weight * rating), .by = subid)
+attr(panel_tier_weighted, "label") <- "Tier-weighted individualized (1:1/2:1/4...)"
+attr(panel_tier_weighted, "fill") <- "orchid"
+
+plot_rating_hist(panel_tier_weighted, "tier_weighted_rating",
+                 "Tier-weighted individualized: each tier shown half as often as the one above",
+                 fill = "orchid")
+
+# Compared with the preference-score weighting and the best case
+compare_methods(top = panel_weighted_indiv, mid = panel_tier_weighted, bot = panel_best)
+
+method_tracker <- method_tracker |>
+  track_method(panel_tier_weighted, weights = weights_tier)
+
+method_tracker
+```
+
+
+## Power-Weighted Individualized
+
+A sharper version of the preference-score weighting. Each tone's weight is
+proportional to (preference score - 1) raised to a power, so the weighting
+becomes steeper toward the most-preferred tones as the power grows, while still
+respecting the size of the gaps between scores. A power of 1 is the earlier
+`pref - 1` method. Set `power_weight` to tune it.
+
+```{r}
+#| label: Power-Weighted Individualized
+power_weight <- 2
+
+weights_power <- preference_weights(pref_by_tone, offset = 1, power = power_weight)
+
+panel_power_weighted <- tone_means |>
+  inner_join(weights_power, by = c("subid", "tone")) |>
+  summarise(power_weighted_rating = sum(weight * rating), .by = subid)
+attr(panel_power_weighted, "label") <- paste0("Power-weighted individualized (power = ", power_weight, ")")
+attr(panel_power_weighted, "fill") <- "tomato"
+
+plot_rating_hist(panel_power_weighted, "power_weighted_rating",
+                 paste0("Power-weighted individualized: weight proportional to (preference - 1)^",
+                        power_weight),
+                 fill = "tomato")
+
+# Compared with the unpowered preference weighting and the best case
+compare_methods(top = panel_weighted_indiv, mid = panel_power_weighted, bot = panel_best)
+
+method_tracker <- method_tracker |>
+  track_method(panel_power_weighted, weights = weights_power)
+
+method_tracker
+```
+
+
+## Weighted Methods With Dropped Tones
+
+Each of the three weighted methods (preference-score, tier, and power weighting)
+is repeated after first dropping the least-preferred tone (drop low) or the two
+least-preferred tones (drop two), using the same tie rules as the simple
+exclusion methods. The weights are then computed among the tones that remain.
+
+```{r}
+#| label: Weighted Methods With Dropped Tones
+# Preference scores for the tones kept after each drop
+prefs_drop_low <- semi_join(pref_by_tone, kept_drop_low, by = c("subid", "tone"))
+prefs_drop_two <- semi_join(pref_by_tone, kept_drop_two, by = c("subid", "tone"))
+
+# Preference-score weighting (pref - 1)
+panel_weighted_indiv_low <- weighted_method(
+  preference_weights(prefs_drop_low, offset = 1),
+  "Weighted individualized + drop low", "mediumseagreen", "weighted_indiv_low")
+panel_weighted_indiv_two <- weighted_method(
+  preference_weights(prefs_drop_two, offset = 1),
+  "Weighted individualized + drop two", "mediumseagreen", "weighted_indiv_two")
+
+# Tier weighting (each tier half as often as the one above)
+panel_tier_weighted_low <- weighted_method(
+  tier_weights(prefs_drop_low, ratio = 2),
+  "Tier-weighted + drop low", "orchid", "tier_weighted_low")
+panel_tier_weighted_two <- weighted_method(
+  tier_weights(prefs_drop_two, ratio = 2),
+  "Tier-weighted + drop two", "orchid", "tier_weighted_two")
+
+# Power weighting ((pref - 1)^power)
+panel_power_weighted_low <- weighted_method(
+  preference_weights(prefs_drop_low, offset = 1, power = power_weight),
+  "Power-weighted + drop low", "tomato", "power_weighted_low")
+panel_power_weighted_two <- weighted_method(
+  preference_weights(prefs_drop_two, offset = 1, power = power_weight),
+  "Power-weighted + drop two", "tomato", "power_weighted_two")
+
+# Each weighting with no drop (top), drop low (middle), and drop two (bottom)
+compare_methods(top = panel_weighted_indiv, mid = panel_weighted_indiv_low,
+                bot = panel_weighted_indiv_two)
+compare_methods(top = panel_tier_weighted, mid = panel_tier_weighted_low,
+                bot = panel_tier_weighted_two)
+compare_methods(top = panel_power_weighted, mid = panel_power_weighted_low,
+                bot = panel_power_weighted_two)
+
+method_tracker <- method_tracker |>
+  track_method(panel_weighted_indiv_low, weights = preference_weights(prefs_drop_low, offset = 1)) |>
+  track_method(panel_weighted_indiv_two, weights = preference_weights(prefs_drop_two, offset = 1)) |>
+  track_method(panel_tier_weighted_low, weights = tier_weights(prefs_drop_low, ratio = 2)) |>
+  track_method(panel_tier_weighted_two, weights = tier_weights(prefs_drop_two, ratio = 2)) |>
+  track_method(panel_power_weighted_low,
+               weights = preference_weights(prefs_drop_low, offset = 1, power = power_weight)) |>
+  track_method(panel_power_weighted_two,
+               weights = preference_weights(prefs_drop_two, offset = 1, power = power_weight))
+
+method_tracker |> arrange(desc(mean))
+```
+
+
+## Tuning the Weighted Methods
+
+Each individualized weighted method has one setting that controls how sharply
+the preferences are weighted, and each can be run with no drop, dropping the
+least-preferred tone, or dropping the two least-preferred tones:
+
+- **Weighted individualized:** weights proportional to (preference - offset). A larger
+  offset removes more of the lowest-scoring tones, and a large negative offset
+  approaches an even distribution.
+- **Tier-weighted:** each tier is shown `ratio` times as often as the next tier down.
+  A ratio of 1 is an even distribution.
+- **Power-weighted:** weights proportional to (preference - 1) raised to a power.
+  Smaller powers flatten the weighting.
+
+Only the range where weighting stays gentle enough is considered: the least-seen tone
+must be delivered at least `min_share` (10%) of the time, for at least
+`min_respondents` (half) of respondents, all the way up to an even distribution
+(20% per tone, or an even split among the tones left after a drop). The least-seen
+tone is the one with the smallest weight among the tones the method delivers, so a
+tone the weighting pushes to 0% counts as 0. Edit `tuning_settings` to try other
+values. All results are in `weight_tuning`, and only configurations that meet the
+minimum are added to `method_tracker`.
+
+```{r}
+#| label: Weighted Method Tuning
+min_share <- 0.10       # least-seen tone must be delivered at least this often...
+min_respondents <- 0.50 # ...for at least this share of respondents
+
+# Settings run from sharp to an even distribution (offset very negative, ratio = 1)
+tuning_settings <- bind_rows(
+  tibble(family = "Weighted individualized", param = c(-6, -3, -1, 0, 1, 2)),
+  tibble(family = "Tier-weighted", param = c(1, 1.1, 1.25, 1.5, 2, 3)),
+  tibble(family = "Power-weighted", param = c(0.25, 0.5, 1, 1.5, 2, 3)))
+
+weight_tuning_grid <- tuning_settings |>
+  cross_join(tibble(drop = c("none", "low", "two")))
+
+weight_tuning <- tune_weighted_methods(
+  weight_tuning_grid, pref_by_tone, kept_drop_low, kept_drop_two, min_share = min_share) |>
+  mutate(drop = factor(drop, levels = c("none", "low", "two"),
+                       labels = c("No drop", "Drop low", "Drop two")),
+         meets_min = pct_meets_min >= min_respondents)
+
+weight_tuning |>
+  select(family, param, drop, mean, sd, weighted_opt, weighted_dis,
+         min_share_median, pct_meets_min, meets_min)
+
+# Add the configurations that meet the minimum to the tracker (rows with the same
+# method name are replaced)
+tuning_in_range <- filter(weight_tuning, meets_min)
+
+method_tracker <- method_tracker |>
+  filter(!method %in% weight_tuning$method) |>
+  bind_rows(select(tuning_in_range, method, mean, sd, weighted_opt, weighted_dis))
+
+# Settings left out for dropping the least-seen tone below the minimum
+weight_tuning |> filter(!meets_min) |> count(family, drop, name = "configurations_excluded")
+
+method_tracker
+```
+
+```{r}
+#| label: Weighted Method Tuning Plot
+metric_labels <- c(mean = "Mean helpfulness",
+                   weighted_opt = "Share in highest-rated tone(s)",
+                   weighted_dis = "Share in lowest-rated tone(s)",
+                   min_share_median = "Least-seen tone share (median respondent)")
+
+weight_tuning |>
+  pivot_longer(all_of(names(metric_labels)), names_to = "metric", values_to = "value") |>
+  mutate(metric = factor(metric, levels = names(metric_labels), labels = metric_labels)) |>
+  ggplot(aes(x = param, y = value, color = drop)) +
+  geom_hline(data = tibble(metric = factor(metric_labels[["min_share_median"]],
+                                           levels = metric_labels),
+                           yintercept = min_share),
+             aes(yintercept = yintercept), linetype = "dashed") +
+  geom_line() +
+  geom_point() +
+  facet_grid(metric ~ family, scales = "free") +
+  labs(x = "Tuning setting (offset, ratio, or power)", y = NULL, color = NULL,
+       subtitle = "Dashed line = minimum share for the least-seen tone")
+```
+
+```{r}
+
+```

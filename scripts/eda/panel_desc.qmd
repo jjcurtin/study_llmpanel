@@ -1283,3 +1283,38 @@ Figures below come from the most recent runs of each analysis and should be refr
 **Demographics**
 
 - Significant demographic effects on preferences are collected in `sig_tests`. They were not summarised here because they were tested across many variables without multiplicity correction.
+
+```{r}
+#| label: Tied Highest and Lowest Tones
+# Respondents with 2 or more tones tied for highest (or lowest) mean rating.
+# A tie across all 5 tones means the respondent rated every tone identically.
+tie_counts <- tone_means |>
+  summarise(n_tied_top = sum(near(rating, max(rating))),
+            n_tied_bottom = sum(near(rating, min(rating))),
+            .by = subid)
+
+# Size of the tie among highest-rated tones (1 = no tie, 2 = two-way tie, ...)
+tie_counts |> count(n_tied_top, name = "respondents")
+
+# Size of the tie among lowest-rated tones
+tie_counts |> count(n_tied_bottom, name = "respondents")
+
+# Both side by side, labeled by tie type
+tie_counts |>
+  pivot_longer(c(n_tied_top, n_tied_bottom), names_to = "end", values_to = "tied_tones") |>
+  mutate(end = if_else(end == "n_tied_top", "Highest", "Lowest")) |>
+  count(end, tied_tones, name = "respondents") |>
+  mutate(tie = case_match(tied_tones, 1 ~ "No tie", 2 ~ "2-way tie", 3 ~ "3-way tie",
+                          4 ~ "4-way tie", 5 ~ "5-way tie (all tones)"),
+         pct = respondents / n_distinct(tie_counts$subid)) |>
+  select(end, tie, respondents, pct) |>
+  pivot_wider(names_from = end, values_from = c(respondents, pct), values_fill = 0)
+
+tie_counts |>
+  summarise(respondents = n(),
+            tied_top = sum(n_tied_top >= 2),
+            pct_tied_top = mean(n_tied_top >= 2),
+            tied_bottom = sum(n_tied_bottom >= 2),
+            pct_tied_bottom = mean(n_tied_bottom >= 2),
+            tied_all_five = sum(n_tied_top == 5))
+```

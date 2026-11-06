@@ -692,8 +692,10 @@ tied_tones_long <- function(data, tone_prefix) {
 #   kept:    tones the method uses. A character vector (same tones for every respondent)
 #            or a data frame with subid and tone (tones used per respondent).
 #            Kept tones are shown in equal proportion unless `weights` is given.
-#   weights: optional named numeric vector of how often each tone is shown (rescaled to
-#            sum to 1). Tones with weight 0 are not used. Use instead of `kept`.
+#   weights: optional how often each tone is shown (rescaled to sum to 1 per respondent;
+#            tones with weight 0 are not used). Use instead of `kept`. Either a named numeric
+#            vector (same weights for every respondent) or a data frame with subid, tone,
+#            and weight (weights per respondent, e.g. from preference_weights()).
 #   name:    row label (default: the data frame's "label" attribute)
 #   tone_ratings: data frame with subid, tone, rating (each respondent's mean
 #            rating per tone). Defaults to `tone_means`, as built in the calling script.
@@ -711,7 +713,11 @@ track_method <- function(tracker, method, kept = NULL, name = NULL, weights = NU
   if (is.null(kept) && is.null(weights)) stop("Supply `kept` or `weights`.")
 
   # How often each respondent sees each kept tone
-  exposure_long <- if (!is.null(weights)) {
+  exposure_long <- if (is.data.frame(weights)) {
+    weights |>
+      filter(subid %in% method$subid, weight > 0) |>
+      select(subid, tone, weight)
+  } else if (!is.null(weights)) {
     expand_grid(subid = method$subid,
                 tibble(tone = names(weights), weight = unname(weights))) |>
       filter(weight > 0)
@@ -812,4 +818,124 @@ SD = ", round(sd, 2)))
          title = "Mean message rating by assignment method",
          subtitle = paste0("Mean difference vs. ", ref$label, ": ", gap_text,
                            "; shaded band = mean ± 1 SD"))
+}
+
+# Tones kept for each respondent after dropping their least-preferred tones.
+#   prefs:  data frame with subid, tone, and pref (preference score for that tone)
+#   n_drop: how many of the lowest-preferred tones to drop. Tones tied at the cutoff
+#           are dropped together, so a tie can drop more than n_drop tones. If that
+#           would drop every tone (all tones tied), none are dropped.
+# Returns a data frame with subid and tone for the kept tones.
+drop_least_preferred <- function(prefs, n_drop) {
+  prefs |>
+    drop_na(pref) |>
+    mutate(cutoff = sort(pref)[min(n_drop, n())],
+           drop = pref <= cutoff,
+           keep = !drop | all(drop),
+           .by = subid) |>
+    filter(keep) |>
+    select(subid, tone)
+}
+
+# Per-respondent tone weights from preference scores, for weighting a respondent's
+# tone ratings. A tone's weight is proportional to (preference score - offset)^power,
+# so higher-preferred tones are shown more often (tied tones get equal weights).
+# power = 1 weights in proportion to the score; larger powers sharpen the weighting
+# toward the most-preferred tones. With offset = 1 a tone at the scale minimum is
+# never shown, and a respondent whose weights would all be zero (every tone at the
+# minimum) gets equal weights.
+#   prefs:  data frame with subid, tone, and pref (preference score for that tone)
+#   offset: value subtracted from each preference score before weighting
+#   power:  exponent applied to (pref - offset); must be positive
+# Returns a data frame with subid, tone, pref, and weight (weights sum to 1 per subid).
+preference_weights <- function(prefs, offset = 1, power = 1) {
+  stopifnot(power > 0)
+  prefs |>
+    drop_na(pref) |>
+    mutate(raw = pmax(pref - offset, 0)^power,
+           weight = if (sum(raw) > 0) raw / sum(raw) else 1 / n(),
+           .by = subid) |>
+    select(subid, tone, pref, weight)
+}
+
+# Per-respondent tone weights from preference tiers. Tones are sorted into tiers by
+# preference score (tier 1 = highest score; tied tones share a tier), and each tone's
+# weight is proportional to ratio^-(tier - 1), so with ratio = 2 tier 1 is shown twice
+# as often as tier 2, four times as often as tier 3, and so on. Tied tones each get
+# their tier's weight. Only the order of the preferences matters, not how far apart
+# the scores are.
+#   prefs: data frame with subid, tone, and pref (preference score for that tone)
+#   ratio: how many times more often each tier is shown than the next tier down
+# Returns a data frame with subid, tone, pref, tier, and weight (sums to 1 per subid).
+tier_weights <- function(prefs, ratio = 2) {
+  prefs |>
+    drop_na(pref) |>
+    mutate(tier = dense_rank(desc(pref)),
+           raw = ratio^-(tier - 1),
+           weight = raw / sum(raw),
+           .by = subid) |>
+    select(subid, tone, pref, tier, weight)
+}
+
+# Each respondent's weighted mean of their tone ratings, returned as a method data
+# frame (subid plus one rating column) ready for compare_methods() and track_method().
+#   weights:      data frame with subid, tone, and weight (e.g. from preference_weights()
+#                 or tier_weights()); weights are rescaled to sum to 1 per respondent
+#   label, fill:  attributes used for plot labels and colors
+#   rating_name:  name of the rating column
+#   tone_ratings: data frame with subid, tone, rating. Defaults to `tone_means`
+weighted_method <- function(weights, label, fill = "steelblue",
+                            rating_name = "weighted_rating", tone_ratings = tone_means) {
+  out <- tone_ratings |>
+    inner_join(select(weights, subid, tone, weight), by = c("subid", "tone")) |>
+    summarise(rating = sum(weight * rating) / sum(weight), .by = subid)
+  names(out)[2] <- rating_name
+  attr(out, "label") <- label
+  attr(out, "fill") <- fill
+  out
+}
+
+# Score a grid of tuning settings for the individualized weighted methods, each with no
+# drop, after dropping the least-preferred tone, and after dropping the two
+# least-preferred tones. Returns one row per setting with the tracker metrics
+# (method, mean, sd, weighted_opt, weighted_dis) plus family, param, and drop.
+#   grid: data frame with family, param, and drop, where
+#         family "Weighted individualized": param = offset subtracted from the preference
+#                score (weights proportional to pref - offset)
+#         family "Tier-weighted":           param = ratio between consecutive tiers
+#         family "Power-weighted":          param = power applied to (pref - 1)
+#         drop: "none", "low", or "two"
+#   prefs: subid, tone, pref;  kept_low / kept_two: subid, tone (tones kept after each drop)
+#   min_share: smallest share of messages the least-seen tone should get. Two columns
+#         report it: min_share_median (the median respondent's least-seen tone share) and
+#         pct_meets_min (share of respondents whose least-seen tone gets at least
+#         min_share). The least-seen tone is the one with the smallest weight among the
+#         tones the method delivers (after any drop), so a tone the weighting drives to 0
+#         counts as 0.
+tune_weighted_methods <- function(grid, prefs, kept_low, kept_two, tone_ratings = tone_means,
+                                  min_share = 0.10) {
+  prefs_by_drop <- list(
+    none = prefs,
+    low = semi_join(prefs, kept_low, by = c("subid", "tone")),
+    two = semi_join(prefs, kept_two, by = c("subid", "tone")))
+  param_name <- c("Weighted individualized" = "offset", "Tier-weighted" = "ratio",
+                  "Power-weighted" = "power")
+  drop_suffix <- c(none = "", low = " + drop low", two = " + drop two")
+
+  pmap(grid, \(family, param, drop, ...) {
+    p <- prefs_by_drop[[drop]]
+    w <- switch(family,
+      "Weighted individualized" = preference_weights(p, offset = param),
+      "Tier-weighted" = tier_weights(p, ratio = param),
+      "Power-weighted" = preference_weights(p, offset = 1, power = param),
+      stop("Unknown family: ", family))
+    label <- paste0(family, " (", param_name[[family]], " = ", param, ")", drop_suffix[[drop]])
+    method <- weighted_method(w, label, tone_ratings = tone_ratings)
+    least_seen <- w |> summarise(least = min(weight), .by = subid)
+    track_method(NULL, method, weights = w, tone_ratings = tone_ratings) |>
+      mutate(min_share_median = median(least_seen$least),
+             pct_meets_min = mean(least_seen$least >= min_share - 1e-9)) |>
+      mutate(family = family, param = param, drop = drop, .before = 1)
+  }) |>
+    list_rbind()
 }
