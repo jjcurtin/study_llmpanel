@@ -1018,7 +1018,7 @@ n_formal_sig <- sum(person_tests$result_raw == "Formal significantly higher")
 binom.test(n_formal_sig, n_tested, p = .025, alternative = "greater")
 ```
 
-Respondents who rated formal significantly higher (unadjusted p < .05) are pulled into their own wide-format data frame, `panel_form`, with their paired-test results attached.
+Respondents who rated formal significantly higher (unadjusted p < .05) are pulled into their own wide-format data frame, `panel_formal`, and those who rated informal significantly higher into `panel_informal`, each with their paired-test results attached.
 
 ```{r}
 panel_formal <- panel |>
@@ -1035,8 +1035,10 @@ panel_informal <- panel |>
       select(subid, mean_diff, p),
     by = "subid")
 
-nrow(panel_form)
-panel_form |> select(subid, mean_diff, p, pref_formality, starts_with("dem_"))
+nrow(panel_formal)
+panel_formal |> select(subid, mean_diff, p, pref_formality, starts_with("dem_"))
+
+nrow(panel_informal)
 ```
 
 Observed counts compared with what chance alone would produce. If nobody truly differed, each respondent would still have a 2.5% chance of landing significant in each direction. The black marker and range show the expected count and the middle 95% range of counts under chance (binomial).
@@ -1147,6 +1149,17 @@ ratings_by_top <- tone_levels |> set_names() |>
   map(\(t) plot_ratings_by_pref_top(t, panel, rating_by_tone, tier_colors))
 
 walk(ratings_by_top, \(r) print(r$plot))
+```
+
+## Ratings by Lowest-Preferred Tone
+
+The same box plots for respondents grouped by the tone they rated lowest on the preferences survey (ties included, straightliners excluded). Each plot shows how that group rated messages of all five tones.
+
+```{r}
+ratings_by_bottom <- tone_levels |> set_names() |>
+  map(\(t) plot_ratings_by_pref_top(t, panel, rating_by_tone, tier_colors, end = "bottom"))
+
+walk(ratings_by_bottom, \(r) print(r$plot))
 ```
 
 ## Change in Rating from the Preferred Tone
@@ -1288,7 +1301,7 @@ Figures below come from the most recent runs of each analysis and should be refr
 #| label: Tied Highest and Lowest Tones
 # Respondents with 2 or more tones tied for highest (or lowest) mean rating.
 # A tie across all 5 tones means the respondent rated every tone identically.
-tie_counts <- tone_means |>
+tie_counts <- rating_by_tone |>
   summarise(n_tied_top = sum(near(rating, max(rating))),
             n_tied_bottom = sum(near(rating, min(rating))),
             .by = subid)

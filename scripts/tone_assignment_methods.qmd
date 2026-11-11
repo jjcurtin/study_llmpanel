@@ -21,7 +21,7 @@ plot_grid <- cowplot::plot_grid
 source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
 source("https://github.com/jjcurtin/lab_support/blob/main/fun_eda.R?raw=true")
 source("https://github.com/jjcurtin/lab_support/blob/main/fun_plots.R?raw=true")
-source("https://github.com/jjcurtin/study_llmpanel/blob/main/scripts/functions_llmpanel.R?raw=true")
+#source("https://github.com/jjcurtin/study_llmpanel/blob/main/scripts/functions_llmpanel.R?raw=true")
 
 path_processed <- format_path("llmpanel/data_processed")
 
@@ -721,7 +721,7 @@ method_tracker <- method_tracker |>
   track_method(panel_power_weighted_two,
                weights = preference_weights(prefs_drop_two, offset = 1, power = power_weight))
 
-method_tracker |> arrange(desc(mean))
+method_tracker |> arrange(desc(mean)) |> arrange(weighted_dis) |> arrange(desc(weighted_opt))
 ```
 
 
@@ -808,6 +808,57 @@ weight_tuning |>
        subtitle = "Dashed line = minimum share for the least-seen tone")
 ```
 
-```{r}
+# Data-Driven Method
 
+This method drops Acknowledging for everyone, since it was among the lowest-rated
+tones overall, then uses each respondent's preferences among the remaining four tones
+(sorted into 1 to 4 tiers, with tied tones sharing a tier) to pick a split. Each
+respondent gets the first rule below that applies:
+
+1. **All four tones tied (straightliner):** Self efficacy 40%, Value affirmation 20%, Legitimizing 20%, Norms 20%.
+2. **Norms in the highest tier:** Self efficacy 30%, Norms 30%, Value affirmation 20%, Legitimizing 20%.
+3. **Self efficacy and Value affirmation in the same tier:** 40% each, Legitimizing 20%, Norms dropped.
+4. **Value affirmation in a higher tier than Self efficacy:** Value affirmation 50%, Self efficacy 25%, Legitimizing 25%, Norms dropped.
+5. **Self efficacy in a higher tier than Value affirmation:** Self efficacy 50%, Value affirmation 25%, Legitimizing 25%, Norms dropped.
+
+```{r}
+#| label: Data-Driven Method
+weights_data_driven <- data_driven_weights(pref_by_tone)
+
+panel_data_driven <- weighted_method(
+  weights_data_driven, "Data-driven", "dodgerblue4", "data_driven_rating")
+
+plot_rating_hist(panel_data_driven, "data_driven_rating",
+                 "Data-driven: drop Acknowledging, preference-based split of the other four tones",
+                 fill = "dodgerblue4")
+
+# Number of preference tiers among the four remaining tones
+pref_by_tone |>
+  filter(tone != "acknowledging") |>
+  drop_na(pref) |>
+  summarise(n_tiers = n_distinct(pref), .by = subid) |>
+  count(n_tiers, name = "respondents")
+
+# Respondents per rule
+rule_counts <- weights_data_driven |>
+  distinct(subid, rule) |>
+  count(rule, name = "respondents") |>
+  mutate(pct = respondents / sum(respondents))
+rule_counts
+
+# Do the rules' premises hold? Mean rating of each remaining tone within each rule group
+tone_means |>
+  filter(tone != "acknowledging") |>
+  inner_join(distinct(weights_data_driven, subid, rule), by = "subid") |>
+  summarise(mean_rating = mean(rating), .by = c(rule, tone)) |>
+  pivot_wider(names_from = tone, values_from = mean_rating) |>
+  left_join(rule_counts, by = "rule")
+
+# Compared with the fixed 40/40/20 split (no individualization) and the best case
+compare_methods(top = panel_3tone_weighted, mid = panel_data_driven, bot = panel_best)
+
+method_tracker <- method_tracker |>
+  track_method(panel_data_driven, weights = weights_data_driven)
+
+method_tracker
 ```

@@ -513,14 +513,18 @@ plot_change_from_top <- function(ref_tone, extremes, ratings, colors) {
 }
 
 # Distribution of mean message ratings across all tones, among respondents whose
-# highest-rated tone on the preferences survey (ties included) is `top_tone`.
-# `panel` has subid, the list column pref_top, and the logical pref_straightline;
-# `ratings` has subid, tone, rating. Straightliners are excluded.
-plot_ratings_by_pref_top <- function(top_tone, panel, ratings, colors) {
+# highest-rated (end = "top") or lowest-rated (end = "bottom") tone on the preferences
+# survey (ties included) is `top_tone`.
+# `panel` has subid, the list columns pref_top and pref_bottom, and the logical
+# pref_straightline; `ratings` has subid, tone, rating. Straightliners are excluded.
+plot_ratings_by_pref_top <- function(top_tone, panel, ratings, colors,
+                                     end = c("top", "bottom")) {
+  end <- match.arg(end)
   top_label <- str_replace(top_tone, "_", " ")
+  pref_col <- paste0("pref_", end)
 
   ids <- panel |>
-    filter(map_lgl(pref_top, \(x) top_tone %in% x), !pref_straightline) |>
+    filter(map_lgl(.data[[pref_col]], \(x) top_tone %in% x), !pref_straightline) |>
     pull(subid)
 
   plot <- ratings |>
@@ -536,7 +540,8 @@ plot_ratings_by_pref_top <- function(top_tone, panel, ratings, colors) {
     scale_y_continuous(limits = c(1, 7), breaks = 1:7) +
     labs(x = "Tone", y = "Mean Message Rating",
          subtitle = paste0("Respondents with ", top_label,
-                           " rated highest on preferences (n = ", length(ids),
+                           " rated ", if_else(end == "top", "highest", "lowest"),
+                           " on preferences (n = ", length(ids),
                            "; straightliners excluded)"))
 
   list(plot = plot, n = length(ids))
@@ -938,4 +943,46 @@ tune_weighted_methods <- function(grid, prefs, kept_low, kept_two, tone_ratings 
       mutate(family = family, param = param, drop = drop, .before = 1)
   }) |>
     list_rbind()
+}
+
+# Tone weights for the "data-driven" method. Acknowledging is dropped for everyone, and
+# each respondent's preferences among the remaining four tones decide their split. Rules
+# are applied in this order, and a respondent gets the first rule they meet:
+#   1. Straightliner (all four tones tied):            SE 40, VA 20, Legit 20, Norms 20
+#   2. Norms in the highest preference tier:           SE 30, VA 20, Legit 20, Norms 30
+#   3. Self efficacy and Value affirmation tied:       SE 40, VA 40, Legit 20, Norms 0
+#   4. Value affirmation preferred over Self efficacy: VA 50, SE 25, Legit 25, Norms 0
+#   5. Self efficacy preferred over Value affirmation: SE 50, VA 25, Legit 25, Norms 0
+# (SE = self efficacy, VA = value affirmation, Legit = legitimizing)
+#   prefs: data frame with subid, tone, and pref (preference score for that tone)
+# Returns subid, tone, weight (including acknowledging at 0), and the rule applied.
+# Respondents missing a preference for any of the four tones are left out.
+data_driven_weights <- function(prefs) {
+  rule_weights <- tibble::tribble(
+    ~rule,                                    ~self_efficacy, ~value_affirmation, ~legitimizing, ~norms,
+    "Straightliner (all 4 tones tied)",       .40,            .20,                .20,           .20,
+    "Norms in highest tier",                  .30,            .20,                .20,           .30,
+    "Self efficacy = Value affirmation",      .40,            .40,                .20,           0,
+    "Value affirmation above Self efficacy",  .25,            .50,                .25,           0,
+    "Self efficacy above Value affirmation",  .50,            .25,                .25,           0)
+
+  prefs |>
+    filter(tone %in% c("self_efficacy", "value_affirmation", "legitimizing", "norms")) |>
+    pivot_wider(names_from = tone, values_from = pref) |>
+    drop_na() |>
+    mutate(rule = case_when(
+      self_efficacy == value_affirmation & value_affirmation == legitimizing &
+        legitimizing == norms ~ "Straightliner (all 4 tones tied)",
+      norms == pmax(self_efficacy, value_affirmation, legitimizing, norms) ~ "Norms in highest tier",
+      self_efficacy == value_affirmation ~ "Self efficacy = Value affirmation",
+      value_affirmation > self_efficacy ~ "Value affirmation above Self efficacy",
+      .default = "Self efficacy above Value affirmation")) |>
+    select(subid, rule) |>
+    left_join(rule_weights, by = "rule") |>
+    pivot_longer(c(self_efficacy, value_affirmation, legitimizing, norms),
+                 names_to = "tone", values_to = "weight") |>
+    bind_rows(
+      prefs |> distinct(subid) |> mutate(tone = "acknowledging", weight = 0)) |>
+    mutate(rule = rule[!is.na(rule)][1], .by = subid) |>
+    filter(!is.na(rule))
 }

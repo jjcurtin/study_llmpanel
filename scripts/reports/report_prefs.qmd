@@ -1,0 +1,13 @@
+---
+title: "Report on Tone Preferences"
+format: 
+  html:
+    page-layout: full
+    self-contained: true
+    toc: true 
+    toc-depth: 3
+execute: 
+  warning: false
+editor_options: 
+  chunk_output_type: console
+---
