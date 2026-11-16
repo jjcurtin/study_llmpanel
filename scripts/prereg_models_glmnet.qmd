@@ -1,0 +1,422 @@
+---
+title: "Preregistered Model Comparison (Elastic Net, Run Locally)"
+format: 
+  html:
+    page-layout: full
+    self-contained: true
+    toc: true
+    toc-depth: 3
+execute: 
+  warning: false
+editor_options: 
+  chunk_output_type: console
+---
+
+## Code Status
+
+Draft. Written without access to the data and NOT YET RUN. Expect small fixes.
+The nested cross-validation fits several thousand models and may take 15 to
+30 minutes. For a quick first test, set `alphas <- c(0.1, 1)` and
+`outer_repeats <- 1` in Settings, confirm it runs end to end, then restore
+them.
+
+## Purpose
+
+The preregistration's primary analysis compares three nested models of
+message helpfulness, and its secondary aim compares the preferences model
+between survey orders. Neither has been run on the cleaned sample. This script
+runs both with elastic net, locally, without the CHTC pipeline.
+
+1.  **Baseline:** tone and style.
+2.  **Demographics:** baseline plus demographic features and their
+    interactions with tone and style.
+3.  **Preferences:** demographics plus stated preferences and their
+    interactions with tone and style.
+
+**How this differs from the lab pipeline.** Features are built here with
+`model.matrix()`, not with `build_recipe()`, and the hyperparameter grid is
+smaller. The cross-validation structure matches the preregistration
+(participant-grouped, inner 2 x 5, outer 6 x 5), and the primary metric is
+MAE as registered. Treat the results as a faithful local run of the
+registered design with elastic net, to be confirmed against the pipeline
+(and against XGBoost) before publication.
+
+## Setup
+
+```{r}
+#| label: Setup
+options(conflicts.policy = "depends.ok")
+library(tidyverse)
+# glmnet is called as glmnet::glmnet() and not attached: attaching it also attaches
+# Matrix, whose expand/pack/unpack conflict with tidyr under the lab's conflict policy.
+
+source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
+source(here::here("scripts", "functions_llmpanel.R"))
+
+path_processed <- format_path("llmpanel/data_processed")
+raw_panel <- read_csv(here::here(path_processed, "panel.csv"), show_col_types = FALSE)
+
+tone_levels <- c("norms", "acknowledging", "legitimizing",
+                 "self_efficacy", "value_affirmation")
+pref_tone_cols <- paste0("pref_", tone_levels)
+
+set.seed(102030)
+```
+
+*Settings*
+
+```{r}
+#| label: Settings
+outer_repeats <- 6
+outer_folds <- 5
+inner_repeats <- 2
+inner_folds <- 5
+
+alphas <- c(0, .1, .25, .5, .75, 1)                 # elastic net mixture
+n_lambda <- 60
+lambda_grid <- exp(seq(0, -8, length.out = n_lambda)) # penalty, largest first
+```
+
+## Data and Features
+
+One row per message rating. Demographics follow the coding used elsewhere:
+orientation and ethnicity collapsed to two levels, education as an ordinal
+score, household-adjusted income in units of $10,000.
+
+```{r}
+#| label: Data
+edu_levels <- c("less_than_high_school_or_ged_degree", "high_school_or_ged", "some_college",
+                "2_year_degree", "4_year_degree", "advanced_degree")
+
+d <- format_eda(raw_panel, long = TRUE) |>
+  left_join(raw_panel |> select(subid, tone_order, message_order), by = "subid") |>
+  mutate(
+    y = rating_num,
+    tone = factor(tone, levels = tone_levels),
+    style = factor(style, levels = c("formal", "informal")),
+    dem_sex = factor(dem_sex),
+    dem_orientation = factor(dem_orientation),
+    dem_ethnicity = factor(dem_ethnicity),
+    dem_minority = factor(dem_minority),
+    dem_edu = as.numeric(factor(dem_education, levels = edu_levels)),
+    dem_income_10k = dem_income_num / 1e4,
+    pref_order = if_else(tone_order < message_order, "Preferences first", "Messages first")) |>
+  select(subid, y, tone, style, dem_age, dem_sex, dem_orientation, dem_ethnicity,
+         dem_minority, dem_edu, dem_income_10k, all_of(pref_tone_cols), pref_formality,
+         pref_order)
+
+# Missing values: glmnet needs complete predictors
+d |> summarise(across(everything(), \(x) sum(is.na(x)))) |>
+  pivot_longer(everything(), names_to = "variable", values_to = "n_missing") |>
+  filter(n_missing > 0)
+```
+
+Any missing predictor values are filled with the sample median (numeric) or
+the most common level (categorical). If the table above is empty, nothing is
+imputed.
+
+```{r}
+#| label: Impute
+mode_level <- \(x) factor(names(which.max(table(x))), levels = levels(x))
+d <- d |>
+  mutate(across(where(is.numeric) & !c(subid, y), \(x) replace_na(x, median(x, na.rm = TRUE))),
+         across(where(is.factor), \(x) replace(x, is.na(x), mode_level(x))))
+stopifnot(!anyNA(d))
+
+n_distinct(d$subid)
+nrow(d)
+```
+
+```{r}
+#| label: Features
+dem_terms <- c("dem_age", "dem_sex", "dem_orientation", "dem_ethnicity",
+               "dem_minority", "dem_edu", "dem_income_10k")
+dem_block <- paste0("(", paste(dem_terms, collapse = " + "), ")")
+pref_block <- paste0("(", paste(pref_tone_cols, collapse = " + "), ")")
+
+formulas <- list(
+  Baseline = "~ tone * style",
+  Demographics = paste0("~ tone * style + ", dem_block, " + ", dem_block, ":tone + ",
+                        dem_block, ":style"),
+  Preferences = paste0("~ tone * style + ", dem_block, " + ", dem_block, ":tone + ",
+                       dem_block, ":style + ", pref_block, " + pref_formality + ",
+                       pref_block, ":tone + pref_formality:style"))
+
+X <- map(formulas, \(f) model.matrix(as.formula(f), data = d)[, -1, drop = FALSE])
+map_int(X, ncol)   # number of features in each model
+y <- d$y
+```
+
+The preferences model includes every preference-by-tone interaction (for
+example, preference for norms by the norms tone, but also by each other tone),
+so the model can learn both matched and mismatched effects.
+
+## Nested Cross-Validation
+
+Folds are built over respondents, so all 30 ratings from one person are always
+in the same fold. The same folds are used for all three models, which makes
+their fold-level results paired.
+
+```{r}
+#| label: CV Helpers
+subids <- sort(unique(d$subid))
+
+# Repeated k-fold over respondents; returns a list of lists(rep, fold, test_ids)
+make_folds <- function(ids, v, repeats) {
+  map(seq_len(repeats), \(r) {
+    fold_id <- sample(rep(seq_len(v), length.out = length(ids)))
+    map(seq_len(v), \(k) list(rep = r, fold = k, test_ids = ids[fold_id == k]))
+  }) |> unlist(recursive = FALSE)
+}
+
+mae <- \(obs, pred) mean(abs(obs - pred))
+rsq <- \(obs, pred) if (sd(pred) == 0) 0 else cor(obs, pred)^2
+
+# Inner loop: mean validation MAE for every alpha x lambda, on the given respondents
+inner_mae <- function(x, y, row_ids, train_ids) {
+  inner <- make_folds(train_ids, inner_folds, inner_repeats)
+  res <- array(0, dim = c(length(alphas), n_lambda))
+  for (f in inner) {
+    val <- row_ids %in% f$test_ids
+    fit_rows <- row_ids %in% train_ids & !val
+    for (a in seq_along(alphas)) {
+      fit <- glmnet::glmnet(x[fit_rows, , drop = FALSE], y[fit_rows], alpha = alphas[a],
+                    lambda = lambda_grid)
+      pred <- predict(fit, x[val, , drop = FALSE], s = lambda_grid)
+      res[a, ] <- res[a, ] + colMeans(abs(pred - y[val])) / length(inner)
+    }
+  }
+  res
+}
+
+# Nested CV for one feature matrix. Returns one row per outer fold.
+nested_cv <- function(x, y, row_ids, outer) {
+  map(outer, \(o) {
+    train_ids <- setdiff(unique(row_ids), o$test_ids)
+    res <- inner_mae(x, y, row_ids, train_ids)
+    best <- which(res == min(res), arr.ind = TRUE)[1, ]
+    train <- row_ids %in% train_ids
+    test <- row_ids %in% o$test_ids
+    fit <- glmnet::glmnet(x[train, , drop = FALSE], y[train], alpha = alphas[best[[1]]],
+                  lambda = lambda_grid)
+    pred <- as.numeric(predict(fit, x[test, , drop = FALSE], s = lambda_grid[best[[2]]]))
+    tibble(rep = o$rep, fold = o$fold,
+           alpha = alphas[best[[1]]], lambda = lambda_grid[best[[2]]],
+           mae = mae(y[test], pred), rsq = rsq(y[test], pred),
+           # MAE of predicting the training mean, as a reference point
+           mae_null = mae(y[test], mean(y[train])))
+  }) |> list_rbind()
+}
+```
+
+```{r}
+#| label: Run Nested CV
+outer <- make_folds(subids, outer_folds, outer_repeats)
+
+started <- Sys.time()
+cv_results <- imap(X, \(x, nm) {
+  message("Fitting ", nm, " ...")
+  nested_cv(x, y, d$subid, outer) |> mutate(model = nm, .before = 1)
+}) |> list_rbind()
+Sys.time() - started
+```
+
+## Primary Aims: Do Demographics and Preferences Improve Prediction?
+
+```{r}
+#| label: Performance
+model_levels <- names(formulas)
+
+cv_results |>
+  summarise(mae_sd = sd(mae), rsq_sd = sd(rsq),
+            mae = mean(mae), rsq = mean(rsq), mae_null = mean(mae_null), .by = model) |>
+  relocate(model, mae, mae_sd, rsq, rsq_sd, mae_null) |>
+  mutate(model = factor(model, levels = model_levels)) |>
+  arrange(model) |>
+  mutate(across(where(is.double), \(x) round(x, 4)))
+
+# Hyperparameters chosen in the inner loop
+cv_results |> count(model, alpha) |> pivot_wider(names_from = alpha, values_from = n)
+```
+
+### Bayesian comparison (as preregistered)
+
+The 30 outer-fold values for each model, with random intercepts for repeat
+and fold within repeat. Lower MAE is better, so a negative difference
+(augmented minus compact) favors the augmented model.
+
+```{r}
+#| label: Bayesian Comparison
+#| output: false
+folds_mae <- cv_results |>
+  select(id = rep, id2 = fold, model, mae) |>
+  mutate(id = paste0("Repeat", id), id2 = paste0("Fold", id2)) |>
+  pivot_wider(names_from = model, values_from = mae)
+
+folds_rsq <- cv_results |>
+  select(id = rep, id2 = fold, model, rsq) |>
+  mutate(id = paste0("Repeat", id), id2 = paste0("Fold", id2)) |>
+  pivot_wider(names_from = model, values_from = rsq)
+
+set.seed(101)
+pp_mae <- tidyposterior::perf_mod(
+  folds_mae, formula = statistic ~ model + (1 | id2/id),
+  iter = 4000, chains = 4, adapt_delta = .99, family = gaussian, refresh = 0)
+pp_rsq <- tidyposterior::perf_mod(
+  folds_rsq, formula = statistic ~ model + (1 | id2/id),
+  iter = 4000, chains = 4, adapt_delta = .99, family = gaussian, refresh = 0)
+```
+
+```{r}
+#| label: Bayesian Results
+q <- c(.025, .5, .975)
+posterior_summary <- function(pp) {
+  tidyposterior::tidy(pp, seed = 123) |>
+    summarise(median = quantile(posterior, q[2]), lower = quantile(posterior, q[1]),
+              upper = quantile(posterior, q[3]), .by = model)
+}
+posterior_summary(pp_mae)
+posterior_summary(pp_rsq)
+
+# Contrasts: first model minus second. For MAE, `probability` is the posterior
+# probability that the difference is positive, so the probability that the augmented
+# model has LOWER error is 1 - probability.
+contrasts_mae <- tidyposterior::contrast_models(
+  pp_mae, list("Demographics", "Preferences"), list("Baseline", "Demographics"), seed = 123) |>
+  summary(size = 0) |>
+  mutate(prob_augmented_better = 1 - probability)
+contrasts_mae |> select(contrast, mean, lower, upper, prob_augmented_better)
+
+# For R-squared, higher is better, so `probability` is the probability that the
+# augmented model is better.
+tidyposterior::contrast_models(
+  pp_rsq, list("Demographics", "Preferences"), list("Baseline", "Demographics"), seed = 123) |>
+  summary(size = 0) |>
+  select(contrast, probability, mean, lower, upper)
+```
+
+### Cross-check without the Bayesian model
+
+Paired fold differences with the corrected resampled t-test (Nadeau and
+Bengio), which widens the standard error to account for overlapping training
+sets across folds.
+
+```{r}
+#| label: Corrected t-test
+corrected_test <- function(a, b, metric) {
+  wide <- cv_results |>
+    filter(model %in% c(a, b)) |>
+    select(rep, fold, model, value = all_of(metric)) |>
+    pivot_wider(names_from = model, values_from = value)
+  d_fold <- wide[[a]] - wide[[b]]
+  k <- length(d_fold)
+  # test-to-train size ratio for 5-fold CV is 1/4
+  se <- sqrt((1 / k + 1 / (outer_folds - 1)) * var(d_fold))
+  tibble(comparison = paste(a, "minus", b), metric = metric,
+         diff = mean(d_fold), se = se,
+         ci_low = mean(d_fold) - qt(.975, k - 1) * se,
+         ci_high = mean(d_fold) + qt(.975, k - 1) * se,
+         p = 2 * pt(-abs(mean(d_fold) / se), k - 1))
+}
+
+bind_rows(
+  corrected_test("Demographics", "Baseline", "mae"),
+  corrected_test("Preferences", "Demographics", "mae"),
+  corrected_test("Demographics", "Baseline", "rsq"),
+  corrected_test("Preferences", "Demographics", "rsq")) |>
+  mutate(across(where(is.double), \(x) signif(x, 3)))
+```
+
+Reading the results:
+
+-   **Aim 1** is the Demographics vs. Baseline contrast; **Aim 2** is
+    Preferences vs. Demographics.
+-   Compare each model's MAE with `mae_null` (predicting the mean rating for
+    everyone) to see how much any of them explains.
+-   Most of the variance in ratings is between people (some rate everything
+    high), which these features can capture only partly. Small R-squared
+    values are expected and do not mean tone and style are unimportant.
+
+## What the Preferences Model Uses
+
+The preferences model refit to the full sample at the most often selected
+hyperparameters. Coefficients are on the standardized scale, so their sizes
+are comparable across features.
+
+```{r}
+#| label: Coefficients
+chosen <- cv_results |>
+  filter(model == "Preferences") |>
+  count(alpha, lambda, sort = TRUE) |>
+  slice(1)
+chosen
+
+x_pref <- X[["Preferences"]]
+x_scaled <- scale(x_pref)
+keep <- !is.na(colSums(x_scaled))          # drop any zero-variance columns
+fit_full <- glmnet::glmnet(x_scaled[, keep], y, alpha = chosen$alpha, lambda = lambda_grid,
+                   standardize = FALSE)
+coefs <- coef(fit_full, s = chosen$lambda)
+tibble(term = rownames(coefs), estimate = as.numeric(coefs)) |>
+  filter(term != "(Intercept)", estimate != 0) |>
+  arrange(desc(abs(estimate))) |>
+  mutate(estimate = round(estimate, 3)) |>
+  print(n = 30)
+```
+
+## Secondary Aim: Preferences Model by Survey Order
+
+The registered version of the secondary aim: fit and evaluate the preferences
+model separately among respondents who gave preferences first and among those
+who rated messages first, and compare performance. The two halves contain
+different people, so the comparison is unpaired.
+
+```{r}
+#| label: Secondary Aim
+d |> distinct(subid, pref_order) |> count(pref_order)
+
+order_results <- map(set_names(c("Preferences first", "Messages first")), \(ord) {
+  rows <- d$pref_order == ord
+  ids_ord <- sort(unique(d$subid[rows]))
+  outer_ord <- make_folds(ids_ord, outer_folds, outer_repeats)
+  message("Fitting preferences model: ", ord, " ...")
+  nested_cv(X[["Preferences"]][rows, , drop = FALSE], y[rows], d$subid[rows], outer_ord)
+}) |> list_rbind(names_to = "pref_order")
+
+order_summary <- order_results |>
+  summarise(mae_sd = sd(mae), rsq_sd = sd(rsq),
+            # error relative to predicting the mean, which adjusts for the two halves
+            # having different rating variability
+            mae_ratio = mean(mae / mae_null),
+            mae = mean(mae), rsq = mean(rsq), mae_null = mean(mae_null),
+            .by = pref_order) |>
+  relocate(pref_order, mae, mae_sd, rsq, rsq_sd, mae_null, mae_ratio)
+order_summary |> mutate(across(where(is.double), \(x) round(x, 4)))
+```
+
+```{r}
+#| label: Secondary Aim Comparison
+# Unpaired comparison of the 30 fold values in each half. Folds within a half share
+# training data, so the same variance correction is applied to each half's mean.
+order_compare <- function(metric) {
+  v <- split(order_results[[metric]], order_results$pref_order)
+  k <- outer_folds * outer_repeats
+  corr <- 1 / k + 1 / (outer_folds - 1)
+  diff <- mean(v[["Preferences first"]]) - mean(v[["Messages first"]])
+  se <- sqrt(corr * var(v[["Preferences first"]]) + corr * var(v[["Messages first"]]))
+  tibble(metric = metric, prefs_first = mean(v[["Preferences first"]]),
+         messages_first = mean(v[["Messages first"]]), diff = diff,
+         ci_low = diff - 1.96 * se, ci_high = diff + 1.96 * se,
+         p = 2 * pnorm(-abs(diff / se)))
+}
+order_results <- order_results |> mutate(mae_ratio = mae / mae_null)
+map(c("mae", "mae_ratio", "rsq"), order_compare) |>
+  list_rbind() |>
+  mutate(across(where(is.double), \(x) signif(x, 3)))
+```
+
+Reading the results: the memo found that the two order groups differ in how
+spread out their ratings are, which changes MAE and R-squared on its own.
+`mae_ratio` (model error divided by the error of predicting the mean) is the
+fairest of the three for comparing the halves. Each half has about 210
+respondents, so only a large difference would be detectable.

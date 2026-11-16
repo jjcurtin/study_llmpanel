@@ -11,3 +11,132 @@ execute:
 editor_options: 
   chunk_output_type: console
 ---
+
+## Setup
+
+```{r}
+#| echo: false
+options(conflicts.policy = "depends.ok")
+library(tidyverse)
+source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
+source(here::here("scripts", "functions_llmpanel.R"))
+#source("https://github.com/jjcurtin/study_llmpanel/blob/main/scripts/functions_llmpanel.R?raw=true")
+
+path_processed <- format_path("llmpanel/data_processed")
+raw_panel <- read_csv(here::here(path_processed, "panel.csv"), show_col_types = FALSE)
+
+pref_cols <- c("pref_legitimizing", "pref_norms", "pref_value_affirmation",
+               "pref_self_efficacy", "pref_acknowledging")
+
+# Tier colors from the preference survey (red = Norms, amber = Acknowledging,
+# green = Legitimizing, Self efficacy, Value affirmation)
+tier_colors <- c(norms = "#E24B4A", acknowledging = "#BA7517", legitimizing = "#639922",
+                 self_efficacy = "#639922", value_affirmation = "#639922")
+
+# Wide format with each respondent's highest- and lowest-preferred tone(s) and a
+# straightliner flag
+panel <- format_eda(raw_panel) |> add_pref_extremes(pref_cols)
+
+# Angled x-axis labels so tone names are not cut off
+angled_x_labels <- theme(axis.text.x = element_text(angle = 35, hjust = 1),
+                         plot.margin = margin(5.5, 5.5, 5.5, 20))
+
+# Long format (one row per message rating) and each respondent's mean rating per tone
+panel_long <- format_eda(raw_panel, long = TRUE)
+rating_by_tone <- panel_long |>
+  summarise(rating = mean(rating_num, na.rm = TRUE), .by = c(subid, tone))
+```
+
+Groups are defined by each respondent's preference scores: the highest tier is the tone(s)
+tied for the highest score, and the lowest tier the tone(s) tied for the lowest. Respondents
+who gave the same score to every tone (straightliners) are excluded from the grouped plots.
+
+# Preferences and ratings are broadly aligned
+
+```{r}
+# Faceted plot showing bar charts for the mean tone preferences next to
+# mean message ratings by tone
+pref_vs_rating <- bind_rows(
+  panel |>
+    select(all_of(pref_cols)) |>
+    pivot_longer(everything(), names_to = "tone", names_prefix = "pref_", values_to = "value") |>
+    summarise(mean = mean(value, na.rm = TRUE),
+              se = sd(value, na.rm = TRUE) / sqrt(sum(!is.na(value))),
+              .by = tone) |>
+    mutate(measure = "Mean preference (preferences survey)"),
+  rating_by_tone |>
+    summarise(mean = mean(rating), se = sd(rating) / sqrt(n()), .by = tone) |>
+    mutate(measure = "Mean message rating")) |>
+  mutate(measure = factor(measure, levels = c("Mean preference (preferences survey)",
+                                              "Mean message rating")))
+
+# Same tone order in both panels (lowest to highest mean message rating)
+tone_by_rating <- pref_vs_rating |>
+  filter(measure == "Mean message rating") |>
+  arrange(mean) |>
+  pull(tone)
+
+pref_vs_rating |>
+  mutate(tone = factor(tone, levels = tone_by_rating)) |>
+  ggplot(aes(x = tone, y = mean, fill = tone)) +
+  geom_col(show.legend = FALSE) +
+  geom_errorbar(aes(ymin = mean - 1.96 * se, ymax = mean + 1.96 * se), width = 0.25) +
+  geom_text(aes(y = 1.5, label = round(mean, 2)), color = "white") +
+  facet_wrap(~measure) +
+  scale_fill_manual(values = tier_colors) +
+  scale_x_discrete(labels = \(x) str_to_sentence(str_replace(x, "_", " "))) +
+  coord_cartesian(ylim = c(1, 7)) +
+  scale_y_continuous(breaks = 1:7) +
+  labs(x = "Tone", y = "Mean (1-7)") +
+  angled_x_labels
+```
+
+# Self-Efficacy and Value Affirmation are rated highly regardless of preference
+
+```{r}
+# Box plots showing the distribution of message ratings across tones, for
+# individuals for whom self efficacy is in their lowest tier of preferences
+# (left) vs. their highest tier of preferences (right)
+plot_ratings_by_tier("self_efficacy", panel, rating_by_tone, tier_colors)
+```
+
+```{r}
+# Same plot as above for individuals with value affirmation in their lowest tier
+# (left) vs. their highest tier (right)
+plot_ratings_by_tier("value_affirmation", panel, rating_by_tone, tier_colors)
+```
+
+# Norms is rated highly only among those with a strong preference
+
+```{r}
+# Faceted categorical box plots:
+# Top: Box plot with mean message ratings across all tones
+# Bottom: Box plot for individuals with norms in the highest tier of preferences
+plot_ratings_by_groups(
+  list("All respondents" = unique(rating_by_tone$subid),
+       "Norms in highest preference tier" = pref_group_ids(panel, "norms", "top")),
+  rating_by_tone, tier_colors)
+```
+
+```{r}
+# Norms in the lowest tier of preferences (left) vs. the highest tier (right)
+plot_ratings_by_tier("norms", panel, rating_by_tone, tier_colors)
+```
+
+# Legitimizing is rated moderately, regardless of preference
+
+```{r}
+# Faceted categorical box plots:
+# Top: Individuals for whom legitimizing is in the lowest tier of preferences
+# Bottom: Individuals for whom legitimizing is in the highest tier of preferences
+plot_ratings_by_tier("legitimizing", panel, rating_by_tone, tier_colors)
+```
+
+# Acknowledging is rated poorly, regardless of preference
+
+```{r}
+# Faceted categorical box plots:
+# Top: Individuals for whom acknowledging is in the lowest tier of preferences
+# Bottom: Individuals for whom acknowledging is in the highest tier of preferences
+plot_ratings_by_tier("acknowledging", panel, rating_by_tone, tier_colors)
+```

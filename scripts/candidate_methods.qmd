@@ -1,0 +1,807 @@
+---
+title: "Candidate Tone Assignment Methods Under the Variety Standard"
+format: 
+  html:
+    page-layout: full
+    self-contained: true
+    toc: true
+    toc-depth: 3
+execute: 
+  warning: false
+editor_options: 
+  chunk_output_type: console
+---
+
+## Code Status
+
+Draft. Written without access to the data and NOT YET RUN. Run chunk by chunk
+and expect small fixes.
+
+## Purpose
+
+Earlier scripts compared every method, including single-tone and two-tone
+methods. Those do not meet the variety standard for real use. This script:
+
+1.  Applies the **variety standard** and lists which methods qualify.
+2.  Scores every candidate **held out**, on **pooled styles and on informal
+    messages only**, side by side.
+3.  Reports the **ceiling**: how high any qualifying method could score, even
+    with perfect knowledge of each person's tastes.
+4.  Replaces the optimization and disadvantage rates with **noise-corrected
+    risk metrics**, and applies a proposed selection rule.
+
+## The Variety Standard
+
+A method qualifies only if, for **every** respondent:
+
+-   they receive at least `min_tones` tones (3), and
+-   their least-seen tone makes up at least `min_share` of messages (20%).
+
+Together these cap the most-seen tone at 60% (60/20/20).
+
+## Setup
+
+```{r}
+#| label: Setup
+options(conflicts.policy = "depends.ok")
+library(tidyverse)
+
+source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
+source(here::here("scripts", "functions_llmpanel.R"))
+
+path_processed <- format_path("llmpanel/data_processed")
+
+panel_long <- format_eda(read_csv(
+  here::here(path_processed, "panel.csv"),
+  show_col_types = FALSE), long = TRUE)
+
+tone_levels <- c("norms", "acknowledging", "legitimizing",
+                 "self_efficacy", "value_affirmation")
+pref_cols <- paste0("pref_", tone_levels)
+
+set.seed(102030)
+```
+
+*Settings*
+
+```{r}
+#| label: Settings
+# Variety standard
+min_tones <- 3
+min_share <- 0.20
+
+# Selection rule (Section 5): among qualifying methods within `margin` points of
+# the best qualifying method's held-out mean, prefer the one that leaves the
+# fewest people worse off than an even rotation.
+margin <- 0.03
+
+# "Clearly worse off": a true expected rating at least this far below what the
+# person would get from an even rotation of all five tones
+harm_threshold <- 0.25
+
+# Held-out scoring: repeated k-fold over respondents
+cv_repeats <- 6
+cv_folds <- 5
+n_boot <- 2000
+n_sim <- 100000
+```
+
+*Preferences (one row per respondent, in a fixed order used throughout)*
+
+```{r}
+#| label: Preferences
+pref_wide <- panel_long |>
+  distinct(subid, across(all_of(pref_cols))) |>
+  arrange(subid)
+stopifnot(!anyDuplicated(pref_wide$subid), !anyNA(pref_wide))
+
+ids <- pref_wide$subid
+n <- length(ids)
+P <- as.matrix(pref_wide[, pref_cols])
+colnames(P) <- tone_levels
+
+pref_by_tone <- pref_wide |>
+  pivot_longer(-subid, names_to = "tone", names_prefix = "pref_", values_to = "pref")
+```
+
+*Ratings for each style setting*
+
+For each setting this builds the respondent-by-tone matrix of mean ratings and
+fits a mixed model that separates stable person-by-tone differences
+(`sd_person_tone`) from message-level noise (`sd_resid`). Both are needed for
+the noise-corrected metrics.
+
+```{r}
+#| label: Style Data
+prep_style <- function(styles) {
+  d <- if (styles == "informal") filter(panel_long, style == "informal") else panel_long
+
+  wide <- d |>
+    summarise(rating = mean(rating_num, na.rm = TRUE), .by = c(subid, tone)) |>
+    pivot_wider(names_from = tone, values_from = rating) |>
+    arrange(subid)
+  stopifnot(identical(wide$subid, ids), !anyNA(wide[, tone_levels]))
+
+  form <- if (styles == "informal") {
+    rating_num ~ tone + context + (1 | subid) + (1 | subid:tone)
+  } else {
+    rating_num ~ tone + context + style + (1 | subid) + (1 | subid:tone)
+  }
+  m <- lme4::lmer(form, data = mutate(d, subid = factor(subid)), REML = TRUE)
+
+  list(
+    styles = styles,
+    M = as.matrix(wide[, tone_levels]),
+    # messages behind each respondent's tone mean (3 informal, 6 pooled)
+    n_per_tone = nrow(d) / (n_distinct(d$subid) * length(tone_levels)),
+    sd_person_tone = attr(lme4::VarCorr(m)[["subid:tone"]], "stddev")[[1]],
+    sd_resid = sigma(m))
+}
+
+style_data <- list(
+  "Pooled styles" = prep_style("both"),
+  "Informal only" = prep_style("informal"))
+
+map(style_data, \(s) s[c("n_per_tone", "sd_person_tone", "sd_resid")]) |>
+  map(as_tibble) |>
+  list_rbind(names_to = "styles")
+```
+
+# 1. Methods
+
+Each method is a function that returns a weight for every tone for each
+respondent. `top` is the tones ranked by mean rating **among training
+respondents only**, so nothing about a held-out respondent's ratings decides
+what they receive.
+
+**Fixed methods** give everyone the same weights. **Preference-based methods**
+use each person's own stated preferences:
+
+-   **Own order.** Everyone gets the sample's top three tones, but the weights
+    (e.g. 50/30/20) follow the person's own preference order among those
+    three. Tied tones share their weights (a tie for first gives 40/40/20; all
+    three tied gives equal thirds).
+-   **Sample tiebreak.** A variant of own order in which tied tones are
+    ordered by the sample ranking instead of sharing their weights. Someone
+    with no stated order among the three tones gets the fixed 50/30/20
+    rotation; someone with a full order is unaffected. Added because the
+    shared-weights version scored below a fixed rotation for people who tied
+    its three tones.
+-   **Own order + norms.** As above, but a person who put norms in their
+    highest preference tier gets norms in place of the sample's third tone.
+    This uses the finding that a norms preference is informative.
+-   **Own top three.** The person's own three most-preferred tones, weighted
+    by their preference order. The sample is used only to break ties. This is
+    the candidate that leans least on what the sample as a whole liked.
+-   **Rule-based.** The five rules from `tone_assignment_methods.qmd`
+    (`data_driven_weights()`).
+
+```{r}
+#| label: Method Definitions
+# Same weights for everyone: `weights` go to the top-ranked tones in order
+fixed <- function(weights) {
+  function(top, rows) {
+    w <- set_names(numeric(length(tone_levels)), tone_levels)
+    w[top[seq_along(weights)]] <- weights
+    matrix(w, nrow = length(rows), ncol = length(w), byrow = TRUE,
+           dimnames = list(NULL, tone_levels))
+  }
+}
+
+# Assign `w_sorted` (largest first) by a person's preference order; ties share
+pref_ordered_weights <- function(p, w_sorted) {
+  w <- numeric(length(p))
+  w[order(-p)] <- w_sorted
+  ave(w, p)
+}
+
+# Sample's top three tones, weighted by the person's own preference order.
+# norms_swap: a person with norms in their highest preference tier (and who did
+# not give every tone the same score) gets norms in place of the third tone.
+# ties = "share":  tied tones split their weights equally (three tied -> equal thirds)
+# ties = "sample": tied tones are ordered by the sample ranking, so a person with no
+#                  stated order among the three gets the fixed rotation (50/30/20)
+own_order <- function(w_sorted, norms_swap = FALSE, ties = c("share", "sample")) {
+  ties <- match.arg(ties)
+  function(top, rows) {
+    t(vapply(rows, \(i) {
+      tones <- top[1:3]
+      p_all <- P[i, ]
+      if (norms_swap && !("norms" %in% tones) &&
+          p_all[["norms"]] == max(p_all) && min(p_all) < max(p_all)) {
+        tones[3] <- "norms"
+      }
+      p <- p_all[tones]                 # `tones` is in sample-rank order
+      w_tones <- if (ties == "share") {
+        pref_ordered_weights(p, w_sorted)
+      } else {
+        ws <- numeric(length(p))
+        ws[order(-p, seq_along(p))] <- w_sorted
+        ws
+      }
+      w <- set_names(numeric(length(tone_levels)), tone_levels)
+      w[tones] <- w_tones
+      w
+    }, numeric(length(tone_levels))))
+  }
+}
+
+# Each person's OWN top three tones by stated preference (ties broken by the
+# sample ranking), weighted by their preference order. Unlike own_order(), the set
+# of tones is personal too, so nothing but tie-breaking comes from the sample.
+own_top_three <- function(w_sorted) {
+  function(top, rows) {
+    t(vapply(rows, \(i) {
+      p_ranked <- P[i, top]                       # in sample-rank order
+      tones <- top[order(-p_ranked, seq_along(top))[1:3]]
+      w <- set_names(numeric(length(tone_levels)), tone_levels)
+      w[tones] <- pref_ordered_weights(P[i, tones], w_sorted)
+      w
+    }, numeric(length(tone_levels))))
+  }
+}
+
+# Rule-based weights do not depend on the training sample
+rule_wide <- data_driven_weights(pref_by_tone) |>
+  select(subid, tone, weight) |>
+  pivot_wider(names_from = tone, values_from = weight) |>
+  arrange(subid)
+stopifnot(identical(rule_wide$subid, ids))
+W_rule <- as.matrix(rule_wide[, tone_levels])
+rule_based <- function(top, rows) W_rule[rows, , drop = FALSE]
+
+methods <- list(
+  # Reference methods that do not meet the variety standard
+  "Mean-only"                       = fixed(1),
+  "Top two, equal"                  = fixed(c(.5, .5)),
+  "Top three, 45/45/10"             = fixed(c(.45, .45, .10)),
+  # Fixed candidates
+  "Top three, 60/20/20"             = fixed(c(.60, .20, .20)),
+  "Top three, 50/30/20"             = fixed(c(.50, .30, .20)),
+  "Top three, 50/25/25"             = fixed(c(.50, .25, .25)),
+  "Top three, 40/40/20"             = fixed(c(.40, .40, .20)),
+  "Top three, 40/30/30"             = fixed(c(.40, .30, .30)),
+  "Top three, equal"                = fixed(rep(1 / 3, 3)),
+  "Top four, 40/20/20/20"           = fixed(c(.40, .20, .20, .20)),
+  "Top four, 30/30/20/20"           = fixed(c(.30, .30, .20, .20)),
+  "Top four, equal"                 = fixed(rep(1 / 4, 4)),
+  "Uniform (all five)"              = fixed(rep(1 / 5, 5)),
+  # Preference-based candidates
+  "Own order, 50/30/20"             = own_order(c(.50, .30, .20)),
+  "Own order, 40/40/20"             = own_order(c(.40, .40, .20)),
+  "Own order, 50/30/20 + norms"     = own_order(c(.50, .30, .20), norms_swap = TRUE),
+  "Own order, 50/30/20, sample tiebreak" =
+    own_order(c(.50, .30, .20), ties = "sample"),
+  "Own order, 50/30/20 + norms, sample tiebreak" =
+    own_order(c(.50, .30, .20), norms_swap = TRUE, ties = "sample"),
+  "Own top three, 50/30/20"         = own_top_three(c(.50, .30, .20)),
+  "Rule-based"                      = rule_based)
+```
+
+# 2. Which Methods Qualify?
+
+Checked on every respondent, with tones ranked on the full sample (pooled
+styles). A method qualifies only if 100% of respondents meet both parts of the
+standard.
+
+```{r}
+#| label: Variety Check
+top_full <- names(sort(colMeans(style_data[["Pooled styles"]]$M), decreasing = TRUE))
+top_full
+
+variety <- imap(methods, \(f, nm) {
+  W <- f(top_full, seq_len(n))
+  n_tones <- rowSums(W > 0)
+  least <- apply(W, 1, \(w) min(w[w > 0]))
+  ok <- n_tones >= min_tones & least >= min_share - 1e-9
+  tibble(method = nm,
+         tones_min = min(n_tones), tones_max = max(n_tones),
+         least_seen_share = min(least),
+         most_seen_share = max(W),
+         pct_respondents_meeting = mean(ok),
+         qualifies = all(ok))
+}) |> list_rbind()
+
+variety |> arrange(desc(qualifies), desc(most_seen_share)) |> print(n = Inf)
+qualifying <- variety$method[variety$qualifies]
+```
+
+Methods from earlier scripts that are not carried forward, and why:
+
+-   **Mean-only, top two, 45/45/10:** fewer than three tones or a tone under 20%.
+-   **Drop own least-preferred tone(s):** ties drop several tones at once, so
+    some respondents are left with one or two tones.
+-   **Tier-, power- and score-weighted individualized methods:** the least-seen
+    tone falls below 20% for many respondents.
+-   **30/30/20/10/10:** two tones at 10%.
+
+# 3. Held-Out Scores, Pooled and Informal
+
+Each respondent is scored only in folds where they were not used to rank the
+tones. No configuration is being tuned here, so one level of cross-validation
+is enough; the nested version in `heldout_methods.qmd` is for selecting among
+configurations. The same folds are used for both style settings.
+
+```{r}
+#| label: Folds
+folds <- map(seq_len(cv_repeats), \(r) {
+  fold_id <- sample(rep(seq_len(cv_folds), length.out = n))
+  map(seq_len(cv_folds), \(k) which(fold_id == k))
+}) |> unlist(recursive = FALSE)
+length(folds)
+```
+
+## Metrics
+
+For each method and respondent, the **gain** is their expected rating under
+the method minus what they would get from an even rotation of all five tones.
+An even rotation is the natural "no decision made" baseline.
+
+-   `held_out_mean`: mean expected rating.
+-   `retained`: the method's mean gain as a share of mean-only's gain. 100%
+    means as helpful on average as giving everyone the single best tone.
+-   `diff_vs_mean_only` with a paired 95% bootstrap interval.
+-   `sd_gain`: how much the gain truly varies between people, after removing
+    rating noise.
+-   `pct_worse_off`: estimated share of people whose **true** expected rating
+    under the method is below their even-rotation baseline.
+-   `pct_clearly_worse`: the same, for at least `harm_threshold` points below.
+
+**Why these replace the optimization and disadvantage rates.** The old rates
+ask how often a person gets their single best or worst tone. That label is
+unreliable (a person's best tone in two contexts is among their worst in the
+third about 44% of the time), it is inflated by ties, and the rates rise and
+fall with mean helpfulness, so they do not pull against it. The metrics here
+measure the same concern, who is left worse off, on the rating scale, and they
+do pull against mean helpfulness: concentrating on one tone raises the average
+but widens the spread of who gains and who loses.
+
+**How the noise correction works.** A respondent's observed gain is their true
+gain plus rating noise. The noise variance is known from the mixed model
+(`sd_resid`^2 / messages per tone, times the sum of squared differences between
+the method's weights and an even 20%). Subtracting it from the observed
+variance of gains leaves the true variance. The share worse off then comes
+from a normal distribution with the observed mean gain and the true SD. This
+assumes true gains are roughly normal.
+
+```{r}
+#| label: Evaluate
+evaluate_methods <- function(s) {
+  M <- s$M
+  uniform_value <- rowMeans(M)
+
+  # Each respondent's weights, averaged over the repeats in which they were held out
+  W_bar <- map(methods, \(f) matrix(0, n, length(tone_levels),
+                                    dimnames = list(NULL, tone_levels)))
+  for (test in folds) {
+    train <- setdiff(seq_len(n), test)
+    top <- names(sort(colMeans(M[train, , drop = FALSE]), decreasing = TRUE))
+    for (nm in names(methods)) {
+      W_bar[[nm]][test, ] <- W_bar[[nm]][test, ] + methods[[nm]](top, test) / cv_repeats
+    }
+  }
+
+  values <- map(W_bar, \(W) rowSums(W * M)) |> as_tibble()
+  value_mat <- as.matrix(values)
+
+  boot_means <- map(seq_len(n_boot), \(i) {
+    colMeans(value_mat[sample(n, replace = TRUE), , drop = FALSE])
+  }) |> do.call(what = rbind)
+  boot_diff <- boot_means - boot_means[, "Mean-only"]
+
+  gain_mean_only <- mean(value_mat[, "Mean-only"] - uniform_value)
+
+  imap(W_bar, \(W, nm) {
+    v <- value_mat[, nm]
+    gain <- v - uniform_value
+    noise_var <- s$sd_resid^2 / s$n_per_tone * rowSums((W - 1 / length(tone_levels))^2)
+    true_sd <- sqrt(max(var(gain) - mean(noise_var), 0))
+    is_uniform <- all(abs(W - 1 / length(tone_levels)) < 1e-9)
+    tibble(
+      method = nm,
+      held_out_mean = mean(v),
+      retained = mean(gain) / gain_mean_only,
+      diff_vs_mean_only = mean(v) - mean(value_mat[, "Mean-only"]),
+      diff_low = quantile(boot_diff[, nm], .025),
+      diff_high = quantile(boot_diff[, nm], .975),
+      sd_gain = if (is_uniform) 0 else true_sd,
+      pct_worse_off = if (is_uniform || true_sd == 0) NA_real_ else
+        pnorm(0, mean(gain), true_sd),
+      pct_clearly_worse = if (is_uniform || true_sd == 0) NA_real_ else
+        pnorm(-harm_threshold, mean(gain), true_sd),
+      # not noise-corrected, for comparison only
+      pct_worse_off_raw = if (is_uniform) NA_real_ else mean(gain < 0))
+  }) |>
+    list_rbind() |>
+    mutate(qualifies = method %in% qualifying, .after = method) -> summary_tbl
+
+  list(summary = summary_tbl, values = value_mat, weights = W_bar,
+       uniform = uniform_value)
+}
+
+evaluated <- map(style_data, evaluate_methods)
+results <- map(evaluated, "summary")
+```
+
+## Candidate Comparison
+
+All methods, pooled styles first. Rows that do not qualify are kept as
+reference points.
+
+```{r}
+#| label: Results Pooled
+results[["Pooled styles"]] |>
+  arrange(desc(qualifies), desc(held_out_mean)) |>
+  mutate(across(where(is.numeric), \(x) round(x, 3))) |>
+  print(n = Inf, width = Inf)
+```
+
+```{r}
+#| label: Results Informal
+results[["Informal only"]] |>
+  arrange(desc(qualifies), desc(held_out_mean)) |>
+  mutate(across(where(is.numeric), \(x) round(x, 3))) |>
+  print(n = Inf, width = Inf)
+```
+
+## Pooled vs. Informal, Side by Side
+
+If style does not matter for choosing tones, the two columns should rank the
+methods the same way, with informal means a little higher throughout. The
+pooled figures rest on twice as many messages per tone.
+
+```{r}
+#| label: Side by Side
+side_by_side <- inner_join(
+  results[["Pooled styles"]] |>
+    select(method, qualifies, mean_pooled = held_out_mean, retained_pooled = retained,
+           worse_pooled = pct_worse_off),
+  results[["Informal only"]] |>
+    select(method, mean_informal = held_out_mean, retained_informal = retained,
+           worse_informal = pct_worse_off),
+  by = "method") |>
+  mutate(rank_pooled = min_rank(desc(mean_pooled)),
+         rank_informal = min_rank(desc(mean_informal))) |>
+  arrange(rank_pooled)
+
+side_by_side |>
+  mutate(across(where(is.double), \(x) round(x, 3))) |>
+  print(n = Inf, width = Inf)
+
+# Agreement between the two rankings
+cor(side_by_side$mean_pooled, side_by_side$mean_informal, method = "spearman")
+```
+
+```{r}
+#| label: Trade-off Plot
+results |>
+  list_rbind(names_to = "styles") |>
+  filter(!is.na(pct_worse_off)) |>
+  ggplot(aes(x = held_out_mean, y = pct_worse_off, color = qualifies)) +
+  geom_point(size = 2) +
+  geom_text(aes(label = method), size = 3, vjust = -0.8, check_overlap = TRUE,
+            show.legend = FALSE) +
+  facet_wrap(~styles, scales = "free_x") +
+  scale_y_continuous(labels = scales::percent) +
+  scale_color_manual(values = c(`TRUE` = "forestgreen", `FALSE` = "grey50"),
+                     labels = c(`TRUE` = "Meets variety standard", `FALSE` = "Does not")) +
+  labs(x = "Held-out mean helpfulness",
+       y = "Estimated share worse off than an even rotation",
+       color = NULL,
+       subtitle = "Best methods are toward the bottom right") +
+  theme(legend.position = "bottom")
+```
+
+# 4. The Ceiling: Is 5.5 Reachable?
+
+How high could a method score? Simulating people from the mixed model (shared
+tone means plus a stable personal deviation for each tone) gives the value of
+several ideals:
+
+-   **Oracle, no constraint:** every message in the person's true best tone.
+    This is the noise-free version of the "best case" (about 5.8 in-sample).
+-   **Oracle under the variety standard:** the person's true top three tones
+    at 60/20/20. No qualifying method can beat this, whatever information it
+    uses.
+-   **Best fixed qualifying method:** the sample's top three tones at 60/20/20.
+    No method that ignores the individual can beat this.
+
+```{r}
+#| label: Ceiling
+ceiling_table <- imap(style_data, \(s, nm) {
+  mu <- colMeans(s$M)
+  mu_sorted <- sort(mu, decreasing = TRUE)
+  true_values <- matrix(rnorm(n_sim * 5, 0, s$sd_person_tone), ncol = 5) +
+    matrix(mu, nrow = n_sim, ncol = 5, byrow = TRUE)
+  sorted <- t(apply(true_values, 1, sort, decreasing = TRUE))
+  tibble(
+    styles = nm,
+    uniform = mean(mu),
+    best_fixed_qualifying = sum(c(.6, .2, .2) * mu_sorted[1:3]),
+    mean_only = mu_sorted[[1]],
+    oracle_with_variety = mean(sorted[, 1] * .6 + sorted[, 2] * .2 + sorted[, 3] * .2),
+    oracle_no_constraint = mean(sorted[, 1]),
+    in_sample_best_case = mean(apply(s$M, 1, max)))
+}) |> list_rbind()
+ceiling_table
+```
+
+Reading this table:
+
+-   If `best_fixed_qualifying` is below 5.5, **no fixed rotation that meets
+    the variety standard can reach 5.5** in this sample.
+-   If `oracle_with_variety` is below or near 5.5, the target is out of reach
+    under the variety standard even with perfect knowledge of every person.
+-   The gap between `best_fixed_qualifying` and `oracle_with_variety` is the
+    most that individual information (preferences, demographics, or ratings
+    collected in use) could ever add under the standard.
+
+A target expressed as `retained` (share of mean-only's gain kept) or as a
+share of the distance from uniform to `oracle_with_variety` is reachable and
+means the same thing in both style settings. An absolute target is not.
+
+# 5. Selecting a Method
+
+Proposed rule, applied separately to each style setting:
+
+1.  Keep only methods that meet the variety standard.
+2.  Find the best held-out mean among them.
+3.  Keep methods within `margin` points of it. These are treated as equally
+    helpful on average; the differences are within noise.
+4.  Among those, choose the lowest `pct_worse_off`.
+5.  If two are still level, prefer the simpler one (a fixed method over a
+    preference-based one, fewer rules over more).
+
+```{r}
+#| label: Selection
+selection <- imap(results, \(r, nm) {
+  r |>
+    filter(qualifies) |>
+    mutate(styles = nm,
+           best_mean = max(held_out_mean),
+           within_margin = held_out_mean >= best_mean - margin,
+           selected = within_margin &
+             pct_worse_off == min(pct_worse_off[within_margin], na.rm = TRUE)) |>
+    arrange(desc(within_margin), pct_worse_off) |>
+    select(styles, method, held_out_mean, retained, diff_vs_mean_only, diff_low,
+           diff_high, pct_worse_off, pct_clearly_worse, within_margin, selected)
+}) |> list_rbind()
+
+selection |>
+  mutate(across(where(is.double), \(x) round(x, 3))) |>
+  print(n = Inf, width = Inf)
+
+selection |> filter(selected) |> select(styles, method, held_out_mean, retained, pct_worse_off)
+```
+
+Things to check before trusting the selection:
+
+-   Does the same method win in both style settings? If not, the candidates
+    in the margin are effectively tied and step 5 should decide.
+-   Does the norms variant beat plain "own order"? That is the test of whether
+    the norms rule earns its place.
+-   `margin` and `harm_threshold` are judgment calls set in the Settings
+    chunk. Re-run with other values to see whether the choice is stable.
+
+
+# 6. Do the Preference-Based Methods Actually Personalize?
+
+If most people state the same preference order, "own order" would hand nearly
+everyone the same rotation as the fixed method, and calling it
+preference-based would be misleading. This section checks what people would
+actually receive. Weights use the full-sample tone ranking (pooled styles).
+
+```{r}
+#| label: Assignment Profiles
+short <- c(norms = "Norms", acknowledging = "Ack", legitimizing = "Leg",
+           self_efficacy = "SE", value_affirmation = "VA")
+
+# One label per respondent describing their rotation, e.g. "SE 50 / VA 30 / Leg 20"
+rotation_label <- function(w) {
+  keep <- w[w > 0]
+  keep <- keep[order(-keep, names(keep))]
+  paste(sprintf("%s %s", short[names(keep)], round(100 * keep)), collapse = " / ")
+}
+
+compare_to <- "Top three, 50/30/20"
+W_fixed <- methods[[compare_to]](top_full, seq_len(n))
+fixed_label <- rotation_label(W_fixed[1, ])
+fixed_label
+
+pref_methods <- c("Own order, 50/30/20", "Own order, 50/30/20 + norms",
+                  "Own order, 50/30/20 + norms, sample tiebreak",
+                  "Own top three, 50/30/20", "Rule-based")
+
+W_full <- map(set_names(pref_methods), \(nm) methods[[nm]](top_full, seq_len(n)))
+
+personalization <- imap(W_full, \(W, nm) {
+  labels <- apply(W, 1, rotation_label)
+  tibble(
+    method = nm,
+    distinct_rotations = n_distinct(labels),
+    pct_same_as_fixed = mean(labels == fixed_label),
+    # share of a person's messages that differ in tone from the fixed rotation
+    pct_messages_reallocated = mean(rowSums(abs(W - W_fixed)) / 2),
+    pct_same_top_tone_as_fixed = mean(W[, top_full[1]] == apply(W, 1, max) &
+                                        rowSums(W == apply(W, 1, max)) == 1),
+    pct_receiving_norms = mean(W[, "norms"] > 0),
+    pct_receiving_acknowledging = mean(W[, "acknowledging"] > 0))
+}) |> list_rbind()
+personalization |> mutate(across(where(is.double), \(x) round(x, 3)))
+```
+
+How to read it:
+
+-   `pct_same_as_fixed`: share of respondents whose rotation is identical to
+    the fixed 50/30/20. If this is high, the method is the fixed method in
+    effect.
+-   `pct_messages_reallocated`: on average, the share of a person's messages
+    that would be in a different tone than under the fixed rotation.
+-   `pct_same_top_tone_as_fixed`: share whose single most-seen tone is the
+    sample's top tone.
+
+*Most common rotations under each preference-based method*
+
+```{r}
+#| label: Rotation Counts
+imap(W_full, \(W, nm) {
+  tibble(method = nm, rotation = apply(W, 1, rotation_label)) |>
+    count(method, rotation, sort = TRUE) |>
+    mutate(pct = n / sum(n)) |>
+    slice_head(n = 8)
+}) |> list_rbind() |>
+  mutate(pct = round(pct, 3)) |>
+  print(n = Inf)
+```
+
+*Average share of messages in each tone*
+
+Even when individuals differ, the average mix across the sample may look like
+the fixed rotation. That is expected and is not the same as everyone getting
+the same thing.
+
+```{r}
+#| label: Average Mix
+c(list(W_fixed) |> set_names(compare_to), W_full) |>
+  imap(\(W, nm) as_tibble_row(colMeans(W)) |> mutate(method = nm, .before = 1)) |>
+  list_rbind() |>
+  mutate(across(where(is.double), \(x) round(x, 3)))
+```
+
+# 7. Paired Comparisons Between Candidates
+
+Each comparison is A minus B on held-out expected ratings, paired within
+respondent, with a 95% bootstrap interval and Cohen's dz. `n_affected` is the
+number of respondents whose rotation differs between the two methods, and
+`diff_affected` is the mean difference among just those respondents (the rest
+contribute exactly zero).
+
+```{r}
+#| label: Paired Comparisons
+comparisons <- tribble(
+  ~question,                                        ~a,                            ~b,
+  "Best preference-based vs. simplest fixed",       "Own order, 50/30/20 + norms", "Top three, 40/40/20",
+  "Does preference ordering help? (same weights)",  "Own order, 50/30/20",         "Top three, 50/30/20",
+  "Does the norms rule help?",                      "Own order, 50/30/20 + norms", "Own order, 50/30/20",
+  "Own tone set vs. the sample's tone set",         "Own top three, 50/30/20",     "Own order, 50/30/20",
+  "Own tone set vs. simplest fixed",                "Own top three, 50/30/20",     "Top three, 40/40/20",
+  "Own order + norms vs. rule-based",               "Own order, 50/30/20 + norms", "Rule-based",
+  "Tiebreak by sample order vs. shared weights",    "Own order, 50/30/20 + norms, sample tiebreak", "Own order, 50/30/20 + norms",
+  "Tiebreak version vs. simplest fixed",            "Own order, 50/30/20 + norms, sample tiebreak", "Top three, 40/40/20",
+  "Tiebreak version vs. fixed 50/30/20",            "Own order, 50/30/20 + norms, sample tiebreak", "Top three, 50/30/20")
+
+paired <- imap(evaluated, \(e, style_nm) {
+  pmap(comparisons, \(question, a, b) {
+    d <- e$values[, a] - e$values[, b]
+    affected <- rowSums(abs(e$weights[[a]] - e$weights[[b]])) > 1e-9
+    boot <- map_dbl(seq_len(n_boot), \(i) mean(sample(d, replace = TRUE)))
+    tibble(styles = style_nm, question = question, a = a, b = b,
+           diff = mean(d),
+           ci_low = quantile(boot, .025), ci_high = quantile(boot, .975),
+           dz = mean(d) / sd(d),
+           p = t.test(d)$p.value,
+           n_affected = sum(affected),
+           diff_affected = mean(d[affected]))
+  }) |> list_rbind()
+}) |> list_rbind()
+
+paired |>
+  mutate(across(c(diff, ci_low, ci_high, dz, diff_affected), \(x) round(x, 3)),
+         p = round(p, 4)) |>
+  select(styles, question, diff, ci_low, ci_high, dz, p, n_affected, diff_affected) |>
+  print(n = Inf, width = Inf)
+```
+
+Reading the results:
+
+-   An interval that includes zero means the two methods cannot be told apart
+    on mean helpfulness. In that case the choice rests on other grounds
+    (variety, fairness, simplicity).
+-   An interval entirely below zero for "Own tone set vs. ..." means that
+    relying on each person's own preferred tones costs helpfulness, which is
+    what the preference-reliability results would predict.
+
+# 8. Who Benefits? Results by Demographic Group
+
+A fixed rotation is built from what the whole sample rated highest, and the
+sample is mostly White and male. If a fixed method served the majority better
+than everyone else, that would be a reason to prefer a preference-based
+method even at equal average helpfulness. For each group this shows the mean
+gain over an even rotation under several methods, and the paired difference
+between the leading preference-based and fixed methods.
+
+Small groups have wide intervals. Read this as a check for large disparities,
+not as a test of small ones.
+
+```{r}
+#| label: By Demographic
+dems <- panel_long |>
+  distinct(subid, dem_sex, dem_ethnicity, dem_orientation, dem_education,
+           dem_minority, dem_age) |>
+  arrange(subid) |>
+  mutate(age_group = cut(dem_age, breaks = quantile(dem_age, c(0, 1 / 3, 2 / 3, 1), na.rm = TRUE),
+                         include.lowest = TRUE)) |>
+  select(-dem_age) |>
+  mutate(across(-subid, as.character))
+stopifnot(identical(dems$subid, ids))
+
+show_methods <- c("Mean-only", "Top three, 40/40/20", "Top three, 50/30/20",
+                  "Own order, 50/30/20", "Own order, 50/30/20 + norms",
+                  "Own top three, 50/30/20")
+pref_method <- "Own order, 50/30/20 + norms"
+fixed_method <- "Top three, 40/40/20"
+
+by_group <- imap(evaluated, \(e, style_nm) {
+  gains <- as_tibble(e$values[, show_methods] - e$uniform)
+  d <- e$values[, pref_method] - e$values[, fixed_method]
+  bind_cols(dems, gains, pref_minus_fixed = d) |>
+    pivot_longer(c(dem_sex, dem_ethnicity, dem_orientation, dem_education,
+                   dem_minority, age_group),
+                 names_to = "variable", values_to = "level") |>
+    drop_na(level) |>
+    summarise(n = n(),
+              across(all_of(show_methods), mean),
+              pref_minus_fixed_se = sd(pref_minus_fixed) / sqrt(n()),
+              pref_minus_fixed = mean(pref_minus_fixed),
+              .by = c(variable, level)) |>
+    mutate(styles = style_nm, .before = 1) |>
+    mutate(ci_low = pref_minus_fixed - 1.96 * pref_minus_fixed_se,
+           ci_high = pref_minus_fixed + 1.96 * pref_minus_fixed_se) |>
+    select(-pref_minus_fixed_se)
+}) |> list_rbind()
+
+by_group |>
+  filter(styles == "Pooled styles") |>
+  arrange(variable, desc(n)) |>
+  mutate(across(where(is.double), \(x) round(x, 3))) |>
+  print(n = Inf, width = Inf)
+
+by_group |>
+  filter(styles == "Informal only") |>
+  arrange(variable, desc(n)) |>
+  mutate(across(where(is.double), \(x) round(x, 3))) |>
+  print(n = Inf, width = Inf)
+```
+
+*Spread between groups*
+
+For each variable and method, the difference between the best- and
+worst-served group (groups with at least 30 respondents). A smaller spread
+means the method's benefit is shared more evenly.
+
+```{r}
+#| label: Group Spread
+by_group |>
+  filter(n >= 30) |>
+  pivot_longer(all_of(show_methods), names_to = "method", values_to = "gain") |>
+  summarise(spread = max(gain) - min(gain), min_gain = min(gain), groups = n(),
+            .by = c(styles, variable, method)) |>
+  select(-min_gain) |>
+  pivot_wider(names_from = method, values_from = spread) |>
+  mutate(across(where(is.double), \(x) round(x, 3))) |>
+  print(n = Inf, width = Inf)
+```
+
+One caution on interpretation: "own order" still takes its three tones from
+the sample ranking; only the order is personal. "Own top three" is the only
+candidate whose tone set is personal too.

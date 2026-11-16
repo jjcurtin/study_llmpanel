@@ -986,3 +986,88 @@ data_driven_weights <- function(prefs) {
     mutate(rule = rule[!is.na(rule)][1], .by = subid) |>
     filter(!is.na(rule))
 }
+
+# ---------------------------------------------------------------------------
+# Helpers for the tone preference report (scripts/reports/report_prefs.qmd)
+# ---------------------------------------------------------------------------
+
+# Add each respondent's highest- and lowest-preferred tone(s) and a straightliner flag.
+#   pref_top, pref_bottom: list columns of the tone(s) tied for the highest / lowest
+#                          preference score (ties kept)
+#   pref_straightline:     TRUE when all preference scores are identical
+add_pref_extremes <- function(panel,
+                              pref_cols = c("pref_legitimizing", "pref_norms",
+                                            "pref_value_affirmation",
+                                            "pref_self_efficacy", "pref_acknowledging")) {
+  extreme_tones <- function(..., fn) {
+    x <- c(...)
+    if (all(is.na(x))) return(character(0))
+    str_remove(names(x)[which(x == fn(x, na.rm = TRUE))], "^pref_")
+  }
+
+  panel |>
+    mutate(
+      pref_top = pmap(pick(all_of(pref_cols)), extreme_tones, fn = max),
+      pref_bottom = pmap(pick(all_of(pref_cols)), extreme_tones, fn = min),
+      pref_straightline = pmap_dbl(pick(all_of(pref_cols)), \(...) sd(c(...))) == 0)
+}
+
+# subid of respondents with `tone` in their highest (end = "top") or lowest
+# (end = "bottom") preference tier, ties included. Straightliners are excluded
+# unless exclude_straightliners = FALSE.
+pref_group_ids <- function(panel, tone, end = c("top", "bottom"),
+                           exclude_straightliners = TRUE) {
+  end <- match.arg(end)
+  panel |>
+    filter(map_lgl(.data[[paste0("pref_", end)]], \(x) tone %in% x),
+           !exclude_straightliners | !pref_straightline) |>
+    pull(subid)
+}
+
+# Box plots of mean message ratings across tones, one panel per group laid out side by
+# side. Within each panel, tones run from lowest to highest mean rating (left to right),
+# so the order can differ between panels. Panel labels show n, and x-axis labels are
+# angled so they are not cut off.
+#   groups:  named list of subid vectors; names label the panels
+#   ratings: data frame with subid, tone, rating
+#   colors:  named fill colors by tone
+plot_ratings_by_groups <- function(groups, ratings, colors) {
+  data <- imap(groups, \(ids, nm) {
+    ratings |>
+      filter(subid %in% ids, !is.na(rating)) |>
+      mutate(group = paste0(nm, " (n = ", length(ids), ")"))
+  }) |>
+    list_rbind() |>
+    mutate(tone = as.character(tone),
+           group = factor(group, levels = unique(group)),
+           # tone + panel, so each panel can sort its own tones by mean rating
+           tone_panel = fct_reorder(paste(tone, group, sep = "___"), rating, mean))
+
+  ggplot(data, aes(x = tone_panel, y = rating, fill = tone)) +
+    geom_boxplot(show.legend = FALSE) +
+    stat_summary(fun = mean, geom = "point", shape = 23, size = 2, fill = "white") +
+    stat_summary(fun = mean, geom = "text",
+                 aes(label = round(after_stat(y), 2)), vjust = -1) +
+    facet_wrap(~group, nrow = 1, scales = "free_x") +
+    scale_fill_manual(values = colors) +
+    scale_x_discrete(labels = \(x) str_to_sentence(str_replace(str_remove(x, "___.*"), "_", " "))) +
+    scale_y_continuous(limits = c(1, 7), breaks = 1:7) +
+    labs(x = "Tone", y = "Mean Message Rating") +
+    theme(axis.text.x = element_text(angle = 35, hjust = 1),
+          plot.margin = margin(5.5, 5.5, 5.5, 20))
+}
+
+# Box plots of mean message ratings across tones for respondents with `tone` in their
+# lowest preference tier (left) vs. their highest preference tier (right). Ties are
+# included, and straightliners are excluded. Uses plot_ratings_by_groups().
+#   tone:    tone name, e.g. "self_efficacy"
+#   panel:   has subid, pref_top, pref_bottom, and pref_straightline
+#   ratings: data frame with subid, tone, rating
+plot_ratings_by_tier <- function(tone, panel, ratings, colors) {
+  label <- str_to_sentence(str_replace(tone, "_", " "))
+  groups <- list(
+    pref_group_ids(panel, tone, "bottom"),
+    pref_group_ids(panel, tone, "top"))
+  names(groups) <- paste(label, c("in lowest preference tier", "in highest preference tier"))
+  plot_ratings_by_groups(groups, ratings, colors)
+}

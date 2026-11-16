@@ -1,0 +1,654 @@
+---
+title: "Memo: Did Survey Order Matter?"
+subtitle: "Preferences survey before vs. after the message ratings"
+format: 
+  html:
+    page-layout: full
+    self-contained: true
+    toc: true 
+    toc-depth: 3
+execute: 
+  warning: false
+  echo: false
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+#| label: Setup
+#| include: false
+options(conflicts.policy = "depends.ok")
+library(tidyverse)
+
+source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
+source(here::here("scripts", "functions_llmpanel.R"))
+
+path_processed <- format_path("llmpanel/data_processed")
+raw_panel <- read_csv(here::here(path_processed, "panel.csv"), show_col_types = FALSE)
+
+tone_levels <- c("norms", "acknowledging", "legitimizing",
+                 "self_efficacy", "value_affirmation")
+pref_cols <- paste0("pref_", tone_levels)
+order_levels <- c("Preferences first", "Messages first")
+
+set.seed(102030)
+n_boot <- 1000   # the reliability bootstrap takes a minute or two
+
+# Survey order. `tone_order` and `message_order` are the positions (1 or 2) of the
+# preferences survey and the message-rating survey. format_eda() drops them, so
+# they are taken from the raw panel and joined by subid.
+survey_order <- raw_panel |>
+  transmute(subid, tone_order, message_order, survey_version,
+            block_order_hi, block_order_hd, block_order_li,
+            pref_order = factor(
+              case_when(tone_order < message_order ~ "Preferences first",
+                        tone_order > message_order ~ "Messages first"),
+              levels = order_levels))
+
+panel <- format_eda(raw_panel) |>
+  left_join(survey_order |> select(subid, pref_order), by = "subid")
+
+panel_long <- format_eda(raw_panel, long = TRUE) |>
+  left_join(survey_order |> select(subid, pref_order), by = "subid")
+
+# Respondent-level summaries
+rating_by_tone <- panel_long |>
+  summarise(rating = mean(rating_num, na.rm = TRUE), .by = c(subid, pref_order, tone))
+
+pref_by_tone <- panel |>
+  select(subid, pref_order, all_of(pref_cols)) |>
+  pivot_longer(all_of(pref_cols), names_to = "tone", names_prefix = "pref_",
+               values_to = "pref")
+
+respondent <- panel_long |>
+  summarise(mean_rating = mean(rating_num, na.rm = TRUE),
+            sd_rating = sd(rating_num, na.rm = TRUE),
+            n_distinct_ratings = n_distinct(rating_num),
+            .by = c(subid, pref_order)) |>
+  left_join(pref_by_tone |>
+              summarise(mean_pref = mean(pref, na.rm = TRUE),
+                        sd_pref = sd(pref, na.rm = TRUE), .by = subid),
+            by = "subid") |>
+  mutate(pref_straightline = sd_pref == 0)
+
+# Difference between orders (Messages first minus Preferences first) with a
+# Welch t-test, as one row
+order_test <- function(data, col, label) {
+  x <- data[[col]][data$pref_order == "Messages first"]
+  y <- data[[col]][data$pref_order == "Preferences first"]
+  tt <- t.test(x, y)
+  tibble(measure = label,
+         prefs_first = mean(y, na.rm = TRUE),
+         messages_first = mean(x, na.rm = TRUE),
+         diff = mean(x, na.rm = TRUE) - mean(y, na.rm = TRUE),
+         ci_low = tt$conf.int[1], ci_high = tt$conf.int[2],
+         d = diff / sd(c(x - mean(x, na.rm = TRUE), y - mean(y, na.rm = TRUE)), na.rm = TRUE),
+         p = tt$p.value)
+}
+
+fmt_p <- \(p) if_else(p < .001, "< .001", sub("^0", "", sprintf("%.3f", p)))
+```
+
+**Code status:** runs. The written conclusions below describe the render of
+2026-11-16 (n = 424). If the data or exclusions change, re-check them against
+the tables.
+
+# Question
+
+Respondents completed two surveys in random order: the **preferences survey**
+(how much they like each tone in the abstract, plus formality) and the
+**message ratings** (30 example messages). The preregistered secondary aim
+asks whether stated preferences are a better guide to message ratings when
+they are collected before or after people have seen example messages. This
+memo also checks whether order changed the ratings themselves.
+
+Four questions, in order:
+
+1.  Were the two order groups comparable?
+2.  Did order change the **message ratings** (their level or their reliability)?
+3.  Did order change the **stated preferences**?
+4.  Did order change how well **preferences predict ratings**?
+
+# At a Glance
+
+```{r}
+#| label: Placeholder for summary
+# The summary table is printed at the end of the document (Section 5), after
+# every test has been run. Copy the conclusions here once reviewed.
+```
+
+**Survey order made no robust difference to how well a person's stated
+preferences match their own ratings across tones.** The within-person correlation between preferences
+and ratings was the same in both orders (0.28 vs. 0.30, p = .66). The
+unstandardized slope was steeper when preferences came first (0.23 vs. 0.17,
+p = .022), but that difference does not survive adjustment for the number of
+tests (Holm p = .22) and is partly a matter of scale (see Section 4).
+
+Order did change how people used the scales:
+
+-   **Message ratings.** The level was unchanged (5.15 vs. 5.23, p = .34).
+    Respondents who saw the tone descriptions first discriminated more between
+    messages (within-person SD 1.07 vs. 0.94, p = .002). This is the only
+    difference that survives adjustment (Holm p = .020).
+-   **Stated preferences.** After rating 30 messages, people straightlined
+    their preferences less (9.5% vs. 16.8%, p = .035) and their preferences
+    moved toward what they had just rated: acknowledging down 0.30, value
+    affirmation up 0.22 (tone by order p = .004).
+
+**The registered model-based test finds a difference, and it is about overall
+level, not the match between tones.** Fit separately in each half, the
+preferences model predicted ratings better when messages came first (R² 0.24
+vs. 0.11, p = .002; `prereg_models_glmnet.qmd`). Section 4 shows why. People
+who stated higher preferences overall also rated messages higher overall, and
+that link was stronger when messages came first (r = 0.70 vs. 0.51, p = .002).
+A person's overall preference level explained 21% of rating variance in that
+order against 10% when preferences came first. The tone-specific part of
+preferences explained 2% against 3%, no better when messages came first.
+
+For deployment, preferences have to be collected at onboarding, before any
+message is seen. The tone-specific match that assignment relies on was no
+weaker in that order.
+
+# 1. The Two Groups
+
+```{r}
+#| label: Order check
+# The two position variables should always be 1 and 2 in some order
+survey_order |> count(tone_order, message_order, pref_order)
+```
+
+If any row above has a missing `pref_order`, or positions that are not one 1
+and one 2, stop: the order variable is not what this memo assumes.
+
+```{r}
+#| label: Group sizes
+panel |> count(pref_order) |> mutate(pct = n / sum(n))
+
+# Order by message set (survey version) should be roughly balanced
+survey_order |> count(survey_version, pref_order) |>
+  pivot_wider(names_from = pref_order, values_from = n)
+chisq.test(table(survey_order$survey_version, survey_order$pref_order))
+```
+
+**Balance on demographics.** Order was randomized, so the groups should not
+differ. Numeric variables use a Welch t-test and categorical variables a
+chi-square test.
+
+```{r}
+#| label: Balance
+dem_vars <- str_subset(names(panel), "^dem_") |> setdiff("dem_income")
+
+balance <- map(dem_vars, \(v) {
+  x <- panel[[v]]
+  g <- panel$pref_order
+  if (is.numeric(x)) {
+    tibble(variable = v, test = "Welch t",
+           prefs_first = as.character(round(mean(x[g == order_levels[1]], na.rm = TRUE), 2)),
+           messages_first = as.character(round(mean(x[g == order_levels[2]], na.rm = TRUE), 2)),
+           p = t.test(x ~ g)$p.value)
+  } else {
+    tibble(variable = v, test = "Chi-square",
+           prefs_first = "", messages_first = "",
+           p = suppressWarnings(chisq.test(table(x, g))$p.value))
+  }
+}) |> list_rbind() |>
+  arrange(p)
+balance
+```
+
+# 2. Did Order Change the Message Ratings?
+
+## Level and spread of ratings
+
+Each respondent's mean rating across their 30 messages, the SD of their 30
+ratings (how much they discriminated between messages), and how many distinct
+scale points they used.
+
+```{r}
+#| label: Rating level
+rating_tests <- bind_rows(
+  order_test(respondent, "mean_rating", "Mean message rating"),
+  order_test(respondent, "sd_rating", "Within-person SD of ratings"),
+  order_test(respondent, "n_distinct_ratings", "Distinct scale points used"))
+rating_tests |> mutate(across(where(is.numeric) & !p, \(x) round(x, 3)), p = fmt_p(p))
+```
+
+```{r}
+#| label: Rating level plot
+respondent |>
+  ggplot(aes(x = pref_order, y = mean_rating, fill = pref_order)) +
+  geom_boxplot(show.legend = FALSE) +
+  stat_summary(fun = mean, geom = "point", shape = 23, size = 3, fill = "white") +
+  scale_y_continuous(limits = c(1, 7), breaks = 1:7) +
+  labs(x = NULL, y = "Respondent's mean message rating")
+```
+
+## Ratings by tone
+
+Did seeing the tone descriptions first change which tones were rated higher?
+The `pref_order:tone` row is the test.
+
+```{r}
+#| label: Tone by order
+rating_by_tone |>
+  summarise(mean = mean(rating), .by = c(pref_order, tone)) |>
+  pivot_wider(names_from = pref_order, values_from = mean) |>
+  mutate(diff = `Messages first` - `Preferences first`) |>
+  arrange(desc(`Preferences first`))
+
+aov_rating <- afex::aov_ez(
+  id = "subid", dv = "rating",
+  data = rating_by_tone |> mutate(subid = factor(subid)),
+  within = "tone", between = "pref_order",
+  anova_table = list(correction = "GG", es = "pes"))
+aov_rating
+```
+
+```{r}
+#| label: Tone by order plot
+rating_by_tone |>
+  summarise(mean = mean(rating), se = sd(rating) / sqrt(n()), .by = c(pref_order, tone)) |>
+  mutate(tone = fct_reorder(str_to_sentence(str_replace(tone, "_", " ")), mean)) |>
+  ggplot(aes(x = tone, y = mean, color = pref_order, group = pref_order)) +
+  geom_line(position = position_dodge(width = 0.2)) +
+  geom_pointrange(aes(ymin = mean - 1.96 * se, ymax = mean + 1.96 * se),
+                  position = position_dodge(width = 0.2)) +
+  labs(x = NULL, y = "Mean message rating", color = NULL)
+```
+
+## Reliability of ratings
+
+Two kinds of reliability, each computed within order group:
+
+-   **Overall level.** Does a person who rates messages high in one risk
+    context rate them high in the others? Cronbach's alpha across the three
+    context means.
+-   **Tone profile.** Does a person's pattern across the five tones repeat
+    from one context to another? The correlation between contexts of each
+    person's individual tone profile (their rating of a tone, relative to
+    their own average and to the sample's average for that tone), projected to
+    three contexts with Spearman-Brown.
+
+Intervals and the test of the difference come from a respondent-level
+bootstrap within each group.
+
+```{r}
+#| label: Reliability
+context_means <- panel_long |>
+  summarise(rating = mean(rating_num, na.rm = TRUE), .by = c(subid, pref_order, context, tone))
+contexts <- sort(unique(context_means$context))
+
+# One row per respondent: their 3 context means, and their individual tone
+# profile in each context (15 values)
+level_wide <- context_means |>
+  summarise(level = mean(rating), .by = c(subid, pref_order, context)) |>
+  pivot_wider(names_from = context, values_from = level, names_prefix = "level_")
+
+reliability_stats <- function(subids) {
+  # `subids` may contain repeats (bootstrap); each draw is treated as a new person
+  draws <- tibble(subid = subids, draw = seq_along(subids))
+
+  lv <- draws |> inner_join(level_wide, by = "subid") |>
+    select(starts_with("level_")) |> drop_na()
+  k <- ncol(lv)
+  alpha <- k / (k - 1) * (1 - sum(apply(lv, 2, var)) / var(rowSums(lv)))
+
+  prof <- draws |>
+    inner_join(context_means, by = "subid", relationship = "many-to-many") |>
+    mutate(dev = rating - mean(rating), .by = c(draw, context)) |>
+    mutate(dev = dev - mean(dev), .by = c(context, tone)) |>
+    select(draw, tone, context, dev) |>
+    pivot_wider(names_from = context, values_from = dev)
+  r <- mean(map_dbl(combn(contexts, 2, simplify = FALSE),
+                    \(p) cor(prof[[p[1]]], prof[[p[2]]], use = "complete.obs")))
+
+  c(alpha_level = alpha, r_profile = r, rel3_profile = 3 * r / (1 + 2 * r))
+}
+
+group_ids <- split(respondent$subid, respondent$pref_order)
+observed <- map(group_ids, reliability_stats)
+
+boot <- map(seq_len(n_boot), \(i) {
+  map(group_ids, \(g) reliability_stats(sample(g, replace = TRUE)))
+})
+
+reliability_table <- map(names(observed[[1]]), \(stat) {
+  b1 <- map_dbl(boot, \(b) b[[order_levels[1]]][[stat]])
+  b2 <- map_dbl(boot, \(b) b[[order_levels[2]]][[stat]])
+  tibble(
+    measure = stat,
+    prefs_first = observed[[order_levels[1]]][[stat]],
+    messages_first = observed[[order_levels[2]]][[stat]],
+    diff = messages_first - prefs_first,
+    ci_low = quantile(b2 - b1, .025),
+    ci_high = quantile(b2 - b1, .975),
+    # two-sided bootstrap p-value for a difference of zero
+    p = min(1, 2 * min(mean(b2 - b1 <= 0), mean(b2 - b1 >= 0))))
+}) |> list_rbind() |>
+  mutate(measure = case_when(
+    measure == "alpha_level" ~ "Overall level: alpha across 3 contexts",
+    measure == "r_profile" ~ "Tone profile: correlation between contexts",
+    measure == "rel3_profile" ~ "Tone profile: reliability over 3 contexts"))
+reliability_table |> mutate(across(where(is.numeric) & !p, \(x) round(x, 3)), p = fmt_p(p))
+```
+
+Reading the first render: overall-level reliability was high in both orders
+(alpha 0.91 vs. 0.93). Tone-profile reliability was somewhat higher when
+preferences came first (0.63 vs. 0.52), but the difference was not significant
+(p = .07). Seeing the tone descriptions first may sharpen how people
+distinguish tones; the evidence is suggestive only.
+
+# 3. Did Order Change the Stated Preferences?
+
+Respondents who rated 30 messages first had concrete examples in mind when
+they stated their preferences. Did they report different preferences, or
+discriminate more between tones?
+
+```{r}
+#| label: Preference level
+pref_tests <- bind_rows(
+  order_test(respondent, "mean_pref", "Mean tone preference"),
+  order_test(respondent, "sd_pref", "Within-person SD of tone preferences"),
+  order_test(panel |> mutate(pref_formality = as.numeric(pref_formality)),
+             "pref_formality", "Formality preference (1 informal - 6 formal)"))
+pref_tests |> mutate(across(where(is.numeric) & !p, \(x) round(x, 3)), p = fmt_p(p))
+
+# Preference straightlining (same score for all five tones)
+straight_table <- table(respondent$pref_order, respondent$pref_straightline)
+straight_table
+prop.table(straight_table, 1)
+straight_test <- chisq.test(straight_table)
+straight_test
+```
+
+```{r}
+#| label: Preference by tone
+pref_by_tone |>
+  summarise(mean = mean(pref, na.rm = TRUE), .by = c(pref_order, tone)) |>
+  pivot_wider(names_from = pref_order, values_from = mean) |>
+  mutate(diff = `Messages first` - `Preferences first`) |>
+  arrange(desc(`Preferences first`))
+
+aov_pref <- afex::aov_ez(
+  id = "subid", dv = "pref",
+  data = pref_by_tone |> drop_na(pref) |> mutate(subid = factor(subid)),
+  within = "tone", between = "pref_order",
+  anova_table = list(correction = "GG", es = "pes"))
+aov_pref
+```
+
+# 4. Did Order Change How Well Preferences Predict Ratings?
+
+This is the preregistered secondary aim. The preregistration planned to
+compare the preferences model's cross-validated performance between the two
+halves of the sample. The tests here are a simpler, direct version of the same
+question and should be described as such.
+
+## Within-person agreement
+
+For each respondent, the correlation across the five tones between their
+stated preference and their mean message rating. A respondent whose ratings
+follow their stated preferences has a high correlation. It is undefined for
+respondents with no variation in their preferences or in their tone ratings,
+who are counted separately.
+
+```{r}
+#| label: Within-person agreement
+agreement <- pref_by_tone |>
+  inner_join(rating_by_tone |> select(subid, tone, rating), by = c("subid", "tone")) |>
+  summarise(r = if (sd(pref) > 0 && sd(rating) > 0) cor(pref, rating) else NA_real_,
+            .by = c(subid, pref_order))
+
+agreement |>
+  summarise(n = n(), undefined = sum(is.na(r)),
+            mean_r = mean(r, na.rm = TRUE), median_r = median(r, na.rm = TRUE),
+            pct_positive = mean(r > 0, na.rm = TRUE),
+            .by = pref_order)
+
+agreement_test <- order_test(drop_na(agreement, r), "r",
+                             "Within-person preference-rating correlation")
+agreement_test |> mutate(across(where(is.numeric) & !p, \(x) round(x, 3)), p = fmt_p(p))
+wilcox.test(r ~ pref_order, data = agreement)
+```
+
+```{r}
+#| label: Agreement plot
+agreement |>
+  drop_na(r) |>
+  ggplot(aes(x = r, fill = pref_order)) +
+  geom_histogram(binwidth = 0.1, boundary = 0, color = "white", show.legend = FALSE) +
+  geom_vline(xintercept = 0, linetype = "dashed") +
+  facet_wrap(~pref_order, ncol = 1) +
+  labs(x = "Correlation between stated preference and mean rating, across the five tones",
+       y = "Respondents")
+```
+
+## Mixed model
+
+All 30 ratings per respondent. `pref_dev` is the respondent's preference for
+the message's tone minus their own mean preference, so its slope is the rise
+in rating for each point a tone is preferred above the person's average.
+
+-   `pref_dev:pref_order` tests whether that slope differs by survey order
+    (the secondary aim).
+-   The three-way term tests whether the order effect on the slope differs by
+    tone.
+
+```{r}
+#| label: Mixed model
+model_data <- panel_long |>
+  left_join(pref_by_tone |> select(subid, tone, pref_own = pref), by = c("subid", "tone")) |>
+  mutate(pref_mean = mean(pref_own, na.rm = TRUE), .by = subid) |>
+  mutate(pref_dev = pref_own - pref_mean,
+         subid = factor(subid),
+         tone = factor(tone, levels = tone_levels),
+         style = factor(style),
+         context = factor(context)) |>
+  drop_na(rating_num, pref_dev, pref_order)
+
+m_base <- lme4::lmer(
+  rating_num ~ tone * pref_dev + pref_order + pref_mean + style + context +
+    (1 | subid) + (1 | subid:tone),
+  data = model_data, REML = FALSE)
+m_order <- update(m_base, . ~ . + pref_dev:pref_order)
+m_order_tone <- update(m_order, . ~ . + tone:pref_order + tone:pref_dev:pref_order)
+
+lrt_order <- anova(m_base, m_order)
+lrt_order
+lrt_order_tone <- anova(m_order, m_order_tone)
+lrt_order_tone
+
+# Preference slope within each order (averaged over tones)
+slopes_order <- emmeans::emtrends(m_order, ~ pref_order, var = "pref_dev",
+                                  lmer.df = "asymptotic")
+slopes_order
+slope_contrast <- pairs(slopes_order) |> confint() |> as_tibble()
+slope_contrast
+
+# Preference slope for each tone within each order
+slopes_order_tone <- emmeans::emtrends(m_order_tone, ~ pref_order | tone, var = "pref_dev",
+                                       lmer.df = "asymptotic")
+slopes_order_tone
+```
+
+```{r}
+#| label: Slope plot
+as_tibble(slopes_order_tone) |>
+  mutate(tone = str_to_sentence(str_replace(as.character(tone), "_", " "))) |>
+  ggplot(aes(x = pref_dev.trend, y = tone, color = pref_order)) +
+  geom_vline(xintercept = 0, linetype = "dashed") +
+  geom_pointrange(aes(xmin = asymp.LCL, xmax = asymp.UCL),
+                  position = position_dodge(width = 0.5)) +
+  labs(x = "Change in message rating per 1-point higher preference for that tone",
+       y = NULL, color = NULL)
+```
+
+Reading the first render: the two analyses disagree. The correlation shows no
+order effect; the slope is steeper when preferences come first. A slope is
+unstandardized, and the messages-first group spread their preferences more
+(SD 0.88 vs. 0.77) and their ratings less (SD 0.94 vs. 1.07). Both shifts
+flatten a slope without changing the correlation, so the slope difference
+should not be read as preferences being more accurate when collected first.
+
+The order effect on the slope differed by tone (p = .003). The norms slope was
+0.43 when preferences came first and 0.24 when they came second; legitimizing
+went from 0.16 to 0.04; value affirmation and self efficacy moved the other
+way. These tone-level differences are exploratory.
+
+## Overall level versus tone-specific match
+
+The registered version of this test (in `prereg_models_glmnet.qmd`) fits the
+preferences model separately in each half. It predicted ratings better when
+messages came first (R² 0.24 vs. 0.11; relative error 0.86 vs. 0.95,
+p = .002). The within-person agreement above did not differ. This section
+checks one explanation for the disagreement: that preferences stated after
+rating the messages track a person's *overall* rating level more closely,
+which helps a model predict ratings without telling it which tone suits whom.
+
+A stated preference is split into two parts: the person's mean preference
+across the five tones (`pref_mean`, their overall level) and how far each tone
+sits above or below that mean (`pref_dev`, the tone-specific part).
+
+**Do people who state higher preferences overall also rate messages higher
+overall?**
+
+```{r}
+#| label: Level correlation
+level_cor <- respondent |>
+  drop_na(mean_pref, mean_rating) |>
+  summarise(n = n(),
+            r = cor(mean_pref, mean_rating),
+            rho = cor(mean_pref, mean_rating, method = "spearman"),
+            .by = pref_order) |>
+  arrange(pref_order) |>
+  mutate(ci_low = tanh(atanh(r) - 1.96 / sqrt(n - 3)),
+         ci_high = tanh(atanh(r) + 1.96 / sqrt(n - 3)))
+level_cor |> mutate(across(where(is.numeric) & !n, \(x) round(x, 3)))
+
+# Difference between the two independent correlations (Fisher z)
+level_z <- diff(atanh(level_cor$r)) / sqrt(sum(1 / (level_cor$n - 3)))
+tibble(comparison = "Messages first minus Preferences first",
+       diff_r = diff(level_cor$r), z = level_z,
+       p = fmt_p(2 * pnorm(-abs(level_z)))) |>
+  mutate(across(c(diff_r, z), \(x) round(x, 3)))
+```
+
+```{r}
+#| label: Level correlation plot
+respondent |>
+  drop_na(mean_pref, mean_rating) |>
+  ggplot(aes(mean_pref, mean_rating)) +
+  geom_point(alpha = .3) +
+  geom_smooth(method = "lm", formula = y ~ x) +
+  facet_wrap(~ pref_order) +
+  labs(x = "Mean stated preference (five tones)",
+       y = "Mean message rating (30 messages)")
+```
+
+**How much of the rating variance does each part of the preferences explain?**
+Variance in individual ratings explained (R²) by linear models fit within each
+order. Every model includes tone, style and context. These are in-sample
+values with few predictors, so they are comparable across orders but are not
+the cross-validated figures from the registered models.
+
+```{r}
+#| label: Variance explained by part
+r2_parts <- map(order_levels, \(g) {
+  d <- filter(model_data, pref_order == g)
+  r2 <- \(f) summary(lm(f, data = d))$r.squared
+  tibble(pref_order = g,
+         design_only = r2(rating_num ~ tone + style + context),
+         plus_level = r2(rating_num ~ tone + style + context + pref_mean),
+         plus_tone_specific = r2(rating_num ~ tone * pref_dev + style + context),
+         plus_both = r2(rating_num ~ tone * pref_dev + style + context + pref_mean))
+}) |>
+  list_rbind() |>
+  mutate(gain_level = plus_level - design_only,
+         gain_tone_specific = plus_tone_specific - design_only)
+r2_parts |> mutate(across(where(is.numeric), \(x) round(x, 3)))
+```
+
+**Is there simply more between-person variance to explain in one half?** The
+share of rating variance that lies between people (the most any person-level
+predictor could explain), and the slope of mean rating on mean preference.
+
+```{r}
+#| label: Between-person share
+map(order_levels, \(g) {
+  d <- filter(model_data, pref_order == g)
+  r <- filter(respondent, pref_order == g) |> drop_na(mean_pref, mean_rating)
+  tibble(pref_order = g,
+         var_rating = var(d$rating_num),
+         between_person_share = var(r$mean_rating) / var(d$rating_num),
+         sd_mean_pref = sd(r$mean_pref),
+         slope_level = coef(lm(mean_rating ~ mean_pref, data = r))[["mean_pref"]])
+}) |>
+  list_rbind() |>
+  mutate(across(where(is.numeric), \(x) round(x, 3)))
+
+# Does the level slope differ by order?
+lm(mean_rating ~ mean_pref * pref_order, data = respondent) |>
+  summary() |> coef() |> round(3)
+```
+
+**How to read this.** If the explanation holds, the level correlation and
+`gain_level` are clearly larger when messages came first, while
+`gain_tone_specific` is similar in the two orders. Assignment depends only on
+the tone-specific part, so in that case the registered result does not weaken
+the case for collecting preferences at onboarding. If `gain_tone_specific` is
+also larger when messages came first, preferences collected at onboarding are
+a weaker guide to assignment than the within-person correlation suggests.
+
+# 5. Summary Table
+
+Differences are "Messages first" minus "Preferences first".
+
+```{r}
+#| label: Summary
+slope_tbl <- as_tibble(slopes_order)
+slope_p <- lrt_order$`Pr(>Chisq)`[2]
+
+summary_table <- bind_rows(
+  rating_tests,
+  reliability_table |> mutate(d = NA_real_),
+  pref_tests,
+  tibble(measure = "Preference straightlining (share)",
+         prefs_first = prop.table(straight_table, 1)[order_levels[1], "TRUE"],
+         messages_first = prop.table(straight_table, 1)[order_levels[2], "TRUE"],
+         diff = messages_first - prefs_first,
+         ci_low = NA_real_, ci_high = NA_real_, d = NA_real_,
+         p = straight_test$p.value),
+  agreement_test,
+  tibble(measure = "Preference slope (rating per point of preference)",
+         prefs_first = slope_tbl$pref_dev.trend[slope_tbl$pref_order == order_levels[1]],
+         messages_first = slope_tbl$pref_dev.trend[slope_tbl$pref_order == order_levels[2]],
+         diff = messages_first - prefs_first,
+         # pairs() reports first level minus second, so flip the sign and the bounds
+         ci_low = -slope_contrast$asymp.UCL, ci_high = -slope_contrast$asymp.LCL,
+         d = NA_real_, p = slope_p)) |>
+  mutate(p_holm = p.adjust(p, method = "holm"))
+
+summary_table |>
+  mutate(across(c(prefs_first, messages_first, diff, ci_low, ci_high, d), \(x) round(x, 3)),
+         p = fmt_p(p), p_holm = fmt_p(p_holm)) |>
+  knitr::kable()
+```
+
+`p_holm` adjusts across the rows of this table. The two tone-specific tests
+(order by tone on ratings and on preferences, and the three-way term in the
+mixed model) are reported in their own sections.
+
+# Notes and Caveats
+
+-   **Preregistration.** The registered analysis for the secondary aim
+    compares cross-validated model performance between the two halves. This
+    memo's tests are more direct and more powerful but were not registered.
+-   **Power.** With about 210 respondents per group, group differences smaller
+    than roughly d = 0.27 will often be missed. A non-significant result here
+    is weak evidence of no effect, not proof.
+-   **What order cannot tell us.** Both groups rated the same messages, so
+    this design shows whether exposure to examples changes stated
+    preferences, not whether either set of preferences is "right".
+-   **Context order.** `block_order_hi`, `block_order_hd` and `block_order_li`
+    record the position of each risk context. They are not analyzed here but
+    could be used to check for fatigue across the three rating blocks.

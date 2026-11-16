@@ -231,7 +231,7 @@ Captcha is an essential first step for identifying bots. As such, it feels prope
 *Construct captcha flag variable*
 
 ```{r}
-# Flag scores at or below the 5th percentile & NAs
+# Flag scores at or below the 2.5th percentile & NAs
 captcha_threshold <- quantile(p_eligible$q_recaptcha_score, probs = 0.025, na.rm = TRUE)
 
 panel <- panel |> 
@@ -303,23 +303,18 @@ gps_threshold
 
 As with AUDIT scores, this may be another case where the small rejected subset size is the reason why we don't see as many outliers when compared to the eligible subset. Regardless, a distance of hundreds or thousands of kilometers is convincingly suspicious.
 
-```{r}
-mad(p_eligible$gps_diff)
-p_eligible |> filter(gps_diff > 500) |> nrow()
-```
+The threshold is the 95th percentile of distance among eligible respondents (printed above), so the most extreme 5% of eligible responses are flagged.
 
-A threshold of 100km distance (\~311 miles) is over 30 MADs above the median, and feels like a plenty liberal threshold to use. This will flag 39 responses in the eligible subset.
-
-While a lower threshold could be set for establishing suspicion, the large 500km number was chosen for two reasons:
+While a lower threshold could be set for establishing suspicion, a cutoff this far into the tail was chosen for two reasons:
 
 1.  There are some genuine explanations for large distances - IP addresses behave weirdly for smartphones completing the survey through cellular data, respondents living in very rural areas, etc. This current threshold should excuse most of these honest discrepancies, leaving suspicion primarily for distances so egregious that something is definitely wrong.
 
-2.  Lower thresholds do not create the increase in flagged proportion between the valid and rejected subset that we are in part using to calibrate the suspicion index. By 500km it has become pronounced enough to support the inclusion of this component.
+2.  Lower thresholds do not create the increase in flagged proportion between the valid and rejected subset that we are in part using to calibrate the suspicion index. At the 95th percentile it is pronounced enough to support the inclusion of this component.
 
 *Create GPS flag*
 
 ```{r}
-# Flag responses with a distance over 500km
+# Flag responses at or above the 95th percentile of distance
 panel <- panel |> 
   mutate(
     gps_sus = gps_diff >= gps_threshold

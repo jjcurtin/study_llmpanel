@@ -1,0 +1,904 @@
+---
+title: "Robustness Analyses for the Tone Assignment Paper"
+format: 
+  html:
+    page-layout: full
+    self-contained: true
+    toc: true
+    toc-depth: 3
+execute: 
+  warning: false
+editor_options: 
+  chunk_output_type: console
+---
+
+## Code Status
+
+Draft. Written without access to the data and NOT YET RUN. Run chunk by chunk
+and expect small fixes. Sections are independent after Setup, except that
+Sections 5 to 8 need the "Assignment machinery" chunks at the start of Part B.
+
+## Purpose
+
+Analyses not yet run that a reviewer is likely to ask for.
+
+**Part A. Do the findings generalize?**
+
+1.  **Messages as a random effect.** Each tone is represented by 24 specific
+    messages. Do tone and style differences hold up when the messages are
+    treated as a sample of possible messages, not as the tones themselves?
+2.  **Message text.** Are tone differences explained by message length or
+    other surface features? Which individual messages did best and worst?
+3.  **Repetition within the session.** Do ratings fall as people work through
+    the three rating blocks, and does any tone wear out faster? This is the
+    only evidence in the panel on the variety premise.
+4.  **Drinking severity.** Do the conclusions hold among respondents with
+    higher AUDIT scores, who are closer to the population the system is for?
+
+**Part B. Is the recommended method solid?**
+
+5.  **Demographic gaps, tested.** Are the differences in benefit between
+    demographic groups, and the narrowing under the preference-based method,
+    distinguishable from chance?
+6.  **By preference pattern.** How does the recommended method treat people
+    who gave every tone the same preference?
+7.  **Selection stability.** Does the same method win under other selection
+    settings and in bootstrap resamples?
+8.  **Normality check** for the "worse off" metric.
+
+Not covered here: the three preregistered models and XGBoost (CHTC), and the
+comparison of excluded vs. retained respondents (needs the pre-exclusion file).
+
+## Setup
+
+```{r}
+#| label: Setup
+options(conflicts.policy = "depends.ok")
+library(tidyverse)
+
+source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
+source(here::here("scripts", "functions_llmpanel.R"))
+
+path_processed <- format_path("llmpanel/data_processed")
+raw_panel <- read_csv(here::here(path_processed, "panel.csv"), show_col_types = FALSE)
+
+tone_levels <- c("norms", "acknowledging", "legitimizing",
+                 "self_efficacy", "value_affirmation")
+pref_cols <- paste0("pref_", tone_levels)
+tone_label <- \(x) str_to_sentence(str_replace_all(x, "_", " "))
+
+set.seed(102030)
+n_boot <- 1000
+
+# Variables format_eda() drops: AUDIT score and the position (1-3) of each risk
+# context's rating block
+extras <- raw_panel |>
+  select(subid, audit_score, block_order_hi, block_order_hd, block_order_li)
+
+panel_long <- format_eda(raw_panel, long = TRUE) |>
+  left_join(extras, by = "subid") |>
+  mutate(
+    position = case_when(context == "high_increasing" ~ block_order_hi,
+                         context == "high_decreasing" ~ block_order_hd,
+                         context == "low_increasing" ~ block_order_li),
+    # One id per distinct message: 4 message sets x 3 contexts x 5 tones x 2 styles
+    message_id = paste(survey_version, context, tone, style, sep = "|"),
+    subid_f = factor(subid),
+    tone_f = factor(tone, levels = tone_levels),
+    style_f = factor(style),
+    context_f = factor(context))
+
+n_distinct(panel_long$subid)
+n_distinct(panel_long$message_id)                       # expect 120
+panel_long |> distinct(message_id, tone) |> count(tone) # expect 24 per tone
+panel_long |> count(position)                           # expect 1, 2, 3 in equal numbers
+```
+
+# Part A. Do the Findings Generalize?
+
+# 1. Messages as a Random Effect
+
+Every analysis so far treats the 24 messages written in a tone as if they
+were the tone. If a few messages happened to be unusually good or bad, a
+"tone effect" could be a message effect. Adding a random intercept for
+message asks whether tone and style differences are larger than the variation
+between messages of the same kind. This is the stricter test, and the one
+that supports claims about tones in general.
+
+```{r}
+#| label: Message Random Effect
+m_people <- lme4::lmer(
+  rating_num ~ tone_f * style_f + context_f + (1 | subid_f) + (1 | subid_f:tone_f),
+  data = panel_long, REML = FALSE)
+m_msg <- update(m_people, . ~ . + (1 | message_id))
+
+# Is there variation between messages beyond tone, style and context?
+anova(m_people, m_msg)
+lme4::VarCorr(m_msg)
+```
+
+```{r}
+#| label: Tone Tests With Messages Random
+m_msg_no_int <- lme4::lmer(
+  rating_num ~ tone_f + style_f + context_f +
+    (1 | subid_f) + (1 | subid_f:tone_f) + (1 | message_id),
+  data = panel_long, REML = FALSE)
+m_msg_no_tone <- update(m_msg_no_int, . ~ . - tone_f)
+m_msg_no_style <- update(m_msg_no_int, . ~ . - style_f)
+
+# Tone, style, and tone-by-style, each tested against message variation
+anova(m_msg_no_tone, m_msg_no_int)
+anova(m_msg_no_style, m_msg_no_int)
+anova(m_msg_no_int, m_msg)
+```
+
+```{r}
+#| label: Tone Contrasts With Messages Random
+emm_msg <- emmeans::emmeans(m_msg, ~ tone_f, lmer.df = "asymptotic")
+emm_people <- emmeans::emmeans(m_people, ~ tone_f, lmer.df = "asymptotic")
+
+# Same means, wider standard errors once messages are random
+full_join(as_tibble(emm_people) |> select(tone_f, mean = emmean, se_people_only = SE),
+          as_tibble(emm_msg) |> select(tone_f, se_messages_random = SE),
+          by = "tone_f") |>
+  mutate(se_ratio = se_messages_random / se_people_only) |>
+  arrange(desc(mean))
+
+pairs(emm_msg, adjust = "holm")
+pairs(emmeans::emmeans(m_msg, ~ style_f, lmer.df = "asymptotic"))
+```
+
+Reading the results:
+
+-   If the tone test is still significant and the top-two vs. bottom-two
+    contrasts survive, the tone ranking can be claimed for tones in general.
+-   If contrasts that were significant before are no longer, report the
+    ranking as a property of these messages and say so in the limitations.
+-   The message SD in `VarCorr` shows how much two messages of the same tone,
+    style and context typically differ. Compare it with the spread of tone
+    means (about 0.45 from top to bottom).
+
+# 2. Message Text
+
+Uses the message files in the repository
+(`qualtrics_panel/output/prod_messages/version2/survey1` to `survey4`).
+**Check that these are the fielded messages and that `survey1`-`survey4`
+correspond to message sets `x1`-`x4`** before relying on this section. It is
+skipped if the files are not found.
+
+```{r}
+#| label: Message Files
+message_paths <- here::here("qualtrics_panel", "output", "prod_messages", "version2",
+                            paste0("survey", 1:4), "production_messages.csv")
+have_messages <- all(file.exists(message_paths))
+have_messages
+```
+
+```{r}
+#| label: Message Text
+#| eval: !expr have_messages
+messages <- map2(1:4, message_paths, \(v, p) {
+  read_csv(p, show_col_types = FALSE) |> mutate(survey_version = paste0("x", v))
+}) |>
+  list_rbind() |>
+  transmute(
+    survey_version,
+    context = paste(lapse_risk, lapse_risk_change, sep = "_"),
+    style = formality,
+    tone = case_when(message_category == "Legitimizing" ~ "legitimizing",
+                     message_category == "SelfEfficacy" ~ "self_efficacy",
+                     message_category == "Acknowledging" ~ "acknowledging",
+                     message_category == "ValueAffirmation" ~ "value_affirmation",
+                     message_category == "Norms" ~ "norms"),
+    message_id = paste(survey_version, context, tone, style, sep = "|"),
+    text = generated_message,
+    n_words = str_count(text, "\\S+"),
+    n_sentences = pmax(str_count(text, "[.!?]+(\\s|$)"), 1),
+    words_per_sentence = n_words / n_sentences,
+    letters_per_word = str_count(text, "[A-Za-z]") / n_words,
+    you_per_100 = 100 * str_count(str_to_lower(text), "\\byou(r|rs|rself)?\\b") / n_words)
+
+# Every rated message should match exactly one message file row
+stopifnot(nrow(messages) == 120, !anyDuplicated(messages$message_id),
+          setequal(messages$message_id, unique(panel_long$message_id)))
+
+message_stats <- panel_long |>
+  summarise(mean_rating = mean(rating_num), sd_rating = sd(rating_num), n_raters = n(),
+            .by = message_id) |>
+  inner_join(messages, by = "message_id")
+```
+
+*Text features by tone and style*
+
+```{r}
+#| label: Text Features
+#| eval: !expr have_messages
+message_stats |>
+  summarise(messages = n(),
+            across(c(mean_rating, n_words, words_per_sentence, letters_per_word, you_per_100),
+                   mean),
+            .by = tone) |>
+  arrange(desc(mean_rating)) |>
+  mutate(across(where(is.double), \(x) round(x, 2)))
+
+message_stats |>
+  summarise(messages = n(),
+            across(c(mean_rating, n_words, words_per_sentence, letters_per_word, you_per_100),
+                   mean),
+            .by = style) |>
+  mutate(across(where(is.double), \(x) round(x, 2)))
+```
+
+*Do surface features explain the tone and style effects?*
+
+A message-level regression (120 messages). If tone and style coefficients
+barely move when text features are added, length and wording density are not
+what drives the ratings.
+
+```{r}
+#| label: Text Regression
+#| eval: !expr have_messages
+msg_data <- message_stats |>
+  mutate(tone = factor(tone, levels = tone_levels), style = factor(style),
+         context = factor(context))
+
+lm_base <- lm(mean_rating ~ tone + style + context, data = msg_data)
+lm_text <- update(lm_base, . ~ . + n_words + words_per_sentence + letters_per_word + you_per_100)
+
+anova(lm_base, lm_text)
+bind_rows(base = broom::tidy(lm_base), with_text = broom::tidy(lm_text), .id = "model") |>
+  filter(term != "(Intercept)") |>
+  select(model, term, estimate) |>
+  pivot_wider(names_from = model, values_from = estimate) |>
+  mutate(across(where(is.double), \(x) round(x, 3)))
+summary(lm_text)$coefficients |> round(3)
+```
+
+```{r}
+#| label: Text Plot
+#| eval: !expr have_messages
+message_stats |>
+  ggplot(aes(x = n_words, y = mean_rating, color = tone, shape = style)) +
+  geom_point(size = 2) +
+  geom_smooth(aes(group = 1), method = "lm", se = FALSE, color = "grey40") +
+  scale_color_discrete(labels = tone_label) +
+  labs(x = "Words in message", y = "Mean rating of the message", color = "Tone", shape = "Style")
+```
+
+*Best- and worst-rated individual messages*
+
+Useful for the paper's examples, and for spotting a message that is carrying
+(or sinking) its tone.
+
+```{r}
+#| label: Best and Worst Messages
+#| eval: !expr have_messages
+ranked <- message_stats |>
+  arrange(desc(mean_rating)) |>
+  transmute(rank = row_number(), mean_rating = round(mean_rating, 2), n_raters,
+            tone, style, context, text)
+ranked |> slice_head(n = 6) |> knitr::kable()
+ranked |> slice_tail(n = 6) |> knitr::kable()
+
+# Spread of message means within each tone-by-style cell (12 messages each)
+message_stats |>
+  summarise(lowest = min(mean_rating), highest = max(mean_rating),
+            range = highest - lowest, .by = c(tone, style)) |>
+  arrange(desc(range)) |>
+  mutate(across(where(is.double), \(x) round(x, 2)))
+```
+
+# 3. Repetition Within the Session
+
+The case for rotating tones assumes a tone wears out when repeated. The panel
+cannot test months of daily use, but each respondent rated three blocks of ten
+messages, and every block contains every tone twice. If ratings fall from the
+first block to the third, or fall faster for some tones, that is a small,
+within-session signal of wear. If nothing moves, the panel is silent on the
+premise, which is also worth stating.
+
+Block position was randomized across the three risk contexts, so position is
+not confounded with context.
+
+```{r}
+#| label: Position Descriptives
+position_summary <- panel_long |>
+  summarise(mean_rating = mean(rating_num), sd_rating = sd(rating_num),
+            .by = c(subid, position)) |>
+  summarise(n = n(), mean = mean(mean_rating), se = sd(mean_rating) / sqrt(n()),
+            within_person_sd = mean(sd_rating, na.rm = TRUE),
+            .by = position) |>
+  arrange(position)
+position_summary
+
+panel_long |>
+  summarise(rating = mean(rating_num), .by = c(position, tone)) |>
+  pivot_wider(names_from = position, values_from = rating, names_prefix = "block_") |>
+  mutate(change_1_to_3 = block_3 - block_1) |>
+  arrange(change_1_to_3)
+```
+
+```{r}
+#| label: Position Models
+pos_data <- panel_long |> mutate(position_f = factor(position))
+
+m_pos0 <- lme4::lmer(
+  rating_num ~ tone_f * style_f + context_f + (1 | subid_f) + (1 | subid_f:tone_f),
+  data = pos_data, REML = FALSE)
+m_pos1 <- update(m_pos0, . ~ . + position_f)
+m_pos2 <- update(m_pos1, . ~ . + position_f:tone_f)
+
+# Overall drift across blocks
+anova(m_pos0, m_pos1)
+emmeans::emmeans(m_pos1, pairwise ~ position_f, adjust = "holm", lmer.df = "asymptotic")
+
+# Does the drift differ by tone? (a tone wearing out faster)
+anova(m_pos1, m_pos2)
+emmeans::emmeans(m_pos2, ~ position_f | tone_f, lmer.df = "asymptotic") |>
+  emmeans::contrast("poly") |>
+  as_tibble() |>
+  filter(contrast == "linear") |>
+  mutate(p_holm = p.adjust(p.value, "holm")) |>
+  select(tone_f, linear_trend = estimate, SE, p.value, p_holm)
+```
+
+```{r}
+#| label: Position Plot
+panel_long |>
+  summarise(rating = mean(rating_num), .by = c(subid, position, tone)) |>
+  summarise(mean = mean(rating), se = sd(rating) / sqrt(n()), .by = c(position, tone)) |>
+  ggplot(aes(x = position, y = mean, color = tone, group = tone)) +
+  geom_line() +
+  geom_pointrange(aes(ymin = mean - 1.96 * se, ymax = mean + 1.96 * se),
+                  position = position_dodge(width = 0.15)) +
+  scale_x_continuous(breaks = 1:3) +
+  scale_color_discrete(labels = tone_label) +
+  labs(x = "Rating block (order shown)", y = "Mean message rating", color = "Tone")
+```
+
+*Time spent per block*
+
+Faster pages later in the session would suggest declining attention, which
+would complicate reading a drop in ratings as wear.
+
+```{r}
+#| label: Position Timing
+block_time <- raw_panel |>
+  select(subid, matches("^x[1-4]_(hi|hd|li)_timing_page_submit$"),
+         block_order_hi, block_order_hd, block_order_li) |>
+  pivot_longer(matches("timing_page_submit$"), names_to = "block", values_to = "seconds") |>
+  drop_na(seconds) |>
+  mutate(ctx = str_extract(block, "(?<=_)(hi|hd|li)(?=_)"),
+         position = case_when(ctx == "hi" ~ block_order_hi,
+                              ctx == "hd" ~ block_order_hd,
+                              ctx == "li" ~ block_order_li))
+
+block_time |>
+  summarise(n = n(), median_seconds = median(seconds), mean_seconds = mean(seconds),
+            .by = position) |>
+  arrange(position)
+
+friedman.test(seconds ~ position | subid,
+              data = block_time |> filter(n() == 3, .by = subid))
+```
+
+# 4. Drinking Severity
+
+Respondents screened in at AUDIT 8 or higher and role-played recovery. Those
+with higher scores are closer to the people the system is built for. If tone
+and style results look the same across severity, the role-play limitation is
+less worrying. Groups follow the standard AUDIT zones: 8-15 (hazardous), 16-19
+(harmful), 20 or more (possible dependence).
+
+```{r}
+#| label: AUDIT Groups
+audit <- raw_panel |>
+  transmute(subid, audit_score,
+            audit_group = cut(audit_score, breaks = c(-Inf, 15, 19, Inf),
+                              labels = c("8-15", "16-19", "20+")))
+audit |> count(audit_group) |> mutate(pct = n / sum(n))
+summary(audit$audit_score)
+
+rating_by_tone <- panel_long |>
+  summarise(rating = mean(rating_num), .by = c(subid, tone)) |>
+  left_join(audit, by = "subid")
+rating_by_style <- panel_long |>
+  summarise(rating = mean(rating_num), .by = c(subid, style)) |>
+  left_join(audit, by = "subid")
+```
+
+```{r}
+#| label: AUDIT Tone and Style
+# Mean rating by tone within each severity group
+rating_by_tone |>
+  summarise(mean = mean(rating), .by = c(audit_group, tone)) |>
+  pivot_wider(names_from = audit_group, values_from = mean) |>
+  arrange(desc(`8-15`)) |>
+  mutate(across(where(is.double), \(x) round(x, 2)))
+
+# Does the tone effect differ by severity? (audit_group:tone)
+afex::aov_ez(id = "subid", dv = "rating",
+             data = rating_by_tone |> mutate(subid = factor(subid)),
+             within = "tone", between = "audit_group",
+             anova_table = list(correction = "GG", es = "pes"))
+
+# Does the informal advantage differ by severity? (audit_group:style)
+rating_by_style |>
+  summarise(mean = mean(rating), .by = c(audit_group, style)) |>
+  pivot_wider(names_from = style, values_from = mean) |>
+  mutate(informal_minus_formal = informal - formal)
+afex::aov_ez(id = "subid", dv = "rating",
+             data = rating_by_style |> mutate(subid = factor(subid)),
+             within = "style", between = "audit_group",
+             anova_table = list(es = "pes"))
+```
+
+```{r}
+#| label: AUDIT Continuous
+# Same questions with AUDIT as a continuous score (no arbitrary cut points)
+m_audit0 <- lme4::lmer(
+  rating_num ~ tone_f * style_f + context_f + audit_c +
+    (1 | subid_f) + (1 | subid_f:tone_f),
+  data = panel_long |> mutate(audit_c = audit_score - mean(audit_score)),
+  REML = FALSE)
+m_audit_tone <- update(m_audit0, . ~ . + audit_c:tone_f)
+m_audit_style <- update(m_audit0, . ~ . + audit_c:style_f)
+anova(m_audit0, m_audit_tone)
+anova(m_audit0, m_audit_style)
+# Do heavier drinkers rate messages higher or lower overall?
+summary(m_audit0)$coefficients["audit_c", ]
+```
+
+The recommended method's gain by AUDIT group is in Section 5, with the other
+group comparisons.
+
+# Part B. Is the Recommended Method Solid?
+
+## Assignment machinery
+
+Copied from `candidate_methods.qmd` so this script runs on its own. If the
+methods change there, change them here too (or move them to
+`functions_llmpanel.R`).
+
+```{r}
+#| label: Machinery Data
+min_tones <- 3
+min_share <- 0.20
+margin <- 0.03
+harm_threshold <- 0.25
+cv_repeats <- 6
+cv_folds <- 5
+
+pref_wide <- panel_long |>
+  distinct(subid, across(all_of(pref_cols))) |>
+  arrange(subid)
+stopifnot(!anyDuplicated(pref_wide$subid), !anyNA(pref_wide))
+ids <- pref_wide$subid
+n <- length(ids)
+P <- as.matrix(pref_wide[, pref_cols])
+colnames(P) <- tone_levels
+pref_by_tone <- pref_wide |>
+  pivot_longer(-subid, names_to = "tone", names_prefix = "pref_", values_to = "pref")
+
+prep_style <- function(styles) {
+  d <- if (styles == "informal") filter(panel_long, style == "informal") else panel_long
+  wide <- d |>
+    summarise(rating = mean(rating_num, na.rm = TRUE), .by = c(subid, tone)) |>
+    pivot_wider(names_from = tone, values_from = rating) |>
+    arrange(subid)
+  stopifnot(identical(wide$subid, ids), !anyNA(wide[, tone_levels]))
+  form <- if (styles == "informal") {
+    rating_num ~ tone + context + (1 | subid) + (1 | subid:tone)
+  } else {
+    rating_num ~ tone + context + style + (1 | subid) + (1 | subid:tone)
+  }
+  m <- lme4::lmer(form, data = mutate(d, subid = factor(subid)), REML = TRUE)
+  list(M = as.matrix(wide[, tone_levels]),
+       n_per_tone = nrow(d) / (n_distinct(d$subid) * length(tone_levels)),
+       sd_resid = sigma(m))
+}
+style_data <- list("Pooled styles" = prep_style("both"),
+                   "Informal only" = prep_style("informal"))
+```
+
+```{r}
+#| label: Machinery Methods
+fixed <- function(weights) {
+  function(top, rows) {
+    w <- set_names(numeric(length(tone_levels)), tone_levels)
+    w[top[seq_along(weights)]] <- weights
+    matrix(w, nrow = length(rows), ncol = length(w), byrow = TRUE,
+           dimnames = list(NULL, tone_levels))
+  }
+}
+pref_ordered_weights <- function(p, w_sorted) {
+  w <- numeric(length(p))
+  w[order(-p)] <- w_sorted
+  ave(w, p)
+}
+# ties = "share":  tied tones split their weights equally (three tied -> equal thirds)
+# ties = "sample": tied tones are ordered by the sample ranking, so a person with no
+#                  stated order among the three gets the fixed rotation (50/30/20)
+own_order <- function(w_sorted, norms_swap = FALSE, ties = c("share", "sample")) {
+  ties <- match.arg(ties)
+  function(top, rows) {
+    t(vapply(rows, \(i) {
+      tones <- top[1:3]
+      p_all <- P[i, ]
+      if (norms_swap && !("norms" %in% tones) &&
+          p_all[["norms"]] == max(p_all) && min(p_all) < max(p_all)) {
+        tones[3] <- "norms"
+      }
+      p <- p_all[tones]                 # `tones` is in sample-rank order
+      w_tones <- if (ties == "share") {
+        pref_ordered_weights(p, w_sorted)
+      } else {
+        ws <- numeric(length(p))
+        ws[order(-p, seq_along(p))] <- w_sorted
+        ws
+      }
+      w <- set_names(numeric(length(tone_levels)), tone_levels)
+      w[tones] <- w_tones
+      w
+    }, numeric(length(tone_levels))))
+  }
+}
+own_top_three <- function(w_sorted) {
+  function(top, rows) {
+    t(vapply(rows, \(i) {
+      p_ranked <- P[i, top]
+      tones <- top[order(-p_ranked, seq_along(top))[1:3]]
+      w <- set_names(numeric(length(tone_levels)), tone_levels)
+      w[tones] <- pref_ordered_weights(P[i, tones], w_sorted)
+      w
+    }, numeric(length(tone_levels))))
+  }
+}
+rule_wide <- data_driven_weights(pref_by_tone) |>
+  select(subid, tone, weight) |>
+  pivot_wider(names_from = tone, values_from = weight) |>
+  arrange(subid)
+stopifnot(identical(rule_wide$subid, ids))
+W_rule <- as.matrix(rule_wide[, tone_levels])
+
+methods <- list(
+  "Mean-only"                   = fixed(1),
+  "Top three, 60/20/20"         = fixed(c(.60, .20, .20)),
+  "Top three, 50/30/20"         = fixed(c(.50, .30, .20)),
+  "Top three, 50/25/25"         = fixed(c(.50, .25, .25)),
+  "Top three, 40/40/20"         = fixed(c(.40, .40, .20)),
+  "Top three, 40/30/30"         = fixed(c(.40, .30, .30)),
+  "Top three, equal"            = fixed(rep(1 / 3, 3)),
+  "Top four, 40/20/20/20"       = fixed(c(.40, .20, .20, .20)),
+  "Top four, 30/30/20/20"       = fixed(c(.30, .30, .20, .20)),
+  "Top four, equal"             = fixed(rep(1 / 4, 4)),
+  "Uniform (all five)"          = fixed(rep(1 / 5, 5)),
+  "Own order, 50/30/20"         = own_order(c(.50, .30, .20)),
+  "Own order, 40/40/20"         = own_order(c(.40, .40, .20)),
+  "Own order, 50/30/20 + norms" = own_order(c(.50, .30, .20), norms_swap = TRUE),
+  "Own order, 50/30/20, sample tiebreak" =
+    own_order(c(.50, .30, .20), ties = "sample"),
+  "Own order, 50/30/20 + norms, sample tiebreak" =
+    own_order(c(.50, .30, .20), norms_swap = TRUE, ties = "sample"),
+  "Own top three, 50/30/20"     = own_top_three(c(.50, .30, .20)),
+  "Rule-based"                  = \(top, rows) W_rule[rows, , drop = FALSE])
+
+lead_method <- "Own order, 50/30/20 + norms"
+fixed_method <- "Top three, 40/40/20"
+alt_method <- "Own top three, 50/30/20"
+tiebreak_method <- "Own order, 50/30/20 + norms, sample tiebreak"
+```
+
+```{r}
+#| label: Machinery Evaluate
+folds <- map(seq_len(cv_repeats), \(r) {
+  fold_id <- sample(rep(seq_len(cv_folds), length.out = n))
+  map(seq_len(cv_folds), \(k) which(fold_id == k))
+}) |> unlist(recursive = FALSE)
+
+# Held-out weights and expected ratings for every respondent and method
+evaluated <- map(style_data, \(s) {
+  W_bar <- map(methods, \(f) matrix(0, n, length(tone_levels),
+                                    dimnames = list(NULL, tone_levels)))
+  for (test in folds) {
+    train <- setdiff(seq_len(n), test)
+    top <- names(sort(colMeans(s$M[train, , drop = FALSE]), decreasing = TRUE))
+    for (nm in names(methods)) {
+      W_bar[[nm]][test, ] <- W_bar[[nm]][test, ] + methods[[nm]](top, test) / cv_repeats
+    }
+  }
+  list(values = sapply(W_bar, \(W) rowSums(W * s$M)),
+       weights = W_bar,
+       uniform = rowMeans(s$M),
+       sd_resid = s$sd_resid, n_per_tone = s$n_per_tone)
+})
+
+# Which methods meet the variety standard for every respondent?
+top_full <- names(sort(colMeans(style_data[["Pooled styles"]]$M), decreasing = TRUE))
+qualifying <- names(methods)[map_lgl(methods, \(f) {
+  W <- f(top_full, seq_len(n))
+  all(rowSums(W > 0) >= min_tones & apply(W, 1, \(w) min(w[w > 0])) >= min_share - 1e-9)
+})]
+qualifying
+
+# Mean, share worse off than an even rotation, and share clearly worse off, for one
+# method on a set of respondents (noise-corrected; see candidate_methods.qmd)
+method_metrics <- function(e, nm, idx = seq_len(n)) {
+  gain <- e$values[idx, nm] - e$uniform[idx]
+  W <- e$weights[[nm]][idx, , drop = FALSE]
+  noise_var <- e$sd_resid^2 / e$n_per_tone * rowSums((W - 1 / length(tone_levels))^2)
+  true_sd <- sqrt(max(var(gain) - mean(noise_var), 0))
+  c(mean = mean(e$values[idx, nm]),
+    gain = mean(gain),
+    sd_gain = true_sd,
+    pct_worse = if (true_sd == 0) NA_real_ else pnorm(0, mean(gain), true_sd),
+    pct_clearly = if (true_sd == 0) NA_real_ else pnorm(-harm_threshold, mean(gain), true_sd))
+}
+
+# Sanity check against candidate_methods.qmd (pooled styles)
+map(set_names(c("Mean-only", fixed_method, lead_method, alt_method)),
+    \(nm) round(method_metrics(evaluated[["Pooled styles"]], nm), 3)) |>
+  bind_rows(.id = "method")
+```
+
+# 5. Demographic Gaps, Tested
+
+The gaps reported so far are descriptive. Two questions for each grouping:
+
+-   **Does the method benefit groups unequally?** A one-way test of the gain
+    (method minus an even rotation) across groups.
+-   **Does the preference-based method change the gap?** The paired difference
+    (lead method minus fixed method, and lead minus mean-only) across groups.
+    A significant result means the two methods distribute their benefit
+    differently.
+
+AUDIT group is included alongside the demographic variables. p-values are
+adjusted across groupings within each column (Benjamini-Hochberg). Levels with
+fewer than 30 respondents are dropped.
+
+```{r}
+#| label: Group Data
+groups <- panel_long |>
+  distinct(subid, dem_sex, dem_ethnicity, dem_orientation, dem_education,
+           dem_minority, dem_age) |>
+  left_join(audit |> select(subid, audit_group), by = "subid") |>
+  arrange(subid) |>
+  mutate(age_group = cut(dem_age, breaks = quantile(dem_age, c(0, 1 / 3, 2 / 3, 1), na.rm = TRUE),
+                         include.lowest = TRUE)) |>
+  select(-dem_age) |>
+  mutate(across(-subid, as.character))
+stopifnot(identical(groups$subid, ids))
+group_vars <- setdiff(names(groups), "subid")
+```
+
+```{r}
+#| label: Group Tests
+# One-way test of `y` across the levels of a grouping (levels with n >= 30)
+group_test <- function(y, g) {
+  keep <- !is.na(g) & g %in% names(which(table(g) >= 30))
+  y <- y[keep]; g <- factor(g[keep])
+  means <- tapply(y, g, mean)
+  tibble(levels = nlevels(g), gap = max(means) - min(means),
+         best = names(which.max(means)), worst = names(which.min(means)),
+         p = if (nlevels(g) < 2) NA_real_ else oneway.test(y ~ g)$p.value)
+}
+
+group_tests <- imap(evaluated, \(e, style_nm) {
+  outcomes <- list(
+    "Gain: mean-only" = e$values[, "Mean-only"] - e$uniform,
+    "Gain: fixed 40/40/20" = e$values[, fixed_method] - e$uniform,
+    "Gain: lead (own order + norms)" = e$values[, lead_method] - e$uniform,
+    "Gain: alternative (own top three)" = e$values[, alt_method] - e$uniform,
+    "Lead minus fixed" = e$values[, lead_method] - e$values[, fixed_method],
+    "Lead minus mean-only" = e$values[, lead_method] - e$values[, "Mean-only"])
+  imap(outcomes, \(y, out_nm) {
+    map(set_names(group_vars), \(v) group_test(y, groups[[v]])) |>
+      list_rbind(names_to = "grouping") |>
+      mutate(outcome = out_nm, p_bh = p.adjust(p, "BH"))
+  }) |>
+    list_rbind() |>
+    mutate(styles = style_nm, .before = 1)
+}) |> list_rbind()
+
+group_tests |>
+  mutate(across(c(gap, p, p_bh), \(x) round(x, 3))) |>
+  select(styles, outcome, grouping, levels, gap, best, worst, p, p_bh) |>
+  arrange(styles, outcome, p) |>
+  print(n = Inf, width = Inf)
+```
+
+*Gaps side by side*
+
+```{r}
+#| label: Group Gap Table
+group_tests |>
+  filter(str_starts(outcome, "Gain")) |>
+  mutate(cell = paste0(sprintf("%.2f", gap), if_else(!is.na(p) & p < .05, "*", ""))) |>
+  select(styles, grouping, outcome, cell) |>
+  pivot_wider(names_from = outcome, values_from = cell) |>
+  arrange(styles, grouping) |>
+  print(n = Inf, width = Inf)
+```
+
+`*` marks an unadjusted p < .05 for unequal benefit across the grouping's
+levels.
+
+Reading the results:
+
+-   Gaps for the lead method that are small **and** not significant support
+    the claim that it shares its benefit evenly. Absence of a significant gap
+    is weak evidence with groups this size; report the gap and its test, not
+    "no difference".
+-   A significant "Lead minus mean-only" row means the lead method
+    redistributes benefit relative to a single tone, the clearest fairness
+    result available here.
+
+# 6. By Preference Pattern
+
+The lead method gives equal thirds to anyone who scored its three tones the
+same. Does it serve those respondents worse than people who expressed a clear
+order? And does it beat the fixed method for people who did express one?
+
+```{r}
+#| label: Preference Patterns
+patterns <- tibble(
+  subid = ids,
+  all_five_tied = apply(P, 1, \(p) n_distinct(p) == 1),
+  top_three_distinct = apply(P[, top_full[1:3]], 1, n_distinct),
+  norms_swapped = apply(P, 1, \(p) p[["norms"]] == max(p) && min(p) < max(p))) |>
+  mutate(pattern = case_when(
+    all_five_tied ~ "All five tones tied",
+    norms_swapped ~ "Norms ranked highest",
+    top_three_distinct == 1 ~ "Top three tied (others differ)",
+    top_three_distinct == 2 ~ "Partial order (one tie)",
+    top_three_distinct == 3 ~ "Full order"))
+patterns |> count(pattern) |> mutate(pct = n / sum(n))
+
+imap(evaluated, \(e, style_nm) {
+  patterns |>
+    mutate(uniform = e$uniform,
+           gain_fixed = e$values[, fixed_method] - uniform,
+           gain_lead = e$values[, lead_method] - uniform,
+           gain_alt = e$values[, alt_method] - uniform,
+           gain_tiebreak = e$values[, tiebreak_method] - uniform,
+           tiebreak_minus_fixed = e$values[, tiebreak_method] - e$values[, fixed_method],
+           lead_minus_fixed = e$values[, lead_method] - e$values[, fixed_method]) |>
+    summarise(n = n(), mean_rating_overall = mean(uniform),
+              across(c(gain_fixed, gain_lead, gain_tiebreak, gain_alt), mean),
+              tiebreak_diff = mean(tiebreak_minus_fixed),
+              tiebreak_diff_low = tiebreak_diff -
+                1.96 * sd(tiebreak_minus_fixed) / sqrt(n()),
+              tiebreak_diff_high = tiebreak_diff +
+                1.96 * sd(tiebreak_minus_fixed) / sqrt(n()),
+              diff = mean(lead_minus_fixed),
+              diff_low = diff - 1.96 * sd(lead_minus_fixed) / sqrt(n()),
+              diff_high = diff + 1.96 * sd(lead_minus_fixed) / sqrt(n()),
+              .by = pattern) |>
+    mutate(styles = style_nm, .before = 1)
+}) |>
+  list_rbind() |>
+  mutate(across(where(is.double), \(x) round(x, 3))) |>
+  arrange(styles, desc(n)) |>
+  print(n = Inf, width = Inf)
+```
+
+`diff` is lead minus fixed 40/40/20 within each pattern, and `tiebreak_diff`
+is the same for the sample-tiebreak version of the lead method. The lead method can
+only add value where it changes the rotation, so expect its advantage (if
+any) among "Full order", "Partial order" and "Norms ranked highest".
+
+# 7. Selection Stability
+
+## Other selection settings
+
+The selection rule keeps qualifying methods within `margin` of the best
+held-out mean, then picks the lowest share worse off. Note that
+`harm_threshold` does not enter that rule; it only defines the "clearly worse
+off" column. So the grid varies the margin, and separately tries a rule that
+picks on the share **clearly** worse off.
+
+```{r}
+#| label: Selection Grid
+metrics_table <- function(e, idx = seq_len(n)) {
+  t(sapply(qualifying, \(nm) method_metrics(e, nm, idx)))
+}
+apply_rule <- function(tbl, margin, by = "pct_worse") {
+  ok <- tbl[, "mean"] >= max(tbl[, "mean"]) - margin & !is.na(tbl[, by])
+  rownames(tbl)[ok][which.min(tbl[ok, by])]
+}
+
+expand_grid(styles = names(evaluated),
+            margin = c(0, .01, .02, .03, .05, .075, .10),
+            by = c("pct_worse", "pct_clearly")) |>
+  mutate(selected = pmap_chr(list(styles, margin, by), \(s, m, b) {
+    apply_rule(metrics_table(evaluated[[s]]), m, b)
+  })) |>
+  pivot_wider(names_from = margin, values_from = selected, names_prefix = "margin_") |>
+  print(width = Inf)
+```
+
+## Bootstrap
+
+Respondents are resampled with replacement, every qualifying method is
+re-scored, and the rule is re-applied. The table shows how often each method
+is selected, and how often it has the best mean outright.
+
+```{r}
+#| label: Selection Bootstrap
+selection_boot <- imap(evaluated, \(e, style_nm) {
+  map(seq_len(n_boot), \(i) {
+    tbl <- metrics_table(e, sample(n, replace = TRUE))
+    tibble(selected = apply_rule(tbl, margin),
+           best_mean = rownames(tbl)[which.max(tbl[, "mean"])])
+  }) |>
+    list_rbind() |>
+    mutate(styles = style_nm)
+}) |> list_rbind()
+
+full_join(
+  selection_boot |> count(styles, method = selected, name = "selected") |>
+    mutate(pct_selected = selected / n_boot),
+  selection_boot |> count(styles, method = best_mean, name = "best") |>
+    mutate(pct_best_mean = best / n_boot),
+  by = c("styles", "method")) |>
+  select(styles, method, pct_selected, pct_best_mean) |>
+  mutate(across(starts_with("pct"), \(x) replace_na(x, 0))) |>
+  arrange(styles, desc(pct_selected)) |>
+  print(n = Inf)
+
+# How often a preference-based method (any of them) is selected
+pref_based <- c("Own order, 50/30/20", "Own order, 40/40/20",
+                "Own order, 50/30/20, sample tiebreak",
+                "Own order, 50/30/20 + norms, sample tiebreak",
+                "Own order, 50/30/20 + norms", "Own top three, 50/30/20", "Rule-based")
+selection_boot |>
+  summarise(pct_preference_based = mean(selected %in% pref_based), .by = styles)
+```
+
+The bootstrap resamples respondents but keeps the cross-validation folds
+fixed, so it slightly understates the uncertainty.
+
+Reading the results: if the lead method is selected in well under half of
+resamples, describe it as "one of several equivalent methods, chosen on
+fairness grounds", not as the winner of a selection procedure. The last table
+is the more robust statement: how often some preference-based method wins.
+
+# 8. Normality Check for the "Worse Off" Metric
+
+The share worse off assumes each method's true gains are roughly normal. This
+compares the observed gains with a normal distribution and reports skewness
+and excess kurtosis. Observed gains include rating noise (which is close to
+normal), so strong skew here would be a warning.
+
+```{r}
+#| label: Normality
+check_methods <- c("Mean-only", fixed_method, lead_method, alt_method)
+
+gains_long <- imap(evaluated, \(e, style_nm) {
+  map(set_names(check_methods), \(nm) tibble(gain = e$values[, nm] - e$uniform)) |>
+    list_rbind(names_to = "method") |>
+    mutate(styles = style_nm)
+}) |> list_rbind()
+
+gains_long |>
+  summarise(mean = mean(gain), sd = sd(gain),
+            skewness = mean((gain - mean(gain))^3) / sd(gain)^3,
+            excess_kurtosis = mean((gain - mean(gain))^4) / sd(gain)^4 - 3,
+            pct_below_zero_observed = mean(gain < 0),
+            pct_below_zero_normal = pnorm(0, mean(gain), sd(gain)),
+            .by = c(styles, method)) |>
+  mutate(across(where(is.double), \(x) round(x, 3)))
+
+gains_long |>
+  ggplot(aes(sample = gain)) +
+  stat_qq(size = 0.6) +
+  stat_qq_line(color = "firebrick") +
+  facet_grid(styles ~ method, scales = "free") +
+  labs(x = "Normal quantiles", y = "Observed gain over an even rotation")
+```
+
+If `pct_below_zero_observed` and `pct_below_zero_normal` agree to within a
+couple of points and the points follow the line, the normal assumption is
+adequate for the observed gains, and the noise-corrected shares can be
+reported as estimates. If they diverge, report the corrected shares as
+approximate and give the raw shares alongside.

@@ -1,0 +1,569 @@
+---
+title: "Final Checks: Method Refinements, Sensitivity and Tables"
+format: 
+  html:
+    page-layout: full
+    self-contained: true
+    toc: true
+    toc-depth: 3
+execute: 
+  warning: false
+editor_options: 
+  chunk_output_type: console
+---
+
+## Code Status
+
+Draft. Written without access to the data and NOT YET RUN. Run chunk by chunk
+and expect small fixes.
+
+## Purpose
+
+1.  **Sample characteristics** for the paper's demographics table.
+2.  **Style gap by tone, in full.** The equivalence table that was cut off in
+    the style report.
+3.  **Method refinements** raised for the team meeting: a middle-path tie
+    rule and a stricter norms rule, compared with the two lead methods.
+4.  **Fairness tests** for every lead candidate, not only the shared-weights
+    version.
+5.  **Stricter exclusion.** Do the main results hold if every respondent with
+    any suspicion flag is dropped?
+6.  **Reading level** of the messages (approximate).
+
+## Setup
+
+```{r}
+#| label: Setup
+options(conflicts.policy = "depends.ok")
+library(tidyverse)
+
+source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
+source(here::here("scripts", "functions_llmpanel.R"))
+source(here::here("scripts", "functions_assignment.R"))
+
+path_processed <- format_path("llmpanel/data_processed")
+raw_panel <- read_csv(here::here(path_processed, "panel.csv"), show_col_types = FALSE)
+panel_long <- format_eda(raw_panel, long = TRUE)
+
+tone_levels <- c("norms", "acknowledging", "legitimizing",
+                 "self_efficacy", "value_affirmation")
+pref_cols <- paste0("pref_", tone_levels)
+
+set.seed(102030)
+n_boot <- 1000
+harm_threshold <- 0.25
+cv_repeats <- 6
+cv_folds <- 5
+```
+
+# 1. Sample Characteristics
+
+For Table 5 of the report. Race and ethnicity categories are not mutually
+exclusive (check all that apply).
+
+```{r}
+#| label: Sample Table
+n_total <- nrow(raw_panel)
+n_total
+
+# Continuous
+raw_panel |>
+  summarise(across(c(dem_age, audit_score, dem_n_household),
+                   list(mean = \(x) mean(x, na.rm = TRUE), sd = \(x) sd(x, na.rm = TRUE),
+                        min = \(x) min(x, na.rm = TRUE), max = \(x) max(x, na.rm = TRUE),
+                        missing = \(x) sum(is.na(x))))) |>
+  pivot_longer(everything(), names_to = c("variable", ".value"),
+               names_pattern = "(.*)_(mean|sd|min|max|missing)$") |>
+  mutate(across(where(is.double), \(x) round(x, 2)))
+
+# Categorical
+count_levels <- function(v) {
+  raw_panel |>
+    count(level = as.character(.data[[v]])) |>
+    mutate(variable = v, pct = round(100 * n / n_total, 1), .before = 1)
+}
+c("dem_sex", "dem_orientation", "dem_education", "dem_income", "dem_marital_status",
+  "dem_student", "dem_minority") |>
+  map(count_levels) |>
+  list_rbind() |>
+  relocate(variable, level, n, pct) |>
+  print(n = Inf)
+
+# Race and ethnicity (each is "selected" when not missing)
+raw_panel |>
+  summarise(across(starts_with("dem_race_"), \(x) sum(!is.na(x)))) |>
+  pivot_longer(everything(), names_to = "category", values_to = "n") |>
+  mutate(pct = round(100 * n / n_total, 1))
+
+# White only vs. any other selection (the coding used in the analyses)
+panel_long |> distinct(subid, dem_ethnicity) |> count(dem_ethnicity) |>
+  mutate(pct = round(100 * n / sum(n), 1))
+
+# AUDIT zones
+raw_panel |>
+  count(audit_zone = cut(audit_score, c(-Inf, 15, 19, Inf), labels = c("8-15", "16-19", "20+"))) |>
+  mutate(pct = round(100 * n / n_total, 1))
+
+# Collection window
+range(raw_panel$start_date, na.rm = TRUE)
+median(raw_panel$q_total_duration, na.rm = TRUE) / 60   # median minutes to complete
+```
+
+# 2. Style Gap by Tone, in Full
+
+For each tone, the gap is each respondent's mean informal rating minus their
+mean formal rating. Each gap gets a paired t-test against zero and an
+equivalence test (two one-sided tests) against a margin of 0.25 points. Holm
+adjustment is across the six rows, separately for the difference tests and
+the equivalence tests.
+
+```{r}
+#| label: Style Gap Table
+equiv_margin <- 0.25
+
+gap_by_tone <- panel_long |>
+  summarise(rating = mean(rating_num, na.rm = TRUE), .by = c(subid, tone, style)) |>
+  pivot_wider(names_from = style, values_from = rating) |>
+  mutate(gap = informal - formal) |>
+  select(subid, tone, gap)
+
+gap_overall <- panel_long |>
+  summarise(rating = mean(rating_num, na.rm = TRUE), .by = c(subid, style)) |>
+  pivot_wider(names_from = style, values_from = rating) |>
+  transmute(subid, tone = "all tones", gap = informal - formal)
+
+bind_rows(gap_by_tone, gap_overall) |>
+  drop_na(gap) |>
+  summarise(
+    n = n(),
+    mean_gap = mean(gap),
+    ci_low = t.test(gap)$conf.int[1],
+    ci_high = t.test(gap)$conf.int[2],
+    dz = mean(gap) / sd(gap),
+    p = t.test(gap)$p.value,
+    p_tost = max(t.test(gap, mu = -equiv_margin, alternative = "greater")$p.value,
+                 t.test(gap, mu = equiv_margin, alternative = "less")$p.value),
+    .by = tone) |>
+  mutate(p_holm = p.adjust(p, "holm"),
+         p_tost_holm = p.adjust(p_tost, "holm"),
+         conclusion = case_when(p_tost_holm < .05 ~ "Equivalent to zero within the margin",
+                                p_holm < .05 ~ "Different from zero, not shown equivalent",
+                                .default = "Inconclusive")) |>
+  arrange(desc(mean_gap)) |>
+  mutate(across(where(is.double), \(x) signif(x, 3))) |>
+  print(width = Inf)
+```
+
+A gap can be both different from zero and equivalent within the margin: that
+means it is real but smaller than 0.25 points.
+
+# 3. Method Refinements
+
+## Data and methods
+
+```{r}
+#| label: Assignment Data
+pref_wide <- panel_long |>
+  distinct(subid, across(all_of(pref_cols))) |>
+  arrange(subid)
+stopifnot(!anyDuplicated(pref_wide$subid), !anyNA(pref_wide))
+ids <- pref_wide$subid
+n <- length(ids)
+P <- as.matrix(pref_wide[, pref_cols])
+colnames(P) <- tone_levels
+
+prep_style <- function(styles) {
+  d <- if (styles == "informal") filter(panel_long, style == "informal") else panel_long
+  wide <- d |>
+    summarise(rating = mean(rating_num, na.rm = TRUE), .by = c(subid, tone)) |>
+    pivot_wider(names_from = tone, values_from = rating) |>
+    arrange(subid)
+  stopifnot(identical(wide$subid, ids), !anyNA(wide[, tone_levels]))
+  form <- if (styles == "informal") {
+    rating_num ~ tone + context + (1 | subid) + (1 | subid:tone)
+  } else {
+    rating_num ~ tone + context + style + (1 | subid) + (1 | subid:tone)
+  }
+  m <- lme4::lmer(form, data = mutate(d, subid = factor(subid)), REML = TRUE)
+  list(M = as.matrix(wide[, tone_levels]),
+       n_per_tone = nrow(d) / (n_distinct(d$subid) * length(tone_levels)),
+       sd_resid = sigma(m))
+}
+style_data <- list("Pooled styles" = prep_style("both"),
+                   "Informal only" = prep_style("informal"))
+```
+
+The candidates differ on two switches.
+
+**Tie rule** (what happens when a person's stated preferences among the three
+tones are tied):
+
+-   *shared*: tied tones split their weights (three tied gives equal thirds).
+-   *sample*: tied tones are ordered by the sample ranking.
+-   *middle*: sample ranking only when all three are tied; partial ties share.
+
+**Norms rule** (when norms replaces the third tone):
+
+-   *tier*: norms is in the person's highest preference tier (ties count).
+-   *strict*: norms is preferred strictly above every other tone.
+-   *none*: never.
+
+```{r}
+#| label: Refinement Methods
+w <- c(.50, .30, .20)
+methods <- list(
+  "Mean-only"                      = fixed(1),
+  "Fixed 40/40/20"                 = fixed(c(.40, .40, .20)),
+  "Fixed 50/30/20"                 = fixed(w),
+  "Uniform (all five)"             = fixed(rep(1 / 5, 5)),
+  "Shared ties, norms tier"        = own_order(w, norms = "tier", ties = "share"),
+  "Sample ties, norms tier"        = own_order(w, norms = "tier", ties = "sample"),
+  "Middle ties, norms tier"        = own_order(w, norms = "tier", ties = "sample_if_all_tied"),
+  "Shared ties, norms strict"      = own_order(w, norms = "strict", ties = "share"),
+  "Sample ties, norms strict"      = own_order(w, norms = "strict", ties = "sample"),
+  "Middle ties, norms strict"      = own_order(w, norms = "strict", ties = "sample_if_all_tied"),
+  "Shared ties, no norms"          = own_order(w, norms = "none", ties = "share"),
+  "Sample ties, no norms"          = own_order(w, norms = "none", ties = "sample"),
+  "Middle ties, no norms"          = own_order(w, norms = "none", ties = "sample_if_all_tied"))
+
+lead_shared <- "Shared ties, norms tier"   # the current lead in the report
+lead_sample <- "Sample ties, norms tier"   # the tiebreak version
+lead_middle <- "Middle ties, norms tier"
+pref_methods <- str_subset(names(methods), "ties")
+
+folds <- make_respondent_folds(n, cv_folds, cv_repeats)
+evaluated <- map(style_data, \(s) {
+  c(evaluate_methods(methods, s$M, folds, cv_repeats),
+    list(sd_resid = s$sd_resid, n_per_tone = s$n_per_tone))
+})
+
+metrics <- function(e, nm, idx = seq_len(n)) {
+  method_metrics(e, nm, e$sd_resid, e$n_per_tone, harm_threshold, idx)
+}
+```
+
+*Every candidate meets the variety standard?*
+
+```{r}
+#| label: Variety Check
+top_full <- names(sort(colMeans(style_data[["Pooled styles"]]$M), decreasing = TRUE))
+map(set_names(pref_methods), \(nm) {
+  W <- methods[[nm]](top_full, seq_len(n))
+  tibble(tones_min = min(rowSums(W > 0)), least_seen = min(apply(W, 1, \(x) min(x[x > 0]))))
+}) |> list_rbind(names_to = "method")
+```
+
+## How many people each rule affects
+
+```{r}
+#| label: Rule Reach
+tibble(
+  norms_tier = apply(P, 1, \(p) p[["norms"]] == max(p) && min(p) < max(p)),
+  norms_strict = apply(P, 1, \(p) p[["norms"]] > max(p[names(p) != "norms"])),
+  three_tied = apply(P[, top_full[1:3]], 1, \(p) n_distinct(p) == 1),
+  any_tie = apply(P[, top_full[1:3]], 1, \(p) n_distinct(p) < 3)) |>
+  summarise(across(everything(), list(n = sum, pct = mean))) |>
+  pivot_longer(everything(), names_to = c("rule", ".value"), names_pattern = "(.*)_(n|pct)$")
+
+W_fixed <- methods[["Fixed 50/30/20"]](top_full, seq_len(n))
+fixed_label <- rotation_label(W_fixed[1, ])
+
+map(set_names(pref_methods), \(nm) {
+  W <- methods[[nm]](top_full, seq_len(n))
+  labels <- apply(W, 1, rotation_label)
+  tibble(distinct_rotations = n_distinct(labels),
+         pct_same_as_fixed = mean(labels == fixed_label),
+         pct_messages_reallocated = mean(rowSums(abs(W - W_fixed)) / 2),
+         pct_receiving_norms = mean(W[, "norms"] > 0))
+}) |>
+  list_rbind(names_to = "method") |>
+  mutate(across(where(is.double), \(x) round(x, 3)))
+```
+
+## Held-out performance
+
+Share worse off than an even rotation is noise-corrected (see
+`candidate_methods.qmd`), with the uncorrected share alongside. Intervals for
+the corrected share come from a respondent bootstrap.
+
+```{r}
+#| label: Refinement Results
+results <- imap(evaluated, \(e, style_nm) {
+  map(set_names(names(methods)), \(nm) {
+    obs <- metrics(e, nm)
+    boot <- replicate(n_boot, metrics(e, nm, sample(n, replace = TRUE))[["pct_worse"]])
+    tibble(mean = obs[["mean"]],
+           retained = obs[["gain"]] / metrics(e, "Mean-only")[["gain"]],
+           pct_worse = obs[["pct_worse"]],
+           worse_low = quantile(boot, .025, na.rm = TRUE),
+           worse_high = quantile(boot, .975, na.rm = TRUE),
+           pct_clearly = obs[["pct_clearly"]],
+           pct_worse_raw = obs[["pct_worse_raw"]])
+  }) |>
+    list_rbind(names_to = "method") |>
+    mutate(styles = style_nm, .before = 1)
+}) |> list_rbind()
+
+results |>
+  arrange(styles, desc(mean)) |>
+  mutate(across(where(is.double), \(x) round(x, 3))) |>
+  print(n = Inf, width = Inf)
+```
+
+## Paired comparisons
+
+A minus B on held-out expected ratings, with 95% bootstrap intervals.
+`n_affected` is the number of respondents whose rotation differs between the
+two, and `diff_affected` the mean difference among them.
+
+```{r}
+#| label: Refinement Comparisons
+comparisons <- tribble(
+  ~question,                                   ~a,                          ~b,
+  "Tie rule: sample vs. shared",               "Sample ties, norms tier",   "Shared ties, norms tier",
+  "Tie rule: middle vs. shared",               "Middle ties, norms tier",   "Shared ties, norms tier",
+  "Tie rule: sample vs. middle",               "Sample ties, norms tier",   "Middle ties, norms tier",
+  "Norms rule: tier vs. none (sample ties)",   "Sample ties, norms tier",   "Sample ties, no norms",
+  "Norms rule: strict vs. none (sample ties)", "Sample ties, norms strict", "Sample ties, no norms",
+  "Norms rule: tier vs. strict (sample ties)", "Sample ties, norms tier",   "Sample ties, norms strict",
+  "Norms rule: tier vs. none (shared ties)",   "Shared ties, norms tier",   "Shared ties, no norms",
+  "Middle path vs. fixed 40/40/20",            "Middle ties, norms tier",   "Fixed 40/40/20",
+  "Middle path vs. fixed 50/30/20",            "Middle ties, norms tier",   "Fixed 50/30/20",
+  "Sample ties vs. fixed 50/30/20",            "Sample ties, norms tier",   "Fixed 50/30/20",
+  "Shared ties vs. fixed 50/30/20",            "Shared ties, norms tier",   "Fixed 50/30/20")
+
+paired <- imap(evaluated, \(e, style_nm) {
+  pmap(comparisons, \(question, a, b) {
+    d <- e$values[, a] - e$values[, b]
+    affected <- rowSums(abs(e$weights[[a]] - e$weights[[b]])) > 1e-9
+    boot <- replicate(n_boot, mean(sample(d, replace = TRUE)))
+    tibble(styles = style_nm, question = question,
+           diff = mean(d), ci_low = quantile(boot, .025), ci_high = quantile(boot, .975),
+           p = t.test(d)$p.value, n_affected = sum(affected),
+           diff_affected = if (any(affected)) mean(d[affected]) else NA_real_)
+  }) |> list_rbind()
+}) |> list_rbind()
+
+paired |>
+  mutate(across(c(diff, ci_low, ci_high, diff_affected), \(x) round(x, 3)), p = round(p, 4)) |>
+  print(n = Inf, width = Inf)
+```
+
+Reading the results:
+
+-   **Middle vs. shared, and sample vs. middle**, show where the tiebreak's
+    gain comes from: people who tied all three tones, or people with a partial
+    tie. If the middle path captures most of the gain, it is the option that
+    costs the least personalization.
+-   **Norms tier vs. strict** shows whether the people with the clearest norms
+    preference account for the rule's benefit. A strict rule that does as well
+    while sending norms to fewer people is the safer rule.
+
+# 4. Fairness Tests for Each Lead Candidate
+
+For each grouping, a one-way test of whether the method's gain over an even
+rotation differs across groups (levels with at least 30 respondents), and the
+gap between the best- and worst-served group. `p_bh` adjusts across groupings
+within a method.
+
+```{r}
+#| label: Fairness
+groups <- panel_long |>
+  distinct(subid, dem_sex, dem_ethnicity, dem_orientation, dem_education,
+           dem_minority, dem_age) |>
+  left_join(raw_panel |> select(subid, audit_score), by = "subid") |>
+  arrange(subid) |>
+  mutate(age_group = as.character(cut(dem_age, quantile(dem_age, c(0, 1 / 3, 2 / 3, 1), na.rm = TRUE),
+                                      include.lowest = TRUE)),
+         audit_group = as.character(cut(audit_score, c(-Inf, 15, 19, Inf),
+                                        labels = c("8-15", "16-19", "20+")))) |>
+  select(-dem_age, -audit_score) |>
+  mutate(across(-subid, as.character))
+stopifnot(identical(groups$subid, ids))
+group_vars <- setdiff(names(groups), "subid")
+
+group_test <- function(y, g) {
+  keep <- !is.na(g) & g %in% names(which(table(g) >= 30))
+  y <- y[keep]; g <- factor(g[keep])
+  means <- tapply(y, g, mean)
+  tibble(gap = max(means) - min(means),
+         best = names(which.max(means)), worst = names(which.min(means)),
+         p = if (nlevels(g) < 2) NA_real_ else oneway.test(y ~ g)$p.value)
+}
+
+fairness_methods <- c("Mean-only", "Fixed 40/40/20", lead_shared, lead_sample, lead_middle)
+
+fairness <- imap(evaluated, \(e, style_nm) {
+  map(set_names(fairness_methods), \(nm) {
+    map(set_names(group_vars), \(v) group_test(e$values[, nm] - e$uniform, groups[[v]])) |>
+      list_rbind(names_to = "grouping") |>
+      mutate(p_bh = p.adjust(p, "BH"))
+  }) |>
+    list_rbind(names_to = "method") |>
+    mutate(styles = style_nm, .before = 1)
+}) |> list_rbind()
+
+# Gaps side by side (* = unadjusted p < .05)
+fairness |>
+  mutate(cell = paste0(sprintf("%.2f", gap), if_else(!is.na(p) & p < .05, "*", ""))) |>
+  select(styles, grouping, method, cell) |>
+  pivot_wider(names_from = method, values_from = cell) |>
+  arrange(styles, grouping) |>
+  print(n = Inf, width = Inf)
+
+# Any grouping with unequal benefit under a lead candidate
+fairness |>
+  filter(method %in% c(lead_shared, lead_sample, lead_middle), p < .10) |>
+  mutate(across(c(gap, p, p_bh), \(x) round(x, 3)))
+```
+
+*Do the lead candidates distribute benefit differently from each other?*
+
+```{r}
+#| label: Fairness Between Leads
+imap(evaluated, \(e, style_nm) {
+  d <- e$values[, lead_sample] - e$values[, lead_shared]
+  map(set_names(group_vars), \(v) group_test(d, groups[[v]])) |>
+    list_rbind(names_to = "grouping") |>
+    mutate(styles = style_nm, comparison = "Sample ties minus shared ties", .before = 1)
+}) |>
+  list_rbind() |>
+  mutate(across(c(gap, p), \(x) round(x, 3))) |>
+  print(n = Inf, width = Inf)
+```
+
+# 5. Stricter Exclusion
+
+The final sample keeps respondents with a suspicion index of 0 or 1. This
+repeats the headline results using only respondents with no flag at all. If
+the conclusions hold, they do not depend on where the exclusion line was
+drawn.
+
+```{r}
+#| label: Stricter Exclusion
+flags <- raw_panel |> select(subid, suspicion_index) |> arrange(subid)
+stopifnot(identical(flags$subid, ids))
+flags |> count(suspicion_index)
+
+clean_rows <- which(flags$suspicion_index == 0)
+clean_ids <- ids[clean_rows]
+length(clean_rows)
+
+# Tone means and the style gap
+bind_rows(
+  panel_long |> mutate(sample = "All retained"),
+  panel_long |> filter(subid %in% clean_ids) |> mutate(sample = "No flags")) |>
+  summarise(rating = mean(rating_num), .by = c(sample, subid, tone)) |>
+  summarise(mean = mean(rating), .by = c(sample, tone)) |>
+  pivot_wider(names_from = sample, values_from = mean) |>
+  arrange(desc(`All retained`)) |>
+  mutate(across(where(is.double), \(x) round(x, 2)))
+
+bind_rows(
+  panel_long |> mutate(sample = "All retained"),
+  panel_long |> filter(subid %in% clean_ids) |> mutate(sample = "No flags")) |>
+  summarise(rating = mean(rating_num), .by = c(sample, subid, style)) |>
+  pivot_wider(names_from = style, values_from = rating) |>
+  summarise(n = n(),
+            p = t.test(informal, formal, paired = TRUE)$p.value,
+            gap = mean(informal - formal),
+            mean_formal = mean(formal), mean_informal = mean(informal),
+            .by = sample) |>
+  relocate(p, .after = last_col())
+```
+
+```{r}
+#| label: Stricter Exclusion Methods
+# Held-out method values were computed with everyone; here they are summarised for
+# the no-flag respondents only.
+key_methods <- c("Uniform (all five)", "Fixed 40/40/20", "Fixed 50/30/20",
+                 lead_shared, lead_middle, lead_sample, "Mean-only")
+
+imap(evaluated, \(e, style_nm) {
+  map(set_names(key_methods), \(nm) {
+    tibble(all_retained = mean(e$values[, nm]),
+           no_flags = mean(e$values[clean_rows, nm]),
+           worse_all = metrics(e, nm)[["pct_worse"]],
+           worse_no_flags = metrics(e, nm, clean_rows)[["pct_worse"]])
+  }) |>
+    list_rbind(names_to = "method") |>
+    mutate(styles = style_nm, .before = 1)
+}) |>
+  list_rbind() |>
+  mutate(across(where(is.double), \(x) round(x, 3))) |>
+  print(n = Inf, width = Inf)
+
+# Key paired differences among no-flag respondents
+imap(evaluated, \(e, style_nm) {
+  tribble(~a, ~b,
+          lead_sample, "Fixed 40/40/20",
+          lead_sample, lead_shared,
+          lead_shared, "Fixed 40/40/20",
+          lead_sample, "Mean-only") |>
+    pmap(\(a, b) {
+      d <- e$values[clean_rows, a] - e$values[clean_rows, b]
+      tibble(styles = style_nm, a = a, b = b, diff = mean(d),
+             ci_low = t.test(d)$conf.int[1], ci_high = t.test(d)$conf.int[2])
+    }) |> list_rbind()
+}) |>
+  list_rbind() |>
+  mutate(across(where(is.double), \(x) round(x, 3))) |>
+  print(width = Inf)
+```
+
+# 6. Reading Level of the Messages
+
+The prompt asked for an 8th-grade reading level. This estimates the
+Flesch-Kincaid grade of each message. Syllables are counted with a simple
+rule (vowel groups, minus a silent final "e"), so treat the grades as
+approximate: good for comparing tones and styles, less so as absolute values.
+
+Uses the same message files as `robustness_analyses.qmd`, and is skipped if
+they are missing.
+
+```{r}
+#| label: Reading Files
+message_paths <- here::here("qualtrics_panel", "output", "prod_messages", "version2",
+                            paste0("survey", 1:4), "production_messages.csv")
+have_messages <- all(file.exists(message_paths))
+have_messages
+```
+
+```{r}
+#| label: Reading Level
+#| eval: !expr have_messages
+count_syllables <- function(word) {
+  word <- str_to_lower(str_remove_all(word, "[^A-Za-z]"))
+  if (nchar(word) == 0) return(0)
+  n_syl <- str_count(word, "[aeiouy]+")
+  if (str_detect(word, "[^aeiouyl]e$") && n_syl > 1) n_syl <- n_syl - 1
+  max(n_syl, 1)
+}
+
+reading <- map(message_paths, \(p) read_csv(p, show_col_types = FALSE)) |>
+  list_rbind() |>
+  transmute(
+    style = formality, tone = message_category, text = generated_message,
+    n_words = str_count(text, "\\S+"),
+    n_sentences = pmax(str_count(text, "[.!?]+(\\s|$)"), 1),
+    n_syllables = map_dbl(str_split(text, "\\s+"), \(ws) sum(map_dbl(ws, count_syllables))),
+    fk_grade = 0.39 * n_words / n_sentences + 11.8 * n_syllables / n_words - 15.59)
+
+reading |>
+  summarise(messages = n(), sentences = mean(n_sentences), words = mean(n_words),
+            fk_min = min(fk_grade), fk_max = max(fk_grade), fk_mean = mean(fk_grade)) |>
+  mutate(across(where(is.double), \(x) round(x, 1)))
+
+reading |>
+  summarise(messages = n(), sentences = mean(n_sentences), fk_grade = mean(fk_grade),
+            .by = style) |>
+  mutate(across(where(is.double), \(x) round(x, 1)))
+
+reading |>
+  summarise(messages = n(), fk_grade = mean(fk_grade), .by = c(tone, style)) |>
+  pivot_wider(names_from = style, values_from = fk_grade) |>
+  mutate(across(where(is.double), \(x) round(x, 1)))
+
+# Did every message keep to 3-4 sentences, as the prompt asked?
+reading |> count(n_sentences)
+```
