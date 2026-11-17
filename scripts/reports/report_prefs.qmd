@@ -142,7 +142,7 @@ plot_ratings_by_tier("acknowledging", panel, rating_by_tone, tier_colors)
 
 # Within-person check: do people rate a tone higher when they prefer it more?
 
-Moved from `followup_analyses.qmd` (Section 5). Feeds Table 10 of the capstone write-up.
+Moved from `followup_analyses.qmd` (Section 5; now in `scripts/archive/`). Feeds Table 10 of the capstone write-up.
 
 The preference report compares groups (tone in highest vs. lowest tier), which
 mixes in people who rate everything high. This model asks the within-person

@@ -1,0 +1,184 @@
+---
+title: "Effect Sizes for the Core Assignment Methods"
+format: 
+  html:
+    page-layout: full
+    self-contained: true
+    toc: true
+    toc-depth: 3
+execute: 
+  warning: false
+editor_options: 
+  chunk_output_type: console
+---
+
+## Code Status
+
+Moved on 2026-11-17 from Section 6 of `followup_analyses.qmd` (now in `scripts/archive/`),
+with the setup it needs. The code is unchanged. Nothing here draws random numbers. Not
+reported in the capstone write-up. Not yet rendered on the real data.
+
+## Purpose
+
+The differences between assignment methods are a few hundredths to a few tenths of a
+rating point. This script expresses them as effect sizes, to judge whether they matter:
+
+-   each method's difference from an even rotation of all five tones, in SD units of
+    respondent-level ratings;
+-   the share of respondents whose expected rating reaches "somewhat agree" (5) or
+    "agree" (6);
+-   the paired effect size (Cohen's dz) of each method against the mean-only method.
+
+Methods are scored on informal messages only, as in `methods_heldout.qmd` (Sections 1
+and 2), which scores the same core methods with the same function.
+
+## Setup
+
+```{r}
+#| label: Setup
+# Load packages and this study's functions, then read the cleaned panel in long format
+# (one row per message rating).
+options(conflicts.policy = "depends.ok")
+library(tidyverse)
+
+source("https://raw.githubusercontent.com/jjcurtin/lab_support/main/format_path.R")
+source(here::here("scripts", "functions_llmpanel.R"))
+
+path_processed <- format_path("llmpanel/data_processed")
+
+panel_long <- format_eda(read_csv(
+  here::here(path_processed, "panel.csv"),
+  show_col_types = FALSE), long = TRUE)
+
+# tone_levels and pref_cols are defined in functions_llmpanel.R
+
+```
+
+*Respondent-level tone means, pooled across styles and informal only*
+
+```{r}
+#| label: Tone Means
+# Pooled across formal and informal (6 messages per tone), as in
+# methods_first_round.qmd
+tone_means <- panel_long |>
+  summarise(rating = mean(rating_num, na.rm = TRUE), .by = c(subid, tone))
+
+# Informal messages only (3 messages per tone)
+tone_means_inf <- panel_long |>
+  filter(style == "informal") |>
+  summarise(rating = mean(rating_num, na.rm = TRUE), .by = c(subid, tone))
+
+# Each respondent's preference score for each tone
+pref_by_tone <- panel_long |>
+  distinct(subid, across(all_of(pref_cols))) |>
+  pivot_longer(-subid, names_to = "tone", names_prefix = "pref_", values_to = "pref")
+
+# Sanity checks: one row per respondent and tone
+stopifnot(nrow(tone_means) == n_distinct(tone_means$subid) * 5,
+          nrow(tone_means_inf) == n_distinct(tone_means_inf$subid) * 5,
+          nrow(pref_by_tone) == n_distinct(pref_by_tone$subid) * 5)
+```
+
+## Core Methods
+
+One function scores a fixed set of core methods on any set of tone ratings, so
+the pooled and informal-only versions are built the same way (only the informal-only
+version is used here). Tones for the
+mean-only, top-two and top-three methods are chosen from the sample means of
+the ratings passed in.
+
+```{r}
+#| label: Core Method Function
+# Returns a list with
+#   tracker: one row per method (mean, sd, weighted_opt, weighted_dis)
+#   ratings: one row per respondent and method (subid, method, rating)
+#   tones:   the tones ranked by sample mean
+score_core_methods <- function(tone_ratings, prefs) {
+  ids <- unique(tone_ratings$subid)
+  ranked <- tone_ratings |>
+    summarise(mean_rating = mean(rating), .by = tone) |>
+    arrange(desc(mean_rating))
+  top <- ranked$tone
+
+  fixed <- function(tones, weights = rep(1, length(tones))) {
+    expand_grid(subid = ids, tibble(tone = tones, weight = weights))
+  }
+
+  methods <- list(
+    "Uniform (all five)" = fixed(tone_levels),
+    "Top three, equal" = fixed(top[1:3]),
+    "Top three, 40/40/20" = fixed(top[1:3], c(.4, .4, .2)),
+    "Top two, equal" = fixed(top[1:2]),
+    "Mean-only" = fixed(top[1]),
+    "Drop own two least-preferred" = drop_least_preferred(prefs, n_drop = 2) |>
+      mutate(weight = 1),
+    "Rule-based" = data_driven_weights(prefs) |> select(subid, tone, weight))
+
+  scored <- imap(methods, \(w, nm) {
+    m <- weighted_method(w, label = nm, tone_ratings = tone_ratings)
+    list(
+      row = track_method(NULL, m, weights = w, name = nm, tone_ratings = tone_ratings),
+      ratings = m |> transmute(subid, method = nm, rating = weighted_rating))
+  })
+
+  # Benchmarks: each respondent's own highest- and lowest-rated tone
+  bench <- tone_ratings |>
+    summarise(`Best case` = max(rating), `Worst case` = min(rating), .by = subid) |>
+    pivot_longer(-subid, names_to = "method", values_to = "rating")
+
+  list(
+    tracker = map(scored, "row") |> list_rbind() |>
+      bind_rows(bench |> summarise(mean = mean(rating), sd = sd(rating), .by = method)) |>
+      arrange(mean),
+    ratings = map(scored, "ratings") |> list_rbind() |> bind_rows(bench),
+    tones = ranked)
+}
+```
+
+# Informal-Only Scoring
+
+Each respondent's expected rating under each core method, scored on informal messages,
+and the same as one row per respondent with one column per method.
+
+```{r}
+#| label: Score Methods
+core <- score_core_methods(tone_means_inf, pref_by_tone)
+reference <- "Mean-only"
+
+ratings_wide <- core$ratings |>
+  pivot_wider(names_from = method, values_from = rating) |>
+  drop_na()
+```
+
+# Effect Sizes
+
+Two ways to say whether a difference of 0.1 to 0.25 points matters: the
+difference in SD units of respondent-level means, and the share of respondents
+whose expected rating reaches "agree" (6) or "somewhat agree" (5).
+
+```{r}
+#| label: Effect Sizes
+sd_uniform <- core$ratings |>
+  filter(method == "Uniform (all five)") |>
+  pull(rating) |>
+  sd()
+
+core$ratings |>
+  summarise(mean = mean(rating),
+            pct_at_least_5 = mean(rating >= 5),
+            pct_at_least_6 = mean(rating >= 6),
+            .by = method) |>
+  mutate(d_vs_uniform = (mean - mean[method == "Uniform (all five)"]) / sd_uniform) |>
+  arrange(mean)
+```
+
+Paired effect size (Cohen's dz) for each method against mean-only:
+
+```{r}
+#| label: Paired Effect Sizes
+ratings_wide |>
+  pivot_longer(-c(subid, all_of(reference)), names_to = "method", values_to = "rating") |>
+  mutate(diff = rating - .data[[reference]]) |>
+  summarise(mean_diff = mean(diff), dz = mean(diff) / sd(diff), .by = method) |>
+  arrange(mean_diff)
+```

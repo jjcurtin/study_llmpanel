@@ -18,7 +18,7 @@
 #        extreme_tones_wide(), tied_tones_long(), track_method(), compare_methods(),
 #        drop_least_preferred(), preference_weights(), tier_weights(), weighted_method(),
 #        tune_weighted_methods(), data_driven_weights()
-#        Used by methods_first_round.qmd, followup_analyses.qmd and methods_heldout.qmd.
+#        Used by methods_first_round.qmd, methods_heldout.qmd and effect_sizes.qmd.
 #   6. Tone preference report helpers: add_pref_extremes(), pref_group_ids(),
 #        plot_ratings_by_groups(), plot_ratings_by_tier()
 #        Used by scripts/reports/report_prefs.qmd.

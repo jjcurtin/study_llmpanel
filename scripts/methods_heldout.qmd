@@ -17,9 +17,9 @@ params:
 ## Code Status
 
 Merged on 2026-11-17 from sections 1 and 2 of `followup_analyses.qmd` and all of
-`heldout_methods.qmd` (now in `scripts/archive/`). The code is unchanged, and each section that draws random numbers
+`heldout_methods.qmd` (both now in `scripts/archive/`). The code is unchanged, and each section that draws random numbers
 re-sets the seed so its results match the original script exactly. Not yet rendered on
-the real data. The unreported follow-up sections stay in `followup_analyses.qmd`.
+the real data. The effect sizes from `followup_analyses.qmd` are in `effect_sizes.qmd`.
 
 ## Purpose
 

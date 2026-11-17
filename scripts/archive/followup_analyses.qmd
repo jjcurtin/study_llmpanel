@@ -12,6 +12,13 @@ editor_options:
   chunk_output_type: console
 ---
 
+> **Archived 2026-11-17.** Sections 1 and 2 are in `methods_heldout.qmd` (Sections 1
+> and 2). Section 3 is superseded by the nested cross-validation in `methods_heldout.qmd`
+> (Section 3), and Section 4 duplicates its "Achievable Headroom" chunk (Section 4).
+> Section 5 is in `reports/report_prefs.qmd`, Section 6 in `effect_sizes.qmd`. Of the
+> Section 7 stubs, survey order is done in `reports/report_surveyversion.qmd`; the other
+> two were dropped.
+
 ## Code Status
 
 Runs end to end. Last rendered 2026-11-16 with no errors (see the `.html` beside this file).
