@@ -1,0 +1,788 @@
+---
+title: "Tone Assignment Methods: Held-Out Evaluation"
+format:
+  html:
+    page-layout: full
+    self-contained: true
+    toc: true
+    toc-depth: 3
+execute:
+  warning: false
+editor_options:
+  chunk_output_type: console
+params:
+  styles_use: "both"
+---
+
+## Code Status
+
+Merged on 2026-11-17 from sections 1 and 2 of `followup_analyses.qmd` and all of
+`heldout_methods.qmd`. The code is unchanged, and each section that draws random numbers
+re-sets the seed so its results match the original script exactly. Not yet rendered on
+the real data. The unreported follow-up sections stay in `followup_analyses.qmd`.
+
+## Purpose
+
+Feeds Section 7.8 of the capstone write-up (robustness of the method comparison).
+
+1.  **Informal-only re-scoring** of the core methods (Table 16).
+2.  **Uncertainty on method differences**: paired bootstrap intervals (Table 16).
+3.  **Nested k-fold estimates** for the methods that choose tones from sample means,
+    so no method is scored on the respondents used to choose its tones or its
+    configuration (Table 17).
+4.  **How reliable is a person's tone profile?** If a respondent's best and worst
+    tones do not repeat across contexts, any metric built on them is mostly noise.
+    This section also brackets the true headroom.
+5.  **Held-out optimization and disadvantage rates**, where a person's best and worst
+    tones are labelled from two risk contexts and helpfulness is scored on the third
+    (Table 18).
+
+Sections 3 to 5 score either pooled styles or informal messages only, set by the
+`styles_use` parameter (see Settings in Section 3). Sections 1 and 2 report both.
+
+## Setup
+
+```{r}
+#| label: Setup
+# Load packages and this study's functions, then read the cleaned panel in long format
+# (one row per message rating). The seed makes the cross-validation folds and bootstrap
+# resamples repeatable.
+options(conflicts.policy = "depends.ok")
+library(tidyverse)
+
+source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
+source(here::here("scripts", "functions_llmpanel.R"))
+source(here::here("scripts", "functions_assignment.R"))
+
+path_processed <- format_path("llmpanel/data_processed")
+
+panel_long <- format_eda(read_csv(
+  here::here(path_processed, "panel.csv"),
+  show_col_types = FALSE), long = TRUE)
+
+# tone_levels and pref_cols are defined in functions_llmpanel.R
+
+set.seed(102030)
+```
+
+*Respondent-level tone means, pooled across styles and informal only*
+
+```{r}
+#| label: Tone Means
+# Pooled across formal and informal (6 messages per tone), as in
+# tone_assignment_methods.qmd
+tone_means <- panel_long |>
+  summarise(rating = mean(rating_num, na.rm = TRUE), .by = c(subid, tone))
+
+# Informal messages only (3 messages per tone)
+tone_means_inf <- panel_long |>
+  filter(style == "informal") |>
+  summarise(rating = mean(rating_num, na.rm = TRUE), .by = c(subid, tone))
+
+# Each respondent's preference score for each tone
+pref_by_tone <- panel_long |>
+  distinct(subid, across(all_of(pref_cols))) |>
+  pivot_longer(-subid, names_to = "tone", names_prefix = "pref_", values_to = "pref")
+
+# Sanity checks: one row per respondent and tone
+stopifnot(nrow(tone_means) == n_distinct(tone_means$subid) * 5,
+          nrow(tone_means_inf) == n_distinct(tone_means_inf$subid) * 5,
+          nrow(pref_by_tone) == n_distinct(pref_by_tone$subid) * 5)
+```
+
+## Core Methods
+
+One function scores a fixed set of core methods on any set of tone ratings, so
+the pooled and informal-only versions are built the same way. Tones for the
+mean-only, top-two and top-three methods are chosen from the sample means of
+the ratings passed in.
+
+```{r}
+#| label: Core Method Function
+# Returns a list with
+#   tracker: one row per method (mean, sd, weighted_opt, weighted_dis)
+#   ratings: one row per respondent and method (subid, method, rating)
+#   tones:   the tones ranked by sample mean
+score_core_methods <- function(tone_ratings, prefs) {
+  ids <- unique(tone_ratings$subid)
+  ranked <- tone_ratings |>
+    summarise(mean_rating = mean(rating), .by = tone) |>
+    arrange(desc(mean_rating))
+  top <- ranked$tone
+
+  fixed <- function(tones, weights = rep(1, length(tones))) {
+    expand_grid(subid = ids, tibble(tone = tones, weight = weights))
+  }
+
+  methods <- list(
+    "Uniform (all five)" = fixed(tone_levels),
+    "Top three, equal" = fixed(top[1:3]),
+    "Top three, 40/40/20" = fixed(top[1:3], c(.4, .4, .2)),
+    "Top two, equal" = fixed(top[1:2]),
+    "Mean-only" = fixed(top[1]),
+    "Drop own two least-preferred" = drop_least_preferred(prefs, n_drop = 2) |>
+      mutate(weight = 1),
+    "Rule-based" = data_driven_weights(prefs) |> select(subid, tone, weight))
+
+  scored <- imap(methods, \(w, nm) {
+    m <- weighted_method(w, label = nm, tone_ratings = tone_ratings)
+    list(
+      row = track_method(NULL, m, weights = w, name = nm, tone_ratings = tone_ratings),
+      ratings = m |> transmute(subid, method = nm, rating = weighted_rating))
+  })
+
+  # Benchmarks: each respondent's own highest- and lowest-rated tone
+  bench <- tone_ratings |>
+    summarise(`Best case` = max(rating), `Worst case` = min(rating), .by = subid) |>
+    pivot_longer(-subid, names_to = "method", values_to = "rating")
+
+  list(
+    tracker = map(scored, "row") |> list_rbind() |>
+      bind_rows(bench |> summarise(mean = mean(rating), sd = sd(rating), .by = method)) |>
+      arrange(mean),
+    ratings = map(scored, "ratings") |> list_rbind() |> bind_rows(bench),
+    tones = ranked)
+}
+```
+
+# 1. Informal-Only Re-Scoring
+
+The paper recommends dropping formal messages, but the method comparison pools
+both styles. Among informal messages value affirmation and self efficacy were
+level, so the leading tone and the method ranking may change.
+
+```{r}
+#| label: Pooled vs Informal
+core_pooled <- score_core_methods(tone_means, pref_by_tone)
+core_inf <- score_core_methods(tone_means_inf, pref_by_tone)
+
+# Tone order under each scoring
+core_pooled$tones
+core_inf$tones
+
+# Side by side
+full_join(
+  core_pooled$tracker |> rename_with(\(x) paste0(x, "_pooled"), -method),
+  core_inf$tracker |> rename_with(\(x) paste0(x, "_informal"), -method),
+  by = "method") |>
+  select(method, starts_with("mean"), starts_with("weighted_opt"),
+         starts_with("weighted_dis")) |>
+  arrange(mean_informal)
+```
+
+Note: the rule-based method's rules name self efficacy and value affirmation
+directly. If the informal-only tone order differs, revisit the rules.
+
+Section 2 uses informal-only ratings. Switch here to compare.
+
+```{r}
+#| label: Choose Ratings
+tone_ratings_use <- tone_means_inf
+core <- core_inf
+```
+
+# 2. Uncertainty on Method Differences
+
+Differences between methods are a few hundredths of a point. Every respondent
+is scored under every method, so differences are paired. A respondent-level
+bootstrap gives a 95% interval for each method's mean and for its difference
+from the mean-only method.
+
+```{r}
+#| label: Bootstrap
+# Re-set the seed: this bootstrap was the first random draw in followup_analyses.qmd
+set.seed(102030)
+n_boot <- 2000
+reference <- "Mean-only"
+
+ratings_wide <- core$ratings |>
+  pivot_wider(names_from = method, values_from = rating) |>
+  drop_na()
+rating_mat <- as.matrix(select(ratings_wide, -subid))
+
+boot_means <- map(seq_len(n_boot), \(i) {
+  idx <- sample(nrow(rating_mat), replace = TRUE)
+  colMeans(rating_mat[idx, , drop = FALSE])
+}) |>
+  do.call(what = rbind)
+
+boot_summary <- tibble(
+  method = colnames(rating_mat),
+  mean = colMeans(rating_mat),
+  mean_low = apply(boot_means, 2, quantile, .025),
+  mean_high = apply(boot_means, 2, quantile, .975),
+  diff_vs_ref = colMeans(rating_mat) - mean(rating_mat[, reference]),
+  diff_low = apply(boot_means - boot_means[, reference], 2, quantile, .025),
+  diff_high = apply(boot_means - boot_means[, reference], 2, quantile, .975)) |>
+  arrange(mean)
+boot_summary
+```
+
+```{r}
+#| label: Bootstrap Plot
+# Forest plot: each method's mean difference from the reference method, with its 95%
+# bootstrap interval. The best-case and worst-case benchmarks are left out.
+boot_summary |>
+  filter(!method %in% c("Best case", "Worst case", reference)) |>
+  ggplot(aes(x = diff_vs_ref, y = fct_reorder(method, diff_vs_ref))) +
+  geom_vline(xintercept = 0, linetype = "dashed") +
+  geom_pointrange(aes(xmin = diff_low, xmax = diff_high)) +
+  labs(x = paste0("Difference in mean helpfulness vs. ", reference,
+                  " (95% bootstrap interval)"),
+       y = NULL)
+```
+
+# 3. Nested K-Fold Estimates
+
+*Settings*
+
+```{r}
+#| label: Settings
+# Which messages to score on. "both" pools styles (6 messages per tone, 2 per
+# context-by-tone cell) and is the default, since style changed tone ratings only
+# slightly. "informal" uses only the messages that would be delivered (3 per tone)
+# and was the setting for the first render (2026-11-16).
+# Set in the YAML `params`. To render the other setting without editing the file:
+#   quarto render methods_heldout.qmd -P styles_use:informal -o methods_heldout_informal.html
+# Interactively, `params` is not defined, so the default below is used.
+styles_use <- if (exists("params")) params$styles_use else "both"   # "informal" or "both"
+
+# Cross-validation structure (matches the model: inner 2 x 5, outer 6 x 5)
+outer_repeats <- 6
+outer_folds <- 5
+inner_repeats <- 2
+inner_folds <- 5
+
+# Selection rule: among configurations whose inner-loop mean helpfulness is
+# within `tolerance` points of the best one, choose the one with the most variety.
+tolerance <- 0.05
+
+n_boot <- 2000
+```
+
+*Respondent-level data*
+
+```{r}
+#| label: Data
+ratings_use <- if (styles_use == "informal") {
+  panel_long |> filter(style == "informal")
+} else {
+  panel_long
+}
+
+# Respondent mean rating per tone, and the same as a respondent x tone matrix
+tone_means <- ratings_use |>
+  summarise(rating = mean(rating_num, na.rm = TRUE), .by = c(subid, tone))
+
+rating_wide <- tone_means |>
+  pivot_wider(names_from = tone, values_from = rating) |>
+  arrange(subid) |>
+  drop_na()
+M <- as.matrix(rating_wide[, tone_levels])
+ids <- rating_wide$subid
+n <- nrow(M)
+
+# Respondent mean rating per context and tone (for Sections 2 and 3)
+context_means <- ratings_use |>
+  summarise(rating = mean(rating_num, na.rm = TRUE), .by = c(subid, context, tone))
+
+# Preference score per respondent and tone
+pref_by_tone <- panel_long |>
+  distinct(subid, across(all_of(pref_cols))) |>
+  pivot_longer(-subid, names_to = "tone", names_prefix = "pref_", values_to = "pref")
+
+dim(M)
+```
+
+## Configurations
+
+Each configuration turns a ranking of tones (best first, from training
+respondents only) into a set of weights. `variety` is the effective number of
+tones a person sees, 1 / sum(weight^2): 1 for a single tone, 5 for an even
+five-tone rotation.
+
+```{r}
+#| label: Configurations
+configs <- list(
+  "Mean-only"                = \(top) set_names(1, top[1]),
+  "Top two, 60/40"           = \(top) set_names(c(.6, .4), top[1:2]),
+  "Top two, equal"           = \(top) set_names(c(.5, .5), top[1:2]),
+  "Top three, 45/45/10"      = \(top) set_names(c(.45, .45, .10), top[1:3]),
+  "Top three, 40/40/20"      = \(top) set_names(c(.40, .40, .20), top[1:3]),
+  "Top three, equal"         = \(top) set_names(rep(1 / 3, 3), top[1:3]),
+  "Top four, equal"          = \(top) set_names(rep(1 / 4, 4), top[1:4]),
+  "All five, 30/30/20/10/10" = \(top) set_names(c(.3, .3, .2, .1, .1), top[1:5]),
+  "Uniform (all five)"       = \(top) set_names(rep(1 / 5, 5), top[1:5]))
+
+config_variety <- map_dbl(configs, \(f) 1 / sum(f(tone_levels)^2))
+config_variety
+```
+
+*Helpers*
+
+```{r}
+#| label: CV Helpers
+# Tones ranked by mean rating among the given respondents (row numbers of M)
+rank_tones <- function(rows) {
+  names(sort(colMeans(M[rows, , drop = FALSE]), decreasing = TRUE))
+}
+
+# Each respondent's expected rating under a weight vector
+method_value <- function(rows, w) {
+  as.numeric(M[rows, names(w), drop = FALSE] %*% w)
+}
+
+# Folds come from make_folds() in functions_assignment.R: repeated k-fold, each fold a
+# list(rep, fold, test) with the held-out rows
+
+# Mean helpfulness of every configuration, tones ranked on `fit`, scored on `val`
+score_configs <- function(fit, val) {
+  top <- rank_tones(fit)
+  map_dbl(configs, \(f) mean(method_value(val, f(top))))
+}
+
+# Choose a configuration from inner-loop means
+#   "best":      highest mean
+#   "tolerance": most variety among those within `tolerance` of the highest mean
+select_config <- function(inner_means, rule = c("best", "tolerance")) {
+  rule <- match.arg(rule)
+  if (rule == "best") return(names(which.max(inner_means)))
+  ok <- names(inner_means)[inner_means >= max(inner_means) - tolerance]
+  ok[which.max(config_variety[ok])]
+}
+```
+
+## Nested Loop
+
+For each outer split:
+
+1.  Rank tones on the outer training respondents and score **every fixed
+    configuration** on the outer test respondents. This is the honest estimate
+    for each method on its own.
+2.  Run the inner loop on the outer training respondents only, to **select a
+    configuration** by each rule. Re-rank tones on the full outer training
+    set, then score the selected configuration on the outer test respondents.
+    This is the honest estimate for "pick the best method, then use it".
+
+```{r}
+#| label: Nested CV
+# Re-set the seed: these folds were the first random draw in heldout_methods.qmd
+set.seed(102030)
+outer <- make_folds(seq_len(n), outer_folds, outer_repeats)
+
+nested <- map(outer, \(o) {
+  test <- o$test
+  train <- setdiff(seq_len(n), test)
+  top_train <- rank_tones(train)
+
+  # 1. Every fixed configuration on the outer test set
+  fixed <- imap(configs, \(f, nm) {
+    tibble(method = nm, row = test, rating = method_value(test, f(top_train)))
+  }) |> list_rbind()
+
+  # 2. Inner loop: mean helpfulness of each configuration on validation folds
+  inner <- make_folds(train, inner_folds, inner_repeats)
+  inner_means <- map(inner, \(i) score_configs(setdiff(train, i$test), i$test)) |>
+    do.call(what = rbind) |>
+    colMeans()
+
+  chosen_best <- select_config(inner_means, "best")
+  chosen_tol <- select_config(inner_means, "tolerance")
+
+  selected <- bind_rows(
+    tibble(method = "Selected: highest mean", row = test,
+           rating = method_value(test, configs[[chosen_best]](top_train))),
+    tibble(method = paste0("Selected: most variety within ", tolerance), row = test,
+           rating = method_value(test, configs[[chosen_tol]](top_train))))
+
+  list(
+    ratings = bind_rows(fixed, selected) |> mutate(rep = o$rep, fold = o$fold),
+    choice = tibble(rep = o$rep, fold = o$fold, top_tone = top_train[1],
+                    top_three = paste(sort(top_train[1:3]), collapse = " + "),
+                    chosen_best = chosen_best, chosen_tol = chosen_tol))
+})
+
+nested_ratings <- map(nested, "ratings") |> list_rbind() |> mutate(subid = ids[row])
+nested_choice <- map(nested, "choice") |> list_rbind()
+```
+
+## What Was Chosen
+
+```{r}
+#| label: Choices
+# Stability of the tone ranking across outer training sets
+nested_choice |> count(top_tone)
+nested_choice |> count(top_three)
+
+# Which configuration each rule selected
+nested_choice |> count(chosen_best, sort = TRUE)
+nested_choice |> count(chosen_tol, sort = TRUE)
+```
+
+## Held-Out Performance
+
+Fold-level summary: mean and SD of the 30 outer test-set means.
+
+```{r}
+#| label: Fold Summary
+method_order <- c(names(configs), "Selected: highest mean",
+                  paste0("Selected: most variety within ", tolerance))
+
+fold_summary <- nested_ratings |>
+  summarise(fold_mean = mean(rating), .by = c(method, rep, fold)) |>
+  summarise(held_out = mean(fold_mean), sd_across_folds = sd(fold_mean), .by = method)
+
+# In-sample value: tones ranked on the full sample and scored on the full sample
+in_sample <- score_configs(seq_len(n), seq_len(n))
+
+fold_summary |>
+  left_join(enframe(in_sample, "method", "in_sample"), by = "method") |>
+  left_join(enframe(config_variety, "method", "variety"), by = "method") |>
+  mutate(optimism = in_sample - held_out,
+         method = factor(method, levels = method_order)) |>
+  arrange(method)
+```
+
+Respondent-level summary: each respondent is in a test set once per repeat, so
+their held-out rating under each method is averaged over the 6 repeats. The
+bootstrap then gives paired intervals against held-out mean-only. The two
+preference-based methods are added for comparison. They do not choose tones
+from the sample, so they need no cross-validation.
+
+```{r}
+#| label: Respondent Summary
+heldout_wide <- nested_ratings |>
+  summarise(rating = mean(rating), .by = c(subid, method)) |>
+  pivot_wider(names_from = method, values_from = rating)
+
+# Preference-based methods (fixed rules, scored directly)
+pref_methods <- list(
+  "Drop own two least-preferred" = drop_least_preferred(pref_by_tone, n_drop = 2) |>
+    mutate(weight = 1),
+  "Rule-based" = data_driven_weights(pref_by_tone) |> select(subid, tone, weight))
+
+pref_wide <- imap(pref_methods, \(w, nm) {
+  weighted_method(w, label = nm, tone_ratings = tone_means) |>
+    transmute(subid, method = nm, rating = weighted_rating)
+}) |>
+  list_rbind() |>
+  pivot_wider(names_from = method, values_from = rating)
+
+compare_wide <- heldout_wide |>
+  inner_join(pref_wide, by = "subid") |>
+  drop_na()
+compare_mat <- as.matrix(select(compare_wide, -subid))
+reference <- "Mean-only"
+
+boot_means <- map(seq_len(n_boot), \(i) {
+  colMeans(compare_mat[sample(nrow(compare_mat), replace = TRUE), , drop = FALSE])
+}) |>
+  do.call(what = rbind)
+
+heldout_summary <- tibble(
+  method = colnames(compare_mat),
+  mean = colMeans(compare_mat),
+  mean_low = apply(boot_means, 2, quantile, .025),
+  mean_high = apply(boot_means, 2, quantile, .975),
+  diff_vs_ref = colMeans(compare_mat) - mean(compare_mat[, reference]),
+  diff_low = apply(boot_means - boot_means[, reference], 2, quantile, .025),
+  diff_high = apply(boot_means - boot_means[, reference], 2, quantile, .975)) |>
+  arrange(mean)
+heldout_summary
+```
+
+```{r}
+#| label: Held-Out Plot
+# Forest plot: each method's held-out mean difference from the reference method, with
+# its 95% bootstrap interval
+heldout_summary |>
+  filter(method != reference) |>
+  ggplot(aes(x = diff_vs_ref, y = fct_reorder(method, diff_vs_ref))) +
+  geom_vline(xintercept = 0, linetype = "dashed") +
+  geom_pointrange(aes(xmin = diff_low, xmax = diff_high)) +
+  labs(x = paste0("Held-out difference in mean helpfulness vs. ", reference,
+                  " (95% bootstrap interval)"),
+       y = NULL)
+```
+
+Reading the results:
+
+-   `optimism` near zero means the full-sample figure was already fair.
+    Expect it to be largest for mean-only, which has the most to lose from
+    picking the wrong tone.
+-   The "Selected" rows are the figures to quote if the paper describes a
+    procedure ("choose the configuration, then deploy it") and not one fixed
+    method.
+-   The bootstrap resamples respondents but not the fold assignment, so the
+    intervals are slightly narrow. The SD across folds above is the check.
+
+# 4. How Reliable Is a Person's Tone Profile?
+
+A person's "best" and "worst" tones only mean something if their tone profile
+repeats. Here each respondent's profile (their rating of each tone relative to
+their own average) is compared across the three risk contexts.
+
+## Profile Reliability
+
+Two versions of each person's profile:
+
+-   **Total:** tone rating minus the person's mean in that context. Includes
+    the tone order everyone shares.
+-   **Individual-specific:** additionally minus the sample's mean for that
+    tone in that context. What is left is the person's own taste.
+
+The correlation between contexts is the reliability of a single context's
+profile. Spearman-Brown projects it to the full three-context profile.
+
+```{r}
+#| label: Profile Reliability
+profiles <- context_means |>
+  mutate(total = rating - mean(rating), .by = c(subid, context)) |>
+  mutate(individual = total - mean(total), .by = c(context, tone))
+
+profile_wide <- profiles |>
+  select(subid, tone, context, total, individual) |>
+  pivot_wider(names_from = context, values_from = c(total, individual))
+
+contexts <- sort(unique(context_means$context))
+context_pairs <- combn(contexts, 2, simplify = FALSE)
+
+profile_reliability <- map(context_pairs, \(p) {
+  tibble(
+    pair = paste(p, collapse = " vs. "),
+    r_total = cor(profile_wide[[paste0("total_", p[1])]],
+                  profile_wide[[paste0("total_", p[2])]], use = "complete.obs"),
+    r_individual = cor(profile_wide[[paste0("individual_", p[1])]],
+                       profile_wide[[paste0("individual_", p[2])]], use = "complete.obs"))
+}) |> list_rbind()
+profile_reliability
+
+spearman_brown <- \(r, k) k * r / (1 + (k - 1) * r)
+profile_reliability |>
+  summarise(across(starts_with("r_"), mean)) |>
+  mutate(rel3_total = spearman_brown(r_total, 3),
+         rel3_individual = spearman_brown(r_individual, 3))
+```
+
+`rel3_individual` is the share of the variance in people's individual tone
+profiles (over all three contexts) that is real and not rating noise. Low
+values mean best and worst tones are mostly luck.
+
+## Do Best and Worst Tones Repeat?
+
+For each respondent, the best tone(s) from two contexts are compared with the
+best tone(s) in the third. "Agreement" is whether they share at least one
+tone. The chance rate comes from shuffling tone labels within each respondent
+in the held-out context.
+
+```{r}
+#| label: Label Agreement
+labels_from <- function(d) {
+  d |>
+    summarise(rating = mean(rating), .by = c(subid, tone)) |>
+    summarise(best = list(tone[near(rating, max(rating))]),
+              worst = list(tone[near(rating, min(rating))]),
+              .by = subid)
+}
+
+label_agreement <- map(contexts, \(held) {
+  train_labels <- labels_from(filter(context_means, context != held))
+  test <- filter(context_means, context == held)
+  test_labels <- labels_from(test)
+  # Chance: permute tone labels within respondent in the held-out context
+  shuffled_labels <- test |>
+    mutate(tone = sample(tone), .by = subid) |>
+    labels_from()
+
+  train_labels |>
+    inner_join(test_labels, by = "subid", suffix = c("_train", "_test")) |>
+    inner_join(shuffled_labels |> rename(best_shuf = best, worst_shuf = worst),
+               by = "subid") |>
+    summarise(
+      held_out = held,
+      best_agree = mean(map2_lgl(best_train, best_test, \(a, b) any(a %in% b))),
+      best_chance = mean(map2_lgl(best_train, best_shuf, \(a, b) any(a %in% b))),
+      worst_agree = mean(map2_lgl(worst_train, worst_test, \(a, b) any(a %in% b))),
+      worst_chance = mean(map2_lgl(worst_train, worst_shuf, \(a, b) any(a %in% b))),
+      # The reversal: labelled best turns out to be worst in the held-out context
+      best_is_worst = mean(map2_lgl(best_train, worst_test, \(a, b) any(a %in% b))))
+}) |> list_rbind()
+label_agreement
+```
+
+Note: the chance rate here ignores the tone order everyone shares, so
+agreement can beat it without any individual taste. Read it together with
+`r_individual` above.
+
+## Bracketing the True Headroom
+
+Two estimates of how far an ideal assignment could beat the best single tone:
+
+-   **Lower bound (achievable):** pick each person's best tone from two
+    contexts, score it on the third. This is what a system could reach if it
+    knew a handful of a person's ratings.
+-   **Upper bound (oracle):** a mixed model separates stable person-by-tone
+    differences from message noise. Simulating people from the fitted variance
+    gives the helpfulness of each person's true best tone, which no realistic
+    system could know exactly.
+
+```{r}
+#| label: Achievable Headroom
+achievable <- map(contexts, \(held) {
+  picked <- context_means |>
+    filter(context != held) |>
+    summarise(train_rating = mean(rating), .by = c(subid, tone)) |>
+    mutate(is_best = near(train_rating, max(train_rating)),
+           is_worst = near(train_rating, min(train_rating)),
+           .by = subid)
+  sample_top <- picked |>
+    summarise(m = mean(train_rating), .by = tone) |>
+    slice_max(m, n = 1, with_ties = FALSE) |>
+    pull(tone)
+
+  picked |>
+    inner_join(context_means |> filter(context == held) |>
+                 select(subid, tone, test_rating = rating),
+               by = c("subid", "tone")) |>
+    summarise(best_case = mean(test_rating[is_best]),
+              worst_case = mean(test_rating[is_worst]),
+              uniform = mean(test_rating),
+              mean_only = mean(test_rating[tone == sample_top]),
+              .by = subid)
+}) |>
+  list_rbind() |>
+  summarise(across(everything(), \(x) mean(x, na.rm = TRUE)), .by = subid) |>
+  summarise(across(-subid, \(x) mean(x, na.rm = TRUE)))
+achievable
+```
+
+```{r}
+#| label: Oracle Headroom
+m_var <- lme4::lmer(
+  rating_num ~ tone + context + (1 | subid) + (1 | subid:tone),
+  data = ratings_use |> mutate(subid = factor(subid), tone = factor(tone)),
+  REML = TRUE)
+lme4::VarCorr(m_var)
+
+sd_person_tone <- attr(lme4::VarCorr(m_var)[["subid:tone"]], "stddev")[[1]]
+tone_mu <- colMeans(M)
+
+# Simulate true tone values for many people: shared tone means plus a stable
+# person-by-tone deviation. The person's overall level cancels out of every
+# comparison, so it is left at zero.
+n_sim <- 100000
+true_values <- matrix(rnorm(n_sim * 5, mean = 0, sd = sd_person_tone), ncol = 5) +
+  matrix(tone_mu, nrow = n_sim, ncol = 5, byrow = TRUE)
+
+oracle <- tibble(
+  sd_person_tone = sd_person_tone,
+  worst_case = mean(apply(true_values, 1, min)),
+  uniform = mean(tone_mu),
+  mean_only = max(tone_mu),
+  best_case = mean(apply(true_values, 1, max)))
+oracle
+
+# The bracket
+tibble(
+  estimate = c("In-sample (inflated by noise)", "Oracle (upper bound)",
+               "Achievable from two contexts (lower bound)"),
+  headroom_over_mean_only = c(
+    mean(apply(M, 1, max)) - max(tone_mu),
+    oracle$best_case - oracle$mean_only,
+    achievable$best_case - achievable$mean_only))
+```
+
+The oracle figure assumes normal, independent person-by-tone deviations and
+treats the estimated variance as exact. Treat it as a rough ceiling.
+
+# 5. Held-Out Optimization and Disadvantage Rates
+
+In `tone_assignment_methods.qmd` a person's best and worst tones come from the
+same ratings used to score helpfulness. Here they are labelled from two risk
+contexts, and helpfulness is scored on the third, so no rating is used for
+both. Each context takes a turn as the held-out one.
+
+For each method and held-out context:
+
+-   `held_out_mean`: mean helpfulness in the held-out context.
+-   `opt_rate` / `dis_rate`: average share of a person's messages in the
+    tone(s) labelled best / worst from the other two contexts.
+-   `regret`: honest best case (the labelled-best tone, scored held out) minus
+    the method's held-out mean. Lower is better.
+
+Tones for the data-chosen methods are ranked on the two labelling contexts.
+
+```{r}
+#| label: Held-Out Rates
+fixed_weights <- function(tones, weights = rep(1 / length(tones), length(tones))) {
+  expand_grid(subid = ids, tibble(tone = tones, weight = weights))
+}
+
+heldout_rates <- map(contexts, \(held) {
+  train <- context_means |>
+    filter(context != held) |>
+    summarise(rating = mean(rating), .by = c(subid, tone))
+  test <- context_means |>
+    filter(context == held) |>
+    select(subid, tone, test_rating = rating)
+
+  top <- train |>
+    summarise(m = mean(rating), .by = tone) |>
+    arrange(desc(m)) |>
+    pull(tone)
+
+  labels <- train |>
+    mutate(is_best = near(rating, max(rating)),
+           is_worst = near(rating, min(rating)),
+           .by = subid) |>
+    select(subid, tone, is_best, is_worst)
+
+  methods <- c(
+    list("Uniform (all five)" = fixed_weights(tone_levels),
+         "Top three, equal" = fixed_weights(top[1:3]),
+         "Top three, 40/40/20" = fixed_weights(top[1:3], c(.4, .4, .2)),
+         "Top two, equal" = fixed_weights(top[1:2]),
+         "Mean-only" = fixed_weights(top[1])),
+    map(pref_methods, \(w) mutate(w, weight = weight / sum(weight), .by = subid)))
+
+  honest_best <- labels |>
+    inner_join(test, by = c("subid", "tone")) |>
+    summarise(best = mean(test_rating[is_best]), .by = subid) |>
+    summarise(best = mean(best, na.rm = TRUE)) |>
+    pull(best)
+
+  imap(methods, \(w, nm) {
+    w |>
+      inner_join(labels, by = c("subid", "tone")) |>
+      inner_join(test, by = c("subid", "tone")) |>
+      summarise(value = sum(weight * test_rating) / sum(weight),
+                opt = sum(weight[is_best]) / sum(weight),
+                dis = sum(weight[is_worst]) / sum(weight),
+                .by = subid) |>
+      summarise(method = nm, held_out = held,
+                held_out_mean = mean(value),
+                opt_rate = mean(opt),
+                dis_rate = mean(dis),
+                regret = honest_best - mean(value))
+  }) |> list_rbind()
+}) |> list_rbind()
+
+# Averaged over the three held-out contexts
+heldout_rates |>
+  summarise(across(c(held_out_mean, opt_rate, dis_rate, regret), mean), .by = method) |>
+  arrange(held_out_mean)
+
+# By held-out context
+heldout_rates |> arrange(held_out, held_out_mean)
+```
+
+How to read this against the in-sample rates:
+
+-   If `rel3_individual` in Section 4 is low, the opt and dis rates mostly
+    measure agreement with noisy labels, and differences between methods on
+    those rates should not carry the argument. `held_out_mean` and `regret`
+    are the safer headline numbers.
+-   Rates here use labels from two contexts (fewer messages than the full
+    sample), so they are noisier than the in-sample rates, not cleaner. Their
+    value is that helpfulness and labels are never drawn from the same
+    ratings.

@@ -15,7 +15,21 @@ editor_options:
 ## Code Status
 
 Runs end to end. Last rendered 2026-11-16 with no errors (see the `.html` beside this file).
-Feeds Section 7.8 of the capstone write-up (robustness of the method comparison).
+
+**To review.** Sections 1 and 2 feed Table 16 of the capstone write-up, and the
+reported version of them is now in `methods_heldout.qmd`. Sections 3 to 7 are not
+reported in the write-up:
+
+-   Section 3 (cross-validation of data-chosen methods) overlaps the nested version in
+    `methods_heldout.qmd`, Section 3.
+-   Section 4 (honest benchmarks) overlaps `methods_heldout.qmd`, Section 4.
+-   Section 5 (within-person preference slopes) feeds Table 10 of the write-up.
+-   Section 6 (effect sizes) is not used.
+-   Section 7 holds stubs; the survey-order item is done in
+    `reports/report_surveyversion.qmd`.
+
+Sections 1 and 2 stay here too, because Sections 3 to 6 use their objects and their
+random-number stream.
 
 ## Purpose
 
