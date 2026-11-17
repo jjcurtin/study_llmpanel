@@ -151,7 +151,7 @@ use each person's own stated preferences:
 -   **Own top three.** The person's own three most-preferred tones, weighted
     by their preference order. The sample is used only to break ties. This is
     the candidate that leans least on what the sample as a whole liked.
--   **Rule-based.** The five rules from `tone_assignment_methods.qmd`
+-   **Rule-based.** The five rules from `methods_first_round.qmd`
     (`data_driven_weights()`).
 
 ```{r}

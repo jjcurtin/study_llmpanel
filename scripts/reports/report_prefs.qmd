@@ -139,3 +139,66 @@ plot_ratings_by_tier("legitimizing", panel, rating_by_tone, tier_colors)
 # Bottom: Individuals for whom acknowledging is in the highest tier of preferences
 plot_ratings_by_tier("acknowledging", panel, rating_by_tone, tier_colors)
 ```
+
+# Within-person check: do people rate a tone higher when they prefer it more?
+
+Moved from `followup_analyses.qmd` (Section 5). Feeds Table 10 of the capstone write-up.
+
+The preference report compares groups (tone in highest vs. lowest tier), which
+mixes in people who rate everything high. This model asks the within-person
+question directly: when a respondent prefers a tone more than their own
+average, do they rate messages in that tone higher? The slope is estimated
+separately for each tone.
+
+-   `pref_dev`: the respondent's preference for the message's tone minus their
+    mean preference across the five tones.
+-   `pref_mean`: their mean preference (a general tendency to agree).
+
+```{r}
+#| label: Within-Person Preference Model
+# Each respondent's preference score for each tone (long format)
+pref_by_tone <- panel_long |>
+  distinct(subid, across(all_of(pref_cols))) |>
+  pivot_longer(-subid, names_to = "tone", names_prefix = "pref_", values_to = "pref")
+
+pref_model_data <- panel_long |>
+  left_join(pref_by_tone |> rename(pref_own = pref), by = c("subid", "tone")) |>
+  mutate(pref_mean = mean(pref_own, na.rm = TRUE), .by = subid) |>
+  mutate(pref_dev = pref_own - pref_mean,
+         subid = factor(subid),
+         tone = factor(tone, levels = tone_levels),
+         style = factor(style),
+         context = factor(context)) |>
+  drop_na(rating_num, pref_dev)
+
+m_pref <- lme4::lmer(
+  rating_num ~ tone * pref_dev + pref_mean + style + context +
+    (1 | subid) + (1 | subid:tone),
+  data = pref_model_data, REML = FALSE)
+
+# Does the preference slope differ by tone?
+m_pref_common <- update(m_pref, . ~ . - tone:pref_dev)
+anova(m_pref_common, m_pref)
+
+# Slope of rating on own preference, per tone (points of rating per point of preference)
+pref_slopes <- emmeans::emtrends(m_pref, ~ tone, var = "pref_dev",
+                                 lmer.df = "asymptotic")
+pref_slopes
+pairs(pref_slopes, adjust = "holm")
+```
+
+```{r}
+#| label: Preference Slope Plot
+# Forest plot of the slope for each tone: change in message rating per 1-point higher
+# preference for that tone, with 95% intervals
+as_tibble(pref_slopes) |>
+  ggplot(aes(x = pref_dev.trend, y = fct_reorder(tone, pref_dev.trend))) +
+  geom_vline(xintercept = 0, linetype = "dashed") +
+  geom_pointrange(aes(xmin = asymp.LCL, xmax = asymp.UCL)) +
+  scale_y_discrete(labels = \(x) str_to_sentence(str_replace(x, "_", " "))) +
+  labs(x = "Change in message rating per 1-point higher preference for that tone",
+       y = NULL)
+```
+
+Expectation from the preference report: the largest slope for norms, and
+slopes near zero for self efficacy and acknowledging.

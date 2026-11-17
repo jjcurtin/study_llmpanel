@@ -13,15 +13,16 @@ editor_options:
 ---
 ## Code Status
 
-Runs end to end. Last rendered 2026-11-11 with no errors (see the `.html` beside this file).
+Runs end to end. Renamed from `tone_assignment_methods.qmd` on 2026-11-17; last rendered
+under that name on 2026-11-11 with no errors (`tone_assignment_methods.html`).
 Feeds Section 7.7 of the capstone write-up.
 
 ## Purpose
 
 The first-round comparison of tone assignment methods. Every method family is scored
 **in-sample**: the tones a method keeps are chosen from the same ratings it is scored on, so
-the results are optimistic. The held-out comparisons are in `followup_analyses.qmd`,
-`heldout_methods.qmd` and `candidate_methods.qmd`.
+the results are optimistic. The held-out comparisons are in `methods_heldout.qmd` and
+`methods_candidates.qmd`.
 
 ## Setup
 

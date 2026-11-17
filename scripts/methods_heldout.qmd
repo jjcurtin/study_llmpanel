@@ -70,7 +70,7 @@ set.seed(102030)
 ```{r}
 #| label: Tone Means
 # Pooled across formal and informal (6 messages per tone), as in
-# tone_assignment_methods.qmd
+# methods_first_round.qmd
 tone_means <- panel_long |>
   summarise(rating = mean(rating_num, na.rm = TRUE), .by = c(subid, tone))
 
@@ -697,7 +697,7 @@ treats the estimated variance as exact. Treat it as a rough ceiling.
 
 # 5. Held-Out Optimization and Disadvantage Rates
 
-In `tone_assignment_methods.qmd` a person's best and worst tones come from the
+In `methods_first_round.qmd` a person's best and worst tones come from the
 same ratings used to score helpfulness. Here they are labelled from two risk
 contexts, and helpfulness is scored on the third, so no rating is used for
 both. Each context takes a turn as the held-out one.
