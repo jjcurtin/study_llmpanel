@@ -421,10 +421,6 @@ if (all(contexts_per_subid$k == 1)) {
 
 Using each respondent's mean rating per tone, `rating_top` and `rating_bottom` hold the tone(s) with their highest and lowest mean rating. Ties are kept as multiple tones.
 
-```{r}
-rating_extremes |> count(n_top = lengths(rating_top))
-```
-
 How many respondents have two or more tones tied for their highest (or lowest) mean rating:
 
 ```{r}
@@ -502,7 +498,9 @@ change_results <- tone_levels |>
   set_names() |>
   map(\(t) plot_change_from_top(t, rating_extremes, rating_by_tone, tier_colors))
 
-walk(change_results, \(r) {
+# Each table is labeled with its reference tone
+iwalk(change_results, \(r, t) {
+  cat("\nReference tone (highest rated):", t, "\n")
   print(r$tests)
   print(r$plot)
 })
@@ -1005,7 +1003,12 @@ Each box shows the change in respondents' mean rating from their preferred tone 
 change_by_pref_top <- tone_levels |> set_names() |>
   map(\(t) plot_change_from_pref_top(t, panel, rating_by_tone, tier_colors))
 
-walk(change_by_pref_top, \(r) { print(r$tests); print(r$plot) })
+# Each table is labeled with the preferred tone it is measured from
+iwalk(change_by_pref_top, \(r, t) {
+  cat("\nPreferred tone:", t, "\n")
+  print(r$tests)
+  print(r$plot)
+})
 ```
 
 # Preference Straightliners
