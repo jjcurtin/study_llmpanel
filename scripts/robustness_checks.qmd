@@ -1,0 +1,602 @@
+---
+title: "Robustness Checks and Descriptive Tables"
+format:
+  html:
+    page-layout: full
+    self-contained: true
+    toc: true
+    toc-depth: 3
+execute:
+  warning: false
+editor_options:
+  chunk_output_type: console
+---
+
+## Code Status
+
+Merged on 2026-11-17 from Part A of `robustness_analyses.qmd` and sections 1, 2 and 6 of
+`final_checks.qmd` (now in `scripts/archive/`). The code is unchanged. None of these
+sections draws random numbers. Not yet rendered on the real data.
+
+## Purpose
+
+Checks that the tone and style findings generalize, plus two descriptive tables for the
+capstone write-up.
+
+1.  **Sample characteristics** (Table 5, Section 7.2).
+2.  **Style gap by tone, in full**, with equivalence tests (Table 8, Section 7.4).
+3.  **Messages as a random effect.** Each tone is represented by 24 specific messages.
+    Do tone and style differences hold up when the messages are treated as a sample of
+    possible messages, not as the tones themselves? (Section 7.11)
+4.  **Message text and reading level.** Are tone differences explained by message
+    length or other surface features? Which individual messages did best and worst?
+    And what reading level did the messages reach, against the prompt's 8th-grade
+    target? (Section 7.11)
+5.  **Repetition within the session.** Do ratings fall as people work through the
+    three rating blocks, and does any tone wear out faster? This is the only evidence
+    in the panel on the variety premise. (Section 7.11)
+6.  **Drinking severity.** Do the conclusions hold among respondents with higher AUDIT
+    scores, who are closer to the population the system is for? (Section 7.11)
+
+The stricter-exclusion check reported in Section 7.11 is in `methods_candidates.qmd`
+(Section 12), because it summarises the method results computed there.
+
+## Setup
+
+```{r}
+#| label: Setup
+options(conflicts.policy = "depends.ok")
+library(tidyverse)
+
+source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
+source(here::here("scripts", "functions_llmpanel.R"))
+source(here::here("scripts", "functions_assignment.R"))
+
+path_processed <- format_path("llmpanel/data_processed")
+raw_panel <- read_csv(here::here(path_processed, "panel.csv"), show_col_types = FALSE)
+
+# tone_levels and pref_cols are defined in functions_llmpanel.R
+tone_label <- \(x) str_to_sentence(str_replace_all(x, "_", " "))
+
+set.seed(102030)
+n_boot <- 1000
+
+# Variables format_eda() drops: AUDIT score and the position (1-3) of each risk
+# context's rating block
+extras <- raw_panel |>
+  select(subid, audit_score, block_order_hi, block_order_hd, block_order_li)
+
+panel_long <- format_eda(raw_panel, long = TRUE) |>
+  left_join(extras, by = "subid") |>
+  mutate(
+    position = case_when(context == "high_increasing" ~ block_order_hi,
+                         context == "high_decreasing" ~ block_order_hd,
+                         context == "low_increasing" ~ block_order_li),
+    # One id per distinct message: 4 message sets x 3 contexts x 5 tones x 2 styles
+    message_id = paste(survey_version, context, tone, style, sep = "|"),
+    subid_f = factor(subid),
+    tone_f = factor(tone, levels = tone_levels),
+    style_f = factor(style),
+    context_f = factor(context))
+
+n_distinct(panel_long$subid)
+n_distinct(panel_long$message_id)                       # expect 120
+panel_long |> distinct(message_id, tone) |> count(tone) # expect 24 per tone
+panel_long |> count(position)                           # expect 1, 2, 3 in equal numbers
+```
+
+# 1. Sample Characteristics
+
+For Table 5 of the report. Race and ethnicity categories are not mutually
+exclusive (check all that apply).
+
+```{r}
+#| label: Sample Table
+n_total <- nrow(raw_panel)
+n_total
+
+# Continuous
+raw_panel |>
+  summarise(across(c(dem_age, audit_score, dem_n_household),
+                   list(mean = \(x) mean(x, na.rm = TRUE), sd = \(x) sd(x, na.rm = TRUE),
+                        min = \(x) min(x, na.rm = TRUE), max = \(x) max(x, na.rm = TRUE),
+                        missing = \(x) sum(is.na(x))))) |>
+  pivot_longer(everything(), names_to = c("variable", ".value"),
+               names_pattern = "(.*)_(mean|sd|min|max|missing)$") |>
+  mutate(across(where(is.double), \(x) round(x, 2)))
+
+# Categorical
+count_levels <- function(v) {
+  raw_panel |>
+    count(level = as.character(.data[[v]])) |>
+    mutate(variable = v, pct = round(100 * n / n_total, 1), .before = 1)
+}
+c("dem_sex", "dem_orientation", "dem_education", "dem_income", "dem_marital_status",
+  "dem_student", "dem_minority") |>
+  map(count_levels) |>
+  list_rbind() |>
+  relocate(variable, level, n, pct) |>
+  print(n = Inf)
+
+# Race and ethnicity (each is "selected" when not missing)
+raw_panel |>
+  summarise(across(starts_with("dem_race_"), \(x) sum(!is.na(x)))) |>
+  pivot_longer(everything(), names_to = "category", values_to = "n") |>
+  mutate(pct = round(100 * n / n_total, 1))
+
+# White only vs. any other selection (the coding used in the analyses)
+panel_long |> distinct(subid, dem_ethnicity) |> count(dem_ethnicity) |>
+  mutate(pct = round(100 * n / sum(n), 1))
+
+# AUDIT zones
+raw_panel |>
+  count(audit_zone = cut(audit_score, c(-Inf, 15, 19, Inf), labels = c("8-15", "16-19", "20+"))) |>
+  mutate(pct = round(100 * n / n_total, 1))
+
+# Collection window
+range(raw_panel$start_date, na.rm = TRUE)
+median(raw_panel$q_total_duration, na.rm = TRUE) / 60   # median minutes to complete
+```
+
+# 2. Style Gap by Tone, in Full
+
+For each tone, the gap is each respondent's mean informal rating minus their
+mean formal rating. Each gap gets a paired t-test against zero and an
+equivalence test (two one-sided tests) against a margin of 0.25 points. Holm
+adjustment is across the six rows, separately for the difference tests and
+the equivalence tests.
+
+```{r}
+#| label: Style Gap Table
+equiv_margin <- 0.25
+
+gap_by_tone <- panel_long |>
+  summarise(rating = mean(rating_num, na.rm = TRUE), .by = c(subid, tone, style)) |>
+  pivot_wider(names_from = style, values_from = rating) |>
+  mutate(gap = informal - formal) |>
+  select(subid, tone, gap)
+
+gap_overall <- panel_long |>
+  summarise(rating = mean(rating_num, na.rm = TRUE), .by = c(subid, style)) |>
+  pivot_wider(names_from = style, values_from = rating) |>
+  transmute(subid, tone = "all tones", gap = informal - formal)
+
+bind_rows(gap_by_tone, gap_overall) |>
+  drop_na(gap) |>
+  summarise(
+    n = n(),
+    mean_gap = mean(gap),
+    ci_low = t.test(gap)$conf.int[1],
+    ci_high = t.test(gap)$conf.int[2],
+    dz = mean(gap) / sd(gap),
+    p = t.test(gap)$p.value,
+    p_tost = max(t.test(gap, mu = -equiv_margin, alternative = "greater")$p.value,
+                 t.test(gap, mu = equiv_margin, alternative = "less")$p.value),
+    .by = tone) |>
+  mutate(p_holm = p.adjust(p, "holm"),
+         p_tost_holm = p.adjust(p_tost, "holm"),
+         conclusion = case_when(p_tost_holm < .05 ~ "Equivalent to zero within the margin",
+                                p_holm < .05 ~ "Different from zero, not shown equivalent",
+                                .default = "Inconclusive")) |>
+  arrange(desc(mean_gap)) |>
+  mutate(across(where(is.double), \(x) signif(x, 3))) |>
+  print(width = Inf)
+```
+
+A gap can be both different from zero and equivalent within the margin: that
+means it is real but smaller than 0.25 points.
+
+# 3. Messages as a Random Effect
+
+Every analysis so far treats the 24 messages written in a tone as if they
+were the tone. If a few messages happened to be unusually good or bad, a
+"tone effect" could be a message effect. Adding a random intercept for
+message asks whether tone and style differences are larger than the variation
+between messages of the same kind. This is the stricter test, and the one
+that supports claims about tones in general.
+
+```{r}
+#| label: Message Random Effect
+m_people <- lme4::lmer(
+  rating_num ~ tone_f * style_f + context_f + (1 | subid_f) + (1 | subid_f:tone_f),
+  data = panel_long, REML = FALSE)
+m_msg <- update(m_people, . ~ . + (1 | message_id))
+
+# Is there variation between messages beyond tone, style and context?
+anova(m_people, m_msg)
+lme4::VarCorr(m_msg)
+```
+
+```{r}
+#| label: Tone Tests With Messages Random
+m_msg_no_int <- lme4::lmer(
+  rating_num ~ tone_f + style_f + context_f +
+    (1 | subid_f) + (1 | subid_f:tone_f) + (1 | message_id),
+  data = panel_long, REML = FALSE)
+m_msg_no_tone <- update(m_msg_no_int, . ~ . - tone_f)
+m_msg_no_style <- update(m_msg_no_int, . ~ . - style_f)
+
+# Tone, style, and tone-by-style, each tested against message variation
+anova(m_msg_no_tone, m_msg_no_int)
+anova(m_msg_no_style, m_msg_no_int)
+anova(m_msg_no_int, m_msg)
+```
+
+```{r}
+#| label: Tone Contrasts With Messages Random
+emm_msg <- emmeans::emmeans(m_msg, ~ tone_f, lmer.df = "asymptotic")
+emm_people <- emmeans::emmeans(m_people, ~ tone_f, lmer.df = "asymptotic")
+
+# Same means, wider standard errors once messages are random
+full_join(as_tibble(emm_people) |> select(tone_f, mean = emmean, se_people_only = SE),
+          as_tibble(emm_msg) |> select(tone_f, se_messages_random = SE),
+          by = "tone_f") |>
+  mutate(se_ratio = se_messages_random / se_people_only) |>
+  arrange(desc(mean))
+
+pairs(emm_msg, adjust = "holm")
+pairs(emmeans::emmeans(m_msg, ~ style_f, lmer.df = "asymptotic"))
+```
+
+Reading the results:
+
+-   If the tone test is still significant and the top-two vs. bottom-two
+    contrasts survive, the tone ranking can be claimed for tones in general.
+-   If contrasts that were significant before are no longer, report the
+    ranking as a property of these messages and say so in the limitations.
+-   The message SD in `VarCorr` shows how much two messages of the same tone,
+    style and context typically differ. Compare it with the spread of tone
+    means (about 0.45 from top to bottom).
+
+# 4. Message Text and Reading Level
+
+Two separate looks at the message text: surface features against ratings (from
+`robustness_analyses.qmd`), and an estimate of reading level against the prompt's
+8th-grade target (from `final_checks.qmd`). An earlier pilot comparing several
+grade-level formulas on the temperature-prompting messages is in
+`scripts/archive/readability.qmd`.
+
+## Surface features
+
+Uses the message files in the repository
+(`qualtrics_panel/output/prod_messages/version2/survey1` to `survey4`).
+**Check that these are the fielded messages and that `survey1`-`survey4`
+correspond to message sets `x1`-`x4`** before relying on this section. It is
+skipped if the files are not found.
+
+```{r}
+#| label: Message Files
+message_paths <- here::here("qualtrics_panel", "output", "prod_messages", "version2",
+                            paste0("survey", 1:4), "production_messages.csv")
+have_messages <- all(file.exists(message_paths))
+have_messages
+```
+
+```{r}
+#| label: Message Text
+#| eval: !expr have_messages
+messages <- map2(1:4, message_paths, \(v, p) {
+  read_csv(p, show_col_types = FALSE) |> mutate(survey_version = paste0("x", v))
+}) |>
+  list_rbind() |>
+  transmute(
+    survey_version,
+    context = paste(lapse_risk, lapse_risk_change, sep = "_"),
+    style = formality,
+    tone = case_when(message_category == "Legitimizing" ~ "legitimizing",
+                     message_category == "SelfEfficacy" ~ "self_efficacy",
+                     message_category == "Acknowledging" ~ "acknowledging",
+                     message_category == "ValueAffirmation" ~ "value_affirmation",
+                     message_category == "Norms" ~ "norms"),
+    message_id = paste(survey_version, context, tone, style, sep = "|"),
+    text = generated_message,
+    n_words = str_count(text, "\\S+"),
+    n_sentences = pmax(str_count(text, "[.!?]+(\\s|$)"), 1),
+    words_per_sentence = n_words / n_sentences,
+    letters_per_word = str_count(text, "[A-Za-z]") / n_words,
+    you_per_100 = 100 * str_count(str_to_lower(text), "\\byou(r|rs|rself)?\\b") / n_words)
+
+# Every rated message should match exactly one message file row
+stopifnot(nrow(messages) == 120, !anyDuplicated(messages$message_id),
+          setequal(messages$message_id, unique(panel_long$message_id)))
+
+message_stats <- panel_long |>
+  summarise(mean_rating = mean(rating_num), sd_rating = sd(rating_num), n_raters = n(),
+            .by = message_id) |>
+  inner_join(messages, by = "message_id")
+```
+
+*Text features by tone and style*
+
+```{r}
+#| label: Text Features
+#| eval: !expr have_messages
+message_stats |>
+  summarise(messages = n(),
+            across(c(mean_rating, n_words, words_per_sentence, letters_per_word, you_per_100),
+                   mean),
+            .by = tone) |>
+  arrange(desc(mean_rating)) |>
+  mutate(across(where(is.double), \(x) round(x, 2)))
+
+message_stats |>
+  summarise(messages = n(),
+            across(c(mean_rating, n_words, words_per_sentence, letters_per_word, you_per_100),
+                   mean),
+            .by = style) |>
+  mutate(across(where(is.double), \(x) round(x, 2)))
+```
+
+*Do surface features explain the tone and style effects?*
+
+A message-level regression (120 messages). If tone and style coefficients
+barely move when text features are added, length and wording density are not
+what drives the ratings.
+
+```{r}
+#| label: Text Regression
+#| eval: !expr have_messages
+msg_data <- message_stats |>
+  mutate(tone = factor(tone, levels = tone_levels), style = factor(style),
+         context = factor(context))
+
+lm_base <- lm(mean_rating ~ tone + style + context, data = msg_data)
+lm_text <- update(lm_base, . ~ . + n_words + words_per_sentence + letters_per_word + you_per_100)
+
+anova(lm_base, lm_text)
+bind_rows(base = broom::tidy(lm_base), with_text = broom::tidy(lm_text), .id = "model") |>
+  filter(term != "(Intercept)") |>
+  select(model, term, estimate) |>
+  pivot_wider(names_from = model, values_from = estimate) |>
+  mutate(across(where(is.double), \(x) round(x, 3)))
+summary(lm_text)$coefficients |> round(3)
+```
+
+```{r}
+#| label: Text Plot
+#| eval: !expr have_messages
+# Each message's mean rating against its word count, with one overall trend line
+message_stats |>
+  ggplot(aes(x = n_words, y = mean_rating, color = tone, shape = style)) +
+  geom_point(size = 2) +
+  geom_smooth(aes(group = 1), method = "lm", se = FALSE, color = "grey40") +
+  scale_color_discrete(labels = tone_label) +
+  labs(x = "Words in message", y = "Mean rating of the message", color = "Tone", shape = "Style")
+```
+
+*Best- and worst-rated individual messages*
+
+Useful for the paper's examples, and for spotting a message that is carrying
+(or sinking) its tone.
+
+```{r}
+#| label: Best and Worst Messages
+#| eval: !expr have_messages
+ranked <- message_stats |>
+  arrange(desc(mean_rating)) |>
+  transmute(rank = row_number(), mean_rating = round(mean_rating, 2), n_raters,
+            tone, style, context, text)
+ranked |> slice_head(n = 6) |> knitr::kable()
+ranked |> slice_tail(n = 6) |> knitr::kable()
+
+# Spread of message means within each tone-by-style cell (12 messages each)
+message_stats |>
+  summarise(lowest = min(mean_rating), highest = max(mean_rating),
+            range = highest - lowest, .by = c(tone, style)) |>
+  arrange(desc(range)) |>
+  mutate(across(where(is.double), \(x) round(x, 2)))
+```
+
+## Reading level
+
+The prompt asked for an 8th-grade reading level. This estimates the
+Flesch-Kincaid grade of each message. Syllables are counted with a simple
+rule (vowel groups, minus a silent final "e"), so treat the grades as
+approximate: good for comparing tones and styles, less so as absolute values.
+
+Uses the message files found in the surface-features section above, and is skipped
+if they are missing.
+
+```{r}
+#| label: Reading Level
+#| eval: !expr have_messages
+count_syllables <- function(word) {
+  word <- str_to_lower(str_remove_all(word, "[^A-Za-z]"))
+  if (nchar(word) == 0) return(0)
+  n_syl <- str_count(word, "[aeiouy]+")
+  if (str_detect(word, "[^aeiouyl]e$") && n_syl > 1) n_syl <- n_syl - 1
+  max(n_syl, 1)
+}
+
+reading <- map(message_paths, \(p) read_csv(p, show_col_types = FALSE)) |>
+  list_rbind() |>
+  transmute(
+    style = formality, tone = message_category, text = generated_message,
+    n_words = str_count(text, "\\S+"),
+    n_sentences = pmax(str_count(text, "[.!?]+(\\s|$)"), 1),
+    n_syllables = map_dbl(str_split(text, "\\s+"), \(ws) sum(map_dbl(ws, count_syllables))),
+    fk_grade = 0.39 * n_words / n_sentences + 11.8 * n_syllables / n_words - 15.59)
+
+reading |>
+  summarise(messages = n(), sentences = mean(n_sentences), words = mean(n_words),
+            fk_min = min(fk_grade), fk_max = max(fk_grade), fk_mean = mean(fk_grade)) |>
+  mutate(across(where(is.double), \(x) round(x, 1)))
+
+reading |>
+  summarise(messages = n(), sentences = mean(n_sentences), fk_grade = mean(fk_grade),
+            .by = style) |>
+  mutate(across(where(is.double), \(x) round(x, 1)))
+
+reading |>
+  summarise(messages = n(), fk_grade = mean(fk_grade), .by = c(tone, style)) |>
+  pivot_wider(names_from = style, values_from = fk_grade) |>
+  mutate(across(where(is.double), \(x) round(x, 1)))
+
+# Did every message keep to 3-4 sentences, as the prompt asked?
+reading |> count(n_sentences)
+```
+
+# 5. Repetition Within the Session
+
+The case for rotating tones assumes a tone wears out when repeated. The panel
+cannot test months of daily use, but each respondent rated three blocks of ten
+messages, and every block contains every tone twice. If ratings fall from the
+first block to the third, or fall faster for some tones, that is a small,
+within-session signal of wear. If nothing moves, the panel is silent on the
+premise, which is also worth stating.
+
+Block position was randomized across the three risk contexts, so position is
+not confounded with context.
+
+```{r}
+#| label: Position Descriptives
+position_summary <- panel_long |>
+  summarise(mean_rating = mean(rating_num), sd_rating = sd(rating_num),
+            .by = c(subid, position)) |>
+  summarise(n = n(), mean = mean(mean_rating), se = sd(mean_rating) / sqrt(n()),
+            within_person_sd = mean(sd_rating, na.rm = TRUE),
+            .by = position) |>
+  arrange(position)
+position_summary
+
+panel_long |>
+  summarise(rating = mean(rating_num), .by = c(position, tone)) |>
+  pivot_wider(names_from = position, values_from = rating, names_prefix = "block_") |>
+  mutate(change_1_to_3 = block_3 - block_1) |>
+  arrange(change_1_to_3)
+```
+
+```{r}
+#| label: Position Models
+pos_data <- panel_long |> mutate(position_f = factor(position))
+
+m_pos0 <- lme4::lmer(
+  rating_num ~ tone_f * style_f + context_f + (1 | subid_f) + (1 | subid_f:tone_f),
+  data = pos_data, REML = FALSE)
+m_pos1 <- update(m_pos0, . ~ . + position_f)
+m_pos2 <- update(m_pos1, . ~ . + position_f:tone_f)
+
+# Overall drift across blocks
+anova(m_pos0, m_pos1)
+emmeans::emmeans(m_pos1, pairwise ~ position_f, adjust = "holm", lmer.df = "asymptotic")
+
+# Does the drift differ by tone? (a tone wearing out faster)
+anova(m_pos1, m_pos2)
+emmeans::emmeans(m_pos2, ~ position_f | tone_f, lmer.df = "asymptotic") |>
+  emmeans::contrast("poly") |>
+  as_tibble() |>
+  filter(contrast == "linear") |>
+  mutate(p_holm = p.adjust(p.value, "holm")) |>
+  select(tone_f, linear_trend = estimate, SE, p.value, p_holm)
+```
+
+```{r}
+#| label: Position Plot
+# Mean rating of each tone in each rating block (in the order shown), with 95% intervals
+panel_long |>
+  summarise(rating = mean(rating_num), .by = c(subid, position, tone)) |>
+  summarise(mean = mean(rating), se = sd(rating) / sqrt(n()), .by = c(position, tone)) |>
+  ggplot(aes(x = position, y = mean, color = tone, group = tone)) +
+  geom_line() +
+  geom_pointrange(aes(ymin = mean - 1.96 * se, ymax = mean + 1.96 * se),
+                  position = position_dodge(width = 0.15)) +
+  scale_x_continuous(breaks = 1:3) +
+  scale_color_discrete(labels = tone_label) +
+  labs(x = "Rating block (order shown)", y = "Mean message rating", color = "Tone")
+```
+
+*Time spent per block*
+
+Faster pages later in the session would suggest declining attention, which
+would complicate reading a drop in ratings as wear.
+
+```{r}
+#| label: Position Timing
+block_time <- raw_panel |>
+  select(subid, matches("^x[1-4]_(hi|hd|li)_timing_page_submit$"),
+         block_order_hi, block_order_hd, block_order_li) |>
+  pivot_longer(matches("timing_page_submit$"), names_to = "block", values_to = "seconds") |>
+  drop_na(seconds) |>
+  mutate(ctx = str_extract(block, "(?<=_)(hi|hd|li)(?=_)"),
+         position = case_when(ctx == "hi" ~ block_order_hi,
+                              ctx == "hd" ~ block_order_hd,
+                              ctx == "li" ~ block_order_li))
+
+block_time |>
+  summarise(n = n(), median_seconds = median(seconds), mean_seconds = mean(seconds),
+            .by = position) |>
+  arrange(position)
+
+friedman.test(seconds ~ position | subid,
+              data = block_time |> filter(n() == 3, .by = subid))
+```
+
+# 6. Drinking Severity
+
+Respondents screened in at AUDIT 8 or higher and role-played recovery. Those
+with higher scores are closer to the people the system is built for. If tone
+and style results look the same across severity, the role-play limitation is
+less worrying. Groups follow the standard AUDIT zones: 8-15 (hazardous), 16-19
+(harmful), 20 or more (possible dependence).
+
+```{r}
+#| label: AUDIT Groups
+audit <- raw_panel |>
+  transmute(subid, audit_score,
+            audit_group = cut(audit_score, breaks = c(-Inf, 15, 19, Inf),
+                              labels = c("8-15", "16-19", "20+")))
+audit |> count(audit_group) |> mutate(pct = n / sum(n))
+summary(audit$audit_score)
+
+rating_by_tone <- panel_long |>
+  summarise(rating = mean(rating_num), .by = c(subid, tone)) |>
+  left_join(audit, by = "subid")
+rating_by_style <- panel_long |>
+  summarise(rating = mean(rating_num), .by = c(subid, style)) |>
+  left_join(audit, by = "subid")
+```
+
+```{r}
+#| label: AUDIT Tone and Style
+# Mean rating by tone within each severity group
+rating_by_tone |>
+  summarise(mean = mean(rating), .by = c(audit_group, tone)) |>
+  pivot_wider(names_from = audit_group, values_from = mean) |>
+  arrange(desc(`8-15`)) |>
+  mutate(across(where(is.double), \(x) round(x, 2)))
+
+# Does the tone effect differ by severity? (audit_group:tone)
+afex::aov_ez(id = "subid", dv = "rating",
+             data = rating_by_tone |> mutate(subid = factor(subid)),
+             within = "tone", between = "audit_group",
+             anova_table = list(correction = "GG", es = "pes"))
+
+# Does the informal advantage differ by severity? (audit_group:style)
+rating_by_style |>
+  summarise(mean = mean(rating), .by = c(audit_group, style)) |>
+  pivot_wider(names_from = style, values_from = mean) |>
+  mutate(informal_minus_formal = informal - formal)
+afex::aov_ez(id = "subid", dv = "rating",
+             data = rating_by_style |> mutate(subid = factor(subid)),
+             within = "style", between = "audit_group",
+             anova_table = list(es = "pes"))
+```
+
+```{r}
+#| label: AUDIT Continuous
+# Same questions with AUDIT as a continuous score (no arbitrary cut points)
+m_audit0 <- lme4::lmer(
+  rating_num ~ tone_f * style_f + context_f + audit_c +
+    (1 | subid_f) + (1 | subid_f:tone_f),
+  data = panel_long |> mutate(audit_c = audit_score - mean(audit_score)),
+  REML = FALSE)
+m_audit_tone <- update(m_audit0, . ~ . + audit_c:tone_f)
+m_audit_style <- update(m_audit0, . ~ . + audit_c:style_f)
+anova(m_audit0, m_audit_tone)
+anova(m_audit0, m_audit_style)
+# Do heavier drinkers rate messages higher or lower overall?
+summary(m_audit0)$coefficients["audit_c", ]
+```
+
+The recommended method's gain by AUDIT group is in `methods_candidates.qmd`
+(Section 9, Fairness), with the other group comparisons.
