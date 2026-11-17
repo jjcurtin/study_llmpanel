@@ -51,6 +51,7 @@ library(tidyverse)
 
 source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
 source(here::here("scripts", "functions_llmpanel.R"))
+source(here::here("scripts", "functions_assignment.R"))
 
 path_processed <- format_path("llmpanel/data_processed")
 
@@ -58,9 +59,7 @@ panel_long <- format_eda(read_csv(
   here::here(path_processed, "panel.csv"),
   show_col_types = FALSE), long = TRUE)
 
-tone_levels <- c("norms", "acknowledging", "legitimizing",
-                 "self_efficacy", "value_affirmation")
-pref_cols <- paste0("pref_", tone_levels)
+# tone_levels and pref_cols are defined in functions_llmpanel.R
 
 set.seed(102030)
 ```
@@ -93,18 +92,12 @@ n_sim <- 100000
 
 ```{r}
 #| label: Preferences
-pref_wide <- panel_long |>
-  distinct(subid, across(all_of(pref_cols))) |>
-  arrange(subid)
-stopifnot(!anyDuplicated(pref_wide$subid), !anyNA(pref_wide))
-
-ids <- pref_wide$subid
-n <- length(ids)
-P <- as.matrix(pref_wide[, pref_cols])
-colnames(P) <- tone_levels
-
-pref_by_tone <- pref_wide |>
-  pivot_longer(-subid, names_to = "tone", names_prefix = "pref_", values_to = "pref")
+prefs <- prep_preferences(panel_long)
+pref_wide <- prefs$pref_wide
+ids <- prefs$ids
+n <- prefs$n
+P <- prefs$P
+pref_by_tone <- prefs$pref_by_tone
 ```
 
 *Ratings for each style setting*
@@ -116,31 +109,7 @@ the noise-corrected metrics.
 
 ```{r}
 #| label: Style Data
-prep_style <- function(styles) {
-  d <- if (styles == "informal") filter(panel_long, style == "informal") else panel_long
-
-  wide <- d |>
-    summarise(rating = mean(rating_num, na.rm = TRUE), .by = c(subid, tone)) |>
-    pivot_wider(names_from = tone, values_from = rating) |>
-    arrange(subid)
-  stopifnot(identical(wide$subid, ids), !anyNA(wide[, tone_levels]))
-
-  form <- if (styles == "informal") {
-    rating_num ~ tone + context + (1 | subid) + (1 | subid:tone)
-  } else {
-    rating_num ~ tone + context + style + (1 | subid) + (1 | subid:tone)
-  }
-  m <- lme4::lmer(form, data = mutate(d, subid = factor(subid)), REML = TRUE)
-
-  list(
-    styles = styles,
-    M = as.matrix(wide[, tone_levels]),
-    # messages behind each respondent's tone mean (3 informal, 6 pooled)
-    n_per_tone = nrow(d) / (n_distinct(d$subid) * length(tone_levels)),
-    sd_person_tone = attr(lme4::VarCorr(m)[["subid:tone"]], "stddev")[[1]],
-    sd_resid = sigma(m))
-}
-
+# prep_style() is in functions_assignment.R
 style_data <- list(
   "Pooled styles" = prep_style("both"),
   "Informal only" = prep_style("informal"))
@@ -181,68 +150,7 @@ use each person's own stated preferences:
 
 ```{r}
 #| label: Method Definitions
-# Same weights for everyone: `weights` go to the top-ranked tones in order
-fixed <- function(weights) {
-  function(top, rows) {
-    w <- set_names(numeric(length(tone_levels)), tone_levels)
-    w[top[seq_along(weights)]] <- weights
-    matrix(w, nrow = length(rows), ncol = length(w), byrow = TRUE,
-           dimnames = list(NULL, tone_levels))
-  }
-}
-
-# Assign `w_sorted` (largest first) by a person's preference order; ties share
-pref_ordered_weights <- function(p, w_sorted) {
-  w <- numeric(length(p))
-  w[order(-p)] <- w_sorted
-  ave(w, p)
-}
-
-# Sample's top three tones, weighted by the person's own preference order.
-# norms_swap: a person with norms in their highest preference tier (and who did
-# not give every tone the same score) gets norms in place of the third tone.
-# ties = "share":  tied tones split their weights equally (three tied -> equal thirds)
-# ties = "sample": tied tones are ordered by the sample ranking, so a person with no
-#                  stated order among the three gets the fixed rotation (50/30/20)
-own_order <- function(w_sorted, norms_swap = FALSE, ties = c("share", "sample")) {
-  ties <- match.arg(ties)
-  function(top, rows) {
-    t(vapply(rows, \(i) {
-      tones <- top[1:3]
-      p_all <- P[i, ]
-      if (norms_swap && !("norms" %in% tones) &&
-          p_all[["norms"]] == max(p_all) && min(p_all) < max(p_all)) {
-        tones[3] <- "norms"
-      }
-      p <- p_all[tones]                 # `tones` is in sample-rank order
-      w_tones <- if (ties == "share") {
-        pref_ordered_weights(p, w_sorted)
-      } else {
-        ws <- numeric(length(p))
-        ws[order(-p, seq_along(p))] <- w_sorted
-        ws
-      }
-      w <- set_names(numeric(length(tone_levels)), tone_levels)
-      w[tones] <- w_tones
-      w
-    }, numeric(length(tone_levels))))
-  }
-}
-
-# Each person's OWN top three tones by stated preference (ties broken by the
-# sample ranking), weighted by their preference order. Unlike own_order(), the set
-# of tones is personal too, so nothing but tie-breaking comes from the sample.
-own_top_three <- function(w_sorted) {
-  function(top, rows) {
-    t(vapply(rows, \(i) {
-      p_ranked <- P[i, top]                       # in sample-rank order
-      tones <- top[order(-p_ranked, seq_along(top))[1:3]]
-      w <- set_names(numeric(length(tone_levels)), tone_levels)
-      w[tones] <- pref_ordered_weights(P[i, tones], w_sorted)
-      w
-    }, numeric(length(tone_levels))))
-  }
-}
+# fixed(), own_order() and own_top_three() are in functions_assignment.R
 
 # Rule-based weights do not depend on the training sample
 rule_wide <- data_driven_weights(pref_by_tone) |>
@@ -272,11 +180,11 @@ methods <- list(
   # Preference-based candidates
   "Own order, 50/30/20"             = own_order(c(.50, .30, .20)),
   "Own order, 40/40/20"             = own_order(c(.40, .40, .20)),
-  "Own order, 50/30/20 + norms"     = own_order(c(.50, .30, .20), norms_swap = TRUE),
+  "Own order, 50/30/20 + norms"     = own_order(c(.50, .30, .20), norms = "tier"),
   "Own order, 50/30/20, sample tiebreak" =
     own_order(c(.50, .30, .20), ties = "sample"),
   "Own order, 50/30/20 + norms, sample tiebreak" =
-    own_order(c(.50, .30, .20), norms_swap = TRUE, ties = "sample"),
+    own_order(c(.50, .30, .20), norms = "tier", ties = "sample"),
   "Own top three, 50/30/20"         = own_top_three(c(.50, .30, .20)),
   "Rule-based"                      = rule_based)
 ```
@@ -327,10 +235,7 @@ configurations. The same folds are used for both style settings.
 
 ```{r}
 #| label: Folds
-folds <- map(seq_len(cv_repeats), \(r) {
-  fold_id <- sample(rep(seq_len(cv_folds), length.out = n))
-  map(seq_len(cv_folds), \(k) which(fold_id == k))
-}) |> unlist(recursive = FALSE)
+folds <- make_respondent_folds(n, cv_folds, cv_repeats)
 length(folds)
 ```
 
@@ -369,23 +274,15 @@ assumes true gains are roughly normal.
 
 ```{r}
 #| label: Evaluate
-evaluate_methods <- function(s) {
-  M <- s$M
-  uniform_value <- rowMeans(M)
-
+# Score every method for one style setting: held-out weights and expected ratings from
+# evaluate_methods() (functions_assignment.R), then the summary table with bootstrap
+# intervals and the noise-corrected worse-off shares
+score_style <- function(s) {
   # Each respondent's weights, averaged over the repeats in which they were held out
-  W_bar <- map(methods, \(f) matrix(0, n, length(tone_levels),
-                                    dimnames = list(NULL, tone_levels)))
-  for (test in folds) {
-    train <- setdiff(seq_len(n), test)
-    top <- names(sort(colMeans(M[train, , drop = FALSE]), decreasing = TRUE))
-    for (nm in names(methods)) {
-      W_bar[[nm]][test, ] <- W_bar[[nm]][test, ] + methods[[nm]](top, test) / cv_repeats
-    }
-  }
-
-  values <- map(W_bar, \(W) rowSums(W * M)) |> as_tibble()
-  value_mat <- as.matrix(values)
+  e <- evaluate_methods(methods, s$M, folds, cv_repeats)
+  W_bar <- e$weights
+  value_mat <- e$values
+  uniform_value <- e$uniform
 
   boot_means <- map(seq_len(n_boot), \(i) {
     colMeans(value_mat[sample(n, replace = TRUE), , drop = FALSE])
@@ -422,7 +319,7 @@ evaluate_methods <- function(s) {
        uniform = uniform_value)
 }
 
-evaluated <- map(style_data, evaluate_methods)
+evaluated <- map(style_data, score_style)
 results <- map(evaluated, "summary")
 ```
 
@@ -601,15 +498,8 @@ actually receive. Weights use the full-sample tone ranking (pooled styles).
 
 ```{r}
 #| label: Assignment Profiles
-short <- c(norms = "Norms", acknowledging = "Ack", legitimizing = "Leg",
-           self_efficacy = "SE", value_affirmation = "VA")
-
-# One label per respondent describing their rotation, e.g. "SE 50 / VA 30 / Leg 20"
-rotation_label <- function(w) {
-  keep <- w[w > 0]
-  keep <- keep[order(-keep, names(keep))]
-  paste(sprintf("%s %s", short[names(keep)], round(100 * keep)), collapse = " / ")
-}
+# rotation_label() (functions_assignment.R) gives one label per respondent describing
+# their rotation, e.g. "SE 50 / VA 30 / Leg 20"
 
 compare_to <- "Top three, 50/30/20"
 W_fixed <- methods[[compare_to]](top_full, seq_len(n))

@@ -50,9 +50,7 @@ path_processed <- format_path("llmpanel/data_processed")
 raw_panel <- read_csv(here::here(path_processed, "panel.csv"), show_col_types = FALSE)
 panel_long <- format_eda(raw_panel, long = TRUE)
 
-tone_levels <- c("norms", "acknowledging", "legitimizing",
-                 "self_efficacy", "value_affirmation")
-pref_cols <- paste0("pref_", tone_levels)
+# tone_levels and pref_cols are defined in functions_llmpanel.R
 
 set.seed(102030)
 n_boot <- 1000
@@ -169,35 +167,15 @@ means it is real but smaller than 0.25 points.
 ```{r}
 #| label: Assignment Data
 # P: respondent x tone matrix of stated preferences, rows in a fixed order.
-# prep_style(): for one style setting, the respondent x tone matrix of mean ratings (M),
-# the number of messages behind each tone mean, and the residual SD from a mixed model
-# (needed for the noise-corrected worse-off shares).
-pref_wide <- panel_long |>
-  distinct(subid, across(all_of(pref_cols))) |>
-  arrange(subid)
-stopifnot(!anyDuplicated(pref_wide$subid), !anyNA(pref_wide))
-ids <- pref_wide$subid
-n <- length(ids)
-P <- as.matrix(pref_wide[, pref_cols])
-colnames(P) <- tone_levels
+# prep_style() (functions_assignment.R): for one style setting, the respondent x tone
+# matrix of mean ratings (M), the number of messages behind each tone mean, and the
+# residual SD from a mixed model (needed for the noise-corrected worse-off shares).
+prefs <- prep_preferences(panel_long)
+pref_wide <- prefs$pref_wide
+ids <- prefs$ids
+n <- prefs$n
+P <- prefs$P
 
-prep_style <- function(styles) {
-  d <- if (styles == "informal") filter(panel_long, style == "informal") else panel_long
-  wide <- d |>
-    summarise(rating = mean(rating_num, na.rm = TRUE), .by = c(subid, tone)) |>
-    pivot_wider(names_from = tone, values_from = rating) |>
-    arrange(subid)
-  stopifnot(identical(wide$subid, ids), !anyNA(wide[, tone_levels]))
-  form <- if (styles == "informal") {
-    rating_num ~ tone + context + (1 | subid) + (1 | subid:tone)
-  } else {
-    rating_num ~ tone + context + style + (1 | subid) + (1 | subid:tone)
-  }
-  m <- lme4::lmer(form, data = mutate(d, subid = factor(subid)), REML = TRUE)
-  list(M = as.matrix(wide[, tone_levels]),
-       n_per_tone = nrow(d) / (n_distinct(d$subid) * length(tone_levels)),
-       sd_resid = sigma(m))
-}
 style_data <- list("Pooled styles" = prep_style("both"),
                    "Informal only" = prep_style("informal"))
 ```
@@ -246,8 +224,10 @@ evaluated <- map(style_data, \(s) {
     list(sd_resid = s$sd_resid, n_per_tone = s$n_per_tone))
 })
 
+# The metrics this script reports, from method_metrics() in functions_assignment.R
 metrics <- function(e, nm, idx = seq_len(n)) {
-  method_metrics(e, nm, e$sd_resid, e$n_per_tone, harm_threshold, idx)
+  method_metrics(e, nm, e$sd_resid, e$n_per_tone, harm_threshold, idx)[
+    c("mean", "gain", "pct_worse", "pct_clearly", "pct_worse_raw")]
 }
 ```
 
@@ -394,20 +374,15 @@ groups <- panel_long |>
 stopifnot(identical(groups$subid, ids))
 group_vars <- setdiff(names(groups), "subid")
 
-group_test <- function(y, g) {
-  keep <- !is.na(g) & g %in% names(which(table(g) >= 30))
-  y <- y[keep]; g <- factor(g[keep])
-  means <- tapply(y, g, mean)
-  tibble(gap = max(means) - min(means),
-         best = names(which.max(means)), worst = names(which.min(means)),
-         p = if (nlevels(g) < 2) NA_real_ else oneway.test(y ~ g)$p.value)
-}
+# group_test() is in functions_assignment.R; its `levels` column is not used here
 
 fairness_methods <- c("Mean-only", "Fixed 40/40/20", lead_shared, lead_sample, lead_middle)
 
 fairness <- imap(evaluated, \(e, style_nm) {
   map(set_names(fairness_methods), \(nm) {
-    map(set_names(group_vars), \(v) group_test(e$values[, nm] - e$uniform, groups[[v]])) |>
+    map(set_names(group_vars), \(v) {
+      group_test(e$values[, nm] - e$uniform, groups[[v]]) |> select(-levels)
+    }) |>
       list_rbind(names_to = "grouping") |>
       mutate(p_bh = p.adjust(p, "BH"))
   }) |>
@@ -435,7 +410,7 @@ fairness |>
 #| label: Fairness Between Leads
 imap(evaluated, \(e, style_nm) {
   d <- e$values[, lead_sample] - e$values[, lead_shared]
-  map(set_names(group_vars), \(v) group_test(d, groups[[v]])) |>
+  map(set_names(group_vars), \(v) group_test(d, groups[[v]]) |> select(-levels)) |>
     list_rbind(names_to = "grouping") |>
     mutate(styles = style_nm, comparison = "Sample ties minus shared ties", .before = 1)
 }) |>

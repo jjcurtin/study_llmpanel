@@ -55,12 +55,12 @@ library(tidyverse)
 
 source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
 source(here::here("scripts", "functions_llmpanel.R"))
+source(here::here("scripts", "functions_assignment.R"))
 
 path_processed <- format_path("llmpanel/data_processed")
 raw_panel <- read_csv(here::here(path_processed, "panel.csv"), show_col_types = FALSE)
 
-tone_levels <- c("norms", "acknowledging", "legitimizing",
-                 "self_efficacy", "value_affirmation")
+# tone_levels is defined in functions_llmpanel.R
 pref_tone_cols <- paste0("pref_", tone_levels)
 
 set.seed(102030)
@@ -167,13 +167,8 @@ their fold-level results paired.
 #| label: CV Helpers
 subids <- sort(unique(d$subid))
 
-# Repeated k-fold over respondents; returns a list of lists(rep, fold, test_ids)
-make_folds <- function(ids, v, repeats) {
-  map(seq_len(repeats), \(r) {
-    fold_id <- sample(rep(seq_len(v), length.out = length(ids)))
-    map(seq_len(v), \(k) list(rep = r, fold = k, test_ids = ids[fold_id == k]))
-  }) |> unlist(recursive = FALSE)
-}
+# Folds come from make_folds() in functions_assignment.R: repeated k-fold over
+# respondents, each fold a list(rep, fold, test) with the held-out respondent ids
 
 mae <- \(obs, pred) mean(abs(obs - pred))
 rsq <- \(obs, pred) if (sd(pred) == 0) 0 else cor(obs, pred)^2
@@ -183,7 +178,7 @@ inner_mae <- function(x, y, row_ids, train_ids) {
   inner <- make_folds(train_ids, inner_folds, inner_repeats)
   res <- array(0, dim = c(length(alphas), n_lambda))
   for (f in inner) {
-    val <- row_ids %in% f$test_ids
+    val <- row_ids %in% f$test
     fit_rows <- row_ids %in% train_ids & !val
     for (a in seq_along(alphas)) {
       fit <- glmnet::glmnet(x[fit_rows, , drop = FALSE], y[fit_rows], alpha = alphas[a],
@@ -198,11 +193,11 @@ inner_mae <- function(x, y, row_ids, train_ids) {
 # Nested CV for one feature matrix. Returns one row per outer fold.
 nested_cv <- function(x, y, row_ids, outer) {
   map(outer, \(o) {
-    train_ids <- setdiff(unique(row_ids), o$test_ids)
+    train_ids <- setdiff(unique(row_ids), o$test)
     res <- inner_mae(x, y, row_ids, train_ids)
     best <- which(res == min(res), arr.ind = TRUE)[1, ]
     train <- row_ids %in% train_ids
-    test <- row_ids %in% o$test_ids
+    test <- row_ids %in% o$test
     fit <- glmnet::glmnet(x[train, , drop = FALSE], y[train], alpha = alphas[best[[1]]],
                   lambda = lambda_grid)
     pred <- as.numeric(predict(fit, x[test, , drop = FALSE], s = lambda_grid[best[[2]]]))

@@ -26,9 +26,7 @@ source(here::here("scripts", "functions_llmpanel.R"))
 path_processed <- format_path("llmpanel/data_processed")
 raw_panel <- read_csv(here::here(path_processed, "panel.csv"), show_col_types = FALSE)
 
-tone_levels <- c("norms", "acknowledging", "legitimizing",
-                 "self_efficacy", "value_affirmation")
-pref_cols <- paste0("pref_", tone_levels)
+# tone_levels and pref_cols are defined in functions_llmpanel.R
 order_levels <- c("Preferences first", "Messages first")
 
 set.seed(102030)

@@ -60,13 +60,12 @@ library(tidyverse)
 
 source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
 source(here::here("scripts", "functions_llmpanel.R"))
+source(here::here("scripts", "functions_assignment.R"))
 
 path_processed <- format_path("llmpanel/data_processed")
 raw_panel <- read_csv(here::here(path_processed, "panel.csv"), show_col_types = FALSE)
 
-tone_levels <- c("norms", "acknowledging", "legitimizing",
-                 "self_efficacy", "value_affirmation")
-pref_cols <- paste0("pref_", tone_levels)
+# tone_levels and pref_cols are defined in functions_llmpanel.R
 tone_label <- \(x) str_to_sentence(str_replace_all(x, "_", " "))
 
 set.seed(102030)
@@ -460,9 +459,8 @@ group comparisons.
 
 ## Assignment machinery
 
-Copied from `candidate_methods.qmd` so this script runs on its own. If the
-methods change there, change them here too (or move them to
-`functions_llmpanel.R`).
+The same methods and scoring as `candidate_methods.qmd`. The method functions and
+scoring helpers are shared, in `functions_assignment.R`.
 
 ```{r}
 #| label: Machinery Data
@@ -473,91 +471,21 @@ harm_threshold <- 0.25
 cv_repeats <- 6
 cv_folds <- 5
 
-pref_wide <- panel_long |>
-  distinct(subid, across(all_of(pref_cols))) |>
-  arrange(subid)
-stopifnot(!anyDuplicated(pref_wide$subid), !anyNA(pref_wide))
-ids <- pref_wide$subid
-n <- length(ids)
-P <- as.matrix(pref_wide[, pref_cols])
-colnames(P) <- tone_levels
-pref_by_tone <- pref_wide |>
-  pivot_longer(-subid, names_to = "tone", names_prefix = "pref_", values_to = "pref")
+prefs <- prep_preferences(panel_long)
+pref_wide <- prefs$pref_wide
+ids <- prefs$ids
+n <- prefs$n
+P <- prefs$P
+pref_by_tone <- prefs$pref_by_tone
 
-prep_style <- function(styles) {
-  d <- if (styles == "informal") filter(panel_long, style == "informal") else panel_long
-  wide <- d |>
-    summarise(rating = mean(rating_num, na.rm = TRUE), .by = c(subid, tone)) |>
-    pivot_wider(names_from = tone, values_from = rating) |>
-    arrange(subid)
-  stopifnot(identical(wide$subid, ids), !anyNA(wide[, tone_levels]))
-  form <- if (styles == "informal") {
-    rating_num ~ tone + context + (1 | subid) + (1 | subid:tone)
-  } else {
-    rating_num ~ tone + context + style + (1 | subid) + (1 | subid:tone)
-  }
-  m <- lme4::lmer(form, data = mutate(d, subid = factor(subid)), REML = TRUE)
-  list(M = as.matrix(wide[, tone_levels]),
-       n_per_tone = nrow(d) / (n_distinct(d$subid) * length(tone_levels)),
-       sd_resid = sigma(m))
-}
+# prep_style() is in functions_assignment.R
 style_data <- list("Pooled styles" = prep_style("both"),
                    "Informal only" = prep_style("informal"))
 ```
 
 ```{r}
 #| label: Machinery Methods
-fixed <- function(weights) {
-  function(top, rows) {
-    w <- set_names(numeric(length(tone_levels)), tone_levels)
-    w[top[seq_along(weights)]] <- weights
-    matrix(w, nrow = length(rows), ncol = length(w), byrow = TRUE,
-           dimnames = list(NULL, tone_levels))
-  }
-}
-pref_ordered_weights <- function(p, w_sorted) {
-  w <- numeric(length(p))
-  w[order(-p)] <- w_sorted
-  ave(w, p)
-}
-# ties = "share":  tied tones split their weights equally (three tied -> equal thirds)
-# ties = "sample": tied tones are ordered by the sample ranking, so a person with no
-#                  stated order among the three gets the fixed rotation (50/30/20)
-own_order <- function(w_sorted, norms_swap = FALSE, ties = c("share", "sample")) {
-  ties <- match.arg(ties)
-  function(top, rows) {
-    t(vapply(rows, \(i) {
-      tones <- top[1:3]
-      p_all <- P[i, ]
-      if (norms_swap && !("norms" %in% tones) &&
-          p_all[["norms"]] == max(p_all) && min(p_all) < max(p_all)) {
-        tones[3] <- "norms"
-      }
-      p <- p_all[tones]                 # `tones` is in sample-rank order
-      w_tones <- if (ties == "share") {
-        pref_ordered_weights(p, w_sorted)
-      } else {
-        ws <- numeric(length(p))
-        ws[order(-p, seq_along(p))] <- w_sorted
-        ws
-      }
-      w <- set_names(numeric(length(tone_levels)), tone_levels)
-      w[tones] <- w_tones
-      w
-    }, numeric(length(tone_levels))))
-  }
-}
-own_top_three <- function(w_sorted) {
-  function(top, rows) {
-    t(vapply(rows, \(i) {
-      p_ranked <- P[i, top]
-      tones <- top[order(-p_ranked, seq_along(top))[1:3]]
-      w <- set_names(numeric(length(tone_levels)), tone_levels)
-      w[tones] <- pref_ordered_weights(P[i, tones], w_sorted)
-      w
-    }, numeric(length(tone_levels))))
-  }
-}
+# fixed(), own_order() and own_top_three() are in functions_assignment.R
 rule_wide <- data_driven_weights(pref_by_tone) |>
   select(subid, tone, weight) |>
   pivot_wider(names_from = tone, values_from = weight) |>
@@ -579,11 +507,11 @@ methods <- list(
   "Uniform (all five)"          = fixed(rep(1 / 5, 5)),
   "Own order, 50/30/20"         = own_order(c(.50, .30, .20)),
   "Own order, 40/40/20"         = own_order(c(.40, .40, .20)),
-  "Own order, 50/30/20 + norms" = own_order(c(.50, .30, .20), norms_swap = TRUE),
+  "Own order, 50/30/20 + norms" = own_order(c(.50, .30, .20), norms = "tier"),
   "Own order, 50/30/20, sample tiebreak" =
     own_order(c(.50, .30, .20), ties = "sample"),
   "Own order, 50/30/20 + norms, sample tiebreak" =
-    own_order(c(.50, .30, .20), norms_swap = TRUE, ties = "sample"),
+    own_order(c(.50, .30, .20), norms = "tier", ties = "sample"),
   "Own top three, 50/30/20"     = own_top_three(c(.50, .30, .20)),
   "Rule-based"                  = \(top, rows) W_rule[rows, , drop = FALSE])
 
@@ -595,26 +523,12 @@ tiebreak_method <- "Own order, 50/30/20 + norms, sample tiebreak"
 
 ```{r}
 #| label: Machinery Evaluate
-folds <- map(seq_len(cv_repeats), \(r) {
-  fold_id <- sample(rep(seq_len(cv_folds), length.out = n))
-  map(seq_len(cv_folds), \(k) which(fold_id == k))
-}) |> unlist(recursive = FALSE)
+folds <- make_respondent_folds(n, cv_folds, cv_repeats)
 
 # Held-out weights and expected ratings for every respondent and method
 evaluated <- map(style_data, \(s) {
-  W_bar <- map(methods, \(f) matrix(0, n, length(tone_levels),
-                                    dimnames = list(NULL, tone_levels)))
-  for (test in folds) {
-    train <- setdiff(seq_len(n), test)
-    top <- names(sort(colMeans(s$M[train, , drop = FALSE]), decreasing = TRUE))
-    for (nm in names(methods)) {
-      W_bar[[nm]][test, ] <- W_bar[[nm]][test, ] + methods[[nm]](top, test) / cv_repeats
-    }
-  }
-  list(values = sapply(W_bar, \(W) rowSums(W * s$M)),
-       weights = W_bar,
-       uniform = rowMeans(s$M),
-       sd_resid = s$sd_resid, n_per_tone = s$n_per_tone)
+  c(evaluate_methods(methods, s$M, folds, cv_repeats),
+    list(sd_resid = s$sd_resid, n_per_tone = s$n_per_tone))
 })
 
 # Which methods meet the variety standard for every respondent?
@@ -627,21 +541,15 @@ qualifying
 
 # Mean, share worse off than an even rotation, and share clearly worse off, for one
 # method on a set of respondents (noise-corrected; see candidate_methods.qmd)
-method_metrics <- function(e, nm, idx = seq_len(n)) {
-  gain <- e$values[idx, nm] - e$uniform[idx]
-  W <- e$weights[[nm]][idx, , drop = FALSE]
-  noise_var <- e$sd_resid^2 / e$n_per_tone * rowSums((W - 1 / length(tone_levels))^2)
-  true_sd <- sqrt(max(var(gain) - mean(noise_var), 0))
-  c(mean = mean(e$values[idx, nm]),
-    gain = mean(gain),
-    sd_gain = true_sd,
-    pct_worse = if (true_sd == 0) NA_real_ else pnorm(0, mean(gain), true_sd),
-    pct_clearly = if (true_sd == 0) NA_real_ else pnorm(-harm_threshold, mean(gain), true_sd))
+# Uses method_metrics() from functions_assignment.R
+metrics <- function(e, nm, idx = seq_len(n)) {
+  method_metrics(e, nm, e$sd_resid, e$n_per_tone, harm_threshold, idx)[
+    c("mean", "gain", "sd_gain", "pct_worse", "pct_clearly")]
 }
 
 # Sanity check against candidate_methods.qmd (pooled styles)
 map(set_names(c("Mean-only", fixed_method, lead_method, alt_method)),
-    \(nm) round(method_metrics(evaluated[["Pooled styles"]], nm), 3)) |>
+    \(nm) round(metrics(evaluated[["Pooled styles"]], nm), 3)) |>
   bind_rows(.id = "method")
 ```
 
@@ -678,14 +586,7 @@ group_vars <- setdiff(names(groups), "subid")
 ```{r}
 #| label: Group Tests
 # One-way test of `y` across the levels of a grouping (levels with n >= 30)
-group_test <- function(y, g) {
-  keep <- !is.na(g) & g %in% names(which(table(g) >= 30))
-  y <- y[keep]; g <- factor(g[keep])
-  means <- tapply(y, g, mean)
-  tibble(levels = nlevels(g), gap = max(means) - min(means),
-         best = names(which.max(means)), worst = names(which.min(means)),
-         p = if (nlevels(g) < 2) NA_real_ else oneway.test(y ~ g)$p.value)
-}
+# group_test() is in functions_assignment.R
 
 group_tests <- imap(evaluated, \(e, style_nm) {
   outcomes <- list(
@@ -804,7 +705,7 @@ picks on the share **clearly** worse off.
 ```{r}
 #| label: Selection Grid
 metrics_table <- function(e, idx = seq_len(n)) {
-  t(sapply(qualifying, \(nm) method_metrics(e, nm, idx)))
+  t(sapply(qualifying, \(nm) metrics(e, nm, idx)))
 }
 apply_rule <- function(tbl, margin, by = "pct_worse") {
   ok <- tbl[, "mean"] >= max(tbl[, "mean"]) - margin & !is.na(tbl[, by])

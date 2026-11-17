@@ -48,9 +48,7 @@ panel_long <- format_eda(read_csv(
   here::here(path_processed, "panel.csv"),
   show_col_types = FALSE), long = TRUE)
 
-tone_levels <- c("norms", "acknowledging", "legitimizing",
-                 "self_efficacy", "value_affirmation")
-pref_cols <- paste0("pref_", tone_levels)
+# tone_levels and pref_cols are defined in functions_llmpanel.R
 
 set.seed(102030)
 ```

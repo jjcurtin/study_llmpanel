@@ -9,7 +9,7 @@
 #   2. Model data prep and recipes: resolve_interactions(), prep_llmpanel_data(),
 #        rec_llmpanel_base(), rec_llmpanel(), review_features(), count_predictors()
 #        Used by scripts/eda/6_panel_recipes.qmd and configs_llmpanel.R.
-#   3. Data formatting: format_eda()
+#   3. Data formatting: tone_levels, pref_cols, format_eda()
 #        Used by every analysis script and report.
 #   4. Descriptive plots and tests: plot_change_from_top(), plot_ratings_by_pref_top(),
 #        plot_change_from_pref_top(), compare_groups()
@@ -391,6 +391,12 @@ r |> prep() |> bake(new_data = NULL) |> select(-subid, -message_rating) |> ncol(
 # ---------------------------------------------------------------------------
 # 3. Data formatting
 # ---------------------------------------------------------------------------
+
+# The five tones in the order used by the analysis scripts, and their preference items.
+# Defined here so every script shares one definition.
+tone_levels <- c("norms", "acknowledging", "legitimizing",
+                 "self_efficacy", "value_affirmation")
+pref_cols <- paste0("pref_", tone_levels)
 
 # Format the wide panel. With long = TRUE, return one row per message rating instead:
 # the demographic and preference columns plus survey_version, context, style, tone,

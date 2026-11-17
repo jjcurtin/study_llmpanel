@@ -42,9 +42,7 @@ panel_long <- format_eda(read_csv(
   here::here(path_processed, "panel.csv"),
   show_col_types = FALSE), long = TRUE)
 
-# Constants used below
-tone_levels <- c("norms", "acknowledging", "legitimizing",
-                 "self_efficacy", "value_affirmation")
+# tone_levels (the five tones) is defined in functions_llmpanel.R
 
 # Each respondent's mean rating for each of the 5 tones, ignoring style.
 # (Ratings are averaged across formal and informal messages)

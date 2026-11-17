@@ -43,6 +43,7 @@ library(tidyverse)
 
 source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
 source(here::here("scripts", "functions_llmpanel.R"))
+source(here::here("scripts", "functions_assignment.R"))
 
 path_processed <- format_path("llmpanel/data_processed")
 
@@ -50,9 +51,7 @@ panel_long <- format_eda(read_csv(
   here::here(path_processed, "panel.csv"),
   show_col_types = FALSE), long = TRUE)
 
-tone_levels <- c("norms", "acknowledging", "legitimizing",
-                 "self_efficacy", "value_affirmation")
-pref_cols <- paste0("pref_", tone_levels)
+# tone_levels and pref_cols are defined in functions_llmpanel.R
 
 set.seed(102030)
 ```
@@ -157,14 +156,8 @@ method_value <- function(rows, w) {
   as.numeric(M[rows, names(w), drop = FALSE] %*% w)
 }
 
-# Repeated k-fold: a list of test-row vectors, with the repeat each belongs to
-make_folds <- function(rows, v, repeats) {
-  map(seq_len(repeats), \(r) {
-    fold_id <- sample(rep(seq_len(v), length.out = length(rows)))
-    map(seq_len(v), \(k) list(rep = r, fold = k, test = rows[fold_id == k]))
-  }) |>
-    unlist(recursive = FALSE)
-}
+# Folds come from make_folds() in functions_assignment.R: repeated k-fold, each fold a
+# list(rep, fold, test) with the held-out rows
 
 # Mean helpfulness of every configuration, tones ranked on `fit`, scored on `val`
 score_configs <- function(fit, val) {
