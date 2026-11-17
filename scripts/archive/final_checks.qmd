@@ -12,6 +12,9 @@ editor_options:
   chunk_output_type: console
 ---
 
+**Archived 2026-11-17.** Merged into `robustness_checks.qmd` (Sections 1, 2 and 6 here) and `methods_candidates.qmd` (Sections 3 to 5 here). Kept for reference; the
+merged scripts reproduce its results exactly. Run it from `scripts/` paths as before.
+
 ## Code Status
 
 Runs end to end. Last rendered 2026-11-16 with no errors (see the `.html` beside this file).

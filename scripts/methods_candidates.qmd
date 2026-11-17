@@ -236,7 +236,7 @@ Methods from earlier scripts that are not carried forward, and why:
 
 Each respondent is scored only in folds where they were not used to rank the
 tones. No configuration is being tuned here, so one level of cross-validation
-is enough; the nested version in `heldout_methods.qmd` is for selecting among
+is enough; the nested version in `methods_heldout.qmd` is for selecting among
 configurations. The same folds are used for both style settings.
 
 ```{r}

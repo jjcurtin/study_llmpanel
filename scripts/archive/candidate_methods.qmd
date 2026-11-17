@@ -12,6 +12,9 @@ editor_options:
   chunk_output_type: console
 ---
 
+**Archived 2026-11-17.** Merged into `methods_candidates.qmd` (Sections 1 to 7, and the demographic results in Section 9). Kept for reference; the
+merged scripts reproduce its results exactly. Run it from `scripts/` paths as before.
+
 ## Code Status
 
 Runs end to end. Last rendered 2026-11-16 with no errors (see the `.html` beside this file).

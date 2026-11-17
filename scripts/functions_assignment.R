@@ -1,6 +1,6 @@
-# Shared helpers for the held-out tone assignment scripts: candidate_methods.qmd,
-# final_checks.qmd, robustness_analyses.qmd, heldout_methods.qmd and
-# prereg_models_glmnet.qmd. This file is the only place these functions are defined.
+# Shared helpers for the held-out tone assignment scripts: methods_candidates.qmd,
+# methods_heldout.qmd and prereg_models_glmnet.qmd (and the archived scripts they were
+# merged from). This file is the only place these functions are defined.
 #
 # Source after functions_llmpanel.R, which defines tone_levels and pref_cols.
 # Requires tidyverse; prep_style() also needs lme4.

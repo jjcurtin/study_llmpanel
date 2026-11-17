@@ -14,6 +14,9 @@ params:
   styles_use: "both"
 ---
 
+**Archived 2026-11-17.** Merged into `methods_heldout.qmd` (Sections 3 to 5 there). Kept for reference; the
+merged scripts reproduce its results exactly. Run it from `scripts/` paths as before.
+
 ## Code Status
 
 Runs end to end. Last rendered 2026-11-16 with no errors (see the `.html` beside this file).
