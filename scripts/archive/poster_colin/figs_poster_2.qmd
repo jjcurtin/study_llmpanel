@@ -21,7 +21,7 @@ library(tidyverse)
 library(tidymodels)
 library(Matrix)
 
-source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
+source("https://raw.githubusercontent.com/jjcurtin/lab_support/main/format_path.R")
 source("https://github.com/jjcurtin/lab_support/blob/main/fun_eda.R?raw=true")
 
 path_chtc <- format_path(str_c("llmpanel/chtc/train_", params$version))

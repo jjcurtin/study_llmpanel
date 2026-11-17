@@ -30,7 +30,7 @@ options(conflicts.policy = "depends.ok")
 library(tidyverse)
 
 plot_grid <- cowplot::plot_grid
-source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
+source("https://raw.githubusercontent.com/jjcurtin/lab_support/main/format_path.R")
 source("https://github.com/jjcurtin/lab_support/blob/main/fun_eda.R?raw=true")
 source("https://github.com/jjcurtin/lab_support/blob/main/fun_plots.R?raw=true")
 source(here::here("scripts", "configs_llmpanel.R"))

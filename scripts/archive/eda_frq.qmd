@@ -23,7 +23,7 @@ library(dplyr)
 options(conflicts.policy = "depends.ok")
 
 source("https://github.com/jjcurtin/lab_support/blob/main/fun_eda.R?raw=true")
-source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
+source("https://raw.githubusercontent.com/jjcurtin/lab_support/main/format_path.R")
 
 path_panel <- format_path("llmpanel/data_raw/panel")
 path_processed <- format_path("llmpanel/data_processed")

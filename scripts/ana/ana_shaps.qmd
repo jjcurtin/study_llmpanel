@@ -21,7 +21,7 @@ library(tidyverse)
 library(tidymodels)
 
 theme_set(theme_classic()) 
-source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
+source("https://raw.githubusercontent.com/jjcurtin/lab_support/main/format_path.R")
 
 path_chtc <- format_path(str_c("llmpanel/chtc/train_", params$version))
 path_configs <- format_path("llmpanel/data_processed")

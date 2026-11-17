@@ -11,7 +11,7 @@ library(stringr, exclude = "fixed")
 library(dplyr, exclude = "col_factor")
 library(recipes, exclude = "fixed")
 
-devtools::source_url("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
+devtools::source_url("https://raw.githubusercontent.com/jjcurtin/lab_support/main/format_path.R")
 ```
 
 # source training_controls_panel.R for access to format_data and build_recipe

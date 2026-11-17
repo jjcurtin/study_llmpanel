@@ -43,7 +43,7 @@ library(tidyverse)
 options(conflicts.policy = "depends.ok")
 
 source("https://github.com/jjcurtin/lab_support/blob/main/fun_eda.R?raw=true")
-source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
+source("https://raw.githubusercontent.com/jjcurtin/lab_support/main/format_path.R")
 source("https://github.com/jjcurtin/lab_support/blob/main/get_credentials.R?raw=true")
 source("https://github.com/jjcurtin/lab_support/blob/main/download_qualtrics.R?raw=true")
 # source("https://github.com/jjcurtin/lab_support/blob/main/fun_gps.R?raw=true")

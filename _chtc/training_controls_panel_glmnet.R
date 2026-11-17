@@ -54,7 +54,7 @@ cv_name <- if_else(cv_resample_type == "nested",
                    str_c(cv_resample_type, "_", cv_resample))
 
 # BATCH INFO--------------------------------------------------------------------
-source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
+source("https://raw.githubusercontent.com/jjcurtin/lab_support/main/format_path.R")
 
 # the name of the batch of jobs to set folder name
 name_batch <- str_c("train_", version) 

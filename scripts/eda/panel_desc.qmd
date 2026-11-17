@@ -13,34 +13,53 @@ editor_options:
 ---
 ## Code Status
 
-Working notebook. Sections were added over time and some text predates later corrections
-(see the notes under Tone Preferences and Summary of Findings). The finished versions of the
-style and preference analyses are in `scripts/reports/`.
+Working notebook of descriptive and inferential checks. Trimmed on 2026-11-17: sections that
+were copied into a report are now only in that report, listed below. Not yet rendered on the
+real data since the trim.
+
+-   `reports/report_style.qmd`: the overall formal vs. informal paired t-test, style ratings
+    by formality preference group (including the formal-leaning group on its own),
+    demographic predictors of the formal-informal difference, the ranked tone + style
+    formats, the tone-by-style ANOVA, and the mixed model's test of individual differences.
+-   `reports/report_prefs.qmd`: ratings by highest- and lowest-preferred tone (the tier
+    plots show both groups side by side).
+-   `robustness_checks.qmd` (Section 2, Table 8): the style gap within each tone with
+    equivalence tests.
+-   `eda/5_panel_eda.qmd`: ratings against age.
 
 ## Purpose
 
 Descriptive and inferential analyses of the tone preferences survey and the message ratings:
 tone, context, style (formal vs. informal), how stated preferences relate to ratings, and
-preference straightliners. Feeds Sections 7.3 to 7.5 of the capstone write-up.
+preference straightliners. Supports Sections 7.3 to 7.5 of the capstone write-up.
 
 # Setup
 
-Objects defined here are shared by every section below. `panel` is the wide respondent-level data; `panel_long` (built in Data Preparation) has one row per message rating. Helper functions live in `scripts/functions_llmpanel.R`.
+Objects defined here are shared by every section below. `panel` is the wide respondent-level data, with each respondent's highest- and lowest-preferred tone(s) and a straightliner flag added; `panel_long` has one row per message rating. `tone_levels`, `pref_cols`, `format_eda()`, `add_pref_extremes()` and the plot helpers live in `scripts/functions_llmpanel.R`.
 
 ```{r}
 options(conflicts.policy = "depends.ok")
 library(tidyverse)
 plot_grid <- cowplot::plot_grid
-source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
+source("https://raw.githubusercontent.com/jjcurtin/lab_support/main/format_path.R")
 source("https://github.com/jjcurtin/lab_support/blob/main/fun_eda.R?raw=true")
 source("https://github.com/jjcurtin/lab_support/blob/main/fun_plots.R?raw=true")
 source(here::here("scripts", "functions_llmpanel.R"))
 
 path_processed <- format_path("llmpanel/data_processed")
 
-# Read in and format full panel (wide)
-panel <- format_eda(read_csv(
-  here::here(path_processed, "panel.csv"),show_col_types = FALSE))
+raw_panel <- read_csv(here::here(path_processed, "panel.csv"), show_col_types = FALSE)
+
+# Wide format (one row per respondent). add_pref_extremes() adds pref_top and pref_bottom,
+# each respondent's highest- and lowest-preferred tone(s), and pref_straightline.
+panel <- format_eda(raw_panel) |> add_pref_extremes(pref_cols)
+
+# Long format (one row per message rating), with rating_num from 1 (strongly disagree) to
+# 7 (strongly agree)
+panel_long <- format_eda(raw_panel, long = TRUE)
+
+# Sanity-check that we have 30 rows per respondent
+nrow(panel) * 30 == nrow(panel_long)
 ```
 
 # Data Preparation
@@ -50,75 +69,17 @@ All derived objects are built here, in dependency order, so the analysis section
 ## Constants
 
 ```{r}
-pref_cols <- c("pref_legitimizing", "pref_norms", "pref_value_affirmation",
-               "pref_self_efficacy", "pref_acknowledging")
-
-rating_levels <- c("strongly_disagree", "disagree", "somewhat_disagree", "neutral",
-                   "somewhat_agree", "agree", "strongly_agree")
-
-tone_levels <- c("norms", "acknowledging", "legitimizing", "self_efficacy", "value_affirmation")
-
 # Tier colors from the preference survey (red = Norms, amber = Acknowledging,
 # green = Legitimizing, Self efficacy, Value affirmation)
 tier_colors <- c(norms = "#E24B4A", acknowledging = "#BA7517", legitimizing = "#639922",
                  self_efficacy = "#639922", value_affirmation = "#639922")
 ```
 
-## Long Format (One Row per Message Rating)
-
-`format_eda()` already renamed the preference items to `pref_*` and kept the 120 message-rating columns (`x1_hi_1_fl_1` through `x4_li_10_in_1`), so those are pivoted directly. The wide `panel` is retained for demographics and preference items.
-
-```{r}
-panel_long <- panel |>
-  select(subid, starts_with("dem_"), all_of(c(pref_cols, "pref_formality")),
-         matches("^x[0-9]+_(hi|hd|li)_[0-9]+_"),
-         -contains("timing"), -contains("attention")) |>
-  pivot_longer(
-    cols = matches("^x[0-9]+_(hi|hd|li)_[0-9]+_"),
-    values_to = "message_rating",
-    names_to = "message_type") |>
-  separate(message_type,
-           sep = "_", into = c(
-             "survey_version", "context", "q_num", "tone_style"),
-           extra = "drop") |>
-  mutate(
-    style = if_else(substr(tone_style, 1, 1) == "f", "formal", "informal"),
-    tone = case_when(
-      substr(tone_style, 2, 2) == "l" ~ "legitimizing",
-      substr(tone_style, 2, 2) == "n" ~ "norms",
-      substr(tone_style, 2, 2) == "s" ~ "self_efficacy",
-      substr(tone_style, 2, 2) == "a" ~ "acknowledging",
-      substr(tone_style, 2, 2) == "v" ~ "value_affirmation"),
-    context = case_when(
-      context == "hi" ~ "high_increasing",
-      context == "hd" ~ "high_decreasing",
-      context == "li" ~ "low_increasing")) |>
-  select(-q_num, -tone_style) |>
-  filter(!is.na(message_rating),
-         str_trim(message_rating) != "") |>
-  mutate(rating_num = as.numeric(factor(message_rating, levels = rating_levels)))
-
-# Sanity-check that we have 30 rows per respondent
-nrow(panel) * 30 == nrow(panel_long)
-```
-
 ## Preference Survey: Highest, Lowest, and Straightlining
 
-`pref_top` and `pref_bottom` hold each respondent's highest- and lowest-preferred tone(s). They are list columns because ties can put more than one tone in a cell. A preference straightliner gave the same score to all five tones (`sd == 0`).
+`pref_top` and `pref_bottom` (added in Setup) hold each respondent's highest- and lowest-preferred tone(s). They are list columns because ties can put more than one tone in a cell. A preference straightliner gave the same score to all five tones (`sd == 0`).
 
 ```{r}
-extreme_tones <- function(..., fn) {
-  x <- c(...)
-  if (all(is.na(x))) return(character(0))
-  str_remove(names(x)[which(x == fn(x, na.rm = TRUE))], "^pref_")
-}
-
-panel <- panel |>
-  mutate(
-    pref_top = pmap(pick(all_of(pref_cols)), extreme_tones, fn = max),
-    pref_bottom = pmap(pick(all_of(pref_cols)), extreme_tones, fn = min),
-    pref_straightline = pmap_dbl(pick(all_of(pref_cols)), \(...) sd(c(...))) == 0)
-
 straightliner_ids <- panel |>
   filter(pref_straightline) |>
   pull(subid)
@@ -252,9 +213,8 @@ pairwise.wilcox.test(
 
 ### Takeaways
 
-*Note (2026-11-16): the paragraph below predates the final results and conflicts with them. In the cleaned sample, norms has the lowest mean preference and acknowledging the next lowest, and value affirmation is among the highest. It is kept for the record and needs rewriting.*
-
-These findings provide support for the removal of value-affirmation and acknowledging tones, whose mean ratings are significantly lower than the top 3. Within the grouping of legitimizing, self-efficacy and norms tones we see support for utilizing these tones together for the potential benefits of variability in support messages across a long period.
+The earlier takeaways paragraph here predated the cleaned sample and contradicted the results,
+so it was removed. The current interpretation is in Section 7.3 of the capstone write-up.
 
 ## Preferences by Demographic
 
@@ -457,29 +417,49 @@ if (all(contexts_per_subid$k == 1)) {
 }
 ```
 
-## Ratings by Age
-
-```{r}
-# Individual ratings against age, with a linear fit and its R-squared
-r2 <- summary(lm(rating_num ~ dem_age, data = panel_long))$r.squared
-
-ggplot(panel_long, aes(x = dem_age, y = rating_num)) +
-  geom_jitter(width = 0, height = 0.2, alpha = 0.3, size = 1.5) +
-  geom_smooth(method = "lm", se = TRUE) +
-  annotate("text", x = Inf, y = Inf, hjust = 1.1, vjust = 1.5,
-           label = paste0("R² = ", round(r2, 3))) +
-  scale_y_continuous(
-    breaks = 1:7,
-  ) +
-  labs(x = "Age", y = "Message Rating")
-```
-
 ## Highest- and Lowest-Rated Tones
 
 Using each respondent's mean rating per tone, `rating_top` and `rating_bottom` hold the tone(s) with their highest and lowest mean rating. Ties are kept as multiple tones.
 
 ```{r}
 rating_extremes |> count(n_top = lengths(rating_top))
+```
+
+How many respondents have two or more tones tied for their highest (or lowest) mean rating:
+
+```{r}
+#| label: Tied Highest and Lowest Tones
+# Respondents with 2 or more tones tied for highest (or lowest) mean rating.
+# A tie across all 5 tones means the respondent rated every tone identically.
+tie_counts <- rating_by_tone |>
+  summarise(n_tied_top = sum(near(rating, max(rating))),
+            n_tied_bottom = sum(near(rating, min(rating))),
+            .by = subid)
+
+# Size of the tie among highest-rated tones (1 = no tie, 2 = two-way tie, ...)
+tie_counts |> count(n_tied_top, name = "respondents")
+
+# Size of the tie among lowest-rated tones
+tie_counts |> count(n_tied_bottom, name = "respondents")
+
+# Both side by side, labeled by tie type
+tie_counts |>
+  pivot_longer(c(n_tied_top, n_tied_bottom), names_to = "end", values_to = "tied_tones") |>
+  mutate(end = if_else(end == "n_tied_top", "Highest", "Lowest")) |>
+  count(end, tied_tones, name = "respondents") |>
+  mutate(tie = case_match(tied_tones, 1 ~ "No tie", 2 ~ "2-way tie", 3 ~ "3-way tie",
+                          4 ~ "4-way tie", 5 ~ "5-way tie (all tones)"),
+         pct = respondents / n_distinct(tie_counts$subid)) |>
+  select(end, tie, respondents, pct) |>
+  pivot_wider(names_from = end, values_from = c(respondents, pct), values_fill = 0)
+
+tie_counts |>
+  summarise(respondents = n(),
+            tied_top = sum(n_tied_top >= 2),
+            pct_tied_top = mean(n_tied_top >= 2),
+            tied_bottom = sum(n_tied_bottom >= 2),
+            pct_tied_bottom = mean(n_tied_bottom >= 2),
+            tied_all_five = sum(n_tied_top == 5))
 ```
 
 ### Lowest Tone(s) Among Those Whose Highest Rated Tone Was Norms or Acknowledging
@@ -558,7 +538,7 @@ wilcox.test(panel$pref_formality, mu = 3.5, exact = FALSE)
 
 ## Ratings by Style
 
-Formal and informal means are compared within respondent with a paired t-test (and a Wilcoxon signed-rank test as a non-parametric check).
+Each respondent's mean formal and informal ratings. The paired t-test is in `reports/report_style.qmd`; a Wilcoxon signed-rank test is kept here as a non-parametric check.
 
 ```{r}
 rating_by_style |>
@@ -575,9 +555,7 @@ rating_by_style |>
 ```
 
 ```{r}
-# Paired t-test of formal vs. informal means, with a Wilcoxon signed-rank check
-t.test(rating_by_style$formal, rating_by_style$informal, paired = TRUE)
-
+# Wilcoxon signed-rank test of formal vs. informal means (non-parametric check)
 wilcox.test(rating_by_style$formal, rating_by_style$informal,
             paired = TRUE, exact = FALSE)
 ```
@@ -620,9 +598,16 @@ style_gap_bins |>
 
 ## Style Ratings by Formality Preference
 
-Respondents are grouped by `pref_formality`, which has no neutral option (prefer informal: <= 3, prefer formal: >= 4). For each respondent, the difference is their mean informal rating minus their mean formal rating, so positive values mean informal messages were rated higher. The plot shows formal and informal ratings side by side within each group, and a paired t-test within each group tests whether the mean difference is 0.
+The comparison of the two preference groups (prefer informal: <= 3, prefer formal: >= 4),
+including the formal-leaning group on its own, is in `reports/report_style.qmd`.
+
+### Style Ratings at Each Level of Formality Preference
+
+Formal and informal mean ratings (per respondent) at each level of `pref_formality`, from 1 (strongly prefer informal) to 6 (strongly prefer formal). Group n is shown under each level.
 
 ```{r}
+# Each respondent's formal and informal means with their formality preference
+# (diff = informal minus formal)
 style_diff <- rating_by_style |>
   left_join(panel |> select(subid, pref_formality), by = "subid") |>
   drop_na(pref_formality) |>
@@ -631,42 +616,6 @@ style_diff <- rating_by_style |>
            if_else(pref_formality <= 3, "Formality Preference <= 3", "Formality Preference >= 4"),
            levels = c("Formality Preference <= 3", "Formality Preference >= 4")))
 
-style_diff_tests <- style_diff |>
-  summarise(
-    n = n(),
-    mean_formal = mean(formal),
-    mean_informal = mean(informal),
-    mean_diff = mean(diff),
-    t_p = t.test(diff, mu = 0)$p.value,
-    wilcox_p = tryCatch(wilcox.test(diff, mu = 0, exact = FALSE)$p.value,
-                        error = \(e) NA_real_),
-    .by = pref_group) |>
-  mutate(label = paste0("n = ", n, "\n",
-                        if_else(t_p < .001, "p < .001",
-                                paste0("p = ", sub("^0", "", sprintf("%.3f", t_p))))))
-
-style_diff_tests
-
-style_diff |>
-  pivot_longer(c(formal, informal), names_to = "style", values_to = "rating") |>
-  ggplot(aes(x = pref_group, y = rating, fill = style)) +
-  geom_boxplot(position = position_dodge(width = 0.8), width = 0.7) +
-  stat_summary(aes(group = style), fun = mean, geom = "point", shape = 23, size = 2,
-               fill = "white", position = position_dodge(width = 0.8)) +
-  stat_summary(aes(group = style, label = round(after_stat(y), 2)), fun = mean,
-               geom = "text", vjust = -1, position = position_dodge(width = 0.8)) +
-  geom_text(data = style_diff_tests, aes(x = pref_group, y = 7.6, label = label),
-            vjust = 0, inherit.aes = FALSE) +
-  scale_y_continuous(limits = c(1, 8.4), breaks = 1:7) +
-  labs(x = "Formality preference", y = "Mean message rating", fill = "Message style",
-       subtitle = "p-values: paired t-test of formal vs. informal ratings within each group (unadjusted)")
-```
-
-### Style Ratings at Each Level of Formality Preference
-
-Formal and informal mean ratings (per respondent) at each level of `pref_formality`, from 1 (strongly prefer informal) to 6 (strongly prefer formal). Group n is shown under each level.
-
-```{r}
 style_diff |>
   pivot_longer(c(formal, informal), names_to = "style", values_to = "rating") |>
   mutate(level_label = paste0(pref_formality, "\n(n = ", n_distinct(subid), ")"),
@@ -680,113 +629,6 @@ style_diff |>
   scale_y_continuous(limits = c(1, 7), breaks = 1:7) +
   labs(x = "Formality preference (1 = strongly informal, 6 = strongly formal)",
        y = "Mean message rating", fill = "Message style")
-```
-
-### Formal-Leaning Respondents Only
-
-This repeats the `>= 4` group above as a single comparison with its own plot.
-
-```{r}
-formal_pref_ids <- panel |>
-  filter(pref_formality >= 4) |>
-  pull(subid)
-
-rating_by_style_fp <- rating_by_style |>
-  filter(subid %in% formal_pref_ids)
-
-nrow(rating_by_style_fp)
-
-rating_by_style_fp |>
-  summarise(formal = mean(formal), informal = mean(informal), diff = formal - informal)
-
-p_fp <- t.test(rating_by_style_fp$formal, rating_by_style_fp$informal, paired = TRUE)$p.value
-p_fp_label <- if (p_fp < .001) "Paired t-test: p < .001" else paste0("Paired t-test: p = ", sub("^0", "", sprintf("%.3f", p_fp)))
-
-rating_by_style_fp |>
-  pivot_longer(c(formal, informal), names_to = "style", values_to = "rating") |>
-  ggplot(aes(x = style, y = rating, fill = style)) +
-  geom_boxplot(show.legend = FALSE) +
-  stat_summary(fun = mean, geom = "point", shape = 23, size = 2, fill = "white") +
-  stat_summary(fun = mean, geom = "text",
-               aes(label = round(after_stat(y), 2)), vjust = -1) +
-  annotate("text", x = 1.5, y = Inf, label = p_fp_label, vjust = 1.5) +
-  labs(x = "Style", y = "Mean Message Rating",
-       subtitle = paste0("Respondents with pref_formality >= 4 (n = ", nrow(rating_by_style_fp), ")"),
-       caption = "Respondents who indicated a preference for formal messages still rated informal messages as more helpful.")
-```
-
-```{r}
-# The same paired tests among formal-leaning respondents only
-t.test(rating_by_style_fp$formal, rating_by_style_fp$informal, paired = TRUE)
-
-wilcox.test(rating_by_style_fp$formal, rating_by_style_fp$informal,
-            paired = TRUE, exact = FALSE)
-```
-
-## Demographic Predictors of the Formal-Informal Difference
-
-Each respondent's difference (mean formal rating minus mean informal rating) is regressed on one demographic variable at a time with `lm()`. A positive coefficient means a larger formal advantage (or a smaller informal advantage). Numeric variables give one slope per unit, and categorical variables give one coefficient per level compared with the reference (alphabetically first) level. Household-adjusted income (`dem_income_num`, in units of $10,000) is used in place of the income bracket. `model_p` is the overall F-test p-value for the variable, which is the one to read for multi-level variables, and `model_p_adj` adjusts it across variables with Benjamini-Hochberg.
-
-```{r}
-diff_data <- style_gap |>
-  left_join(panel |> select(subid, starts_with("dem_")), by = "subid") |>
-  mutate(dem_income_num = dem_income_num / 1e4)
-
-dem_diff_cols <- str_subset(names(diff_data), "^dem_") |>
-  setdiff("dem_income")
-
-dem_diff_models <- dem_diff_cols |>
-  set_names() |>
-  map(possibly(\(v) {
-    d <- diff_data |> select(diff, x = all_of(v)) |> drop_na()
-    if (n_distinct(d$x) < 2) return(NULL)
-    fit <- lm(diff ~ x, data = d)
-    broom::tidy(fit) |>
-      filter(term != "(Intercept)") |>
-      mutate(term = if_else(term == "x", "(per unit)", str_remove(term, "^x")),
-             n = nobs(fit),
-             model_p = broom::glance(fit)$p.value,
-             r_squared = broom::glance(fit)$r.squared)
-  }, otherwise = NULL)) |>
-  list_rbind(names_to = "variable")
-
-dem_diff_models <- dem_diff_models |>
-  left_join(
-    dem_diff_models |>
-      distinct(variable, model_p) |>
-      mutate(model_p_adj = p.adjust(model_p, method = "BH")),
-    by = c("variable", "model_p")) |>
-  select(variable, term, estimate, std.error, statistic, p.value,
-         n, r_squared, model_p, model_p_adj) |>
-  arrange(model_p, p.value)
-
-dem_diff_models
-```
-
-## Ranked Mean Rating by Tone + Style Format
-
-All 10 tone + style formats ranked from highest (1) to lowest mean rating. Ratings are averaged within respondent and format first (across that format's 3 messages), then across respondents. Error bars are 95% confidence intervals.
-
-```{r}
-format_ranking <- panel_long |>
-  summarise(rating = mean(rating_num, na.rm = TRUE), .by = c(subid, tone, style)) |>
-  drop_na(rating) |>
-  summarise(mean = mean(rating), se = sd(rating) / sqrt(n()), n = n(),
-            .by = c(tone, style)) |>
-  mutate(rank = min_rank(desc(mean)),
-         format = paste(str_to_sentence(str_replace(tone, "_", " ")), style, sep = " + ")) |>
-  arrange(rank)
-
-format_ranking |> select(rank, format, mean, se, n)
-
-format_ranking |>
-  ggplot(aes(x = fct_reorder(format, mean), y = mean, fill = style)) +
-  geom_col() +
-  geom_errorbar(aes(ymin = mean - 1.96 * se, ymax = mean + 1.96 * se), width = 0.25) +
-  geom_text(aes(label = round(mean, 2)), hjust = 1.2, color = "white") +
-  coord_flip(ylim = c(1, 7)) +
-  scale_y_continuous(breaks = 1:7) +
-  labs(x = NULL, y = "Mean message rating", fill = "Style")
 ```
 
 ## Do Tone Rankings Differ by Style?
@@ -831,34 +673,24 @@ rank_agreement |>
 
 ## Does Style Change How Tones Are Rated?
 
-The ranking comparison above is a weak test, because small differences between tone means flip rank order easily. The direct question is whether the effect of style (formal vs. informal) differs by tone, which is the tone-by-style interaction. This subsection answers it four ways: an interaction test on respondent means, the style gap within each tone, equivalence tests against a margin of 0.25 rating points (the smallest style effect considered meaningful), and a mixed model that uses every message and tests whether individuals differ.
-
-### Interaction Test (Repeated-Measures ANOVA)
-
-Each respondent's mean rating in each of the 10 tone + style cells is analyzed with tone and style as within-subject factors (Greenhouse-Geisser corrected). The `tone:style` row tests whether the style effect differs across tones, and `pes` is the partial eta-squared.
+The ranking comparison above is a weak test, because small differences between tone means flip rank order easily. The direct question is whether the effect of style (formal vs. informal) differs by tone, which is the tone-by-style interaction. The repeated-measures ANOVA of that interaction and the mixed model's test of individual differences are in `reports/report_style.qmd`. Kept here: a forest plot of the style gap within each tone, and the mixed model's test of the fixed interaction.
 
 ```{r}
-tost_margin <- 0.25
-
+# Each respondent's mean rating in each of the 10 tone + style cells (respondents with all 10)
 ts_means <- panel_long |>
   summarise(rating = mean(rating_num, na.rm = TRUE), .by = c(subid, tone, style)) |>
   drop_na(rating) |>
   filter(n() == 10, .by = subid) |>
   mutate(subid = factor(subid), tone = factor(tone), style = factor(style))
-
-n_distinct(ts_means$subid)
-
-aov_ts <- afex::aov_ez(
-  id = "subid", dv = "rating", data = ts_means, within = c("tone", "style"),
-  anova_table = list(correction = "GG", es = "pes"))
-aov_ts
 ```
 
-### Style Gap Within Each Tone, With Equivalence Tests
+### Style Gap Within Each Tone
 
-For each tone, the gap is each respondent's mean informal rating minus their mean formal rating (positive = informal higher). Each gap gets a paired t-test against 0 and a two one-sided test (TOST) of equivalence to 0 within the margin of +/- 0.25. `p_adj` and `p_tost_adj` are Holm-adjusted across all rows. A gap is "Equivalent" when its TOST is significant (the gap is credibly smaller than the margin), "Different" when it differs from 0, and "Inconclusive" otherwise.
+For each tone, the gap is each respondent's mean informal rating minus their mean formal rating (positive = informal higher). The table of these gaps with paired t-tests and equivalence tests (margin +/- 0.25 points) is Table 8, in `robustness_checks.qmd` (Section 2). The gaps are computed again here for the forest plot.
 
 ```{r}
+tost_margin <- 0.25
+
 gap_summary <- function(d, delta) {
   n <- length(d)
   m <- mean(d)
@@ -895,8 +727,6 @@ gap_tests <- style_gaps |>
            p_tost_adj < .05 ~ "Equivalent (within margin)",
            .default = "Inconclusive")) |>
   arrange(factor(tone, levels = c(sort(unique(style_gap_by_tone$tone) |> as.character()), "all tones")))
-
-gap_tests
 ```
 
 ```{r}
@@ -912,9 +742,9 @@ gap_tests |>
        subtitle = "Points = mean gap with 95% CI; shaded band = equivalence margin (+/- 0.25)")
 ```
 
-### Do Individuals Differ? (Mixed Model)
+### Fixed Tone-by-Style Interaction (Mixed Model)
 
-This model uses all 30 ratings per respondent instead of cell means: ratings depend on tone, style and their interaction, with random intercepts for respondent, respondent-by-tone, respondent-by-style, and respondent-by-tone-by-style. The last term is the variance in each person's own tone-by-style pattern, so removing it tests whether individuals differ in how style changes their tone ratings beyond message-level noise. Models are fit by maximum likelihood so they can be compared with likelihood-ratio tests. The p-value for the random-effect comparison is on the boundary of the parameter space and is conservative, so it is approximately halved when reported.
+This model uses all 30 ratings per respondent instead of cell means: ratings depend on tone, style and their interaction, with random intercepts for respondent, respondent-by-tone, respondent-by-style, and respondent-by-tone-by-style. Models are fit by maximum likelihood so they can be compared with a likelihood-ratio test. Dropping the fixed `tone:style` term tests whether the style effect differs by tone across the sample. The test of whether individuals differ (dropping the respondent-by-tone-by-style term) is in `reports/report_style.qmd`.
 
 ```{r}
 ratings_mixed <- panel_long |>
@@ -928,16 +758,6 @@ m_full <- lme4::lmer(
 # Fixed tone x style interaction
 m_no_interaction <- update(m_full, . ~ . - tone:style)
 anova(m_no_interaction, m_full)
-
-# Individual differences in the tone x style pattern
-m_no_individual <- update(m_full, . ~ . - (1 | subid:tone:style))
-lrt_individual <- anova(m_no_individual, m_full)
-lrt_individual
-
-# Conservative boundary-corrected p-value for the random-effect test
-lrt_individual$`Pr(>Chisq)`[2] / 2
-
-lme4::VarCorr(m_full)
 ```
 
 ## Respondents Who Rated Formal Messages Higher
@@ -1172,27 +992,10 @@ formal_higher_tests |>
 
 Do respondents rate messages highest in the tone they said they preferred? Both sections below exclude preference straightliners, and a respondent tied for highest preference appears in each tied tone's group.
 
-## Ratings by Highest-Preferred Tone
+## Ratings by Highest- and Lowest-Preferred Tone
 
-Each plot shows how that group rated messages of all five tones, sorted left to right from lowest to highest mean rating (the order can differ by group).
-
-```{r}
-ratings_by_top <- tone_levels |> set_names() |>
-  map(\(t) plot_ratings_by_pref_top(t, panel, rating_by_tone, tier_colors))
-
-walk(ratings_by_top, \(r) print(r$plot))
-```
-
-## Ratings by Lowest-Preferred Tone
-
-The same box plots for respondents grouped by the tone they rated lowest on the preferences survey (ties included, straightliners excluded). Each plot shows how that group rated messages of all five tones.
-
-```{r}
-ratings_by_bottom <- tone_levels |> set_names() |>
-  map(\(t) plot_ratings_by_pref_top(t, panel, rating_by_tone, tier_colors, end = "bottom"))
-
-walk(ratings_by_bottom, \(r) print(r$plot))
-```
+Box plots of how each preference group rated the five tones are in `reports/report_prefs.qmd`,
+which shows the lowest and highest preference tier side by side for each tone.
 
 ## Change in Rating from the Preferred Tone
 
@@ -1298,72 +1101,8 @@ expand_grid(rho = c(.3, .5, .7, round(rho_obs, 2)), eps = c(1, .7)) |>
   arrange(rho, desc(eps))
 ```
 
-
 # Summary of Findings
 
-*Note (2026-11-16): this summary was written partway through the analysis and has not been refreshed since. The capstone write-up and the reports in `scripts/reports/` hold the current figures.*
-
-Figures below come from the most recent runs of each analysis and should be refreshed after rerunning this document. Items marked *to rerun* depend on changes made after the last run.
-
-**Tone preferences**
-
-- Mean preference: Value affirmation 5.79, Self efficacy 5.74, Legitimizing 5.69, Acknowledging 5.54, Norms 5.26.
-- Norms is significantly lower than every other tone (all p <= .003). Acknowledging is lower than the top three (p = .039 vs. Legitimizing, p = .002 vs. Self efficacy and Value affirmation). The top three are not distinguishable from each other (p >= .49).
-
-**Message ratings**
-
-- Mean rating: Self efficacy 5.42, Value affirmation 5.36, Legitimizing 5.18, Acknowledging 5.04, Norms 4.97 (Friedman chi-squared(4) = 165.3, p < .001).
-- Tiers: Self efficacy and Value affirmation (top; p = .13 between them), Legitimizing (middle), Acknowledging and Norms (bottom; p = .29 between them). The full spread is under half a rating point.
-- Context: the rank order is identical in all three contexts, and the tone effect is significant in each. The tone-by-context interaction is significant but tiny (F = 2.50, p = .011, ges = .001). Acknowledging separates from Norms only in the high-decreasing context.
-
-**Formality**
-
-- Preference for formality (`pref_formality`, 1-6, no neutral option) leaned informal (mean 2.77 on the corrected scale; an earlier 3.06 came from the old 7-point coding). *To rerun:* the test against the corrected midpoint of 3.5.
-- Informal messages were rated higher than formal ones (5.26 vs. 5.13, a difference of 0.13, p < .001). *To rerun:* the split by formality preference (<= 3 vs. >= 4), which tests whether respondents who prefer formal messages still rate informal ones higher.
-
-**Preferences and ratings**
-
-- A respondent's preferred tone is often not their highest-rated tone. Changes from the preferred tone are partly regression to the mean: groups defined by a top score have little room to go up.
-
-**Preference straightliners**
-
-- About 55 respondents gave the same score to every tone. Their ratings show only Self efficacy above Norms (p = .001) and Acknowledging (p = .008). With this n only moderate effects are detectable, so the other pairs are inconclusive, not equivalent.
-
-**Demographics**
-
-- Significant demographic effects on preferences are collected in `sig_tests`. They were not summarised here because they were tested across many variables without multiplicity correction.
-
-```{r}
-#| label: Tied Highest and Lowest Tones
-# Respondents with 2 or more tones tied for highest (or lowest) mean rating.
-# A tie across all 5 tones means the respondent rated every tone identically.
-tie_counts <- rating_by_tone |>
-  summarise(n_tied_top = sum(near(rating, max(rating))),
-            n_tied_bottom = sum(near(rating, min(rating))),
-            .by = subid)
-
-# Size of the tie among highest-rated tones (1 = no tie, 2 = two-way tie, ...)
-tie_counts |> count(n_tied_top, name = "respondents")
-
-# Size of the tie among lowest-rated tones
-tie_counts |> count(n_tied_bottom, name = "respondents")
-
-# Both side by side, labeled by tie type
-tie_counts |>
-  pivot_longer(c(n_tied_top, n_tied_bottom), names_to = "end", values_to = "tied_tones") |>
-  mutate(end = if_else(end == "n_tied_top", "Highest", "Lowest")) |>
-  count(end, tied_tones, name = "respondents") |>
-  mutate(tie = case_match(tied_tones, 1 ~ "No tie", 2 ~ "2-way tie", 3 ~ "3-way tie",
-                          4 ~ "4-way tie", 5 ~ "5-way tie (all tones)"),
-         pct = respondents / n_distinct(tie_counts$subid)) |>
-  select(end, tie, respondents, pct) |>
-  pivot_wider(names_from = end, values_from = c(respondents, pct), values_fill = 0)
-
-tie_counts |>
-  summarise(respondents = n(),
-            tied_top = sum(n_tied_top >= 2),
-            pct_tied_top = mean(n_tied_top >= 2),
-            tied_bottom = sum(n_tied_bottom >= 2),
-            pct_tied_bottom = mean(n_tied_bottom >= 2),
-            tied_all_five = sum(n_tied_top == 5))
-```
+The summary that was here was written partway through the analysis and its figures were out
+of date, so it was removed. The current results are in the capstone write-up (Sections 7.3 to
+7.5) and the reports in `scripts/reports/`.

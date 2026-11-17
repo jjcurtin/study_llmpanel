@@ -2,7 +2,7 @@ library(tidyverse)
 library(tidymodels)
 
 # open training data on server
-source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
+source("https://raw.githubusercontent.com/jjcurtin/lab_support/main/format_path.R")
 version_eda <- "v11"  # to avoid conflict with training controls version
 path_in <- format_path(str_c("llmpanel/chtc/train_", version_eda, "/input"))
 d <- read_csv(here::here(path_in, "data_trn.csv"), 

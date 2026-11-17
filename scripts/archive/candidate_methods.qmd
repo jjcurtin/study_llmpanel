@@ -52,7 +52,7 @@ Together these cap the most-seen tone at 60% (60/20/20).
 options(conflicts.policy = "depends.ok")
 library(tidyverse)
 
-source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
+source("https://raw.githubusercontent.com/jjcurtin/lab_support/main/format_path.R")
 source(here::here("scripts", "functions_llmpanel.R"))
 source(here::here("scripts", "functions_assignment.R"))
 

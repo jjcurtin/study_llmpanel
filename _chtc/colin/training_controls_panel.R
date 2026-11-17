@@ -10,7 +10,7 @@
 # version 10: drop 0 message variance participants 
 
 # NOTES------------------------------
-source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
+source("https://raw.githubusercontent.com/jjcurtin/lab_support/main/format_path.R")
 
 # SET GLOBAL PARAMETERS--------------------
 version <- "v10"

@@ -39,7 +39,7 @@ options(conflicts.policy = "depends.ok")
 library(tidyverse)
 library(ggmap)
 
-source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
+source("https://raw.githubusercontent.com/jjcurtin/lab_support/main/format_path.R")
 source("https://github.com/jjcurtin/lab_support/blob/main/get_credentials.R?raw=true")
 
 path_credentials <- format_path("other")
