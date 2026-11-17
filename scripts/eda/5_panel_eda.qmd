@@ -28,7 +28,6 @@ plot_grid <- cowplot::plot_grid
 source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
 source("https://github.com/jjcurtin/lab_support/blob/main/fun_eda.R?raw=true")
 source("https://github.com/jjcurtin/lab_support/blob/main/fun_plots.R?raw=true")
-#source("https://github.com/jjcurtin/study_llmpanel/blob/main/scripts/functions_llmpanel.R?raw=true")
 
 path_processed <- format_path("llmpanel/data_processed")
 
@@ -84,6 +83,7 @@ hist(panel_wide$dem_age)
 ```
 
 ```{r}
+# Count of respondents in each age band
 panel_wide |>
   mutate(age_group = cut(dem_age,
                          breaks = c(18, 29, 39, 49, 59, Inf),
@@ -98,6 +98,7 @@ Age is a roughly normal distribution with a longer right tail - which is sensibl
 ### Sex
 
 ```{r}
+# Count of respondents by sex at birth
 panel_wide |>
   ggplot(aes(x = dem_sex)) +
   geom_bar()
@@ -108,6 +109,7 @@ A mild class imbalance, with the sample being dominated by male respondents.
 ### Gender Identity (Remove)
 
 ```{r}
+# Counts of gender identity, and how often it matches sex at birth
 panel_wide |> count(dem_identity)
 
 panel_wide |>
@@ -120,6 +122,7 @@ Only 4 respondents provided a gender identity that did not match with their sex 
 ### Orientation (Dichotomous)
 
 ```{r}
+# Counts of sexual orientation, then collapsed to straight vs. other
 panel_wide |> count(dem_orientation)
 
 panel_wide |>
@@ -133,6 +136,7 @@ panel_wide |>
 ### Education (Collapsed)
 
 ```{r}
+# Counts of each education level
 panel_wide |> count(dem_education)
 
 panel_wide |>
@@ -141,6 +145,7 @@ panel_wide |>
 ```
 
 ```{r}
+# Education collapsed to three levels
 panel_wide |>
   mutate(edu_collapsed = case_when(
     dem_education %in% c("high_school_or_ged", "less_than_high_school_or_ged_degree") ~ "High School or Less",
@@ -158,6 +163,7 @@ Education status is largely imbalanced, however collapsing into 3 categories rou
 ### Student Status (Remove)
 
 ```{r}
+# Counts of student status
 panel_wide |> count(dem_student)
 
 panel_wide |>
@@ -170,6 +176,7 @@ Very few active students in the sample. We likely lack sufficient variance to us
 ### Income (Ordinal)
 
 ```{r}
+# Order the income brackets from lowest to highest, then count respondents in each
 income_levels <- c(
   "Less than $25,000",
   "$25,000 - $37,499",
@@ -193,6 +200,7 @@ panel_wide |>
 ```
 
 ```{r} 
+# Income collapsed to three bands
 panel_wide |>
   mutate(
     dem_income = factor(dem_income, levels = income_levels, ordered = TRUE),
@@ -219,6 +227,7 @@ hist(panel_wide$dem_n_household)
 ```
 
 ```{r}
+# Household size, with 4 or more grouped together
 panel_wide |>
   mutate(
     household_collapsed = if_else(dem_n_household >= 4, "4+", as.character(dem_n_household)),
@@ -257,6 +266,8 @@ panel_wide |>
 ```
 
 ```{r}
+# Income per household member (bracket midpoint divided by household size), as a
+# density for each household size
 panel_wide |>
   mutate(
     income_numeric = case_when(
@@ -280,6 +291,7 @@ panel_wide |>
 ```
 
 ```{r}
+# The same densities on a log scale
 panel_wide |>
   mutate(
     income_numeric = case_when(
@@ -309,6 +321,7 @@ The secondary bumps visible around 75–125K in the size 1 curve are artifacts o
 ### Race / Ethnicity
 
 ```{r}
+# Share of respondents selecting each race / ethnicity category
 panel_wide |>
   summarise(across(starts_with("dem_race"), \(x) mean(!is.na(x)))) |>
   pivot_longer(everything(), names_to = "race", values_to = "proportion") |>
@@ -317,6 +330,7 @@ panel_wide |>
 ```
 
 ```{r}
+# Race / ethnicity collapsed to White only vs. Mixed/Other
 panel_wide |>
   mutate(
     white = !is.na(dem_race_white),
@@ -339,6 +353,7 @@ The race/ethnicity distribution is largely skewed and dominated by respondents i
 # Eyeball Sample
 
 ```{r}
+# A fixed random sample of 100 respondents (the 'eyeball' sample) used for the plots below
 set.seed(1183)
 eyeball_ids <- panel_wide |> slice_sample(n = 100) |> select(subid)
 eyeball <- panel_long |> filter(subid %in% eyeball_ids$subid)
@@ -347,6 +362,7 @@ eyeball <- panel_long |> filter(subid %in% eyeball_ids$subid)
 ## Bivariate Demographics
 
 ```{r}
+# Convert the text ratings to numbers (1 = strongly disagree, 7 = strongly agree)
 eyeball <- eyeball |> 
   mutate(rating_num = as.numeric(factor(message_rating, levels = c("strongly_disagree",
                                                                    "disagree",
@@ -360,6 +376,7 @@ eyeball <- eyeball |>
 ### Age x Message Ratings
 
 ```{r}
+# Individual ratings against age, with a linear fit and its R-squared
 r2 <- summary(lm(rating_num ~ dem_age, data = eyeball))$r.squared
 
 ggplot(eyeball, aes(x = dem_age, y = rating_num)) +
@@ -374,6 +391,7 @@ ggplot(eyeball, aes(x = dem_age, y = rating_num)) +
 ```
 
 ```{r}
+# Mean rating in each age band
 eyeball |>
   mutate(
     age_group = cut(dem_age, breaks = c(18, 29, 39, 49, 59, Inf),
@@ -422,6 +440,8 @@ plot_ratings_by <- function(.data, var,
 ```
 
 ```{r}
+# plot_ratings_by_numeric(): the numeric version of plot_ratings_by(). Mean rating
+# against a numeric variable with linear fits, by tone (top) and by style (bottom).
 plot_ratings_by_numeric <- function(.data, var,
                                     tone_colors  = c("#4E79A7", "#F28E2B", "#76B7B2",
                                                      "#59A14F", "#E15759"),
@@ -459,6 +479,7 @@ plot_ratings_by_numeric <- function(.data, var,
 ### Sex
 
 ```{r}
+# Mean rating by tone and by style, split by sex
 eyeball |>
   filter(dem_sex %in% c("female", "male")) |>
   plot_ratings_by(dem_sex)
@@ -467,6 +488,7 @@ eyeball |>
 ### Orientation x Message Ratings
 
 ```{r}
+# Mean rating by tone and by style, split by orientation (straight vs. other)
 eyeball |>
   mutate(orientation = if_else(dem_orientation == "straight", "straight", "other")) |>
   plot_ratings_by(orientation)
@@ -475,6 +497,7 @@ eyeball |>
 ### Education x Message Ratings
 
 ```{r}
+# Mean rating by tone and by style, split by education (three levels)
 eyeball |>
   mutate(edu_collapsed = case_when(
     dem_education %in% c("high_school_or_ged", "less_than_high_school_or_ged_degree") ~ "High School or Less",
@@ -489,6 +512,8 @@ eyeball |>
 ### Income x Message Ratings
 
 ```{r}
+# Mean rating against household-adjusted income (bracket midpoint / sqrt(household size)),
+# by tone and by style
 eyeball |>
   mutate(
     income_numeric = case_when(
@@ -509,6 +534,7 @@ eyeball |>
 ### Race / Ethnicity x Message Ratings
 
 ```{r}
+# Mean rating by tone and by style, split by race / ethnicity (White only vs. Mixed/Other)
 eyeball |>
   mutate(
     white = !is.na(dem_race_white),
@@ -528,6 +554,7 @@ eyeball |>
 ### Race x Orientation
 
 ```{r}
+# Each respondent's mean rating by race / ethnicity and orientation (violin and box plots)
 eyeball |>
   mutate(
     white = !is.na(dem_race_white),
@@ -553,6 +580,7 @@ eyeball |>
 ### Race x Sex
 
 ```{r}
+# Each respondent's mean rating by race / ethnicity and sex (violin and box plots)
 eyeball |>
   filter(dem_sex %in% c("female", "male")) |>
   mutate(
@@ -577,6 +605,7 @@ eyeball |>
 ### Sex x Orientation
 
 ```{r}
+# Each respondent's mean rating by sex and orientation (violin and box plots)
 eyeball |>
   filter(dem_sex %in% c("female", "male")) |>
   mutate(
@@ -595,6 +624,7 @@ eyeball |>
 ### Sex x Orientation x Race
 
 ```{r}
+# Group mean rating by sex and orientation, one panel per race / ethnicity group
 eyeball |>
   filter(dem_sex %in% c("female", "male")) |>
   mutate(
@@ -630,6 +660,7 @@ eyeball |>
 ### Age x Education
 
 ```{r}
+# Each respondent's mean rating by age band and education (violin and box plots)
 eyeball |>
   mutate(
     age_group = cut(dem_age,
@@ -664,6 +695,7 @@ eyeball |>
 ### Age x Income
 
 ```{r}
+# Each respondent's mean rating by age band, one panel per income bracket
 eyeball |>
   mutate(
     age_group = cut(dem_age,
@@ -693,6 +725,7 @@ eyeball |>
 ### Education x Income
 
 ```{r}
+# Each respondent's mean rating by education, one panel per income bracket
 eyeball |>
   mutate(
     edu_collapsed = case_when(
@@ -724,6 +757,8 @@ eyeball |>
 ### Age x Education x Income
 
 ```{r}
+# Group mean rating by age band and education, one panel per income band. Uses the full
+# sample, not the eyeball sample.
 panel_long |>
   mutate(
     age_group = cut(dem_age,
@@ -764,6 +799,7 @@ panel_long |>
 ### Age x Household Size
 
 ```{r}
+# Each respondent's mean rating by age band, one panel per household size
 eyeball |>
   mutate(
     age_group = cut(dem_age,

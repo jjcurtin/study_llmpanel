@@ -11,6 +11,18 @@ execute:
 editor_options: 
   chunk_output_type: console
 ---
+## Code Status
+
+Runs end to end. Last rendered 2026-11-11 with no errors (see the `.html` beside this file).
+Feeds Section 7.7 of the capstone write-up.
+
+## Purpose
+
+The first-round comparison of tone assignment methods. Every method family is scored
+**in-sample**: the tones a method keeps are chosen from the same ratings it is scored on, so
+the results are optimistic. The held-out comparisons are in `followup_analyses.qmd`,
+`heldout_methods.qmd` and `candidate_methods.qmd`.
+
 ## Setup
 
 ```{r}
@@ -22,7 +34,6 @@ source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true
 source("https://github.com/jjcurtin/lab_support/blob/main/fun_eda.R?raw=true")
 source("https://github.com/jjcurtin/lab_support/blob/main/fun_plots.R?raw=true")
 source(here::here("scripts", "functions_llmpanel.R"))
-#source("https://github.com/jjcurtin/study_llmpanel/blob/main/scripts/functions_llmpanel.R?raw=true")
 
 path_processed <- format_path("llmpanel/data_processed")
 
@@ -285,7 +296,7 @@ with a slight spike in the left-hand tail. Some users will have had their
 highest-rated tone removed with this method, however the majority of users did
 not rate those tones highly and are benefiting as a result.
 
-```{R}
+```{r}
 #| label: Disadvantaged by 2-tone
 # How many users disadvantaged by 2tone
 ```
@@ -457,6 +468,7 @@ method_tracker
 
 ```{r}
 #| label: Weighted Method Tracker
+# Add the two fixed-weight methods (30/30/20/10/10 and 40/40/20) to the tracker
 method_tracker <- method_tracker |>
   track_method(panel_uniform_weighted, weights = tone_weights) |>
   track_method(panel_3tone_weighted, weights = tone_weights_3)
@@ -545,6 +557,7 @@ compare_methods(top = panel_drop_low, mid = panel_drop_two, bot = panel_best)
 
 ```{r}
 #| label: Individualized Exclusion Tracker
+# Add the two individualized exclusion methods to the tracker
 method_tracker <- method_tracker |>
   track_method(panel_drop_low, kept_drop_low) |>
   track_method(panel_drop_two, kept_drop_two)
@@ -593,6 +606,7 @@ compare_methods(top = panel_uniform, mid = panel_weighted_indiv, bot = panel_bes
 
 ```{r}
 #| label: Weighted Individualized Tracker
+# Add the preference-weighted method to the tracker
 method_tracker <- method_tracker |>
   track_method(panel_weighted_indiv, weights = weights_individual)
 
@@ -789,6 +803,8 @@ method_tracker
 
 ```{r}
 #| label: Weighted Method Tuning Plot
+# Tuning plot: each metric against the tuning setting, one column per method family and
+# one line per drop option. The dashed line is the minimum share for the least-seen tone.
 metric_labels <- c(mean = "Mean helpfulness",
                    weighted_opt = "Share in highest-rated tone(s)",
                    weighted_dis = "Share in lowest-rated tone(s)",

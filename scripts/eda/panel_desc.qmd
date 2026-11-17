@@ -11,6 +11,18 @@ execute:
 editor_options: 
   chunk_output_type: console
 ---
+## Code Status
+
+Working notebook. Sections were added over time and some text predates later corrections
+(see the notes under Tone Preferences and Summary of Findings). The finished versions of the
+style and preference analyses are in `scripts/reports/`.
+
+## Purpose
+
+Descriptive and inferential analyses of the tone preferences survey and the message ratings:
+tone, context, style (formal vs. informal), how stated preferences relate to ratings, and
+preference straightliners. Feeds Sections 7.3 to 7.5 of the capstone write-up.
+
 # Setup
 
 Objects defined here are shared by every section below. `panel` is the wide respondent-level data; `panel_long` (built in Data Preparation) has one row per message rating. Helper functions live in `scripts/functions_llmpanel.R`.
@@ -22,7 +34,7 @@ plot_grid <- cowplot::plot_grid
 source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
 source("https://github.com/jjcurtin/lab_support/blob/main/fun_eda.R?raw=true")
 source("https://github.com/jjcurtin/lab_support/blob/main/fun_plots.R?raw=true")
-source("https://github.com/jjcurtin/study_llmpanel/blob/main/scripts/functions_llmpanel.R?raw=true")
+source(here::here("scripts", "functions_llmpanel.R"))
 
 path_processed <- format_path("llmpanel/data_processed")
 
@@ -150,6 +162,7 @@ The preferences survey asked respondents how much they preferred each tone (1-7)
 ## Mean Preference by Tone
 
 ```{r}
+# Bar chart of the mean preference score for each tone
 pref_means <- panel |> summarise(
   'Legitimizing' = mean(pref_legitimizing, na.rm = TRUE),
   'Norms' = mean(pref_norms, na.rm = TRUE),
@@ -167,6 +180,8 @@ pref_means |>
 ```
 
 ```{r}
+# Long format (one row per respondent and tone), with tones ordered by mean preference.
+# Box plot of preference scores by tone, with the mean marked and outliers jittered.
 pref_long <- panel |>
   select(subid, pref_legitimizing, pref_norms, pref_value_affirmation,
          pref_self_efficacy, pref_acknowledging) |>
@@ -237,6 +252,8 @@ pairwise.wilcox.test(
 
 ### Takeaways
 
+*Note (2026-11-16): the paragraph below predates the final results and conflicts with them. In the cleaned sample, norms has the lowest mean preference and acknowledging the next lowest, and value affirmation is among the highest. It is kept for the record and needs rewriting.*
+
 These findings provide support for the removal of value-affirmation and acknowledging tones, whose mean ratings are significantly lower than the top 3. Within the grouping of legitimizing, self-efficacy and norms tones we see support for utilizing these tones together for the potential benefits of variability in support messages across a long period.
 
 ## Preferences by Demographic
@@ -292,6 +309,8 @@ panel |> count(n_bottom = lengths(pref_bottom))
 ```
 
 ```{r}
+# plot_extreme(): bar chart counting how often each tone appears in a list column such as
+# pref_top or pref_bottom (a respondent with a tie is counted once per tied tone)
 plot_extreme <- function(data, col, title, fill) {
   data |>
     select(all_of(col)) |>
@@ -311,6 +330,8 @@ plot_extreme(panel, "pref_bottom", "Tone(s) rated lowest", "firebrick")
 ### Lowest Tone(s) Among Those Who Rated Norms Highest
 
 ```{r}
+# Respondents with norms among their highest-preferred tones (straightliners excluded),
+# and which tone(s) they preferred least
 norms_top <- panel |>
   filter(map_lgl(pref_top, \(x) "norms" %in% x),
          lengths(pref_top) < 5)
@@ -332,6 +353,8 @@ rating_by_tone |> summarise(mean = mean(rating, na.rm = TRUE), .by = tone) |> ar
 ```
 
 ```{r}
+# Repeated-measures ANOVA of rating on tone (Greenhouse-Geisser corrected), with
+# Holm-adjusted pairwise comparisons
 aov_rating <- afex::aov_ez(
   id = "subid", dv = "rating", data = rating_by_tone, within = "tone",
   anova_table = list(correction = "GG"))
@@ -341,6 +364,8 @@ emmeans::emmeans(aov_rating, pairwise ~ tone, adjust = "holm")
 ```
 
 ```{r}
+# Friedman test as a non-parametric check, then Holm-adjusted pairwise Wilcoxon
+# signed-rank tests on respondents with a rating for every tone
 friedman.test(rating ~ tone | subid, data = rating_by_tone)
 
 rating_complete <- rating_by_tone |>
@@ -372,6 +397,7 @@ tone_rank_by_context
 ```
 
 ```{r}
+# One row per tone and one column per context; each cell shows rank (mean rating)
 tone_rank_by_context |>
   mutate(tone = as.character(tone),
          cell = paste0(rank, " (", round(mean, 2), ")")) |>
@@ -434,6 +460,7 @@ if (all(contexts_per_subid$k == 1)) {
 ## Ratings by Age
 
 ```{r}
+# Individual ratings against age, with a linear fit and its R-squared
 r2 <- summary(lm(rating_num ~ dem_age, data = panel_long))$r.squared
 
 ggplot(panel_long, aes(x = dem_age, y = rating_num)) +
@@ -548,6 +575,7 @@ rating_by_style |>
 ```
 
 ```{r}
+# Paired t-test of formal vs. informal means, with a Wilcoxon signed-rank check
 t.test(rating_by_style$formal, rating_by_style$informal, paired = TRUE)
 
 wilcox.test(rating_by_style$formal, rating_by_style$informal,
@@ -688,6 +716,7 @@ rating_by_style_fp |>
 ```
 
 ```{r}
+# The same paired tests among formal-leaning respondents only
 t.test(rating_by_style_fp$formal, rating_by_style_fp$informal, paired = TRUE)
 
 wilcox.test(rating_by_style_fp$formal, rating_by_style_fp$informal,
@@ -871,6 +900,7 @@ gap_tests
 ```
 
 ```{r}
+# Forest plot of the style gap within each tone (95% CI) against the equivalence margin
 gap_tests |>
   ggplot(aes(x = fct_rev(fct_inorder(tone)), y = mean_diff)) +
   annotate("rect", xmin = -Inf, xmax = Inf, ymin = -tost_margin, ymax = tost_margin,
@@ -963,6 +993,8 @@ panel_long |>
 ```
 
 ```{r}
+# Size of the formal advantage among respondents who rated formal higher: summary
+# statistics, then a histogram with the mean marked
 formal_higher |>
   filter(formal_higher) |>
   summarise(n = n(), mean = mean(diff), median = median(diff), sd = sd(diff),
@@ -1219,6 +1251,8 @@ emmeans::emmeans(aov_straight, pairwise ~ tone, adjust = "holm")
 ```
 
 ```{r}
+# Friedman test and Holm-adjusted pairwise Wilcoxon tests among straightliners with a
+# rating for all five tones
 straight_complete <- straight_ratings |>
   group_by(subid) |>
   filter(n() == 5) |>
@@ -1266,6 +1300,8 @@ expand_grid(rho = c(.3, .5, .7, round(rho_obs, 2)), eps = c(1, .7)) |>
 
 
 # Summary of Findings
+
+*Note (2026-11-16): this summary was written partway through the analysis and has not been refreshed since. The capstone write-up and the reports in `scripts/reports/` hold the current figures.*
 
 Figures below come from the most recent runs of each analysis and should be refreshed after rerunning this document. Items marked *to rerun* depend on changes made after the last run.
 

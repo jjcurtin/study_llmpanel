@@ -14,8 +14,8 @@ editor_options:
 
 ## Code Status
 
-Draft. Written without access to the data and NOT YET RUN. Run chunk by chunk
-and expect small fixes.
+Runs end to end. Last rendered 2026-11-16 with no errors (see the `.html` beside this file).
+Feeds Section 7.9 of the capstone write-up (candidate methods under the variety standard).
 
 ## Purpose
 
@@ -43,6 +43,9 @@ Together these cap the most-seen tone at 60% (60/20/20).
 
 ```{r}
 #| label: Setup
+# Load packages and this study's functions, then read the cleaned panel in long format
+# (one row per message rating). The seed makes the cross-validation folds and bootstrap
+# resamples repeatable.
 options(conflicts.policy = "depends.ok")
 library(tidyverse)
 
@@ -438,6 +441,8 @@ results[["Pooled styles"]] |>
 
 ```{r}
 #| label: Results Informal
+# The same table scored on informal messages only: methods that meet the variety
+# standard first, then by held-out mean
 results[["Informal only"]] |>
   arrange(desc(qualifies), desc(held_out_mean)) |>
   mutate(across(where(is.numeric), \(x) round(x, 3))) |>
@@ -474,6 +479,9 @@ cor(side_by_side$mean_pooled, side_by_side$mean_informal, method = "spearman")
 
 ```{r}
 #| label: Trade-off Plot
+# Trade-off plot: held-out mean helpfulness (x) against the share of people worse off
+# than an even rotation (y), one panel per style setting. Green points meet the
+# variety standard.
 results |>
   list_rbind(names_to = "styles") |>
   filter(!is.na(pct_worse_off)) |>

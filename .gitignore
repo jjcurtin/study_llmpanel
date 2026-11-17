@@ -13,3 +13,23 @@ TODO
 *.api
 *.pyc
 .positai
+
+# rendered output (Quarto)
+*.html
+*_files/
+.quarto/
+_site/
+**/*.quarto_ipynb
+
+# data files
+*.csv
+*.tsv
+*.rds
+*.rda
+*.RData
+*.xlsx
+*.xls
+*.parquet
+*.feather
+*.sav
+*.dta

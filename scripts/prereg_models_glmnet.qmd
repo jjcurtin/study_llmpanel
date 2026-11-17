@@ -14,9 +14,12 @@ editor_options:
 
 ## Code Status
 
-Draft. Written without access to the data and NOT YET RUN. Expect small fixes.
+Runs end to end. Last rendered 2026-11-16 with no errors (see the `.html` beside this file).
+Feeds Sections 7.6 and 7.10 of the capstone write-up (the preregistered model comparison and
+the survey-order test).
+
 The nested cross-validation fits several thousand models and may take 15 to
-30 minutes. For a quick first test, set `alphas <- c(0.1, 1)` and
+30 minutes. For a quick test, set `alphas <- c(0.1, 1)` and
 `outer_repeats <- 1` in Settings, confirm it runs end to end, then restore
 them.
 
@@ -129,6 +132,9 @@ nrow(d)
 
 ```{r}
 #| label: Features
+# Formulas for the three preregistered models. Each adds a block of predictors and its
+# interactions with tone and style: Baseline (tone x style), Demographics, Preferences.
+# X holds one design matrix per model (intercept column dropped); y is the outcome.
 dem_terms <- c("dem_age", "dem_sex", "dem_orientation", "dem_ethnicity",
                "dem_minority", "dem_edu", "dem_income_10k")
 dem_block <- paste0("(", paste(dem_terms, collapse = " + "), ")")
@@ -211,6 +217,7 @@ nested_cv <- function(x, y, row_ids, outer) {
 
 ```{r}
 #| label: Run Nested CV
+# Run the nested cross-validation for all three models on the same outer folds, and time it
 outer <- make_folds(subids, outer_folds, outer_repeats)
 
 started <- Sys.time()

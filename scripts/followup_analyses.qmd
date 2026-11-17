@@ -14,8 +14,8 @@ editor_options:
 
 ## Code Status
 
-Draft. Written without access to the data and NOT YET RUN. Run chunk by chunk
-and expect small fixes.
+Runs end to end. Last rendered 2026-11-16 with no errors (see the `.html` beside this file).
+Feeds Section 7.8 of the capstone write-up (robustness of the method comparison).
 
 ## Purpose
 
@@ -33,6 +33,9 @@ Works through the analyses still open on the paper roadmap:
 
 ```{r}
 #| label: Setup
+# Load packages and this study's functions, then read the cleaned panel in long format
+# (one row per message rating). The seed makes the cross-validation folds and bootstrap
+# resamples repeatable.
 options(conflicts.policy = "depends.ok")
 library(tidyverse)
 
@@ -205,6 +208,8 @@ boot_summary
 
 ```{r}
 #| label: Bootstrap Plot
+# Forest plot: each method's mean difference from the reference method, with its 95%
+# bootstrap interval. The best-case and worst-case benchmarks are left out.
 boot_summary |>
   filter(!method %in% c("Best case", "Worst case", reference)) |>
   ggplot(aes(x = diff_vs_ref, y = fct_reorder(method, diff_vs_ref))) +
@@ -378,6 +383,8 @@ pairs(pref_slopes, adjust = "holm")
 
 ```{r}
 #| label: Preference Slope Plot
+# Forest plot of the slope for each tone: change in message rating per 1-point higher
+# preference for that tone, with 95% intervals
 as_tibble(pref_slopes) |>
   ggplot(aes(x = pref_dev.trend, y = fct_reorder(tone, pref_dev.trend))) +
   geom_vline(xintercept = 0, linetype = "dashed") +

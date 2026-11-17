@@ -14,8 +14,10 @@ editor_options:
 
 ## Code Status
 
-Draft. Written without access to the data and NOT YET RUN. Run chunk by chunk
-and expect small fixes. Sections are independent after Setup, except that
+Runs end to end. Last rendered 2026-11-16 with no errors (see the `.html` beside this file).
+Feeds Sections 7.11 (Part A) and 7.9 (Part B) of the capstone write-up.
+
+Sections are independent after Setup, except that
 Sections 5 to 8 need the "Assignment machinery" chunks at the start of Part B.
 
 ## Purpose
@@ -257,6 +259,7 @@ summary(lm_text)$coefficients |> round(3)
 ```{r}
 #| label: Text Plot
 #| eval: !expr have_messages
+# Each message's mean rating against its word count, with one overall trend line
 message_stats |>
   ggplot(aes(x = n_words, y = mean_rating, color = tone, shape = style)) +
   geom_point(size = 2) +
@@ -344,6 +347,7 @@ emmeans::emmeans(m_pos2, ~ position_f | tone_f, lmer.df = "asymptotic") |>
 
 ```{r}
 #| label: Position Plot
+# Mean rating of each tone in each rating block (in the order shown), with 95% intervals
 panel_long |>
   summarise(rating = mean(rating_num), .by = c(subid, position, tone)) |>
   summarise(mean = mean(rating), se = sd(rating) / sqrt(n()), .by = c(position, tone)) |>

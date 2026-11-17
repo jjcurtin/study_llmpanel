@@ -16,8 +16,8 @@ params:
 
 ## Code Status
 
-Draft. Written without access to the data and NOT YET RUN. Run chunk by chunk
-and expect small fixes.
+Runs end to end. Last rendered 2026-11-16 with no errors (see the `.html` beside this file).
+Feeds Section 7.8 of the capstone write-up (robustness of the method comparison).
 
 ## Purpose
 
@@ -35,6 +35,9 @@ and expect small fixes.
 
 ```{r}
 #| label: Setup
+# Load packages and this study's functions, then read the cleaned panel in long format
+# (one row per message rating). The seed makes the cross-validation folds and bootstrap
+# resamples repeatable.
 options(conflicts.policy = "depends.ok")
 library(tidyverse)
 
@@ -319,6 +322,8 @@ heldout_summary
 
 ```{r}
 #| label: Held-Out Plot
+# Forest plot: each method's held-out mean difference from the reference method, with
+# its 95% bootstrap interval
 heldout_summary |>
   filter(method != reference) |>
   ggplot(aes(x = diff_vs_ref, y = fct_reorder(method, diff_vs_ref))) +

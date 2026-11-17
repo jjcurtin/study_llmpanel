@@ -215,6 +215,7 @@ rating_tests |> mutate(across(where(is.numeric) & !p, \(x) round(x, 3)), p = fmt
 
 ```{r}
 #| label: Rating level plot
+# Box plot of each respondent's mean message rating, by survey order
 respondent |>
   ggplot(aes(x = pref_order, y = mean_rating, fill = pref_order)) +
   geom_boxplot(show.legend = FALSE) +
@@ -246,6 +247,7 @@ aov_rating
 
 ```{r}
 #| label: Tone by order plot
+# Mean rating of each tone in each survey order, with 95% intervals
 rating_by_tone |>
   summarise(mean = mean(rating), se = sd(rating) / sqrt(n()), .by = c(pref_order, tone)) |>
   mutate(tone = fct_reorder(str_to_sentence(str_replace(tone, "_", " ")), mean)) |>
@@ -363,6 +365,8 @@ straight_test
 
 ```{r}
 #| label: Preference by tone
+# Mean stated preference for each tone in each survey order, then a mixed ANOVA on the
+# preference scores (tone within respondents, survey order between)
 pref_by_tone |>
   summarise(mean = mean(pref, na.rm = TRUE), .by = c(pref_order, tone)) |>
   pivot_wider(names_from = pref_order, values_from = mean) |>
@@ -413,6 +417,8 @@ wilcox.test(r ~ pref_order, data = agreement)
 
 ```{r}
 #| label: Agreement plot
+# Histogram of each respondent's correlation between stated preference and mean rating
+# across the five tones, one panel per survey order
 agreement |>
   drop_na(r) |>
   ggplot(aes(x = r, fill = pref_order)) +
@@ -473,6 +479,7 @@ slopes_order_tone
 
 ```{r}
 #| label: Slope plot
+# Slope of rating on preference for each tone within each survey order, with 95% intervals
 as_tibble(slopes_order_tone) |>
   mutate(tone = str_to_sentence(str_replace(as.character(tone), "_", " "))) |>
   ggplot(aes(x = pref_dev.trend, y = tone, color = pref_order)) +
@@ -535,6 +542,7 @@ tibble(comparison = "Messages first minus Preferences first",
 
 ```{r}
 #| label: Level correlation plot
+# Each respondent's mean stated preference against their mean message rating, by survey order
 respondent |>
   drop_na(mean_pref, mean_rating) |>
   ggplot(aes(mean_pref, mean_rating)) +

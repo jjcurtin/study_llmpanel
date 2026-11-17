@@ -1,5 +1,5 @@
 ---
-title: "Panel EDA"
+title: "Panel Recipes"
 format: 
   html:
     page-layout: full
@@ -33,8 +33,8 @@ plot_grid <- cowplot::plot_grid
 source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
 source("https://github.com/jjcurtin/lab_support/blob/main/fun_eda.R?raw=true")
 source("https://github.com/jjcurtin/lab_support/blob/main/fun_plots.R?raw=true")
-source("https://github.com/jjcurtin/study_llmpanel/blob/main/scripts/configs_llmpanel.R?raw=true")
-source("https://github.com/jjcurtin/study_llmpanel/blob/main/scripts/functions_llmpanel.R?raw=true")
+source(here::here("scripts", "configs_llmpanel.R"))
+source(here::here("scripts", "functions_llmpanel.R"))
 
 # Keep tidyverse/base versions of masked objects so tidymodels attaches under depends.ok
 conflictRules("scales", exclude = c("discard", "col_factor"))

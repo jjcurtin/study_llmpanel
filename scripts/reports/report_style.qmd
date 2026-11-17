@@ -20,7 +20,6 @@ options(conflicts.policy = "depends.ok")
 library(tidyverse)
 source("https://github.com/jjcurtin/lab_support/blob/main/format_path.R?raw=true")
 source(here::here("scripts", "functions_llmpanel.R"))
-#source("https://github.com/jjcurtin/study_llmpanel/blob/main/scripts/functions_llmpanel.R?raw=true")
 
 path_processed <- format_path("llmpanel/data_processed")
 raw_panel <- read_csv(here::here(path_processed, "panel.csv"), show_col_types = FALSE)

@@ -1,3 +1,34 @@
+# Functions for the LLM panel study (study_llmpanel).
+# Requires tidyverse. The recipe functions (section 2) also need tidymodels and
+# configs_llmpanel.R, sourced first.
+#
+# Contents
+#   1. Suspicion index: compare_plot(), split_panel(), prop_table()
+#        Used by scripts/eda/4_suspicion_index.qmd, which is part of the cleaning
+#        pipeline and sources this file from GitHub. Keep these three functions here.
+#   2. Model data prep and recipes: resolve_interactions(), prep_llmpanel_data(),
+#        rec_llmpanel_base(), rec_llmpanel(), review_features(), count_predictors()
+#        Used by scripts/eda/6_panel_recipes.qmd and configs_llmpanel.R.
+#   3. Data formatting: format_eda()
+#        Used by every analysis script and report.
+#   4. Descriptive plots and tests: plot_change_from_top(), plot_ratings_by_pref_top(),
+#        plot_change_from_pref_top(), compare_groups()
+#        Used by scripts/eda/panel_desc.qmd.
+#   5. Tone assignment methods, first round (data-frame based): plot_rating_hist(),
+#        extreme_tones_wide(), tied_tones_long(), track_method(), compare_methods(),
+#        drop_least_preferred(), preference_weights(), tier_weights(), weighted_method(),
+#        tune_weighted_methods(), data_driven_weights()
+#        Used by tone_assignment_methods.qmd, followup_analyses.qmd and heldout_methods.qmd.
+#   6. Tone preference report helpers: add_pref_extremes(), pref_group_ids(),
+#        plot_ratings_by_groups(), plot_ratings_by_tier()
+#        Used by scripts/reports/report_prefs.qmd.
+#
+# The held-out (matrix-based) assignment helpers are in functions_assignment.R.
+
+# ---------------------------------------------------------------------------
+# 1. Suspicion index
+# ---------------------------------------------------------------------------
+
 # 3-way comparison histogram for suspicion index
 compare_plot <- function(var,
                          top = NULL,
@@ -115,6 +146,10 @@ prop_table <- function(var, full = NULL, eligible = NULL, rejected = NULL) {
     )
 }
 #----------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# 2. Model data prep and recipes
+# ---------------------------------------------------------------------------
 
 # Model data prep and recipe builder
 # Requires tidyverse and tidymodels to be loaded, and configs_llmpanel.R to be
@@ -353,6 +388,10 @@ review_features <- function(feat) {
 count_predictors <- \(r)
 r |> prep() |> bake(new_data = NULL) |> select(-subid, -message_rating) |> ncol()
 
+# ---------------------------------------------------------------------------
+# 3. Data formatting
+# ---------------------------------------------------------------------------
+
 # Format the wide panel. With long = TRUE, return one row per message rating instead:
 # the demographic and preference columns plus survey_version, context, style, tone,
 # message_rating (text), and rating_num (1-7).
@@ -466,6 +505,10 @@ format_eda <- function (d, long = FALSE){
 }
 
 
+
+# ---------------------------------------------------------------------------
+# 4. Descriptive plots and tests
+# ---------------------------------------------------------------------------
 
 # Change in mean message rating from a reference tone to every other tone,
 # among respondents whose highest-rated tone (ties included) is the reference.
@@ -635,7 +678,7 @@ compare_groups <- function(data, group, cols) {
 }
 
 # ---------------------------------------------------------------------------
-# Tone assignment methods (used by scripts/tone_assignment_methods.qmd)
+# 5. Tone assignment methods, first round (used by scripts/tone_assignment_methods.qmd)
 # Requires tidyverse to be loaded. `tone_means` is a data frame of each
 # respondent's mean rating per tone (subid, tone, rating).
 # ---------------------------------------------------------------------------
@@ -988,7 +1031,7 @@ data_driven_weights <- function(prefs) {
 }
 
 # ---------------------------------------------------------------------------
-# Helpers for the tone preference report (scripts/reports/report_prefs.qmd)
+# 6. Helpers for the tone preference report (scripts/reports/report_prefs.qmd)
 # ---------------------------------------------------------------------------
 
 # Add each respondent's highest- and lowest-preferred tone(s) and a straightliner flag.

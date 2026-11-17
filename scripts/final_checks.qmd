@@ -14,8 +14,10 @@ editor_options:
 
 ## Code Status
 
-Draft. Written without access to the data and NOT YET RUN. Run chunk by chunk
-and expect small fixes.
+Runs end to end. Last rendered 2026-11-16 with no errors (see the `.html` beside this file).
+Feeds the capstone write-up: the sample table (7.2), the style gap by tone (7.4), the
+method refinements and fairness tests (7.9), and the stricter-exclusion and reading-level
+checks (7.11).
 
 ## Purpose
 
@@ -34,6 +36,9 @@ and expect small fixes.
 
 ```{r}
 #| label: Setup
+# Load packages and study functions (functions_assignment.R holds the method and
+# cross-validation helpers), read the cleaned panel, and set the seed and the settings
+# shared by every section
 options(conflicts.policy = "depends.ok")
 library(tidyverse)
 
@@ -163,6 +168,10 @@ means it is real but smaller than 0.25 points.
 
 ```{r}
 #| label: Assignment Data
+# P: respondent x tone matrix of stated preferences, rows in a fixed order.
+# prep_style(): for one style setting, the respondent x tone matrix of mean ratings (M),
+# the number of messages behind each tone mean, and the residual SD from a mixed model
+# (needed for the noise-corrected worse-off shares).
 pref_wide <- panel_long |>
   distinct(subid, across(all_of(pref_cols))) |>
   arrange(subid)
@@ -257,6 +266,9 @@ map(set_names(pref_methods), \(nm) {
 
 ```{r}
 #| label: Rule Reach
+# How many respondents each rule touches: norms in the highest preference tier, norms
+# strictly highest, all three top tones tied, any tie among them. Then, for each
+# preference-based method, how far its rotations depart from the fixed 50/30/20 rotation.
 tibble(
   norms_tier = apply(P, 1, \(p) p[["norms"]] == max(p) && min(p) < max(p)),
   norms_strict = apply(P, 1, \(p) p[["norms"]] > max(p[names(p) != "norms"])),
