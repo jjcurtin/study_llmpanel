@@ -33,3 +33,7 @@ _site/
 *.feather
 *.sav
 *.dta
+
+# documents kept locally only
+hilldale_submission.pdf
+maggardcolin_thesis.pdf
